@@ -124,7 +124,10 @@ class LeadRepositorioJpa implements LeadRepositorio {
                 raiz.get(LeadEntity.Campos.NUM_ATENDIMENTOS),
                 raiz.get(LeadEntity.Campos.NUM_MENSAGENS),
                 raiz.get(LeadEntity.Campos.CRIADO_EM),
-                raiz.get(LeadEntity.Campos.ULTIMA_INTERACAO_EM)));
+                raiz.get(LeadEntity.Campos.ULTIMA_INTERACAO_EM),
+                cb.<String>selectCase().when(cb.isNotNull(raiz.get("fotoReferencia")),
+                    cb.concat(cb.concat("/api/v1/leads/", raiz.get("id").as(String.class)), "/foto"))
+                    .otherwise(raiz.get("fotoUrl"))));
 
         consulta.where(especificacao.toPredicate(raiz, consulta, cb));
         consulta.orderBy(cb.asc(raiz.get(LeadEntity.Campos.NOME)));
@@ -137,6 +140,18 @@ class LeadRepositorioJpa implements LeadRepositorio {
         // Ficha compoe a participacao ativa com a carteira, antes de ler o recurso.
         // A listagem da Agenda permanece no recorte base; convite pendente nao entra.
         return entidadeVisivel(id).map(LeadEntity::paraDominio);
+    }
+
+    @Override
+    public Optional<Lead> porIdParaAtualizacao(UUID id) {
+        var cb = em.getCriteriaBuilder();
+        var consulta = cb.createQuery(LeadEntity.class);
+        var raiz = consulta.from(LeadEntity.class);
+        var spec = VisibilidadeLeadSpecification.comParticipacao(visibilidadeAtual())
+                .and((lead, ignorada, builder) -> builder.equal(lead.get(LeadEntity.Campos.ID), id));
+        consulta.select(raiz).where(spec.toPredicate(raiz, consulta, cb));
+        return em.createQuery(consulta).setLockMode(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+                .getResultList().stream().findFirst().map(LeadEntity::paraDominio);
     }
 
     @Override
@@ -246,6 +261,26 @@ class LeadRepositorioJpa implements LeadRepositorio {
     private Optional<LeadEntity> entidadeVisivel(UUID id) {
         return jpa.findOne(VisibilidadeLeadSpecification.comParticipacao(visibilidadeAtual())
                 .and((raiz, consulta, cb) -> cb.equal(raiz.get(LeadEntity.Campos.ID), id)));
+    }
+
+    @Override
+    public boolean atualizarFotoSeInalterada(UUID id, FotoDoLead esperada, String telefone,
+            String referencia, String hash, Instant quando) {
+        var entidade = entidadeVisivel(id).orElse(null);
+        if (entidade == null) return false;
+        em.flush();
+        boolean alterada = em.createNativeQuery("""
+                UPDATE lead SET foto_referencia=:referencia, foto_hash=:hash, foto_atualizada_em=:quando
+                WHERE id=:id AND telefone=:telefone AND NULLIF(btrim(foto_url), '') IS NULL
+                  AND foto_referencia IS NOT DISTINCT FROM CAST(:anterior AS varchar)
+                  AND foto_hash IS NOT DISTINCT FROM CAST(:hashAnterior AS varchar)
+                """)
+                .setParameter("referencia", referencia).setParameter("hash", hash).setParameter("quando", quando)
+                .setParameter("id", id).setParameter("telefone", telefone)
+                .setParameter("anterior", esperada.referencia()).setParameter("hashAnterior", esperada.hash())
+                .executeUpdate() == 1;
+        if (alterada) em.refresh(entidade);
+        return alterada;
     }
 
     private Specification<LeadEntity> visibilidade() {

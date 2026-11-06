@@ -11,6 +11,7 @@ import {
 } from "@/lib/atendimento/atualizacao-do-painel";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { ehAvisoPainelOperacional } from "@/lib/atendimento/aviso-painel-operacional";
+import { ehAvisoDeFotoDoLead, invalidarFotosDeLeads } from "@/lib/atendimento/aviso-de-foto-do-lead";
 import { ehAvisoDeCancelamentos } from "@/lib/cancelamentos/aviso";
 import {
   chaveTecnicaDaNotificacao,
@@ -65,6 +66,11 @@ export function NotificacoesTempoReal() {
 
   const aoReceber = useCallback((notificacao: NotificacaoTempoReal) => {
     const bruto: unknown = notificacao;
+    if (ehAvisoDeFotoDoLead(bruto)) {
+      if (!acessoClientes) return;
+      invalidarFotosDeLeads(cache);
+      return; // Não é mensagem: sem som/toast e sem alterar autoria ou histórico.
+    }
     if (!acessoClientes && !ehAvisoDeAcessoAlterado(bruto) && !ehAvisoDePresencaAlterada(bruto)
       && !notificacao.tipo.startsWith("CHAT_INTERNO_")) return;
     if (ehAvisoDeCancelamentos(bruto)) {
@@ -124,7 +130,9 @@ export function NotificacoesTempoReal() {
     if (decisao.atualizarAtendimentos) {
       // E209: este ouvinte vive no layout (todas as páginas) e recebe ATENDIMENTO_ESTADO de cada
       // mensagem visível ao papel; o agendador junta a rajada e o eco da tela de Atendimentos.
-      atualizarPainelDeAtendimentos(cache, pedidoDaNotificacao(notificacao));
+      const pedido = pedidoDaNotificacao(notificacao);
+      if (notificacao.tipo.startsWith("CHAT_INTERNO_")) pedido.atualizarContagem = false;
+      atualizarPainelDeAtendimentos(cache, pedido);
     }
     if (decisao.atualizarChatInterno) {
       void cache.invalidateQueries({ queryKey: ["chat-interno"] });
@@ -148,8 +156,9 @@ export function NotificacoesTempoReal() {
     if (ciclo > 0) {
       void cache.invalidateQueries({ queryKey: ["me"] });
       void cache.invalidateQueries({ queryKey: ["cancelamentos"] });
+      if (acessoClientes) invalidarFotosDeLeads(cache);
     }
-  }, [ciclo, cache]);
+  }, [ciclo, cache, acessoClientes]);
 
   useEffect(() => registrarDesbloqueioDeAudio(), []);
   useEffect(() => {

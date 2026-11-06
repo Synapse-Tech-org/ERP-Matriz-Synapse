@@ -165,6 +165,17 @@ services:
   backend:
     image: ghcr.io/synapse-auto/erp-matriz-synapse-backend:${SYNAPSE_IMAGE_TAG:?obrigatoria}
     environment:
+      DARWIN_HABILITADO: ${DARWIN_HABILITADO:-false}
+      DARWIN_URL: ${DARWIN_URL:-https://developers.darwin.med.br}
+      DARWIN_TOKEN: ${DARWIN_TOKEN:-}
+      DARWIN_CONCORRENCIA: ${DARWIN_CONCORRENCIA:-2}
+      DARWIN_TIMEOUT_CONEXAO: ${DARWIN_TIMEOUT_CONEXAO:-2s}
+      DARWIN_TIMEOUT_CONSULTA: ${DARWIN_TIMEOUT_CONSULTA:-10s}
+      DARWIN_VALIDADE_PREVIA: ${DARWIN_VALIDADE_PREVIA:-5m}
+      DARWIN_MAX_RESPOSTA_BYTES: ${DARWIN_MAX_RESPOSTA_BYTES:-524288}
+      DARWIN_CIRCUITO_MINIMO: ${DARWIN_CIRCUITO_MINIMO:-5}
+      DARWIN_CIRCUITO_LIMIAR: ${DARWIN_CIRCUITO_LIMIAR:-50}
+      DARWIN_CIRCUITO_ESPERA: ${DARWIN_CIRCUITO_ESPERA:-30s}
       SERVER_PORT: "8080"
       TZ: ${SYNAPSE_TIMEZONE:?obrigatoria}
       SYNAPSE_APP_NAME: ${SYNAPSE_APP_NAME:-synapse-crm}
@@ -221,10 +232,13 @@ services:
       WHATSAPP_PROVEDOR: ${WHATSAPP_PROVEDOR:-meta-cloud}
       WHATSAPP_URL_BASE: ${WHATSAPP_URL_BASE:-https://graph.facebook.com/v21.0}
       WHATSAPP_NUMERO: ${WHATSAPP_NUMERO:?obrigatoria}
+      WHATSAPP_RESTRICAO_NUMEROS_HABILITADA: ${WHATSAPP_RESTRICAO_NUMEROS_HABILITADA:-false}
+      WHATSAPP_NUMEROS_PERMITIDOS: ${WHATSAPP_NUMEROS_PERMITIDOS:-}
       TELEFONE_DDI_PADRAO: ${TELEFONE_DDI_PADRAO:-55}
-      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:?obrigatoria}
-      WHATSAPP_WEBHOOK_VERIFY_TOKEN: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:?obrigatoria}
-      WHATSAPP_WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET:?obrigatoria}
+      # Evolution usa segredos proprios. Ausencia continua falhando fechada no ACL Meta/Uzapi.
+      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
+      WHATSAPP_WEBHOOK_VERIFY_TOKEN: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:-}
+      WHATSAPP_WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET:-}
       # WABA ID. Vazio desabilita apenas listar/criar templates; nao tornar obrigatoria no stack.
       WHATSAPP_CONTA_NEGOCIO: ${WHATSAPP_CONTA_NEGOCIO:-}
       # Variavel legada da E152; a Uzapi/Autotic atual usa somente {version} e
@@ -232,6 +246,17 @@ services:
       WHATSAPP_USUARIO_API: ${WHATSAPP_USUARIO_API:-}
       WHATSAPP_VERSAO_API: ${WHATSAPP_VERSAO_API:-}
       # Preparacao somente; nao ativar antes dos gates de entrada/homologacao.
+      EVOLUTION_HABILITADO: ${EVOLUTION_HABILITADO:-false}
+      EVOLUTION_URL_BASE: ${EVOLUTION_URL_BASE:-}
+      EVOLUTION_INSTANCIA: ${EVOLUTION_INSTANCIA:-}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
+      EVOLUTION_CREDENCIAL_ID: ${EVOLUTION_CREDENCIAL_ID:-}
+      EVOLUTION_WEBHOOK_SEGREDO: ${EVOLUTION_WEBHOOK_SEGREDO:-}
+      EVOLUTION_CONCORRENCIA: ${EVOLUTION_CONCORRENCIA:-1}
+      EVOLUTION_WEBHOOK_LIMITE_CORPO_BYTES: ${EVOLUTION_WEBHOOK_LIMITE_CORPO_BYTES:-1048576}
+      EVOLUTION_LIMITE_RESPOSTA_BYTES: ${EVOLUTION_LIMITE_RESPOSTA_BYTES:-1048576}
+      EVOLUTION_PERMITIR_DESTINO_PRIVADO: ${EVOLUTION_PERMITIR_DESTINO_PRIVADO:-false}
+      EVOLUTION_REPASSE_AUTOMACAO_HABILITADO: ${EVOLUTION_REPASSE_AUTOMACAO_HABILITADO:-false}
       Z_API_HABILITADO: ${Z_API_HABILITADO:-false}
       CANAL_TRANSICAO_SAIDAS_SUSPENSAS: ${CANAL_TRANSICAO_SAIDAS_SUSPENSAS:-false}
       CANAL_TRANSICAO_STATUS_UZAPI_LEGADO: ${CANAL_TRANSICAO_STATUS_UZAPI_LEGADO:-false}
@@ -250,6 +275,16 @@ services:
       Z_API_WEBHOOK_NAMESPACE_STATUS: ${Z_API_WEBHOOK_NAMESPACE_STATUS:-NAO_CONFIRMADO}
       Z_API_REPASSE_AUTOMACAO_HABILITADO: ${Z_API_REPASSE_AUTOMACAO_HABILITADO:-false}
       Z_API_MIDIA_HOSTS_PERMITIDOS: ${Z_API_MIDIA_HOSTS_PERMITIDOS:-}
+      Z_API_FOTO_HABILITADO: ${Z_API_FOTO_HABILITADO:-false}
+      Z_API_FOTO_CACHE_TTL: ${Z_API_FOTO_CACHE_TTL:-6h}
+      Z_API_FOTO_CACHE_NEGATIVO: ${Z_API_FOTO_CACHE_NEGATIVO:-1h}
+      Z_API_FOTO_INTERVALO_ERRO: ${Z_API_FOTO_INTERVALO_ERRO:-15m}
+      Z_API_FOTO_RESERVA: ${Z_API_FOTO_RESERVA:-2m}
+      Z_API_FOTO_TIMEOUT: ${Z_API_FOTO_TIMEOUT:-10s}
+      Z_API_FOTO_CONCORRENCIA: ${Z_API_FOTO_CONCORRENCIA:-1}
+      Z_API_FOTO_LIMITE_BYTES: ${Z_API_FOTO_LIMITE_BYTES:-5242880}
+      Z_API_FOTO_PIXELS_MAXIMOS: ${Z_API_FOTO_PIXELS_MAXIMOS:-24000000}
+      Z_API_FOTO_HOSTS_PERMITIDOS: ${Z_API_FOTO_HOSTS_PERMITIDOS:-pps.whatsapp.net}
       Z_API_MIDIA_ENTRADA_CONCORRENCIA: ${Z_API_MIDIA_ENTRADA_CONCORRENCIA:-1}
       AUTOMACAO_WEBHOOK_REPASSE_TOKEN: ${AUTOMACAO_WEBHOOK_REPASSE_TOKEN:-}
       SERVER_FORWARD_HEADERS_STRATEGY: ${SERVER_FORWARD_HEADERS_STRATEGY:-NONE}
@@ -360,7 +395,7 @@ services:
         # dedicado no proprio stack, senao o router geral pode aplicar CORS e registrar a query
         # secreta. O middleware fica restrito aos dois caminhos de webhook; APIs e WebSocket nao
         # herdam a remocao de Origin nem a politica de observabilidade deste router.
-        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && (PathPrefix(`/webhook/z-api`) || PathPrefix(`/webhook/canal`))'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && (PathPrefix(`/webhook/z-api`) || PathPrefix(`/webhook/canal`) || PathPrefix(`/webhook/evolution`))'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.entrypoints=websecure'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.tls=true'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.tls.certresolver=letsencrypt'

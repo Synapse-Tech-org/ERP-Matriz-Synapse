@@ -106,6 +106,11 @@ resilience4j:
         minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
         failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
         wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+      canal-z-api-foto:
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
       canal-z-api-midia-entrada:
         sliding-window-size: ${CANAL_CB_JANELA:20}
         minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
@@ -158,6 +163,19 @@ resilience4j:
 # Bloco da instancia — docs/07-base-pai-multitenancy.md, secao 4.
 # ---------------------------------------------------------------------------
 synapse:
+  integracoes:
+    darwin:
+      habilitado: ${DARWIN_HABILITADO:false}
+      url: ${DARWIN_URL:https://developers.darwin.med.br}
+      token: ${DARWIN_TOKEN:}
+      concorrencia: ${DARWIN_CONCORRENCIA:2}
+      timeout-conexao: ${DARWIN_TIMEOUT_CONEXAO:2s}
+      timeout-consulta: ${DARWIN_TIMEOUT_CONSULTA:10s}
+      validade-previa: ${DARWIN_VALIDADE_PREVIA:5m}
+      max-resposta-bytes: ${DARWIN_MAX_RESPOSTA_BYTES:524288}
+      circuito-minimo: ${DARWIN_CIRCUITO_MINIMO:5}
+      circuito-limiar: ${DARWIN_CIRCUITO_LIMIAR:50}
+      circuito-espera: ${DARWIN_CIRCUITO_ESPERA:30s}
   # Consulta de leitura independente do chat. Limites iniciais, ajustaveis por configuracao.
   cancelamentos:
     timeout-segundos: 5
@@ -213,6 +231,19 @@ synapse:
     transicao:
       saidas-suspensas: ${CANAL_TRANSICAO_SAIDAS_SUSPENSAS:false}
       status-uzapi-legado: ${CANAL_TRANSICAO_STATUS_UZAPI_LEGADO:false}
+    evolution:
+      habilitado: ${EVOLUTION_HABILITADO:false}
+      url-base: ${EVOLUTION_URL_BASE:}
+      instancia: ${EVOLUTION_INSTANCIA:}
+      api-key: ${EVOLUTION_API_KEY:}
+      credencial-id: ${EVOLUTION_CREDENCIAL_ID:}
+      segredo-webhook: ${EVOLUTION_WEBHOOK_SEGREDO:}
+      timeout: ${WHATSAPP_TIMEOUT:10s}
+      concorrencia: ${EVOLUTION_CONCORRENCIA:1}
+      limite-corpo-bytes: ${EVOLUTION_WEBHOOK_LIMITE_CORPO_BYTES:1048576}
+      limite-resposta-bytes: ${EVOLUTION_LIMITE_RESPOSTA_BYTES:1048576}
+      permitir-destino-privado: ${EVOLUTION_PERMITIR_DESTINO_PRIVADO:false}
+      repasse-automacao-habilitado: ${EVOLUTION_REPASSE_AUTOMACAO_HABILITADO:false}
     z-api:
       habilitado: ${Z_API_HABILITADO:false}
       instancia-id: ${Z_API_INSTANCIA_ID:}
@@ -235,12 +266,25 @@ synapse:
       midia-entrada:
         hosts-permitidos: ${Z_API_MIDIA_HOSTS_PERMITIDOS:}
         concorrencia: ${Z_API_MIDIA_ENTRADA_CONCORRENCIA:1}
+      foto-perfil:
+        habilitado: ${Z_API_FOTO_HABILITADO:false}
+        cache-ttl: ${Z_API_FOTO_CACHE_TTL:6h}
+        cache-negativo: ${Z_API_FOTO_CACHE_NEGATIVO:1h}
+        intervalo-erro: ${Z_API_FOTO_INTERVALO_ERRO:15m}
+        reserva: ${Z_API_FOTO_RESERVA:2m}
+        timeout: ${Z_API_FOTO_TIMEOUT:10s}
+        concorrencia: ${Z_API_FOTO_CONCORRENCIA:1}
+        limite-bytes: ${Z_API_FOTO_LIMITE_BYTES:5242880}
+        pixels-maximos: ${Z_API_FOTO_PIXELS_MAXIMOS:24000000}
+        hosts-permitidos: ${Z_API_FOTO_HOSTS_PERMITIDOS:pps.whatsapp.net}
     whatsapp:
       # A UNICA chave que decide qual adaptador de canal roda. Trocar de provedor
       # para um filho e mudar esta variavel — nao ha `if` em lugar nenhum do codigo.
       provedor: ${WHATSAPP_PROVEDOR:meta-cloud}
       url-base: ${WHATSAPP_URL_BASE:https://graph.facebook.com/v21.0}
       numero-principal: ${WHATSAPP_NUMERO:}
+      restricao-numeros-habilitada: ${WHATSAPP_RESTRICAO_NUMEROS_HABILITADA:false}
+      numeros-permitidos: ${WHATSAPP_NUMEROS_PERMITIDOS:}
       token: ${WHATSAPP_TOKEN:}
       # Dois segredos distintos por contrato da Meta. O verify token e escolhido
       # pela instancia e valida apenas o GET de cadastro; o App Secret calcula o

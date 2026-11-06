@@ -402,12 +402,16 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `AUTOMACAO_AVALIACAO_MINIMO_CHAMADAS_CIRCUITO` / `AUTOMACAO_AVALIACAO_ESPERA_CIRCUITO` | 5 amostras / 30s; circuito exclusivo de avaliação. |
 | `AUTOMACAO_AVALIACAO_INTERVALO_MS` | 1000ms; desabilitado com o agendamento global nos testes. |
 | `WHATSAPP_NUMERO` | Identificador do número de telefone na Meta Cloud API. |
+| `WHATSAPP_RESTRICAO_NUMEROS_HABILITADA` | `false` | Bloqueia entrada e saída fora de `WHATSAPP_NUMEROS_PERMITIDOS`; `true` com lista vazia/inválida bloqueia todos. |
+| `WHATSAPP_NUMEROS_PERMITIDOS` | vazio | Telefones completos em dígitos, separados por vírgula; usa a normalização canônica do CRM, sem comparação por sufixo. |
 | `WHATSAPP_TOKEN` | Token de acesso da Meta usado nas chamadas de saída. |
 | `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Token escolhido pela instância para o desafio `GET` do webhook. |
 | `WHATSAPP_WEBHOOK_SECRET` | App Secret da Meta, usado somente no HMAC dos `POST` do webhook. |
 
 Os dois segredos do webhook são deliberadamente distintos e não podem ser reutilizados um no
 lugar do outro.
+
+Para ativar a allowlist temporária de homologação, consulte [Restrição de números do WhatsApp](docs/61-restricao-numeros-whatsapp.md).
 
 Avaliação após encerramento: consulte o [runbook E83](docs/35-runbook-webhook-avaliacao.md)
 antes de ativar. Lote e atendimento sem responsável não iniciam pesquisa. Ativação,
@@ -431,6 +435,17 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `WHATSAPP_CONTA_NEGOCIO` | vazio | WABA ID, necessário para listar/criar templates. Não é o Phone Number ID; vazio desabilita somente a administração de templates. |
 | `WHATSAPP_USUARIO_API` | vazio (legada) | Mantida por compatibilidade com E152; a Uzapi/Autotic atual não usa username, nem exige esta variável. |
 | `WHATSAPP_VERSAO_API` | vazio | `{version}` das rotas da Uzapi/Autotic (E152, provedor `uzapi-autotic`). Só esse adaptador usa; vazio não afeta `meta-cloud`. |
+| `EVOLUTION_HABILITADO` | `false` | Opt-in Baileys 2.3.7, somente na nova instancia. [Provisionamento](docs/integracoes/evolution-api/provisionamento.md). |
+| `EVOLUTION_URL_BASE` | vazio | Origin HTTPS exato da API, sem path/query/credencial. |
+| `EVOLUTION_INSTANCIA` | vazio | Nome da instancia Baileys; deve coincidir com `WHATSAPP_NUMERO`. |
+| `EVOLUTION_API_KEY` | vazio | Chave de saida `apikey`, somente no ambiente. |
+| `EVOLUTION_CREDENCIAL_ID` | vazio | UUID real gerado pelo cadastro do canal. |
+| `EVOLUTION_WEBHOOK_SEGREDO` | vazio | Segredo aleatorio exclusivo do header `X-Evolution-Webhook-Token`, minimo 43 caracteres base64url. |
+| `EVOLUTION_CONCORRENCIA` | `1` | Bulkhead do adaptador; timeout herdado de `WHATSAPP_TIMEOUT`. |
+| `EVOLUTION_WEBHOOK_LIMITE_CORPO_BYTES` | `1048576` | Teto do callback autenticado, sem Base64 no webhook. |
+| `EVOLUTION_LIMITE_RESPOSTA_BYTES` | `1048576` | Teto das respostas JSON de envio/consulta; binario recebido usa spool e limites de anexos. |
+| `EVOLUTION_PERMITIR_DESTINO_PRIVADO` | `false` | Opt-in somente ao origin explicitamente configurado, sem redirects; nao libera URLs do payload. |
+| `EVOLUTION_REPASSE_AUTOMACAO_HABILITADO` | `false` | Ativar somente com consumidor Evolution adaptado e token HTTPS exclusivo. |
 | `Z_API_HABILITADO` | `false` | Opt-in do adaptador; manter OFF até o [roteiro de homologação protegida](docs/integracoes/z-api/homologacao-protegida.md). |
 | `CANAL_TRANSICAO_SAIDAS_SUSPENSAS` | `false` | Pausa novas saidas/dispatcher/programadas sem derrubar leitura de Atendimentos. Usar `true` no primeiro deploy da transicao produtiva. Ver [roteiro](docs/integracoes/z-api/transicao-produtiva.md). |
 | `CANAL_TRANSICAO_STATUS_UZAPI_LEGADO` | `false` | Com Z-API ativa, conserva somente status autenticados na URL Uzapi antiga; exige segredo original e metadados de transicao. Nao recebe mensagens nem repassa ao n8n. |
@@ -457,6 +472,12 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `CANAL_FOTO_PERFIL_CONCORRENCIA` / `CANAL_FOTO_PERFIL_FILA` | `2` / `100` | Bulkhead da captura assíncrona; não compartilha threads com o chat. |
 | `CANAL_FOTO_PERFIL_LIMITE_BYTES` | `5242880` | Limite de bytes aceito na resposta da foto; o processador de imagens mantém suas validações. |
 | `CANAL_FOTO_PERFIL_HOSTS_PERMITIDOS` | `pps.whatsapp.net` | Hosts exatos (vírgula) de onde a foto pode ser baixada além do host da UZAPI. A UZAPI devolve a URL do CDN de fotos do WhatsApp. Vazio = só o host da UZAPI. Valor com esquema, porta, caminho, IP ou curinga derruba o boot. |
+| `Z_API_FOTO_HABILITADO` | `false` | Coleta de foto do lead por atividade, somente no canal Z-API. Ativar explicitamente na Fêmina; sem efeito nos outros canais. |
+| `Z_API_FOTO_CACHE_TTL` / `Z_API_FOTO_CACHE_NEGATIVO` / `Z_API_FOTO_INTERVALO_ERRO` | `6h` / `1h` / `15m` | Cache durável positivo, ausência e falha; sem polling. |
+| `Z_API_FOTO_RESERVA` / `Z_API_FOTO_TIMEOUT` | `2m` / `10s` | Lease entre réplicas e timeout por HTTP; reserva deve exceder dois timeouts. |
+| `Z_API_FOTO_CONCORRENCIA` | `1` | Bulkhead HTTP de fotos, independente do envio. Executor usa `CANAL_FOTO_PERFIL_CONCORRENCIA`/`FILA`. |
+| `Z_API_FOTO_LIMITE_BYTES` / `Z_API_FOTO_PIXELS_MAXIMOS` | `5242880` / `24000000` | Limites do download e da imagem antes de decodificar. |
+| `Z_API_FOTO_HOSTS_PERMITIDOS` | `pps.whatsapp.net` | Hosts exatos de CDN, HTTPS, DNS público, sem redirects nem credenciais. [Política e homologação](docs/integracoes/z-api/foto-de-perfil-do-lead.md). |
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
 | `WEBHOOK_MAX_TENTATIVAS` | `5` | Tentativas reais contra a Meta na fila de entrada. Disjuntor aberto não consome. |
 | `META_PRECIFICACAO_INTERVALO_MS` | `30000` | Intervalo opcional do job de classificação de preço observado em `statuses[].pricing`; não calcula tarifa nem participa do envio. |
@@ -474,6 +495,13 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `CHAT_INTERNO_DOWNLOAD_CONCORRENCIA` | `2` | Downloads binários simultâneos do chat interno por réplica; excedentes recebem 503 recuperável, sem esperar. |
 | `CHAT_INTERNO_DOWNLOAD_CB_JANELA`, `CHAT_INTERNO_DOWNLOAD_CB_MINIMO`, `CHAT_INTERNO_DOWNLOAD_CB_LIMIAR`, `CHAT_INTERNO_DOWNLOAD_CB_ESPERA` | `10`, `5`, `50`, `30s` | Circuit breaker exclusivo do download interno. Opcionais; sem ação obrigatória no Dokploy. |
 | `FEATURE_CAMPANHAS` | `false` | Só ligar quando a aba de Campanhas entrar no escopo. |
+| `DARWIN_HABILITADO` | `false` | Darwin médico: consulta manual por CPF **conhecido**, com prévia de nome, CPF e e-mail e confirmação antes de aplicar na ficha do lead. Habilitar somente na Fêmina após homologação. Não descobre CPF por telefone. [Contrato e roteiro](docs/darwin-identidade-lead.md). |
+| `DARWIN_URL` | `https://developers.darwin.med.br` | Origem exata da coleção Darwin médica; somente HTTPS nesse host em produção. Não utilizar a API de outro produto chamado Darwin. |
+| `DARWIN_TOKEN` | vazio | Bearer token médico exclusivo do backend, com escopo do local/profissional. Nunca no frontend/banco/logs. Opcional com recurso OFF. |
+| `DARWIN_CONCORRENCIA` | `2` | Consultas simultâneas por réplica, sem fila de espera. |
+| `DARWIN_TIMEOUT_CONEXAO`, `DARWIN_TIMEOUT_CONSULTA` | `2s`, `10s` | Conexão e prazo da consulta única por CPF, sem retries automáticos. |
+| `DARWIN_VALIDADE_PREVIA`, `DARWIN_MAX_RESPOSTA_BYTES` | `5m`, `524288` | Validade da confirmação e limite do corpo de cada resposta HTTP. |
+| `DARWIN_CIRCUITO_MINIMO`, `DARWIN_CIRCUITO_LIMIAR`, `DARWIN_CIRCUITO_ESPERA` | `5`, `50`, `30s` | Circuito exclusivo Darwin por réplica: chamadas mínimas, percentual de falha e espera. |
 | `FEATURE_CHAT_INTERNO`, `FEATURE_FIDELIZACAO` | `true` | Corte de capacidade por filho. |
 | `BACKEND_REPLICAS`, `FRONTEND_REPLICAS` | `1` | Escala horizontal; o Redis já é o backplane do WebSocket. |
 | `BACKEND_MEMORY_LIMIT` | `1536M` | Limite de memória por réplica do Spring Boot. |

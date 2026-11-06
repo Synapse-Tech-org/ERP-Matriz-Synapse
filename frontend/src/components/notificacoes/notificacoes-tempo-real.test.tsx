@@ -82,9 +82,9 @@ vi.mock("next/navigation", () => ({
 
 import { NotificacoesTempoReal } from "./notificacoes-tempo-real";
 
-function renderizar() {
+function renderizar(cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider client={cliente}>
       <NotificacoesTempoReal />
     </QueryClientProvider>,
   );
@@ -183,6 +183,24 @@ describe("NotificacoesTempoReal", () => {
     expect(mocks.push).toHaveBeenCalledWith("/chat-interno?conversaId=conversa-1");
   });
 
+  it("mensagem interna invalida a sidebar de Atendimentos mesmo sem a página estar montada", () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidar = vi.spyOn(cliente, "invalidateQueries");
+    render(<QueryClientProvider client={cliente}><NotificacoesTempoReal /></QueryClientProvider>);
+    act(() => mocks.callback?.({
+      tipo: "CHAT_INTERNO_MENSAGEM",
+      eventoId: "evento-interno-sidebar",
+      dados: {
+        conversaId: "conversa-sidebar", mensagemId: "mensagem-sidebar", remetenteId: "outro", remetenteNome: "João",
+        tipo: "TEXTO", conteudo: "Resumo novo", midiaMetadados: null, enviadoEm: "2026-09-10T12:00:00Z",
+      },
+    }));
+
+    expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }));
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["chat-interno"] });
+    expect(invalidar).not.toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos", "contagem"] }));
+  });
+
   it("exibe convite, oferece abrir convite e navega para o atendimento pendente", () => {
     renderizar();
     act(() => mocks.callback?.({
@@ -244,6 +262,17 @@ describe("NotificacoesTempoReal — ACESSO_ALTERADO (Gestão, docs/47)", () => {
     act(()=>mocks.callback?.({tipo:"CANCELAMENTOS_ALTERADOS",eventoId:"cancel-1",dados:{}} as unknown as NotificacaoTempoReal));
     expect(invalidar).toHaveBeenCalledWith({queryKey:["cancelamentos"]},{cancelRefetch:false});
     expect(invalidar).not.toHaveBeenCalledWith({queryKey:["atendimentos"]});
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("foto atualizada invalida avatares, ficha, lista e Agenda sem toast ou navegação", () => {
+    const cliente = new QueryClient(); const invalidar = vi.spyOn(cliente, "invalidateQueries");
+    renderizarCom(cliente); invalidar.mockClear(); mocks.push.mockClear();
+    act(() => mocks.callback?.({ tipo: "FOTOS_LEADS_ATUALIZADAS", eventoId: "foto-1", dados: {} } as unknown as NotificacaoTempoReal));
+    for (const chave of ["avatar", "atendimentos", "agenda", "lead"]) {
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: [chave] }, { cancelRefetch: false });
+    }
+    expect(mocks.push).not.toHaveBeenCalled();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
@@ -449,6 +478,9 @@ describe("presença alterada pelo sistema (E223)", () => {
     renderizarComCliente(cliente);
 
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["me"] });
+    for (const chave of ["avatar", "atendimentos", "agenda", "lead"]) {
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: [chave] }, { cancelRefetch: false });
+    }
   });
 
   it("sem nenhuma conexão ainda não relê nada", () => {

@@ -51,6 +51,9 @@ public interface LeadRepositorio {
      */
     Optional<Lead> porId(UUID id);
 
+    /** Mesmo recorte da ficha, com bloqueio de linha para confirmação concorrente de identidade. */
+    Optional<Lead> porIdParaAtualizacao(UUID id);
+
     /** Somente CPF/telefone do cadastro atual, com a mesma Specification da ficha. */
     Optional<IdentificacaoLead> identificacao(UUID id);
 
@@ -132,4 +135,8 @@ public interface LeadRepositorio {
      * @return {@code false} se o lead sumiu ou nao e visivel
      */
     boolean atualizarFoto(UUID leadId, String referencia, String hash, Instant quando);
+
+    /** Compare-and-set do enriquecimento: não substitui URL manual, telefone ou foto concorrente. */
+    boolean atualizarFotoSeInalterada(UUID leadId, FotoDoLead esperada, String telefone,
+            String referencia, String hash, Instant quando);
 }
