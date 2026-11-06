@@ -300,19 +300,29 @@ Sem os cinco, o agregado fica protegido só pela camada 2.
 ### Stack de homologação no Dokploy
 
 O arquivo [`docker/dokploy-stack.yml`](docker/dokploy-stack.yml) descreve os sete serviços da
-instância: PostgreSQL, Redis, RabbitMQ, MinIO, backend, frontend e n8n. Ele é para **Docker Stack
-(Swarm)** e referencia somente imagens pré-compiladas. O CI publica backend e frontend no GHCR com
+instância: PostgreSQL, Redis, RabbitMQ, MinIO, backend, frontend e n8n, mais um servico
+TypeScript opcional `automacao` (zero replicas por padrao). Ele é para **Docker Stack
+(Swarm)** e referencia somente imagens pré-compiladas. O CI publica backend, frontend e automacao no GHCR com
 as tags `latest` e SHA curto; use sempre o SHA em `SYNAPSE_IMAGE_TAG`, porque ele identifica uma
 versão exata e permite rollback sem rebuild. O n8n usa sua imagem oficial, sempre com versão exata
 informada em `N8N_IMAGE_TAG`.
 
+A base TypeScript ainda nao executa follow-up nem possui painel ou conexao de banco.
+Seu bootstrap, publicacao de imagem e preparacao de homologacao estao descritos em
+[`automacao/README.md`](automacao/README.md). A stack usa a mesma `SYNAPSE_IMAGE_TAG`
+para as tres imagens. Nao selecione uma tag antiga sem a imagem de automacao correspondente.
+Um push na branch monitorada pelo Dokploy pode disparar deploy: obter autorizacao
+antes de publicar nessa branch e conferir o estado real do Autodeploy.
+
 Backend e frontend usam `start-first`, healthcheck em `/health/liveness` e rollback automático. Os
 cinco serviços com volume mantêm uma réplica no nó manager e não usam `start-first`: duas cópias
 do PostgreSQL, RabbitMQ ou MinIO escrevendo simultaneamente no mesmo volume local corromperiam os
-dados; no n8n, duas instâncias executariam os mesmos gatilhos. Todos os sete têm limite de memória.
+dados; no n8n, duas instâncias executariam os mesmos gatilhos. Todos os servicos têm limite de memória.
 Os defaults provisórios somam 5,25 GiB em regime e podem chegar a 7,25 GiB se backend e frontend
 sobrepuserem as versões ao mesmo tempo; reserve ainda memória para
 o sistema, Docker, Dokploy e Traefik ao dimensionar a VPS.
+Ativar uma replica TypeScript acrescenta um teto provisorio de 768 MiB e 1 CPU para
+o servico inteiro; os outros filhos continuam sem esse processo por padrao.
 
 O Traefik recebe as rotas pelas labels versionadas em `deploy.labels`:
 
@@ -348,7 +358,7 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 
 | Variável | Descrição |
 |---|---|
-| `SYNAPSE_IMAGE_TAG` | SHA curto publicado pelo CI; use a mesma tag no backend e frontend. |
+| `SYNAPSE_IMAGE_TAG` | SHA curto publicado pelo CI; use a mesma tag no backend, frontend e automacao TypeScript. |
 | `N8N_IMAGE_TAG` | Versão exata da imagem oficial do n8n; nunca use `latest`. |
 | `TRAEFIK_ROUTER_PREFIX` | Identificador curto e único no servidor, sem espaços, por exemplo `estrutural-hml`. |
 | `SYNAPSE_DOMINIO` | Host do CRM sem protocolo, por exemplo `hml.crm.exemplo.com`. |
@@ -511,6 +521,11 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `RABBITMQ_MEMORY_LIMIT` | `512M` | Limite do broker. |
 | `MINIO_MEMORY_LIMIT` | `512M` | Limite do storage de mídia. |
 | `N8N_MEMORY_LIMIT` | `1G` | Limite provisório da Automação; revisar na E14a com a capacidade contratada. |
+| `AUTOMACAO_REPLICAS` | `0` | Zero nao inicia o servico TypeScript. Usar `1` somente na instancia autorizada para validar a base. |
+| `AUTOMACAO_HABILITADA` | `false` | Chave geral da automacao TypeScript; nao controla o n8n. |
+| `AUTOMACAO_FOLLOWUP_HABILITADO` | `false` | Depende tambem da chave geral; nesta entrega nao ha fluxo implementado. |
+| `AUTOMACAO_CPU_LIMIT` | `1.0` | Orcamento unico provisorio de CPU do servico TypeScript. |
+| `AUTOMACAO_MEMORY_LIMIT` | `768M` | Teto provisorio do servico inteiro; validar antes de adicionar workers/painel. |
 | `JAVA_TOOL_OPTIONS` | heap em 70% do cgroup + exit em OOM | Ajuste fino da JVM sem reconstruir a imagem. |
 
 Roteiro no Dokploy:

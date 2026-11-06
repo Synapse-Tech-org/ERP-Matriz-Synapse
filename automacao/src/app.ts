@@ -12,5 +12,8 @@ export function criarAplicacao(configuracao: ConfiguracaoAutomacao) {
     },
   }));
 
+  // Nesta etapa nao ha dependencias externas. Readiness valida apenas o HTTP.
+  app.get('/health/readiness', async () => ({ status: 'UP' }));
+
   return app;
 }

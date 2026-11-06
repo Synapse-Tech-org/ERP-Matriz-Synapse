@@ -416,6 +416,56 @@ services:
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.interval=10s'
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.timeout=3s'
 
+  # Base TypeScript opcional. Nao substitui o n8n nem muda os destinos do CRM.
+  # A imagem usa a mesma tag de release da stack, publicada pelo CI.
+  automacao:
+    image: ghcr.io/synapse-auto/erp-matriz-synapse-automacao:${SYNAPSE_IMAGE_TAG:?obrigatoria}
+    environment:
+      NODE_ENV: production
+      AUTOMACAO_HOST: 0.0.0.0
+      AUTOMACAO_PORT: "3100"
+      AUTOMACAO_HABILITADA: ${AUTOMACAO_HABILITADA:-false}
+      AUTOMACAO_FOLLOWUP_HABILITADO: ${AUTOMACAO_FOLLOWUP_HABILITADO:-false}
+      TZ: ${SYNAPSE_TIMEZONE:?obrigatoria}
+    networks:
+      synapse-internal:
+        aliases:
+          - synapse-automacao-internal
+    expose:
+      - "3100"
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      # Ausente = nenhum processo novo nos filhos existentes.
+      replicas: ${AUTOMACAO_REPLICAS:-0}
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        monitor: 60s
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+        monitor: 60s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        # Orcamento unico do servico. Workers/painel futuros nao ganham cotas separadas.
+        limits:
+          cpus: ${AUTOMACAO_CPU_LIMIT:-1.0}
+          memory: ${AUTOMACAO_MEMORY_LIMIT:-768M}
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "traefik.enable=false"
+
   n8n:
     image: docker.n8n.io/n8nio/n8n:${N8N_IMAGE_TAG:?obrigatoria}
     environment:

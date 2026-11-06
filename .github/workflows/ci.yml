@@ -4,6 +4,12 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      publicar_imagens:
+        description: Publicar imagens da stack no GHCR (nao executa deploy)
+        type: boolean
+        default: false
 
 # Um push novo na mesma branch cancela o build anterior: o feedback que importa
 # e o do ultimo commit, e a fila de runners e curta.
@@ -106,6 +112,33 @@ jobs:
           ln -s "$GITHUB_WORKSPACE/frontend/node_modules" "$contexto/node_modules"
           cd "$contexto" && npx tsc -p tsconfig.build.json --noEmit
 
+  automacao:
+    name: Automacao TypeScript (testes + container)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+
+      - name: Instalar e validar a automacao
+        working-directory: automacao
+        run: |
+          npm ci
+          npm test
+          npm run typecheck
+          npm run build
+          npm run test:runtime
+
+      - name: Build e fumaca da imagem sem publicar ou implantar
+        run: |
+          docker build -f automacao/Dockerfile -t synapse-automacao-ci .
+          bash docker/verificacao/testar-automacao-container.sh
+
   infra:
     name: Stack de producao
     runs-on: ubuntu-latest
@@ -153,6 +186,8 @@ jobs:
           docker stack config -c docker/dokploy-stack.yml -c docker/dokploy-z-api-homologacao.override.yml >/dev/null
           bash docker/verificacao/validar-politica-rollout.sh
           sh -n docker/postgres-init/10-create-n8n-database.sh
+          python3 -m unittest discover -s docker/verificacao -p test_validar_automacao.py
+          docker compose -f docker/dokploy-stack.yml config --format json | python3 docker/verificacao/validar_automacao.py
 
       - name: Provar que internal v1 nao tem rota publica
         run: |
@@ -167,8 +202,8 @@ jobs:
 
   imagens:
     name: Imagem ${{ matrix.nome }} (GHCR)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, frontend, infra]
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.publicar_imagens)
+    needs: [backend, frontend, infra, automacao]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
@@ -184,6 +219,9 @@ jobs:
           - nome: frontend
             dockerfile: frontend/Dockerfile
             imagem: ghcr.io/synapse-auto/erp-matriz-synapse-frontend
+          - nome: automacao
+            dockerfile: automacao/Dockerfile
+            imagem: ghcr.io/synapse-auto/erp-matriz-synapse-automacao
     steps:
       - uses: actions/checkout@v4
 
@@ -204,7 +242,7 @@ jobs:
           images: ${{ matrix.imagem }}
           tags: |
             type=sha,format=short,prefix=
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Buildar e publicar
         uses: docker/build-push-action@v6

@@ -3,6 +3,17 @@ import test from 'node:test';
 import { criarAplicacao } from '../src/app.js';
 import { carregarConfiguracao } from '../src/config.js';
 
+test('readiness permanece disponivel com a automacao desligada', async () => {
+  const app = criarAplicacao(carregarConfiguracao({}));
+  try {
+    const resposta = await app.inject({ method: 'GET', url: '/health/readiness' });
+    assert.equal(resposta.statusCode, 200);
+    assert.deepEqual(resposta.json(), { status: 'UP' });
+  } finally {
+    await app.close();
+  }
+});
+
 test('healthcheck responde sem banco, Redis ou canal de mensagens', async () => {
   const app = criarAplicacao(carregarConfiguracao({}));
   try {

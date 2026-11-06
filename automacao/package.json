@@ -6,10 +6,11 @@
   "engines": { "node": ">=22.12.0" },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/src/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/config.test.ts test/app.test.ts"
+    "test": "tsx --test test/config.test.ts test/app.test.ts",
+    "test:runtime": "node --test test/runtime.test.mjs"
   },
   "dependencies": {
     "fastify": "5.12.8",
