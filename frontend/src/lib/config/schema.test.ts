@@ -111,7 +111,23 @@ describe("TextosSchema", () => {
 
     const textos = TextosSchema.parse(catalogo);
 
-    expect(textos).toEqual(catalogo);
+    expect(textos).toEqual({
+      ...catalogo,
+      dashboard: {
+        ...(catalogo.dashboard as Record<string, unknown>),
+        v2: {
+          aoVivo: "Ao vivo",
+          primeiraResposta: "1ª resposta humana",
+          nps: "NPS",
+          transferencias: "Transf. IA → humano",
+          leadsParados: "Leads parados +2 meses",
+          aguardandoResposta: "Aguardando 1ª resposta",
+          esquecidos: "Esquecidos +1 hora",
+          indisponivel: "Métrica indisponível",
+          valorIndisponivel: "—",
+        },
+      },
+    });
     expect(textos.automacao.abas.followUp).toBe("Follow-up");
     expect(textos.automacao.recursosIa.resumo).toBe("Resumo automático por IA");
     expect(textos.automacao.regras.novo).toBe("Nova regra");
