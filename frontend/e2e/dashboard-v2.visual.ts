@@ -57,6 +57,8 @@ test("Dashboard legado permanece sem flag e flag de Atendimentos não o habilita
   await page.goto("/dashboard");
   await expect(page.getByTestId("dashboard-conteudo")).toHaveAttribute("data-layout", "legado");
   await expect(page.getByTestId(`kpi-${textos.dashboard.kpis.atendimentos}`)).toHaveText("84");
+  await expect(page.locator("[data-dashboard-kpi]")).toHaveCount(7);
+  await expect(page.locator("[data-dashboard-kpi][data-indisponivel]")).toHaveCount(0);
 });
 
 test("Dashboard vazio não fabrica números, comparativos ou séries", async ({ page }) => {
@@ -65,6 +67,7 @@ test("Dashboard vazio não fabrica números, comparativos ou séries", async ({ 
   await expect(page.getByTestId(`kpi-${textos.dashboard.kpis.atendimentos}`)).toHaveText("0");
   await expect(page.getByTestId("selo-tendencia")).toHaveCount(0);
   await expect(page.getByTestId("serie-atendimentos")).toHaveCount(0);
+  await expect(page.locator('[data-dashboard-kpi="nps"]')).toContainText("Métrica indisponível");
   await page.screenshot({ path: `${pasta}/dashboard-v2-vazio.png` });
 });
 
@@ -85,14 +88,36 @@ test("Dashboard v2 com tema escuro da fixture", async ({ page }) => {
 test("Dashboard com a paleta da referência e geometria nativa 1920×1080", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   const temaReferencia = JSON.parse(readFileSync(resolve("../docs/refatoracao-frontend/dashboard/tema-referencia.json"), "utf8"));
-  await prepararFrontendV2(page, { features: ["dashboard_layout_v2", "dashboard"], dashboard: dashboardFixture, tema: temaReferencia });
+  const fixture = await prepararFrontendV2(page, { features: ["dashboard_layout_v2", "dashboard"], dashboard: dashboardFixture, tema: temaReferencia });
   await page.goto("/dashboard");
   await expect(page.getByTestId("dashboard-conteudo")).toHaveAttribute("data-layout", "v2");
   await expect(page.getByTestId(`kpi-${textos.dashboard.kpis.atendimentos}`)).toHaveText("84");
   await expect(page.locator('[data-slot="sidebar-slot"]')).toHaveCSS("width", "88px");
   await expect(page.getByRole("heading", { name: textos.dashboard.titulo, exact: true })).toHaveCSS("font-size", "30px");
   await expect(page.locator('[data-dashboard-kpi="atendimentos"]')).toHaveCSS("border-radius", "18px");
+  await expect(page.locator("[data-dashboard-kpi]")).toHaveCount(11);
+  const indisponiveis = page.locator("[data-dashboard-kpi][data-indisponivel]");
+  await expect(indisponiveis).toHaveCount(4);
+  await expect(indisponiveis.locator('[role="img"], button, a')).toHaveCount(0);
+  const faixaAoVivo = page.locator('[data-slot="dashboard-agora-contagens"]');
+  await expect(faixaAoVivo.locator(":scope > div")).toHaveCount(7);
+  await expect(faixaAoVivo.locator("[data-indisponivel]")).toHaveCount(2);
+  await expect(page.locator("#dashboard-ano")).toHaveCSS("height", "46px");
+  await expect.poll(() => page.evaluate(() =>
+    Array.from(document.fonts).some((fonte) =>
+      fonte.family.includes("Remix Icon Dashboard") && fonte.status === "loaded",
+    ),
+  )).toBe(true);
   await page.waitForLoadState("networkidle");
   await geometria(page);
   await page.screenshot({ path: `${pasta}/dashboard-v2-tema-referencia-1920.png` });
+  const ano = page.locator("#dashboard-ano");
+  const outroAno = String(Number(await ano.locator('[data-slot="select-value"]').innerText()) - 1);
+  await ano.click();
+  await page.getByRole("option", { name: outroAno, exact: true }).click();
+  await expect.poll(() => fixture.requisicoes.filter((rota) =>
+    rota.startsWith("/api/v1/dashboard/visao-geral"),
+  ).at(-1)).toContain(`ano=${outroAno}`);
+  await page.getByRole("button", { name: textos.dashboard.filtros.originacao, exact: true }).click();
+  await expect(page.getByRole("dialog").getByRole("grid")).toHaveCount(2);
 });

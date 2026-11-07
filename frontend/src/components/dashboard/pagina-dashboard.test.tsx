@@ -24,6 +24,17 @@ vi.mock("@/lib/config/textos-provider", () => ({
     menu: { grupoGestao: "Gestão", itens: { atendimentos: "Atendimentos" } },
     dashboard: {
       titulo: "Dashboard", descricao: "Visão consolidada", carregando: "Carregando", erro: "Erro", semDado: "Sem dados",
+      v2: {
+        aoVivo: "Ao vivo",
+        primeiraResposta: "1ª resposta humana",
+        nps: "NPS",
+        transferencias: "Transf. IA → humano",
+        leadsParados: "Leads parados +2 meses",
+        aguardandoResposta: "Aguardando 1ª resposta",
+        esquecidos: "Esquecidos +1 hora",
+        indisponivel: "Métrica indisponível",
+        valorIndisponivel: "—",
+      },
       abas: { rotulo: "Áreas", visaoGeral: "Visão Geral", operacional: "Operacional", comercial: "Comercial", iaAutomacao: "IA e Automação", depois: "Em breve" },
       modos: { rotulo: "Modo de visualização", compacta: "Compacta", expandida: "Expandida", serieIndisponivel: "Série mensal indisponível" },
       periodos: { rotulo: "Período", hoje: "Hoje", seteDias: "7 dias", mes: "Mês", ano: "Ano" },

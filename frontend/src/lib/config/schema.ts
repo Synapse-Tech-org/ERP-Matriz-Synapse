@@ -1275,6 +1275,17 @@ export const TextosSchema = z.object({
     }),
   }),
   dashboard: z.object({
+    v2: z.object({
+      aoVivo: z.string().default("Ao vivo"),
+      primeiraResposta: z.string().default("1ª resposta humana"),
+      nps: z.string().default("NPS"),
+      transferencias: z.string().default("Transf. IA → humano"),
+      leadsParados: z.string().default("Leads parados +2 meses"),
+      aguardandoResposta: z.string().default("Aguardando 1ª resposta"),
+      esquecidos: z.string().default("Esquecidos +1 hora"),
+      indisponivel: z.string().default("Métrica indisponível"),
+      valorIndisponivel: z.string().default("—"),
+    }).prefault({}),
     titulo: z.string(), descricao: z.string(), carregando: z.string(), erro: z.string(), semDado: z.string(),
     abas: z.object({ rotulo: z.string(), visaoGeral: z.string(), operacional: z.string(), comercial: z.string(), iaAutomacao: z.string(), depois: z.string() }),
     modos: z.object({ rotulo: z.string(), compacta: z.string(), expandida: z.string(), serieIndisponivel: z.string() }).prefault({ rotulo: "Modo de visualização", compacta: "Compacta", expandida: "Expandida", serieIndisponivel: "Série mensal indisponível" }),

@@ -1,5 +1,16 @@
 /* Alternativa A: todos os seletores dependem da raiz habilitada por instância.
    Geometria extraída do HTML de referência; cores continuam nos tokens da marca. */
+@font-face {
+  font-family: "Remix Icon Dashboard";
+  src: url("/fonts/remixicon-4.5.0.woff2") format("woff2");
+  font-display: block;
+}
+
+.icone {
+  flex: none;
+  font: 16px/1 "Remix Icon Dashboard";
+}
+
 .pagina {
   --fonte-base-carregada: var(--fonte-frontend-v2);
   container: dashboard-v2 / inline-size;
@@ -91,7 +102,24 @@
   padding: 0 12px;
   border: 0;
   border-radius: 10px;
-  font-size: 12.5px;
+  gap: 7px;
+  font-size: 13.5px;
+}
+
+.pagina :global([data-slot="dashboard-areas"]) button:disabled {
+  opacity: 1;
+}
+
+.pagina :global([data-slot="dashboard-em-breve"]) {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding-inline: 7px;
+  border-radius: var(--raio-pill);
+  background: color-mix(in srgb, var(--cor-ia) 9%, var(--card));
+  color: var(--cor-ia);
+  font-size: 10.5px;
+  font-weight: 600;
 }
 
 .pagina :global([data-slot="dashboard-areas"]) :global([aria-current="page"]) {
@@ -111,7 +139,63 @@
   gap: 10px;
 }
 
+.pagina :global([data-slot="dashboard-ano"]) {
+  width: auto;
+}
+
+.pagina :global([data-slot="dashboard-ano"]) button,
+.pagina :global([data-slot="dashboard-originacao"]) button {
+  height: 46px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--card);
+  color: var(--chat-texto-forte);
+  box-shadow: var(--sombra-sm);
+}
+
+.pagina :global([data-slot="dashboard-ano"]) button {
+  gap: 9px;
+  padding-inline: 12px 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pagina :global([data-slot="dashboard-ano"]) .icone {
+  color: var(--muted-foreground);
+}
+
+.pagina :global([data-slot="dashboard-originacao"]) {
+  width: auto;
+  max-width: 100%;
+}
+
+.pagina :global([data-slot="dashboard-originacao"]) button {
+  gap: 8px;
+  padding-inline: 15px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.pagina :global([data-slot="dashboard-modos"]) {
+  gap: 2px;
+  padding: 3px;
+}
+
+.pagina :global([data-slot="dashboard-modos"]) button {
+  height: 30px;
+  padding-inline: 12px;
+  font-size: 13px;
+}
+
+.pagina :global([data-slot="dashboard-modos"]) :global([aria-pressed="true"]) {
+  border-color: transparent;
+  background: var(--card);
+  color: var(--chat-texto-forte);
+}
+
 .pagina :global([data-slot="dashboard-meses"]) {
+  align-items: center;
   flex-wrap: wrap;
   gap: 2px;
   padding: 4px;
@@ -121,13 +205,25 @@
 
 .pagina :global([data-slot="dashboard-meses"]) button {
   height: 38px;
-  min-width: 38px;
-  padding: 0 10px;
+  min-width: 50px;
+  padding: 0 12px;
   border: 0;
   border-radius: 10px;
   background: transparent;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--muted-foreground);
+}
+
+.pagina :global([data-slot="dashboard-meses"]) button:first-child {
+  padding-inline: 14px;
+}
+
+.pagina :global([data-slot="dashboard-meses-divisor"]) {
+  width: 1px;
+  height: 20px;
+  margin-inline: 5px;
+  background: var(--border);
 }
 
 .pagina :global([data-slot="dashboard-meses"]) :global([aria-pressed="true"]) {
@@ -156,8 +252,8 @@
 }
 
 .pagina :global([data-dashboard-kpi]) {
-  min-height: 142px;
-  gap: 18px;
+  min-height: 150px;
+  gap: 16px;
   padding: 18px 0;
 }
 
@@ -174,10 +270,11 @@
 
 .pagina :global([data-dashboard-kpi]) :global([data-slot="card-header"]) > span:first-child {
   display: grid;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   place-items: center;
   border-radius: var(--raio-pill);
+  border: 1px solid color-mix(in srgb, var(--tom) 22%, var(--card));
   background: color-mix(in srgb, var(--tom) 10%, var(--card));
 }
 
@@ -194,12 +291,76 @@
   font-weight: 600;
   line-height: 1;
   letter-spacing: -0.035em;
+  color: var(--chat-texto-forte);
+}
+
+.pagina :global([data-slot="dashboard-tendencia"]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: var(--raio-pill);
+  font-size: 11px;
+}
+
+.pagina :global([data-slot="dashboard-tendencia"]) .icone {
+  font-size: 11px;
 }
 
 .pagina :global([data-slot="dashboard-kpi-leitura"]) > div > p {
-  margin-top: 9px;
+  margin-top: 8px;
   font-size: 12.5px;
   line-height: 1.5;
+}
+
+.pagina :global([data-slot="dashboard-kpi-leitura"]) :global([data-slot="dashboard-serie-kpi"]) {
+  width: min(94px, 38%);
+  height: 44px;
+}
+
+.pagina :global([data-dashboard-kpi="atendimentos"]) :global([data-slot="dashboard-kpi-leitura"]) :global([data-slot="dashboard-serie-kpi"]) {
+  width: min(154px, 38%);
+}
+
+.pagina :global([data-slot="dashboard-analises"]) {
+  gap: 14px;
+}
+
+.pagina :global([data-slot="dashboard-analises"]) :global([data-slot="card-header"]),
+.pagina :global([data-slot="dashboard-analises"]) :global([data-slot="card-content"]) {
+  padding-inline: 22px;
+}
+
+.pagina :global([data-dashboard-satisfacao]) {
+  --satisfacao-otimo: var(--primary);
+  --satisfacao-bom: color-mix(in srgb, var(--primary) 44%, var(--card));
+  --satisfacao-ruim: color-mix(in srgb, var(--destructive) 64%, var(--card));
+}
+
+.pagina :global([data-dashboard-satisfacao]) :global([data-slot="card-content"]) {
+  padding-top: 16px;
+  gap: 26px;
+}
+
+.pagina :global([data-slot="dashboard-satisfacao-anel"]) {
+  width: 172px;
+  height: 172px;
+}
+
+.pagina :global([data-slot="dashboard-satisfacao-media"]) {
+  width: 144px;
+  height: 144px;
+}
+
+.pagina :global([data-slot="dashboard-satisfacao-media"]) > span:first-child {
+  color: var(--chat-texto-forte);
+  font-size: 30px;
+  font-weight: 600;
+}
+
+.pagina :global([data-dashboard-satisfacao]) li > span:first-child {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--raio-pill);
 }
 
 .pagina :global([data-slot="dashboard-agora"]) {
@@ -212,6 +373,7 @@
   border-radius: 18px;
   color: var(--foreground);
   background: var(--card);
+  box-shadow: var(--sombra-sm);
 }
 
 .pagina :global([data-slot="dashboard-agora-rotulo"]) {
@@ -223,6 +385,11 @@
   text-transform: none;
   letter-spacing: normal;
   font-size: 14px;
+}
+
+.pagina :global([data-slot="dashboard-agora-rotulo"]) > span {
+  background: var(--mensagem-lida-texto);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--mensagem-lida-texto) 26%, transparent);
 }
 
 .pagina :global([data-slot="dashboard-agora-contagens"]) {
@@ -252,6 +419,10 @@
   color: var(--chat-texto-forte);
 }
 
+.pagina :global([data-slot="dashboard-agora-contagens"]) :global([data-indisponivel]) p:last-child {
+  color: var(--muted-foreground);
+}
+
 .pagina :global([data-slot="dashboard-atualizacao"]) {
   padding: 0 18px 10px;
   font-size: 11px;
@@ -267,6 +438,15 @@
 }
 
 @container dashboard-v2 (min-width: 960px) {
+  .pagina :global([data-slot="dashboard-analises"]) {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  }
+  .pagina :global([data-slot="dashboard-analises"]) > div {
+    grid-column: auto;
+  }
+  .pagina :global([data-dashboard-satisfacao]) :global([data-slot="card-content"]) {
+    padding-top: 38px;
+  }
   .pagina[data-modo="compacta"] :global([data-slot="dashboard-indicadores"]) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -274,7 +454,7 @@
     grid-column: span 2;
   }
   .pagina :global([data-slot="dashboard-agora"]) {
-    grid-template-columns: 150px minmax(0, 1fr);
+    grid-template-columns: 168px minmax(0, 1fr);
     grid-template-rows: 43px 30px;
     margin-bottom: -2px;
   }
@@ -286,7 +466,7 @@
   .pagina :global([data-slot="dashboard-agora-contagens"]) {
     grid-column: 2;
     grid-row: 1 / span 2;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
   .pagina :global([data-slot="dashboard-atualizacao"]) {
     grid-column: 1;
@@ -301,29 +481,8 @@
   .pagina[data-modo="compacta"] :global([data-slot="dashboard-indicadores"]) {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  .pagina[data-modo="compacta"] :global([data-dashboard-kpi="novosLeads"]) {
-    grid-column: 3;
-    grid-row: 1;
-  }
-  .pagina[data-modo="compacta"] :global([data-dashboard-kpi="tempoMedioSegundos"]) {
-    grid-column: 1;
-    grid-row: 2;
-  }
-  .pagina[data-modo="compacta"] :global([data-dashboard-kpi="vendasFechadas"]) {
-    grid-column: 2;
-    grid-row: 2;
-  }
-  .pagina[data-modo="compacta"] :global([data-dashboard-kpi="taxaConversao"]) {
-    grid-column: 3;
-    grid-row: 2;
-  }
-  .pagina[data-modo="compacta"] :global([data-dashboard-kpi="avaliacaoMedia"]) {
-    grid-column: 1;
-    grid-row: 3;
-  }
-  .pagina[data-modo="compacta"] :global([data-dashboard-kpi="resolucaoPorIa"]) {
-    grid-column: 2;
-    grid-row: 3;
+  .pagina :global([data-slot="dashboard-meses"]) button {
+    min-width: 53px;
   }
 }
 
@@ -344,6 +503,10 @@
     flex: 1;
     padding-inline: 6px;
     font-size: 11px;
+  }
+  .pagina :global([data-slot="dashboard-areas"]) button .icone,
+  .pagina :global([data-slot="dashboard-em-breve"]) {
+    display: none;
   }
   .pagina :global([data-slot="dashboard-filtros"]) {
     padding: 12px;

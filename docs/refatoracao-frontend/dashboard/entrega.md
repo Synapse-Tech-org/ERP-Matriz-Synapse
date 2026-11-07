@@ -1,4 +1,16 @@
-# Etapa 2 — Dashboard, alternativa A
+# Dashboard da alternativa A
+
+## Etapa 3 · Aproximação visual ao ZIP
+
+O Dashboard V2 passou a mostrar os onze cartões e as sete posições da faixa ao vivo na ordem da referência. Sete cartões e cinco contadores recebem dados da API. Primeira resposta humana, NPS, transferências, leads parados e os dois contadores operacionais aparecem com travessão e indicação de indisponibilidade. O catálogo aceita essas chaves como opcionais na configuração recebida de instâncias existentes. [Dashboard](../../../frontend/src/components/dashboard/pagina-dashboard.tsx#L888) · [Catálogo](../../../frontend/src/lib/config/schema.ts#L1278)
+
+O cabeçalho usa os glifos Remix Icon 4.5.0 fornecidos no ZIP, com o arquivo de fonte servido pelo aplicativo. O seletor de ano usa o componente Select do CRM. O calendário de originação exibe dois meses em desktop e um em tela estreita. As cores dos cartões, gráficos e anel de satisfação usam os tokens da instância. [Estilos](../../../frontend/src/components/dashboard/dashboard-v2.module.css) · [Licença da fonte](../../../frontend/public/fonts/remixicon-4.5.0-LICENSE.txt)
+
+O teste de navegador confere a grade e os contadores, o carregamento da fonte, a requisição disparada ao trocar o ano e os dois meses do calendário. A suíte também cobre a apresentação legada, ausência de séries, largura de 390 px e tema escuro. [Cenários](../../../frontend/e2e/dashboard-v2.visual.ts)
+
+A captura ainda difere da referência em valores e séries indisponíveis, busca global, sino, opções da barra lateral dependentes de capacidades e detalhes do funil e da equipe. A comparação usa dados sintéticos de teste e um tema de referência. [Captura atual](dashboard-v2-tema-referencia-1920.png) · [Protótipo](mockup-dashboard-1920.png) · [Celular](dashboard-v2-390.png)
+
+O registro da Etapa 2 abaixo preserva o histórico. As capturas com nome `dashboard-v2-*` mostram a Etapa 3.
 
 ## 1. Estado
 

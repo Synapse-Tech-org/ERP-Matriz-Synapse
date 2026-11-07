@@ -9,7 +9,6 @@ import {
   CircleDollarSign,
   Clock3,
   Handshake,
-  House,
   LayoutGrid,
   ListFilter,
   Lock,
@@ -31,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Seletor } from "@/components/ui/seletor";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
@@ -47,9 +47,20 @@ import { cn, iniciaisDoNome } from "@/lib/utils";
 
 import { GraficoKpi, type CampoSerie } from "./grafico-kpi";
 import estilosV2 from "./dashboard-v2.module.css";
+import { IconeDashboardV2 } from "./icone-dashboard-v2";
 
 
 const ANOS_DISPONIVEIS = 7;
+const ICONES_KPI_V2 = {
+  atendimentos: "customer-service-2-fill",
+  novosLeads: "user-add-fill",
+  tempoMedioSegundos: "hourglass-fill",
+  vendasFechadas: "shopping-bag-3-fill",
+  taxaConversao: "percent-fill",
+  avaliacaoMedia: "star-fill",
+  resolucaoPorIa: "robot-2-fill",
+} as const satisfies Record<CampoSerie, React.ComponentProps<typeof IconeDashboardV2>["nome"]>;
+
 const HORAS_DO_DIA = Array.from({ length: 24 }, (_, hora) => hora);
 type PeriodoEnxuto = "hoje" | "seteDias" | "mes" | "ano";
 type ModoDashboard = "compacta" | "expandida";
@@ -225,7 +236,7 @@ export function PaginaDashboard() {
       {layoutV2 && (
         <nav data-slot="dashboard-caminho" aria-label={textos.titulo}>
           <a href="/atendimentos" aria-label={catalogo.menu.itens.atendimentos}>
-            <House className="size-4" aria-hidden />
+            <IconeDashboardV2 nome="home-5-line" />
           </a>
           <span aria-hidden>/</span>
           <span>{catalogo.menu.grupoGestao}</span>
@@ -260,11 +271,21 @@ export function PaginaDashboard() {
         </div>
         {/* As abas futuras continuam desabilitadas até terem dados e comportamento reais. */}
         <nav data-slot="dashboard-areas" className="mt-3 flex flex-wrap items-end gap-1" aria-label={textos.abas.rotulo}>
-          <Aba ativa>{textos.abas.visaoGeral}</Aba>
-          {[textos.abas.operacional, textos.abas.comercial].map((aba) => (
-            <Aba key={aba}>{`${aba} · ${textos.abas.depois}`}</Aba>
+          <Aba ativa icone={layoutV2 ? "layout-grid-line" : undefined}>{textos.abas.visaoGeral}</Aba>
+          {([
+            [textos.abas.operacional, "pulse-line"],
+            [textos.abas.comercial, "funds-line"],
+            [textos.abas.iaAutomacao, "sparkling-2-line"],
+          ] as const).map(([aba, icone]) => (
+            <Aba
+              key={aba}
+              icone={layoutV2 ? icone : undefined}
+              emBreve={textos.abas.depois}
+              className={icone === "sparkling-2-line" ? "max-sm:hidden" : undefined}
+            >
+              {aba}
+            </Aba>
           ))}
-          <Aba className="max-sm:hidden">{`${textos.abas.iaAutomacao} · ${textos.abas.depois}`}</Aba>
         </nav>
       </header>
 
@@ -298,20 +319,32 @@ export function PaginaDashboard() {
         aria-label={textos.filtros.rotulo}
       >
         <div className="flex flex-wrap items-center gap-2">
-          <div className="w-20 shrink-0">
+          <div data-slot="dashboard-ano" className="w-20 shrink-0">
             <label
               className="sr-only"
               htmlFor="dashboard-ano"
             >
               {textos.filtros.ano}
             </label>
-            <Seletor
-              id="dashboard-ano"
-              valor={String(ano)}
-              opcoes={opcoesDeAno}
-              onChange={(valor) => setAno(Number(valor))}
-              placeholder={textos.filtros.ano}
-            />
+            {layoutV2 ? (
+              <Select value={String(ano)} onValueChange={(valor) => { if (valor) setAno(Number(valor)); }}>
+                <SelectTrigger id="dashboard-ano">
+                  <IconeDashboardV2 nome="calendar-2-line" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false}>
+                  {opcoesDeAno.map(({ valor, rotulo }) => <SelectItem key={valor} value={valor}>{rotulo}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Seletor
+                id="dashboard-ano"
+                valor={String(ano)}
+                opcoes={opcoesDeAno}
+                onChange={(valor) => setAno(Number(valor))}
+                placeholder={textos.filtros.ano}
+              />
+            )}
           </div>
           <div className="min-w-0 flex flex-1 flex-wrap items-center gap-2">
             <span className="sr-only">
@@ -336,6 +369,7 @@ export function PaginaDashboard() {
               >
                 {textos.filtros.anoInteiro}
               </Button>
+              {layoutV2 && <span data-slot="dashboard-meses-divisor" aria-hidden="true" />}
               {textos.meses.map((mes, indice) => {
                 const valor = indice + 1;
                 const ativo = meses.includes(valor);
@@ -359,6 +393,7 @@ export function PaginaDashboard() {
             </div>
           </div>
           <div
+            data-slot="dashboard-modos"
             className="flex shrink-0 items-center rounded-xl bg-muted p-1"
             role="group"
             aria-label={textos.modos.rotulo}
@@ -371,7 +406,7 @@ export function PaginaDashboard() {
               onClick={() => setModo("compacta")}
               className={cn("h-8 gap-1.5 px-2 text-xs", modo === "compacta" && "text-primary shadow-sm")}
             >
-              <LayoutGrid className="size-3.5" aria-hidden />
+              {layoutV2 ? <IconeDashboardV2 nome="layout-grid-fill" /> : <LayoutGrid className="size-3.5" aria-hidden />}
               {textos.modos.compacta}
             </Button>
             <Button
@@ -382,15 +417,17 @@ export function PaginaDashboard() {
               onClick={() => setModo("expandida")}
               className={cn("h-8 gap-1.5 px-2 text-xs", modo === "expandida" && "text-primary shadow-sm")}
             >
-              <ChartColumn className="size-3.5" aria-hidden />
+              {layoutV2 ? <IconeDashboardV2 nome="bar-chart-box-fill" /> : <ChartColumn className="size-3.5" aria-hidden />}
               {textos.modos.expandida}
             </Button>
           </div>
-          <div className="w-48 shrink-0 text-xs">
+          <div data-slot="dashboard-originacao" className="w-48 shrink-0 text-xs">
             <span className="sr-only">
               {textos.filtros.originacao}
             </span>
             <SeletorDeOriginacao
+              layoutV2={layoutV2}
+              telaEstreita={telaEstreita}
               inicio={origemInicio}
               fim={origemFim}
               onChange={(novoInicio, novoFim) => {
@@ -442,10 +479,14 @@ function Aba({
   children,
   ativa = false,
   className,
+  icone,
+  emBreve,
 }: {
   children: React.ReactNode;
   ativa?: boolean;
   className?: string;
+  icone?: React.ComponentProps<typeof IconeDashboardV2>["nome"];
+  emBreve?: string;
 }) {
   return (
     <Button
@@ -460,7 +501,9 @@ function Aba({
         className,
       )}
     >
+      {icone && <IconeDashboardV2 nome={icone} />}
       {children}
+      {emBreve && (icone ? <span data-slot="dashboard-em-breve">{emBreve}</span> : ` · ${emBreve}`)}
     </Button>
   );
 }
@@ -471,10 +514,14 @@ function Aba({
  * fecha o de fora ao clicar no calendário de dentro.
  */
 function SeletorDeOriginacao({
+  layoutV2,
+  telaEstreita,
   inicio,
   fim,
   onChange,
 }: {
+  layoutV2: boolean;
+  telaEstreita: boolean;
   inicio: string;
   fim: string;
   onChange: (inicio: string, fim: string) => void;
@@ -499,12 +546,14 @@ function SeletorDeOriginacao({
           />
         }
       >
+        {layoutV2 && <IconeDashboardV2 nome="calendar-line" />}
         <span className="truncate">{rotulo}</span>
-        <CalendarDays className="size-(--tamanho-icone-interface)" aria-hidden />
+        {layoutV2 ? <IconeDashboardV2 nome="arrow-down-s-line" /> : <CalendarDays className="size-(--tamanho-icone-interface)" aria-hidden />}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-auto p-0">
         <Calendar
           mode="range"
+          numberOfMonths={layoutV2 && !telaEstreita ? 2 : 1}
           locale={ptBR}
           weekStartsOn={0}
           selected={{ from: paraDataLocal(inicio), to: paraDataLocal(fim) }}
@@ -546,9 +595,8 @@ function ConteudoDashboard({
 
   return (
     <>
-      <FaixaAoVivo status={dados.statusAoVivo} atualizadoEm={atualizadoEm} />
+      <FaixaAoVivo status={dados.statusAoVivo} atualizadoEm={atualizadoEm} layoutV2={layoutV2} />
 
-      {/* Indicadores com fonte confirmada; NPS continua sem coleta própria. */}
       <section
         data-slot="dashboard-indicadores"
         className={cn(
@@ -579,19 +627,26 @@ function ConteudoDashboard({
           apoio={textos.kpis.novosLeadsApoio}
           comparativo={dados.novosLeads.comparativo}
           Icone={UserPlus}
-          tom={TOM_NOVOS_LEADS}
+          tom={layoutV2 ? TOM_ATENDIMENTOS : TOM_NOVOS_LEADS}
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="novosLeads"
           layoutV2={layoutV2}
         />
+        {layoutV2 && (
+          <KpiIndisponivel
+            chave="primeiraResposta"
+            icone="user-voice-fill"
+            tom="var(--cor-destaque-3)"
+          />
+        )}
         <Kpi
           titulo={textos.kpis.tempoMedio}
           valor={valorDuracao}
           apoio={textos.kpis.tempoMedioApoio}
           comparativo={dados.tempoMedioAtendimento.comparativo}
           Icone={Clock3}
-          tom={TOM_TEMPO}
+          tom={layoutV2 ? "var(--cor-destaque-3)" : TOM_TEMPO}
           modo={modo}
           quedaPositiva
           serie={dados.seriesMensais ?? []}
@@ -606,7 +661,7 @@ function ConteudoDashboard({
           })}
           comparativo={dados.vendasFechadas.comparativo}
           Icone={CircleDollarSign}
-          tom={TOM_VENDAS}
+          tom={layoutV2 ? TOM_CONVERSAO : TOM_VENDAS}
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="vendasFechadas"
@@ -631,6 +686,7 @@ function ConteudoDashboard({
           campoSerie="taxaConversao"
           layoutV2={layoutV2}
         />
+        {layoutV2 && <KpiIndisponivel chave="nps" icone="emotion-happy-fill" tom={TOM_NOVOS_LEADS} />}
         <Kpi
           titulo={textos.kpis.csat}
           valor={
@@ -663,6 +719,12 @@ function ConteudoDashboard({
           campoSerie="resolucaoPorIa"
           layoutV2={layoutV2}
         />
+        {layoutV2 && (
+          <>
+            <KpiIndisponivel chave="transferencias" icone="arrow-left-right-line" tom={TOM_IA} />
+            <KpiIndisponivel chave="leadsParados" icone="user-unfollow-fill" tom="var(--destructive)" />
+          </>
+        )}
       </section>
 
       <div data-slot="dashboard-analises" className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-12">
@@ -749,7 +811,9 @@ function Kpi({
               "size-10 rounded-xl bg-[color-mix(in_oklab,var(--tom)_10%,transparent)]",
           )}
         >
-          <Icone className="size-(--tamanho-icone-interface)" />
+          {layoutV2
+            ? <IconeDashboardV2 nome={ICONES_KPI_V2[campoSerie]} />
+            : <Icone className="size-(--tamanho-icone-interface)" aria-hidden />}
         </span>
         <div className="min-w-0 flex-1">
           <CardTitle className="truncate text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
@@ -765,6 +829,7 @@ function Kpi({
                   comparativo={comparativo}
                   quedaPositiva={quedaPositiva}
                   sufixo={textos.kpis.periodoAnterior}
+                  layoutV2={layoutV2}
                 />
               )}
             </div>
@@ -788,11 +853,11 @@ function Kpi({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
                 <p data-slot="dashboard-kpi-valor" className="font-semibold" data-testid={`kpi-${titulo}`}>{valor}</p>
-                {comparativo && <SeloDeTendencia comparativo={comparativo} quedaPositiva={quedaPositiva} sufixo={textos.kpis.periodoAnterior} />}
+                {comparativo && <SeloDeTendencia comparativo={comparativo} quedaPositiva={quedaPositiva} sufixo={textos.kpis.periodoAnterior} layoutV2 />}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">{apoio}</p>
             </div>
-            <GraficoKpi pontos={serie} campo={campoSerie} compacto titulo={titulo}
+            <GraficoKpi pontos={serie} campo={campoSerie} compacto layoutV2 titulo={titulo}
               meses={textos.meses} semDado={textos.semDado} formatar={formatarValor} />
           </div>
         ) : <>
@@ -820,14 +885,42 @@ function Kpi({
   );
 }
 
+function KpiIndisponivel({
+  chave,
+  icone,
+  tom,
+}: {
+  chave: "primeiraResposta" | "nps" | "transferencias" | "leadsParados";
+  icone: React.ComponentProps<typeof IconeDashboardV2>["nome"];
+  tom: string;
+}) {
+  const textos = useTextos().dashboard;
+  return (
+    <Card data-dashboard-kpi={chave} data-indisponivel="true" style={{ "--tom": tom } as React.CSSProperties}>
+      <CardHeader>
+        <span className="shrink-0 text-[var(--tom)]"><IconeDashboardV2 nome={icone} /></span>
+        <CardTitle>{textos.v2[chave]}</CardTitle>
+      </CardHeader>
+      <CardContent data-slot="dashboard-kpi-leitura">
+        <div>
+          <span data-slot="dashboard-kpi-valor" aria-hidden="true">{textos.v2.valorIndisponivel}</span>
+          <p className="text-xs text-muted-foreground">{textos.v2.indisponivel}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SeloDeTendencia({
   comparativo,
   quedaPositiva,
   sufixo,
+  layoutV2 = false,
 }: {
   comparativo: Comparativo;
   quedaPositiva: boolean;
   sufixo: string;
+  layoutV2?: boolean;
 }) {
   const subiu = comparativo.valor >= 0;
   const positivo = quedaPositiva ? !subiu : subiu;
@@ -844,8 +937,10 @@ function SeloDeTendencia({
           : "bg-destructive/10 text-destructive",
       )}
       title={`${texto} ${sufixo}`}
+      data-slot="dashboard-tendencia"
       data-testid="selo-tendencia"
     >
+      {layoutV2 && <IconeDashboardV2 nome={subiu ? "arrow-up-line" : "arrow-down-line"} />}
       {texto}
       <span className="sr-only"> {sufixo}</span>
     </span>
@@ -853,16 +948,18 @@ function SeloDeTendencia({
 }
 
 /**
- * Faixa "AGORA": só os quatro itens do mockup com critério real hoje (ver Javadoc de
- * StatusAoVivo). "Atualizado há Ns" ticka a cada segundo via efeito — `Date.now()` só é chamado
+ * A faixa usa os cinco contadores do contrato de StatusAoVivo.
+ * "Atualizado há Ns" ticka a cada segundo via efeito — `Date.now()` só é chamado
  * dentro do `setInterval`, nunca durante o render, que precisa ficar puro.
  */
 function FaixaAoVivo({
   status,
   atualizadoEm,
+  layoutV2,
 }: {
   status: VisaoGeralDashboard["statusAoVivo"];
   atualizadoEm: number;
+  layoutV2: boolean;
 }) {
   const textos = useTextos().dashboard;
   const [agora, setAgora] = useState(atualizadoEm);
@@ -878,21 +975,26 @@ function FaixaAoVivo({
         ? preencher(textos.agora.atualizadoSegundos, { segundos })
         : preencher(textos.agora.atualizadoMinutos, { minutos: Math.round(segundos / 60) });
 
-  // Mesmo desenho do mockup: rótulo pequeno em cima, número grande embaixo, itens distribuídos
-  // em colunas iguais pela largura. São quatro colunas, não sete, pelo motivo do Javadoc acima.
+  const rotulo = layoutV2 ? textos.v2.aoVivo : textos.agora.rotulo;
   return (
     <section
       data-slot="dashboard-agora"
-      aria-label={textos.agora.rotulo}
+      aria-label={rotulo}
       className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl bg-sidebar px-5 py-4 text-sidebar-foreground"
     >
       <span data-slot="dashboard-agora-rotulo" className="inline-flex shrink-0 items-center gap-2 border-sidebar-foreground/15 pr-5 text-xs font-bold tracking-wider uppercase sm:border-r">
         <span className="size-2 rounded-full bg-[var(--cor-sucesso)]" aria-hidden />
-        {textos.agora.rotulo}
+        {rotulo}
       </span>
       <div data-slot="dashboard-agora-contagens" className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 xl:grid-cols-5">
         <ItemAoVivo rotulo={textos.agora.emIa} valor={status.emIa} />
         <ItemAoVivo rotulo={textos.agora.emAtendimento} valor={status.emAtendimento} />
+        {layoutV2 && (
+          <>
+            <ItemAoVivo rotulo={textos.v2.aguardandoResposta} valor={textos.v2.valorIndisponivel} indisponivel={textos.v2.indisponivel} />
+            <ItemAoVivo rotulo={textos.v2.esquecidos} valor={textos.v2.valorIndisponivel} indisponivel={textos.v2.indisponivel} />
+          </>
+        )}
         <ItemAoVivo rotulo={textos.agora.leadsNovosHoje} valor={status.leadsNovosHoje} />
         <ItemAoVivo rotulo={textos.agora.vendasHoje} valor={status.vendasHoje} />
         <ItemAoVivo
@@ -905,12 +1007,17 @@ function FaixaAoVivo({
   );
 }
 
-function ItemAoVivo({ rotulo, valor }: { rotulo: string; valor: number | string }) {
+function ItemAoVivo({ rotulo, valor, indisponivel }: {
+  rotulo: string;
+  valor: number | string;
+  indisponivel?: string;
+}) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0" data-indisponivel={indisponivel ? "true" : undefined}>
       <p className="truncate text-[11px] font-medium text-sidebar-foreground/75">{rotulo}</p>
-      <p className="text-lg leading-tight font-bold tabular-nums">
-        {typeof valor === "number" ? numero(valor) : valor}
+      <p className="text-lg leading-tight font-bold tabular-nums" title={indisponivel}>
+        <span aria-hidden={indisponivel ? true : undefined}>{typeof valor === "number" ? numero(valor) : valor}</span>
+        {indisponivel && <span className="sr-only">{indisponivel}</span>}
       </p>
     </div>
   );
@@ -929,10 +1036,13 @@ function ResumoSatisfacao({
   const percentualRuim = total === 0 ? 0 : (ruim / total) * 100;
   const fimOtimo = percentualOtimo;
   const fimBom = percentualOtimo + percentualBom;
+  const tomOtimo = "var(--satisfacao-otimo, var(--cor-sucesso))";
+  const tomBom = "var(--satisfacao-bom, var(--cor-atencao))";
+  const tomRuim = "var(--satisfacao-ruim, var(--destructive))";
   const grafico: React.CSSProperties = {
     background: total === 0
       ? "var(--muted)"
-      : `conic-gradient(var(--cor-sucesso) 0% ${fimOtimo}%, var(--cor-atencao) ${fimOtimo}% ${fimBom}%, var(--destructive) ${fimBom}% 100%)`,
+      : `conic-gradient(${tomOtimo} 0% ${fimOtimo}%, ${tomBom} ${fimOtimo}% ${fimBom}%, ${tomRuim} ${fimBom}% 100%)`,
   };
   const apoio = preencher(textos.satisfacao.apoio, { total: dados.quantidade });
   const media = dados.media === null
@@ -940,7 +1050,7 @@ function ResumoSatisfacao({
     : `${percentual(dados.media)}/${dados.escalaMaxima}`;
 
   return (
-    <Card className="h-full min-w-0">
+    <Card data-dashboard-satisfacao className="h-full min-w-0">
       <CardHeader>
         <CardTitle>{textos.satisfacao.titulo}</CardTitle>
         <p className="text-xs font-normal text-muted-foreground">{apoio}</p>
@@ -951,9 +1061,10 @@ function ResumoSatisfacao({
           style={grafico}
           role="img"
           aria-label={`${textos.satisfacao.titulo}: ${apoio}`}
+          data-slot="dashboard-satisfacao-anel"
           data-testid="grafico-distribuicao-avaliacoes"
         >
-          <div className="grid size-24 place-content-center rounded-full bg-card text-center">
+          <div data-slot="dashboard-satisfacao-media" className="grid size-24 place-content-center rounded-full bg-card text-center">
             <span className="text-2xl font-bold tabular-nums">{media}</span>
             <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
               {textos.satisfacao.media}
@@ -961,9 +1072,9 @@ function ResumoSatisfacao({
           </div>
         </div>
         <ul className="space-y-3 text-xs">
-          <FaixaSatisfacao rotulo={textos.satisfacao.otimo} quantidade={otimo} percentual={percentualOtimo} tom="bg-[var(--cor-sucesso)]" />
-          <FaixaSatisfacao rotulo={textos.satisfacao.bom} quantidade={bom} percentual={percentualBom} tom="bg-[var(--cor-atencao)]" />
-          <FaixaSatisfacao rotulo={textos.satisfacao.ruim} quantidade={ruim} percentual={percentualRuim} tom="bg-destructive" />
+          <FaixaSatisfacao rotulo={textos.satisfacao.otimo} quantidade={otimo} percentual={percentualOtimo} tom={tomOtimo} />
+          <FaixaSatisfacao rotulo={textos.satisfacao.bom} quantidade={bom} percentual={percentualBom} tom={tomBom} />
+          <FaixaSatisfacao rotulo={textos.satisfacao.ruim} quantidade={ruim} percentual={percentualRuim} tom={tomRuim} />
           {dados.quantidade === 0 && (
             <li className="text-muted-foreground">{textos.satisfacao.vazio}</li>
           )}
@@ -986,7 +1097,7 @@ function FaixaSatisfacao({
 }) {
   return (
     <li className="flex min-w-0 items-center gap-2">
-      <span className={cn("size-2.5 shrink-0 rounded-sm", tom)} aria-hidden />
+      <span className="size-2.5 shrink-0 rounded-sm" style={{ backgroundColor: tom }} aria-hidden />
       <span className="min-w-0 flex-1 truncate">{rotulo}</span>
       <span className="shrink-0 tabular-nums text-muted-foreground">
         {quantidade} · {percentual(valorPercentual)}%
