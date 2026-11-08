@@ -1,4 +1,4 @@
-# Piloto Graphify na Matriz
+# Atlas de código da Matriz
 
 Use o grafo para localizar classes, chamadas e dependências antes de investigar um fluxo. Confira os caminhos sugeridos no código, especialmente as relações marcadas como `INFERRED` e as ligações que dependem de injeção do Spring, configuração ou eventos assíncronos.
 
@@ -11,21 +11,22 @@ $ambiente = Join-Path $env:LOCALAPPDATA 'Synapse/graphify-0.9.104'
 python -m venv $ambiente
 & "$ambiente/Scripts/python.exe" -m pip install graphifyy==0.9.104
 
-$destino = Join-Path $env:LOCALAPPDATA ('Synapse/graphify-matriz-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 & "$ambiente/Scripts/python.exe" tools/graphify_piloto.py `
-  --ref HEAD --destino $destino --graphify "$ambiente/Scripts/graphify.exe"
+  --ref HEAD --graphify "$ambiente/Scripts/graphify.exe"
 ```
 
 O script copia para um diretório novo apenas os arquivos Java de `src/main/java` dos módulos do backend e os arquivos TypeScript de `frontend/src` da revisão selecionada, excluindo os padrões usuais de teste do frontend. O conteúdo vem do commit Git. Documentos, arquivos `.env`, logs e alterações locais ficam fora do corpus. `GRAPHIFY_BACKEND=none` desativa o uso de LLM no Graphify.
 
-Consulte `REVISAO.txt` para saber qual commit foi indexado. A pasta `graphify-out` da cópia contém o grafo e os artefatos gerados. Gere outro snapshot para analisar uma revisão nova. Mantenha as cópias e os grafos fora do Git.
+Abra o `index.html` indicado pelo script. O atlas apresenta recortes de envio, webhooks e restrição de números. Selecione um arquivo para destacar suas relações e abrir a fonte da revisão indexada. Cada seta agrega ligações do Graphify entre dois arquivos. O sentido representa uma referência no código. A ordem visual dos cartões serve para navegação.
+
+O cache padrão fica em `Synapse/graphify-matriz/<SHA>` sob `%LOCALAPPDATA%` no Windows e sob `$XDG_CACHE_HOME` ou `~/.cache` nos demais sistemas. A pasta `graphify-out` contém o atlas, o HTML geral, o relatório e o JSON. `REVISAO.txt` registra o commit após a geração. A mesma revisão reaproveita o grafo. Para usar outro destino, passe `--destino` tanto ao gerar quanto ao localizar. Mantenha as cópias e os grafos fora do Git.
 
 ## Consultar no Codex ou no terminal
 
-No Codex, informe o caminho para o `graph.json` e peça que o agente comece com uma consulta por símbolo, cite os arquivos encontrados e confirme as ligações na fonte. No terminal, por exemplo:
+O `AGENTS.md` orienta o Codex a localizar e consultar o grafo em investigações que cruzam módulos. `--localizar` retorna o arquivo somente quando a revisão bate com o registro do snapshot. No terminal:
 
 ```powershell
-$grafo = Join-Path $destino 'graphify-out/graph.json'
+$grafo = & "$ambiente/Scripts/python.exe" tools/graphify_piloto.py --localizar --ref HEAD
 $env:GRAPHIFY_QUERY_LOG_DISABLE = '1'
 & "$ambiente/Scripts/graphify.exe" explain PublicadorDaOutboxOperacoes --graph $grafo
 & "$ambiente/Scripts/graphify.exe" explain RestricaoDeNumerosWhatsApp --graph $grafo

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23253158'/%3E%3Cpath d='M8 23l8-14 8 14M10 19h12' fill='none' stroke='%23a4e9e0' stroke-width='2'/%3E%3C/svg%3E">
+  <title>Atlas de código · Synapse Matriz</title>
+  <style>
+    :root { font-family: 'Segoe UI', system-ui, sans-serif; color: #e9efff; background: #0b1020; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { width: min(1340px, 100%); margin: auto; padding: 28px clamp(16px, 4vw, 56px) 40px; }
+    a { color: #a4e9e0; text-underline-offset: 4px; }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    button:focus-visible, a:focus-visible { outline: 2px solid #7fe6d9; outline-offset: 4px; }
+    header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 650; }
+    .mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: #253158; color: #a4e9e0; }
+    .rev { color: #b2bed9; border: 1px solid #323c59; border-radius: 7px; padding: 6px 10px; font-size: .8rem; }
+    .intro { margin-top: 34px; padding: clamp(22px, 4vw, 36px); border: 1px solid #283557; border-radius: 18px; background: linear-gradient(125deg, #182546, #101a31 70%, #102e35); }
+    h1, h2, p { margin: 0; }
+    h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); letter-spacing: -.04em; }
+    .eyebrow { color: #a4e9e0; text-transform: uppercase; font-size: .72rem; font-weight: 700; letter-spacing: .13em; }
+    .intro p, .desc, .hint { color: #b2bed9; line-height: 1.55; }
+    .intro p { margin: 8px 0 20px; }
+    .metrics { display: flex; flex-wrap: wrap; gap: 12px 30px; }
+    .metrics span { color: #b2bed9; font-size: .85rem; }
+    .metrics b { color: #e9efff; margin-right: 5px; font-variant-numeric: tabular-nums; }
+    .toolbar, .tabs { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 14px; }
+    .toolbar a, .tabs button, .clear { border: 1px solid #354363; border-radius: 8px; background: #151e36; padding: 8px 12px; font-size: .85rem; }
+    .toolbar a { text-decoration: none; }
+    .tabs button[aria-pressed="true"] { color: #abfff0; border-color: #4db6a9; background: #15323d; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(245px, 29%); border: 1px solid #293553; border-radius: 14px; overflow: hidden; background: #10192c; }
+    .overview, aside { padding: 20px; min-width: 0; }
+    aside { border-left: 1px solid #293553; background: #131e35; }
+    h2 { font-size: 1.2rem; overflow-wrap: anywhere; }
+    .desc, .hint { font-size: .85rem; margin-top: 5px; }
+    .canvas { position: relative; margin: 18px 0; padding: 16px; border: 1px solid #293553; border-radius: 10px; background: radial-gradient(#26354e 1px, transparent 1px) 0 0 / 16px 16px, #0c1528; }
+    #connections { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    #nodes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 31px 36px; position: relative; }
+    .node { display: grid; align-content: center; text-align: left; min-height: 68px; gap: 4px; padding: 10px 12px; border: 1px solid #465779; background: #182644; border-radius: 8px; overflow-wrap: anywhere; font-size: .8rem; }
+    .node span { color: #aebedb; font-size: .71rem; }
+    .node[aria-pressed="true"] { background: #193945; border-color: #72dfcf; }
+    .node.dim { opacity: .58; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; color: #b2bed9; font-size: .74rem; }
+    .legend span::before { display: inline-block; width: 20px; margin-right: 6px; vertical-align: middle; content: ''; border-top: 2px solid #79c5cd; }
+    .legend .inferred::before { border-top-style: dashed; border-color: #b2a5ff; }
+    #source, #relations { margin-top: 12px; overflow-wrap: anywhere; }
+    #relations { padding-left: 16px; font-size: .84rem; line-height: 1.5; }
+    #relations li { margin-bottom: 8px; }
+    .clear { margin-top: 10px; }
+    @media (max-width: 780px) { .workspace { grid-template-columns: 1fr; } aside { border-left: 0; border-top: 1px solid #293553; } }
+    @media (max-width: 420px) { #nodes { gap: 25px 19px; } .overview, aside { padding: 14px; } .canvas { padding: 10px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header><div class="brand"><span class="mark" aria-hidden="true">S</span> Synapse Matriz</div><code class="rev" id="revision"></code></header>
+  <section class="intro" aria-labelledby="title">
+    <div class="eyebrow">Mapa de arquitetura</div>
+    <h1 id="title">Atlas de código</h1>
+    <p>Explore os pontos de entrada e as dependências dos fluxos de WhatsApp.</p>
+    <div class="metrics" id="metrics"></div>
+  </section>
+  <nav class="toolbar" aria-label="Artefatos do Graphify">
+    <a href="graph.html">Grafo completo ↗</a><a href="GRAPH_REPORT.md">Relatório</a><a href="graph.json">Grafo em JSON</a>
+  </nav>
+  <nav class="tabs" id="flows" aria-label="Recortes de arquitetura"></nav>
+  <section class="workspace" aria-labelledby="flow-title">
+    <div class="overview">
+      <h2 id="flow-title"></h2><p class="desc" id="description"></p>
+      <div class="canvas" id="canvas">
+        <svg id="connections" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+          <defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0 0 6 3 0 6" fill="#9ab9d2"/></marker></defs>
+          <g id="edges"></g>
+        </svg>
+        <div id="nodes"></div>
+      </div>
+      <div class="legend"><span>Extraída do código</span><span class="inferred">Inferida pelo Graphify</span></div>
+      <p class="hint" id="missing"></p>
+    </div>
+    <aside aria-label="Detalhes do arquivo">
+      <h2 id="detail-title">Detalhes do arquivo</h2>
+      <p class="hint" id="detail-hint" role="status">Selecione um arquivo para ver suas relações neste recorte.</p>
+      <div id="source"></div><ul id="relations"></ul>
+      <button class="clear" type="button" id="clear" hidden>Mostrar todas as relações</button>
+    </aside>
+  </section>
+</main>
+<script type="application/json" id="data">__DADOS_DO_GRAFO__</script>
+<script>
+  const data = JSON.parse(document.getElementById('data').textContent);
+  const el = id => document.getElementById(id);
+  const name = path => path.split('/').at(-1).replace(/\.java$/, '');
+  const number = new Intl.NumberFormat('pt-BR');
+  let flow = data.fluxos[0];
+  let selected = null;
+  const buttons = new Map();
+
+  function element(tag, label) {
+    const item = document.createElement(tag);
+    item.textContent = label;
+    return item;
+  }
+
+  function identifier(label) {
+    const item = element('strong', '');
+    const words = label.split(/(?<=[a-z0-9])(?=[A-Z])/);
+    for (const [index, word] of words.entries()) {
+      if (index) item.append(document.createElement('wbr'));
+      item.append(word);
+    }
+    return item;
+  }
+
+  el('revision').textContent = `Revisão ${data.sha.slice(0, 12)}`;
+  el('revision').title = data.sha;
+  for (const [value, label] of [[data.arquivos, 'arquivos'], [data.nos, 'nós'], [data.ligacoes, 'relações']]) {
+    const metric = element('span', '');
+    metric.append(element('b', number.format(value)), ` ${label}`);
+    el('metrics').append(metric);
+  }
+
+  function edges() {
+    const bounds = el('canvas').getBoundingClientRect();
+    el('edges').replaceChildren();
+    for (const link of flow.ligacoes) {
+      if (selected && link.origem !== selected && link.destino !== selected) continue;
+      const a = buttons.get(link.origem).getBoundingClientRect();
+      const b = buttons.get(link.destino).getBoundingClientRect();
+      const horizontal = Math.abs(a.top - b.top) < 2;
+      const forward = horizontal ? a.left < b.left : a.top < b.top;
+      const x1 = (horizontal ? (forward ? a.right : a.left) : a.left + a.width / 2) - bounds.left;
+      const x2 = (horizontal ? (forward ? b.left : b.right) : b.left + b.width / 2) - bounds.left;
+      const y1 = (horizontal ? a.top + a.height / 2 : (forward ? a.bottom : a.top)) - bounds.top;
+      const y2 = (horizontal ? b.top + b.height / 2 : (forward ? b.top : b.bottom)) - bounds.top;
+      const midY = (y1 + y2) / 2;
+      const inferred = link.referencias.every(ref => ref.confianca === 'INFERRED');
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${x1} ${y1} C ${x1} ${midY} ${x2} ${midY} ${x2} ${y2}`);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', inferred ? '#b2a5ff' : '#79c5cd');
+      path.setAttribute('stroke-width', selected ? '1.8' : '1.2');
+      path.setAttribute('opacity', selected ? '1' : '.65');
+      if (inferred) path.setAttribute('stroke-dasharray', '4 4');
+      path.setAttribute('marker-end', 'url(#arrow)');
+      el('edges').append(path);
+    }
+  }
+
+  function select(file) {
+    selected = file;
+    const links = flow.ligacoes.filter(link => link.origem === file || link.destino === file);
+    const connected = new Set(links.flatMap(link => [link.origem, link.destino]));
+    for (const [path, button] of buttons) {
+      button.setAttribute('aria-pressed', path === file);
+      button.classList.toggle('dim', Boolean(file && path !== file && !connected.has(path)));
+    }
+    el('detail-title').textContent = file ? name(file) : 'Detalhes do arquivo';
+    el('detail-hint').textContent = file ? `${links.length} relações neste recorte` : 'Selecione um arquivo para ver suas relações neste recorte.';
+    el('clear').hidden = !file;
+    el('source').replaceChildren();
+    el('relations').replaceChildren();
+    if (file) {
+      const link = element('a', 'Abrir arquivo da revisão');
+      link.href = '../' + file.split('/').map(encodeURIComponent).join('/');
+      link.title = file;
+      el('source').append(link);
+    }
+    for (const link of links) {
+      const outgoing = link.origem === file;
+      const other = outgoing ? link.destino : link.origem;
+      const kinds = [...new Set(link.referencias.map(ref => ref.tipo))].join(', ');
+      const confidence = [...new Set(link.referencias.map(ref => ref.confianca).filter(Boolean))].join(' / ');
+      el('relations').append(element('li', `${outgoing ? '→' : '←'} ${name(other)} · ${kinds} · ${confidence}`));
+    }
+    edges();
+  }
+
+  function show(next) {
+    flow = next;
+    for (const tab of el('flows').children) tab.setAttribute('aria-pressed', tab.textContent === flow.titulo);
+    el('flow-title').textContent = flow.titulo;
+    el('description').textContent = flow.descricao;
+    el('missing').textContent = flow.faltantes.length ? `Arquivos ausentes nesta revisão: ${flow.faltantes.join(', ')}.` : '';
+    el('nodes').replaceChildren();
+    buttons.clear();
+    for (const file of flow.arquivos) {
+      const button = element('button', '');
+      button.type = 'button';
+      button.className = 'node';
+      button.title = file;
+      button.append(identifier(name(file)), element('span', file.split('/').at(-2)));
+      button.addEventListener('click', () => select(file === selected ? null : file));
+      el('nodes').append(button);
+      buttons.set(file, button);
+    }
+    select(null);
+  }
+
+  for (const item of data.fluxos) {
+    const button = element('button', item.titulo);
+    button.type = 'button';
+    button.addEventListener('click', () => show(item));
+    el('flows').append(button);
+  }
+  el('clear').addEventListener('click', () => { buttons.get(selected)?.focus(); select(null); });
+  new ResizeObserver(edges).observe(el('canvas'));
+  show(flow);
+</script>
+</body>
+</html>
