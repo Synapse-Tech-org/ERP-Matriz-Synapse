@@ -6,8 +6,8 @@
 .pagina {
   gap: calc(var(--spacing) * 2.5);
   padding: calc(var(--spacing) * 2.5);
-  background: var(--muted);
-  font-family: var(--fonte-base);
+  background: color-mix(in srgb, var(--muted) 82%, transparent);
+  font-family: var(--fonte-base-carregada, var(--fonte-base)), sans-serif;
 }
 
 .pagina > :global([data-slot="lista-conversas"]),

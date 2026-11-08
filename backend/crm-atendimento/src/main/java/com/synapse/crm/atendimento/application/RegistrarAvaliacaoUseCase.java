@@ -39,13 +39,13 @@ public class RegistrarAvaliacaoUseCase {
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID atendimentoId, int nota, String comentario) {
-        return gravar(atendimentoId, nota, comentario);
+        return gravar(atendimentoId, nota, comentario, null);
     }
 
     @PreAuthorize("hasRole('SERVICO')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
-    public Resultado executarPelaAutomacao(UUID atendimentoId, int nota, String comentario) {
-        return gravar(atendimentoId, nota, comentario);
+    public Resultado executarPelaAutomacao(UUID atendimentoId, int nota, String comentario, Integer notaRecomendacao) {
+        return gravar(atendimentoId, nota, comentario, notaRecomendacao);
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -57,7 +57,7 @@ public class RegistrarAvaliacaoUseCase {
         return avaliacoes.porAtendimento(atendimentoId);
     }
 
-    private Resultado gravar(UUID atendimentoId, int nota, String comentario) {
+    private Resultado gravar(UUID atendimentoId, int nota, String comentario, Integer notaRecomendacao) {
         Atendimento atendimento = exigirAtendimentoVisivel(atendimentoId);
         if (atendimento.estaAberto()) {
             throw new AtendimentoAindaAbertoParaAvaliacaoException(atendimentoId);
@@ -67,25 +67,29 @@ public class RegistrarAvaliacaoUseCase {
         }
 
         Avaliacao.exigirFaixa(nota);
+        if (notaRecomendacao != null) {
+            Avaliacao.exigirFaixa(notaRecomendacao);
+        }
         String comentarioNormalizado = Avaliacao.normalizar(comentario);
 
         Optional<Avaliacao> existente = avaliacoes.porAtendimento(atendimentoId);
         if (existente.isPresent()) {
             Avaliacao atual = existente.get();
-            if (atual.ehIdentica(nota, comentarioNormalizado)) {
+            if (atual.ehIdentica(nota, comentarioNormalizado, notaRecomendacao)) {
                 return new Resultado(atual, false);
             }
             throw new AvaliacaoJaRegistradaException(atendimentoId);
         }
 
         Instant agora = Instant.now(relogio);
-        Avaliacao nova = Avaliacao.registrar(
+        Avaliacao nova = new Avaliacao(
                 UUID.randomUUID(),
                 atendimentoId,
                 atendimento.atendenteId(),
                 nota,
                 comentarioNormalizado,
-                agora);
+                agora,
+                notaRecomendacao);
 
         AvaliacaoRepositorio.ResultadoSalvar salvo = avaliacoes.salvarSeAusente(nova);
         if (salvo.inserido()) {
@@ -93,7 +97,7 @@ public class RegistrarAvaliacaoUseCase {
         }
 
         Avaliacao concorrente = salvo.avaliacao();
-        if (concorrente.ehIdentica(nota, comentarioNormalizado)) {
+        if (concorrente.ehIdentica(nota, comentarioNormalizado, notaRecomendacao)) {
             return new Resultado(concorrente, false);
         }
         throw new AvaliacaoJaRegistradaException(atendimentoId);

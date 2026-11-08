@@ -32,7 +32,7 @@ class AvaliacaoRepositorioJdbc implements AvaliacaoRepositorio {
         return chat
                 .query(
                         """
-                        SELECT id, atendimento_id, atendente_id, nota, comentario, criado_em
+                        SELECT id, atendimento_id, atendente_id, nota, comentario, criado_em, nota_recomendacao
                           FROM avaliacao
                          WHERE atendimento_id = ?
                         """,
@@ -42,7 +42,8 @@ class AvaliacaoRepositorioJdbc implements AvaliacaoRepositorio {
                                 linha.getObject("atendente_id", UUID.class),
                                 linha.getInt("nota"),
                                 linha.getString("comentario"),
-                                linha.getTimestamp("criado_em").toInstant()),
+                                linha.getTimestamp("criado_em").toInstant(),
+                                linha.getObject("nota_recomendacao", Integer.class)),
                         atendimentoId)
                 .stream()
                 .findFirst();
@@ -53,8 +54,8 @@ class AvaliacaoRepositorioJdbc implements AvaliacaoRepositorio {
         TransacaoObrigatoria.exigir("avaliacao.salvarSeAusente");
         int inseridas = chat.update(
                 """
-                INSERT INTO avaliacao (id, atendimento_id, atendente_id, nota, comentario, criado_em)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO avaliacao (id, atendimento_id, atendente_id, nota, comentario, criado_em, nota_recomendacao)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (atendimento_id) DO NOTHING
                 """,
                 avaliacao.id(),
@@ -62,7 +63,8 @@ class AvaliacaoRepositorioJdbc implements AvaliacaoRepositorio {
                 avaliacao.atendenteId(),
                 avaliacao.nota(),
                 avaliacao.comentario(),
-                Timestamp.from(avaliacao.criadoEm()));
+                Timestamp.from(avaliacao.criadoEm()),
+                avaliacao.notaRecomendacao());
 
         if (inseridas > 0) {
             return new ResultadoSalvar(avaliacao, true);

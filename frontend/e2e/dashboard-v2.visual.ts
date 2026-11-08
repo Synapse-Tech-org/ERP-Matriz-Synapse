@@ -63,7 +63,7 @@ test("Dashboard legado permanece sem flag e flag de Atendimentos não o habilita
   await expect(page.getByTestId(`kpi-${textos.dashboard.kpis.atendimentos}`)).toHaveText("84");
   await expect(page.locator("[data-dashboard-kpi]")).toHaveCount(7);
   await expect(page.locator("[data-dashboard-kpi][data-indisponivel]")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Buscar contatos", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Buscar contatos, equipe e painéis", exact: true })).toHaveCount(0);
 });
 
 test("busca por contato usa o filtro da Agenda e abre a ficha selecionada", async ({ page }) => {
@@ -77,10 +77,10 @@ test("busca por contato usa o filtro da Agenda e abre a ficha selecionada", asyn
     await rota.fulfill({ json: { leads: [{ id: contato.leadId, nome: contato.leadNome, empresa: null }], pagina: 0, temMais: false } });
   });
   await page.goto("/dashboard");
-  await expect(page.getByRole("button", { name: "Buscar contatos", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Buscar contatos, equipe e painéis", exact: true })).toBeVisible();
   await page.keyboard.press("Control+k");
-  const dialogo = page.getByRole("dialog", { name: "Buscar contatos" });
-  const campo = dialogo.getByRole("searchbox", { name: "Buscar contatos" });
+  const dialogo = page.getByRole("dialog", { name: "Buscar contatos, equipe e painéis" });
+  const campo = dialogo.getByRole("searchbox", { name: "Buscar contatos, equipe e painéis" });
   await expect(campo).toBeFocused();
   await campo.fill(`  ${termo}  `);
   await page.waitForLoadState("networkidle");
@@ -106,7 +106,15 @@ test("busca por contato usa o filtro da Agenda e abre a ficha selecionada", asyn
   await expect(ficha.getByRole("textbox", { name: textos.painelLead.dados.nome })).toHaveValue(contato.leadNome);
   expect(fixture.chamadas).toContain(`/leads/${contato.leadId}/agenda`);
   await ficha.getByRole("button", { name: textos.painelLead.fechar, exact: true }).click();
-  await expect(page.getByRole("button", { name: "Buscar contatos", exact: true })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Buscar contatos, equipe e painéis", exact: true })).toBeFocused();
+  await page.keyboard.press("Control+k");
+  const pessoa = dashboardFixture.equipeDesempenho[0];
+  await campo.fill(pessoa.nome);
+  await campo.press("Enter");
+  const atalho = dialogo.getByRole("link", { name: pessoa.nome, exact: true });
+  await expect(atalho).toHaveAttribute("href", `#dashboard-atendente-${pessoa.id}`);
+  await atalho.click();
+  await expect(page).toHaveURL(new RegExp(`#dashboard-atendente-${pessoa.id}$`));
   expect(fixture.desconhecidas).toEqual([]);
 });
 
@@ -116,9 +124,9 @@ test("busca do Dashboard fica indisponível sem acesso a clientes", async ({ pag
   });
   await page.goto("/dashboard");
   await expect(page.getByTestId(`kpi-${textos.dashboard.kpis.atendimentos}`)).toHaveText("84");
-  await expect(page.getByRole("button", { name: "Buscar contatos", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Buscar contatos, equipe e painéis", exact: true })).toHaveCount(0);
   await page.keyboard.press("Control+k");
-  await expect(page.getByRole("dialog", { name: "Buscar contatos" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Buscar contatos, equipe e painéis" })).toHaveCount(0);
 });
 
 test("Dashboard vazio não fabrica números, comparativos ou séries", async ({ page }) => {
@@ -149,7 +157,14 @@ test("Dashboard com a paleta da referência e geometria nativa 1920×1080", asyn
   await page.setViewportSize({ width: 1920, height: 1080 });
   const temaReferencia = JSON.parse(readFileSync(resolve("../docs/refatoracao-frontend/dashboard/tema-referencia.json"), "utf8"));
   const fixture = await prepararFrontendV2(page, {
-    features: ["dashboard_layout_v2", "dashboard"], dashboard: dashboardFixture, tema: temaReferencia, acessaEquipe: true,
+    features: ["dashboard_layout_v2", "dashboard"],
+    dashboard: {
+      ...dashboardFixture,
+      nps: { valor: 0, respostas: 2, comparativo: null },
+      leadsParados: 3,
+    },
+    tema: temaReferencia,
+    acessaEquipe: true,
   });
   await page.goto("/dashboard");
   await expect(page.getByTestId("dashboard-conteudo")).toHaveAttribute("data-layout", "v2");
@@ -159,8 +174,10 @@ test("Dashboard com a paleta da referência e geometria nativa 1920×1080", asyn
   await expect(page.locator('[data-dashboard-kpi="atendimentos"]')).toHaveCSS("border-radius", "18px");
   await expect(page.locator("[data-dashboard-kpi]")).toHaveCount(11);
   const indisponiveis = page.locator("[data-dashboard-kpi][data-indisponivel]");
-  await expect(indisponiveis).toHaveCount(4);
+  await expect(indisponiveis).toHaveCount(2);
   await expect(indisponiveis.locator('[role="img"], button, a')).toHaveCount(0);
+  await expect(page.getByTestId("kpi-NPS")).toHaveText("0");
+  await expect(page.locator('[data-dashboard-kpi="leadsParados"] [data-slot="dashboard-kpi-valor"]')).toHaveText("3");
   const faixaAoVivo = page.locator('[data-slot="dashboard-agora-contagens"]');
   await expect(faixaAoVivo.locator(":scope > div")).toHaveCount(7);
   await expect(faixaAoVivo.locator("[data-indisponivel]")).toHaveCount(2);
@@ -173,6 +190,10 @@ test("Dashboard com a paleta da referência e geometria nativa 1920×1080", asyn
   await page.waitForLoadState("networkidle");
   await geometria(page);
   await page.screenshot({ path: `${pasta}/dashboard-v2-tema-referencia-1920.png` });
+  await page.getByRole("button", { name: "Notificações", exact: true }).click();
+  await expect(page.getByText("Nenhuma notificação nesta sessão.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Marcar lidas", exact: true })).toBeDisabled();
+  await page.keyboard.press("Escape");
   const funil = page.getByRole("table", { name: textos.dashboard.secoes.funil, exact: true });
   await expect(funil.getByRole("columnheader", { name: "Parado" })).toBeVisible();
   const etapa = funil.getByRole("row").filter({ has: page.getByRole("rowheader", { name: dashboardFixture.funil[0].nome }) });

@@ -66,6 +66,39 @@
   font-size: 13.5px;
 }
 
+.pagina :global([data-slot="dashboard-acoes-topo"]) {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+}
+
+.pagina :global([data-slot="dashboard-sino"]) {
+  position: relative;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--sombra-sm);
+  cursor: pointer;
+}
+
+.pagina :global([data-slot="dashboard-sino-ponto"]) {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--card);
+  border-radius: var(--raio-pill);
+  background: var(--cor-atencao);
+}
+
 .pagina :global([data-slot="dashboard-busca"]) {
   display: flex;
   align-items: center;
@@ -83,7 +116,8 @@
   cursor: pointer;
 }
 
-.pagina :global([data-slot="dashboard-busca"]):focus-visible {
+.pagina :global([data-slot="dashboard-busca"]):focus-visible,
+.pagina :global([data-slot="dashboard-sino"]):focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
@@ -677,6 +711,12 @@
 }
 
 @media (max-width: 639px) {
+  .pagina :global([data-slot="dashboard-acoes-topo"]) {
+    width: 100%;
+  }
+  .pagina :global([data-slot="dashboard-sino"]):only-child {
+    margin-inline-start: auto;
+  }
   .pagina :global([data-slot="dashboard-topo"]) {
     flex-wrap: wrap;
     gap: 6px;

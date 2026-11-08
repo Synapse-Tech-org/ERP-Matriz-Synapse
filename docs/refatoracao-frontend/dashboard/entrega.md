@@ -1,5 +1,17 @@
 # Dashboard da alternativa A
 
+## NPS, leads parados e notificações
+
+O Dashboard V2 exibe o NPS a partir de respostas explícitas à pergunta de recomendação. O agregado, a amostra, o comparativo e a série usam o mesmo recorte temporal da avaliação. Sem amostra, o cartão indica indisponibilidade. O cartão de leads parados usa um snapshot de leads em etapas abertas e sem interação humana nos últimos dois meses de calendário, incluindo mudança manual de etapa. Os dois indicadores são calculados no backend. [Contrato e operação](contratos-pendentes.md)
+
+O sino reúne avisos reais recebidos nesta sessão, respeitando as preferências visuais e as permissões. Ele reaproveita a assinatura e os destinos dos avisos existentes. O histórico fica em memória, com filtro por tipo, marcação de leitura local e descarte ao trocar de sessão ou quando chega um aviso de alteração de acesso. [Captura atual](dashboard-v2-tema-referencia-1920.png)
+
+Atendimentos V2 passa a usar a mesma moldura flutuante e a mesma tipografia do Dashboard V2. Cada rota depende da sua própria flag e conserva os tokens da instância. [Atendimentos em desktop](../implementacao/atendimentos-v2-1440.png) · [Atendimentos no celular](../implementacao/atendimentos-v2-390.png)
+
+A busca ganhou atalhos para os atendentes da tabela e para os painéis do Dashboard. Esses resultados usam o recorte atual do Dashboard. A tela independente de Relatórios ainda é um placeholder e o protótipo aponta o pipeline para a aba Comercial, atualmente em breve.
+
+O teste de navegador verifica NPS igual a zero com amostra, o contador de leads parados, o sino vazio e os fluxos de Atendimentos em desktop e celular. A coleta em produção depende de adaptar o workflow EV-08 para apresentar a pergunta e encaminhar a resposta. Primeira resposta humana, espera e transferências ainda precisam de uma fonte que identifique a entrada na fila humana e a origem de cada transição.
+
 ## Etapa 5 · Busca de contatos
 
 O cabeçalho V2 ganhou o controle Buscar contatos para sessões com a capacidade `clientes.acessar`. O botão e o atalho Ctrl+K ou Cmd+K abrem o mesmo diálogo. A pesquisa é enviada ao confirmar um termo e usa o filtro paginado da Agenda por nome, telefone ou CPF. [Componente](../../../frontend/src/components/dashboard/busca-do-dashboard.tsx) · [Filtro da Agenda](../../../frontend/src/lib/agenda/use-agenda.ts)

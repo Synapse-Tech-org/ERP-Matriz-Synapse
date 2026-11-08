@@ -7,7 +7,7 @@ import type { VisaoGeralDashboard } from "@/lib/dashboard/types";
 
 type Ponto = NonNullable<VisaoGeralDashboard["seriesMensais"]>[number];
 export type CampoSerie = "atendimentos" | "novosLeads" | "tempoMedioSegundos" |
-  "vendasFechadas" | "taxaConversao" | "avaliacaoMedia" | "resolucaoPorIa";
+  "vendasFechadas" | "taxaConversao" | "avaliacaoMedia" | "resolucaoPorIa" | "nps";
 
 export function GraficoKpi({
   pontos,
@@ -32,7 +32,7 @@ export function GraficoKpi({
   const dados = pontos.map((ponto) => ({
     mes: ponto.mes,
     rotulo: meses[Number(ponto.mes.slice(-2)) - 1] ?? ponto.mes,
-    valor: ponto.disponivel ? ponto[campo] : null,
+    valor: ponto.disponivel ? ponto[campo] ?? null : null,
   }));
   if (!dados.some((ponto) => ponto.valor !== null)) {
     return compacto ? null : (

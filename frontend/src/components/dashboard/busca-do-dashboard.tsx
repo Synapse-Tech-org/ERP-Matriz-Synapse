@@ -13,6 +13,7 @@ import { FILTROS_RAPIDOS_VAZIOS } from "@/lib/agenda/types";
 import { criterioDosFiltrosAtivos } from "@/lib/agenda/use-agenda";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useMinhasPermissoes } from "@/lib/gestao/use-gestao";
+import type { VisaoGeralDashboard } from "@/lib/dashboard/types";
 
 import { IconeDashboardV2 } from "./icone-dashboard-v2";
 
@@ -21,12 +22,12 @@ const PainelLateralLead = dynamic(() =>
 );
 const TAMANHO_DA_BUSCA = 10;
 
-export function BuscaDoDashboard() {
+export function BuscaDoDashboard({ dados }: { dados?: VisaoGeralDashboard }) {
   const { data } = useMinhasPermissoes();
-  return data?.capacidades["clientes.acessar"]?.permitido === true ? <BuscaAutorizada /> : null;
+  return data?.capacidades["clientes.acessar"]?.permitido === true ? <BuscaAutorizada dados={dados} /> : null;
 }
 
-function BuscaAutorizada() {
+function BuscaAutorizada({ dados }: { dados?: VisaoGeralDashboard }) {
   const textos = useTextos();
   const busca = textos.dashboard.v2.busca;
   const gatilho = useRef<HTMLButtonElement>(null);
@@ -69,7 +70,7 @@ function BuscaAutorizada() {
             <DialogDescription>{busca.descricao}</DialogDescription>
           </DialogHeader>
           {aberta && (
-            <PesquisaDeContatos onSelecionar={(id) => {
+            <PesquisaDeContatos dados={dados} onNavegar={() => setAberta(false)} onSelecionar={(id) => {
               setLeadId(id);
               setAberta(false);
             }} />
@@ -96,7 +97,11 @@ function BuscaAutorizada() {
   );
 }
 
-function PesquisaDeContatos({ onSelecionar }: { onSelecionar: (leadId: string) => void }) {
+function PesquisaDeContatos({ dados, onNavegar, onSelecionar }: {
+  dados?: VisaoGeralDashboard;
+  onNavegar: () => void;
+  onSelecionar: (leadId: string) => void;
+}) {
   const textos = useTextos();
   const busca = textos.dashboard.v2.busca;
   const [entrada, setEntrada] = useState("");
@@ -125,6 +130,14 @@ function PesquisaDeContatos({ onSelecionar }: { onSelecionar: (leadId: string) =
   }
 
   const resultados = pesquisaAtiva && consulta.isSuccess ? consulta.data : undefined;
+  const locais = pesquisaAtiva && dados ? [
+    { id: "dashboard-funil", rotulo: textos.dashboard.secoes.funil },
+    { id: "dashboard-satisfacao", rotulo: textos.dashboard.satisfacao.titulo },
+    { id: "dashboard-equipe", rotulo: textos.dashboard.secoes.equipe },
+    { id: "dashboard-horario", rotulo: textos.dashboard.secoes.horarioPico },
+    ...dados.equipeDesempenho.map((item) => ({ id: `dashboard-atendente-${item.id}`, rotulo: item.nome })),
+  ].filter(({ rotulo }) => rotulo.toLocaleLowerCase("pt-BR").includes(termo.toLocaleLowerCase("pt-BR")))
+    .slice(0, TAMANHO_DA_BUSCA) : [];
   return (
     <>
       <form className="flex items-center gap-2" onSubmit={pesquisar}>
@@ -165,6 +178,18 @@ function PesquisaDeContatos({ onSelecionar }: { onSelecionar: (leadId: string) =
         </ul>
       )}
       {resultados?.temMais && <p className="text-xs text-muted-foreground">{busca.mais}</p>}
+      {locais.length > 0 && (
+        <ul className="max-h-48 space-y-1 overflow-y-auto border-t pt-2">
+          {locais.map(({ id, rotulo }) => (
+            <li key={id}>
+              <a href={`#${id}`} onClick={onNavegar}
+                className="block rounded-lg px-3 py-2 font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">
+                {rotulo}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   );
 }

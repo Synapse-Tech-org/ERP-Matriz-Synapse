@@ -29,9 +29,10 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const funcionalidades = useFuncionalidadesHabilitadas();
   const dashboardV2 = funcionalidades.data?.includes("dashboard_layout_v2") ?? false;
+  const atendimentosV2 = funcionalidades.data?.includes("atendimentos_layout_v2") ?? false;
   const [dashboardFixada, setDashboardFixada] = useState<boolean | null>(null);
   const noDashboard = pathname === "/dashboard";
-  const visualV2 = noDashboard && dashboardV2;
+  const visualV2 = (noDashboard && dashboardV2) || (pathname === "/atendimentos" && atendimentosV2);
   const fixada = noDashboard ? dashboardFixada ?? !dashboardV2 : expansao.fixada;
   const expandida = noDashboard ? fixada || expansao.expandida : expansao.expandida;
   const alternarFixacao = noDashboard

@@ -1,5 +1,21 @@
 # Contratos pendentes do Dashboard V2
 
+## Coleta de NPS e snapshot de leads parados
+
+A migration V117 adiciona `nota_recomendacao` opcional à avaliação pós-atendimento e disponibiliza `avaliacao_atendimento.nps_habilitado` e `avaliacao_atendimento.nps_pergunta` em `GET /internal/v1/automation-config`. A chave começa desligada. O workflow EV-08 deve apresentar a pergunta própria de recomendação após a pergunta de satisfação e coletar as duas respostas antes de registrar a avaliação. Quem responder apenas à satisfação pode ser registrado sem recomendação. [Migration](../../../backend/crm-app/src/main/resources/db/migration/V117__coleta_nps_pos_atendimento.sql)
+
+O envio de ambas as respostas usa o endpoint interno existente, com o mesmo token e atendimento finalizado. Exemplo de corpo para `POST /internal/v1/atendimentos/{id}/avaliacao`:
+
+```json
+{"nota": 7, "notaRecomendacao": 9}
+```
+
+O reenvio idêntico é idempotente e uma nota de recomendação diferente recebe 409. As respostas antigas com apenas `nota` seguem aceitas. Uma avaliação já registrada não é sobrescrita para acrescentar recomendação depois. A automação deve manter a correlação com o atendimento e enviar a resposta real do cliente, sem inferi-la da satisfação. O workflow externo EV-08 precisa dessa adaptação antes da ativação da chave.
+
+O Dashboard retorna `nps.valor`, `nps.respostas`, `nps.comparativo` e `seriesMensais[].nps`. O valor é a diferença entre promotores (9–10) e detratores (0–6) como proporção das respostas, multiplicada por 100. O snapshot `leadsParados` usa a regra confirmada, sem recorte do período selecionado. Apenas etapas abertas e leads não finalizados entram na população. Mensagens do cliente, respostas humanas enviadas e mudanças manuais de etapa reiniciam a contagem. [Agregação](../../../backend/crm-relatorios/src/main/java/com/synapse/crm/relatorios/infrastructure/persistencia/dashboard/DashboardVisaoGeralRepositorioJdbc.java)
+
+## Levantamento anterior à implementação
+
 O endpoint atual entrega sete KPIs, cinco contadores ao vivo e os agregados do funil e da equipe. As tabelas da Etapa 4 reservam as posições de tempo parado, conversão e primeira resposta por atendente. Os valores desses campos e dos seis indicadores já marcados no V2 continuam indisponíveis. [Contrato atual](../../../backend/crm-relatorios/src/main/java/com/synapse/crm/relatorios/domain/dashboard/VisaoGeralDashboard.java) · [Referência visual](../mockup/fonte/DashboardV2.dc.html)
 
 As regras abaixo são propostas para implementação posterior. Os eventos e colunas citados foram verificados no código, sem medir a cobertura de históricos nas instâncias. Cada cálculo precisa devolver `null` quando faltar fonte ou amostra. Zero representa uma contagem observada em uma fonte com cobertura conhecida.

@@ -66,7 +66,7 @@ class DashboardCustoIT extends PostgresIT {
         assertThat(segunda.resposta().path("atendimentos"))
                 .isEqualTo(primeira.resposta().path("atendimentos"));
 
-        String chave = redis.keys("dashboard:visao-geral:v3:*").stream()
+        String chave = redis.keys("dashboard:visao-geral:v4:*").stream()
                 .filter(valor -> !valor.endsWith(":lock"))
                 .findFirst()
                 .orElseThrow();

@@ -48,6 +48,7 @@ import { cn, iniciaisDoNome } from "@/lib/utils";
 
 import { GraficoKpi, type CampoSerie } from "./grafico-kpi";
 import { BuscaDoDashboard } from "./busca-do-dashboard";
+import { AvisosDoDashboard } from "./avisos-do-dashboard";
 import estilosV2 from "./dashboard-v2.module.css";
 import { IconeDashboardV2 } from "./icone-dashboard-v2";
 
@@ -60,6 +61,7 @@ const ICONES_KPI_V2 = {
   vendasFechadas: "shopping-bag-3-fill",
   taxaConversao: "percent-fill",
   avaliacaoMedia: "star-fill",
+  nps: "emotion-happy-fill",
   resolucaoPorIa: "robot-2-fill",
 } as const satisfies Record<CampoSerie, React.ComponentProps<typeof IconeDashboardV2>["nome"]>;
 
@@ -246,7 +248,10 @@ export function PaginaDashboard() {
             <span aria-hidden>/</span>
             <span aria-current="page">{textos.titulo}</span>
           </nav>
-          <BuscaDoDashboard />
+          <div data-slot="dashboard-acoes-topo">
+            <BuscaDoDashboard dados={consulta.data} />
+            <AvisosDoDashboard />
+          </div>
         </div>
       )}
       <header data-slot="dashboard-cabecalho" className="-mx-6 -mt-6 border-b bg-card px-6 pt-7 lg:-mx-7 lg:-mt-7 lg:px-7 max-sm:-mx-4 max-sm:-mt-4 max-sm:px-4">
@@ -639,7 +644,7 @@ function ConteudoDashboard({
           layoutV2={layoutV2}
         />
         {layoutV2 && (
-          <KpiIndisponivel
+          <KpiSemSerie
             chave="primeiraResposta"
             icone="user-voice-fill"
             tom="var(--cor-destaque-3)"
@@ -691,7 +696,20 @@ function ConteudoDashboard({
           campoSerie="taxaConversao"
           layoutV2={layoutV2}
         />
-        {layoutV2 && <KpiIndisponivel chave="nps" icone="emotion-happy-fill" tom={TOM_NOVOS_LEADS} />}
+        {layoutV2 && (dados.nps?.valor != null ? (
+          <Kpi
+            titulo={textos.v2.nps}
+            valor={numero(dados.nps.valor)}
+            apoio={preencher(textos.v2.npsApoio, { total: numero(dados.nps.respostas) })}
+            comparativo={dados.nps.comparativo}
+            Icone={Star}
+            tom={TOM_NOVOS_LEADS}
+            modo={modo}
+            serie={dados.seriesMensais ?? []}
+            campoSerie="nps"
+            layoutV2
+          />
+        ) : <KpiSemSerie chave="nps" icone="emotion-happy-fill" tom={TOM_NOVOS_LEADS} />)}
         <Kpi
           titulo={textos.kpis.csat}
           valor={
@@ -726,8 +744,10 @@ function ConteudoDashboard({
         />
         {layoutV2 && (
           <>
-            <KpiIndisponivel chave="transferencias" icone="arrow-left-right-line" tom={TOM_IA} />
-            <KpiIndisponivel chave="leadsParados" icone="user-unfollow-fill" tom="var(--destructive)" />
+            <KpiSemSerie chave="transferencias" icone="arrow-left-right-line" tom={TOM_IA} />
+            <KpiSemSerie chave="leadsParados" icone="user-unfollow-fill" tom="var(--destructive)"
+              valor={dados.leadsParados == null ? undefined : numero(dados.leadsParados)}
+              apoio={textos.v2.leadsParadosApoio} />
           </>
         )}
       </section>
@@ -787,7 +807,7 @@ function Kpi({
     return numero(valorSerie);
   };
   const amostras = serie
-    .filter((ponto) => ponto.disponivel && ponto[campoSerie] !== null)
+    .filter((ponto) => ponto.disponivel && ponto[campoSerie] != null)
     .map((ponto) => ({ mes: ponto.mes, valor: Number(ponto[campoSerie]) }));
   const resumoSerie = amostras.length === 0 ? textos.semDado : (() => {
     const minimo = amostras.reduce((atual, ponto) => ponto.valor < atual.valor ? ponto : atual);
@@ -890,26 +910,31 @@ function Kpi({
   );
 }
 
-function KpiIndisponivel({
+function KpiSemSerie({
   chave,
   icone,
   tom,
+  valor,
+  apoio,
 }: {
   chave: "primeiraResposta" | "nps" | "transferencias" | "leadsParados";
   icone: React.ComponentProps<typeof IconeDashboardV2>["nome"];
   tom: string;
+  valor?: string;
+  apoio?: string;
 }) {
   const textos = useTextos().dashboard;
   return (
-    <Card data-dashboard-kpi={chave} data-indisponivel="true" style={{ "--tom": tom } as React.CSSProperties}>
+    <Card data-dashboard-kpi={chave} data-indisponivel={valor == null ? "true" : undefined}
+      style={{ "--tom": tom } as React.CSSProperties}>
       <CardHeader>
         <span className="shrink-0 text-[var(--tom)]"><IconeDashboardV2 nome={icone} /></span>
         <CardTitle>{textos.v2[chave]}</CardTitle>
       </CardHeader>
       <CardContent data-slot="dashboard-kpi-leitura">
         <div>
-          <span data-slot="dashboard-kpi-valor" aria-hidden="true">{textos.v2.valorIndisponivel}</span>
-          <p className="text-xs text-muted-foreground">{textos.v2.indisponivel}</p>
+          <span data-slot="dashboard-kpi-valor" aria-hidden={valor == null ? true : undefined}>{valor ?? textos.v2.valorIndisponivel}</span>
+          <p className="text-xs text-muted-foreground">{valor == null ? textos.v2.indisponivel : apoio}</p>
         </div>
       </CardContent>
     </Card>
@@ -1055,7 +1080,7 @@ function ResumoSatisfacao({
     : `${percentual(dados.media)}/${dados.escalaMaxima}`;
 
   return (
-    <Card data-dashboard-satisfacao className="h-full min-w-0">
+    <Card id="dashboard-satisfacao" data-dashboard-satisfacao className="h-full min-w-0">
       <CardHeader>
         <CardTitle>{textos.satisfacao.titulo}</CardTitle>
         <p className="text-xs font-normal text-muted-foreground">{apoio}</p>
@@ -1120,7 +1145,7 @@ function Equipe({ dados, layoutV2 }: { dados: VisaoGeralDashboard; layoutV2: boo
   const textos = useTextos().dashboard;
   const linhas = dados.equipeDesempenho;
   return (
-    <Card data-dashboard-tabela={layoutV2 ? "equipe" : undefined}>
+    <Card id={layoutV2 ? "dashboard-equipe" : undefined} data-dashboard-tabela={layoutV2 ? "equipe" : undefined}>
       <CardHeader>
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <div>
@@ -1164,7 +1189,7 @@ function Equipe({ dados, layoutV2 }: { dados: VisaoGeralDashboard; layoutV2: boo
                 {linhas.map((atendente, indice) => {
                   const medalha = MEDALHAS[indice];
                   return (
-                    <tr key={atendente.id} className="border-b last:border-0">
+                    <tr key={atendente.id} id={layoutV2 ? `dashboard-atendente-${atendente.id}` : undefined} className="border-b last:border-0">
                       <td className="py-3 pr-3">
                         <div className="flex items-center gap-2.5">
                           {/* Pódio do mockup: 1º a 3º em cor cheia; do 4º em diante, neutro. */}
@@ -1254,7 +1279,7 @@ function FunilV2({ dados }: { dados: VisaoGeralDashboard }) {
   const textos = useTextos().dashboard;
   const maximo = Math.max(...dados.funil.map((etapa) => etapa.quantidade), 0);
   return (
-    <Card data-dashboard-tabela="funil">
+    <Card id="dashboard-funil" data-dashboard-tabela="funil">
       <CardHeader>
         <CardTitle>{textos.secoes.funil}</CardTitle>
         <p className="text-xs text-muted-foreground">{textos.funilApoio}</p>
@@ -1402,7 +1427,7 @@ function HorarioDePico({ dados }: { dados: VisaoGeralDashboard }) {
   const maximo = Math.max(...dados.horarioDePico.map((item) => item.quantidade), 0);
   const resumo = textoDoResumo(resumoDoHorario(porHora), textos.horario);
   return (
-    <Card>
+    <Card id="dashboard-horario">
       <CardHeader>
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <div>
