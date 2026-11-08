@@ -42,6 +42,7 @@ import {
 } from "@/lib/dashboard/horario-de-pico";
 import { useVisaoGeralDashboard } from "@/lib/dashboard/use-dashboard";
 import type { Comparativo, VisaoGeralDashboard } from "@/lib/dashboard/types";
+import { useMinhasPermissoes } from "@/lib/gestao/use-gestao";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn, iniciaisDoNome } from "@/lib/utils";
 
@@ -729,13 +730,13 @@ function ConteudoDashboard({
 
       <div data-slot="dashboard-analises" className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-12">
         <div className="min-w-0 xl:col-span-7">
-          <Funil dados={dados} />
+          {layoutV2 ? <FunilV2 dados={dados} /> : <Funil dados={dados} />}
         </div>
         <div className="min-w-0 xl:col-span-5">
           <ResumoSatisfacao dados={dados.avaliacaoMedia} />
         </div>
       </div>
-      <Equipe dados={dados} />
+      <Equipe dados={dados} layoutV2={layoutV2} />
       <HorarioDePico dados={dados} />
       {telaEstreita && !layoutV2 && (
         <p className="flex items-start gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 px-3 py-3 text-xs text-muted-foreground">
@@ -1111,23 +1112,26 @@ function FaixaSatisfacao({
  * (`equipeDesempenho`), ordenados por vendas conforme o mockup. Conversão e 1ª resposta por
  * atendente ficam fora — ver relatório da E197.
  */
-function Equipe({ dados }: { dados: VisaoGeralDashboard }) {
+function Equipe({ dados, layoutV2 }: { dados: VisaoGeralDashboard; layoutV2: boolean }) {
   const textos = useTextos().dashboard;
   const linhas = dados.equipeDesempenho;
   return (
-    <Card>
+    <Card data-dashboard-tabela={layoutV2 ? "equipe" : undefined}>
       <CardHeader>
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <div>
             <CardTitle className="flex items-center gap-2 font-semibold">
-              <UsersRound className="size-(--tamanho-icone-interface) text-primary" aria-hidden />
+              {!layoutV2 && <UsersRound className="size-(--tamanho-icone-interface) text-primary" aria-hidden />}
               {textos.secoes.equipe}
             </CardTitle>
             <p className="text-xs font-normal text-muted-foreground">{textos.secoes.equipeApoio}</p>
           </div>
-          <span className="text-[11px] font-medium text-muted-foreground">
-            {textos.secoes.equipeOrdenadoPor}
-          </span>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span data-slot="dashboard-equipe-ordenacao" className="text-[11px] font-medium text-muted-foreground">
+              {textos.secoes.equipeOrdenadoPor}
+            </span>
+            {layoutV2 && <LinkParaEquipe />}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -1135,15 +1139,21 @@ function Equipe({ dados }: { dados: VisaoGeralDashboard }) {
           <p className="text-sm text-muted-foreground">{textos.equipe.vazio}</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[480px] text-sm">
+            <table className="w-full min-w-[480px] text-sm" aria-label={textos.secoes.equipe}>
               <thead>
                 <tr className="border-b text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                  <th className="py-2 pr-3 font-semibold">{textos.equipe.colunaAtendente}</th>
-                  <th className="px-3 py-2 text-right font-semibold">
+                  <th scope="col" className="py-2 pr-3 font-semibold">{textos.equipe.colunaAtendente}</th>
+                  <th scope="col" className="px-3 py-2 text-right font-semibold">
                     {textos.equipe.colunaAtendimentos}
                   </th>
-                  <th className="px-3 py-2 text-right font-semibold">{textos.equipe.colunaVendas}</th>
-                  <th className="py-2 pl-3 text-right font-semibold">{textos.equipe.colunaNota}</th>
+                  <th scope="col" className="px-3 py-2 text-right font-semibold">{textos.equipe.colunaVendas}</th>
+                  {layoutV2 && (
+                    <>
+                      <th scope="col" className="text-right">{textos.kpis.conversao}</th>
+                      <th scope="col" className="text-right">{textos.v2.colunaPrimeiraResposta}</th>
+                    </>
+                  )}
+                  <th scope="col" className="py-2 pl-3 text-right font-semibold">{textos.equipe.colunaNota}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1179,8 +1189,17 @@ function Equipe({ dados }: { dados: VisaoGeralDashboard }) {
                       <td className="px-3 py-3 text-right font-bold tabular-nums">
                         {numero(atendente.vendas)}
                       </td>
+                      {layoutV2 && (
+                        <>
+                          <td className="text-right"><ValorDeMetricaIndisponivel /></td>
+                          <td className="text-right"><ValorDeMetricaIndisponivel /></td>
+                        </>
+                      )}
                       <td className="py-3 pl-3 text-right font-semibold text-[var(--cor-atencao-escura)] tabular-nums">
-                        {atendente.nota === null ? textos.equipe.semNota : percentual(atendente.nota)}
+                        <span className={cn(layoutV2 && "inline-flex items-center gap-1")}>
+                          {layoutV2 && atendente.nota !== null && <IconeDashboardV2 nome="star-fill" />}
+                          {atendente.nota === null ? textos.equipe.semNota : percentual(atendente.nota)}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -1199,6 +1218,89 @@ function Equipe({ dados }: { dados: VisaoGeralDashboard }) {
             )}
           </p>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function LinkParaEquipe() {
+  const textos = useTextos().dashboard.v2;
+  const permissoes = useMinhasPermissoes();
+  if (!permissoes.data?.acessaGestao || !permissoes.data.capacidades["equipe.ver"]?.permitido) return null;
+
+  return (
+    <a href="/gestao" data-slot="dashboard-equipe-link" className="focus-visible:ring-2 focus-visible:ring-ring">
+      {textos.verEquipe}
+      <IconeDashboardV2 nome="arrow-right-up-line" />
+    </a>
+  );
+}
+
+function ValorDeMetricaIndisponivel() {
+  const textos = useTextos().dashboard.v2;
+  return (
+    <span className="relative text-muted-foreground" title={textos.indisponivel}>
+      <span aria-hidden="true">{textos.valorIndisponivel}</span>
+      <span className="sr-only">{textos.indisponivel}</span>
+    </span>
+  );
+}
+
+function FunilV2({ dados }: { dados: VisaoGeralDashboard }) {
+  const textos = useTextos().dashboard;
+  const maximo = Math.max(...dados.funil.map((etapa) => etapa.quantidade), 0);
+  return (
+    <Card data-dashboard-tabela="funil">
+      <CardHeader>
+        <CardTitle>{textos.secoes.funil}</CardTitle>
+        <p className="text-xs text-muted-foreground">{textos.funilApoio}</p>
+      </CardHeader>
+      <CardContent>
+        {dados.funil.length === 0 && <p className="mb-3 text-sm text-muted-foreground">{textos.funil.vazio}</p>}
+        <div className="overflow-x-auto">
+          <table className="w-full" aria-label={textos.secoes.funil}>
+            <thead>
+              <tr>
+                <th scope="col">{textos.funil.colunaEtapa}</th>
+                <td aria-hidden="true" />
+                <th scope="col" className="text-right">{textos.v2.colunaLeads}</th>
+                <th scope="col" className="text-right">{textos.funil.colunaPassa}</th>
+                <th scope="col" className="text-right">{textos.v2.colunaParado}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dados.funil.map((etapa) => (
+                <tr key={etapa.id}>
+                  <th scope="row" className="truncate text-left" title={etapa.nome}>{etapa.nome}</th>
+                  <td aria-hidden="true">
+                    <div data-slot="dashboard-funil-trilho">
+                      <div
+                        data-testid="barra-funil"
+                        style={{ width: `${fracaoPercentual(etapa.quantidade, maximo)}%` }}
+                      />
+                    </div>
+                  </td>
+                  <td className="text-right font-semibold">{numero(etapa.quantidade)}</td>
+                  <td className="text-right font-semibold text-primary">
+                    {etapa.percentualDePassagem === null
+                      ? textos.funil.semPassagem
+                      : `${percentual(etapa.percentualDePassagem)}%`}
+                  </td>
+                  <td className="text-right"><ValorDeMetricaIndisponivel /></td>
+                </tr>
+              ))}
+              <tr>
+                <th scope="row" className="text-left">{textos.funil.perdido}</th>
+                <td aria-hidden="true" />
+                <td className="text-right font-semibold text-destructive" data-testid="quantidade-perdidos">
+                  {numero(dados.leadsPerdidos)}
+                </td>
+                <td className="text-right text-muted-foreground">{textos.funil.semPassagem}</td>
+                <td className="text-right"><ValorDeMetricaIndisponivel /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </CardContent>
     </Card>
   );

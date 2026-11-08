@@ -5,6 +5,10 @@ const useDashboardMock = vi.fn();
 const telaEstreita = { atual: false };
 const funcionalidades = vi.hoisted(() => ({ flags: [] as string[] }));
 
+vi.mock("@/lib/gestao/use-gestao", () => ({
+  useMinhasPermissoes: () => ({ data: undefined }),
+}));
+
 vi.mock("next/font/google", () => ({ Geist: () => ({ variable: "fonte-v2-de-teste" }) }));
 vi.mock("@/lib/config/use-funcionalidades", () => ({
   useFuncionalidadesHabilitadas: () => ({ data: funcionalidades.flags }),
@@ -34,6 +38,10 @@ vi.mock("@/lib/config/textos-provider", () => ({
         esquecidos: "Esquecidos +1 hora",
         indisponivel: "Métrica indisponível",
         valorIndisponivel: "—",
+        colunaLeads: "Leads",
+        colunaParado: "Parado",
+        colunaPrimeiraResposta: "1ª resposta",
+        verEquipe: "Ver equipe",
       },
       abas: { rotulo: "Áreas", visaoGeral: "Visão Geral", operacional: "Operacional", comercial: "Comercial", iaAutomacao: "IA e Automação", depois: "Em breve" },
       modos: { rotulo: "Modo de visualização", compacta: "Compacta", expandida: "Expandida", serieIndisponivel: "Série mensal indisponível" },

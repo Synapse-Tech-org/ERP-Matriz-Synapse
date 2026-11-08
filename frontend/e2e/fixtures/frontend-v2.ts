@@ -8,6 +8,7 @@ interface OpcoesFrontendV2 {
   quantidade?: number;
   tema?: Record<string, unknown>;
   dashboard?: VisaoGeralDashboard;
+  acessaEquipe?: boolean;
 }
 
 export const temaFixture = JSON.parse(readFileSync(resolve("../backend/crm-app/src/main/resources/tema.json"), "utf8"));
@@ -28,7 +29,7 @@ export const cartoesFixture = Array.from({ length: 15 }, (_, indice) => ({
 }));
 
 export async function prepararFrontendV2(page: Page, opcoes: OpcoesFrontendV2 = {}) {
-  const { features = [], quantidade = 15, tema: temaDaFixture = temaFixture, dashboard } = opcoes;
+  const { features = [], quantidade = 15, tema: temaDaFixture = temaFixture, dashboard, acessaEquipe = false } = opcoes;
   const cartoes = cartoesFixture;
   await page.request.post("http://127.0.0.1:38981/__fixture/tema", { data: temaDaFixture });
   const chamadas: string[] = [];
@@ -63,7 +64,8 @@ export async function prepararFrontendV2(page: Page, opcoes: OpcoesFrontendV2 = 
     else if (caminho === "/leads/integracoes/darwin") corpo = { habilitado: false };
     else if (caminho === "/gestao/permissoes/minhas") corpo = {
       usuarioId, papel: "ATENDENTE", revisao: "fixture",
-      capacidades: Object.fromEntries(["clientes.acessar", "atendimentos.ver", "atendimentos.responder", "contatos.ver", "contatos.editar", ...(dashboard ? ["dashboard.ver"] : [])].map((chave) => [chave, { permitido: true, alcance: "MEUS" }])),
+      acessaGestao: acessaEquipe,
+      capacidades: Object.fromEntries(["clientes.acessar", "atendimentos.ver", "atendimentos.responder", "contatos.ver", "contatos.editar", ...(dashboard ? ["dashboard.ver"] : []), ...(acessaEquipe ? ["equipe.ver"] : [])].map((chave) => [chave, { permitido: true, alcance: "MEUS" }])),
     };
     else if (caminho === "/me") corpo = { id: usuarioId, nome: "Pessoa de teste", papel: "ATENDENTE", presenca: "ONLINE", usuarioTeste: false };
     else if (caminho === "/config/canal") corpo = { exigeTemplateForaDaJanela: false, gerenciaTemplates: false };

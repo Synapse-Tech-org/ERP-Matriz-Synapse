@@ -1,5 +1,11 @@
 # Dashboard da alternativa A
 
+## Etapa 4 · Funil e equipe
+
+O funil V2 separa a contagem de leads da barra e mantém a linha Perdido fora da sequência de passagem. A tabela de equipe aproxima o espaçamento e a ordenação da referência. As duas tabelas têm rolagem horizontal própria em telas estreitas. O atalho Ver equipe aponta para Gestão e depende de `acessaGestao` e `equipe.ver`. [Captura das tabelas](dashboard-v2-tabelas-1920.png)
+
+Parado por etapa, conversão e primeira resposta por atendente exibem indisponibilidade. As seis métricas já sinalizadas nas etapas anteriores ganharam uma proposta de contrato com fontes, lacunas e critérios de aceite. Busca global, sino e atalho para o pipeline seguem fora do escopo desta entrega. [Proposta de contratos](contratos-pendentes.md)
+
 ## Etapa 3 · Aproximação visual ao ZIP
 
 O Dashboard V2 passou a mostrar os onze cartões e as sete posições da faixa ao vivo na ordem da referência. Sete cartões e cinco contadores recebem dados da API. Primeira resposta humana, NPS, transferências, leads parados e os dois contadores operacionais aparecem com travessão e indicação de indisponibilidade. O catálogo aceita essas chaves como opcionais na configuração recebida de instâncias existentes. [Dashboard](../../../frontend/src/components/dashboard/pagina-dashboard.tsx#L888) · [Catálogo](../../../frontend/src/lib/config/schema.ts#L1278)
@@ -10,7 +16,7 @@ O teste de navegador confere a grade e os contadores, o carregamento da fonte, a
 
 A captura ainda difere da referência em valores e séries indisponíveis, busca global, sino, opções da barra lateral dependentes de capacidades e detalhes do funil e da equipe. A comparação usa dados sintéticos de teste e um tema de referência. [Captura atual](dashboard-v2-tema-referencia-1920.png) · [Protótipo](mockup-dashboard-1920.png) · [Celular](dashboard-v2-390.png)
 
-O registro da Etapa 2 abaixo preserva o histórico. As capturas com nome `dashboard-v2-*` mostram a Etapa 3.
+O registro da Etapa 2 abaixo preserva o histórico. As capturas com nome `dashboard-v2-*` acompanham a revisão mais recente de cada cenário.
 
 ## 1. Estado
 

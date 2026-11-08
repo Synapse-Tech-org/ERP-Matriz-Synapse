@@ -125,6 +125,10 @@ describe("TextosSchema", () => {
           esquecidos: "Esquecidos +1 hora",
           indisponivel: "Métrica indisponível",
           valorIndisponivel: "—",
+          colunaLeads: "Leads",
+          colunaParado: "Parado",
+          colunaPrimeiraResposta: "1ª resposta",
+          verEquipe: "Ver equipe",
         },
       },
     });

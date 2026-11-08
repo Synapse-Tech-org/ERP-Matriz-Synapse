@@ -25,6 +25,7 @@ const glifos = {
   "user-unfollow-fill": "\uf277",
   "arrow-up-line": "\uea76",
   "arrow-down-line": "\uea4c",
+  "arrow-right-up-line": "\uea70",
 } as const;
 
 export function IconeDashboardV2({ nome }: { nome: keyof typeof glifos }) {

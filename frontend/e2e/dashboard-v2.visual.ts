@@ -30,6 +30,10 @@ for (const largura of [1920, 1440, 1024, 390]) {
     await geometria(page);
     await page.screenshot({ path: `${pasta}/dashboard-v2-${largura}.png` });
     if (largura === 390) {
+      const tabela = page.getByRole("table", { name: textos.dashboard.secoes.equipe, exact: true });
+      const rolagem = tabela.locator("..");
+      expect(await rolagem.evaluate((elemento) => elemento.scrollWidth > elemento.clientWidth)).toBe(true);
+      await expect(page.getByRole("link", { name: "Ver equipe" })).toHaveCount(0);
       const filtros = page.getByRole("button", { name: textos.dashboard.filtros.rotulo, exact: true });
       await filtros.click();
       await expect(filtros).toHaveAttribute("aria-expanded", "true");
@@ -88,7 +92,9 @@ test("Dashboard v2 com tema escuro da fixture", async ({ page }) => {
 test("Dashboard com a paleta da referência e geometria nativa 1920×1080", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   const temaReferencia = JSON.parse(readFileSync(resolve("../docs/refatoracao-frontend/dashboard/tema-referencia.json"), "utf8"));
-  const fixture = await prepararFrontendV2(page, { features: ["dashboard_layout_v2", "dashboard"], dashboard: dashboardFixture, tema: temaReferencia });
+  const fixture = await prepararFrontendV2(page, {
+    features: ["dashboard_layout_v2", "dashboard"], dashboard: dashboardFixture, tema: temaReferencia, acessaEquipe: true,
+  });
   await page.goto("/dashboard");
   await expect(page.getByTestId("dashboard-conteudo")).toHaveAttribute("data-layout", "v2");
   await expect(page.getByTestId(`kpi-${textos.dashboard.kpis.atendimentos}`)).toHaveText("84");
@@ -111,6 +117,21 @@ test("Dashboard com a paleta da referência e geometria nativa 1920×1080", asyn
   await page.waitForLoadState("networkidle");
   await geometria(page);
   await page.screenshot({ path: `${pasta}/dashboard-v2-tema-referencia-1920.png` });
+  const funil = page.getByRole("table", { name: textos.dashboard.secoes.funil, exact: true });
+  await expect(funil.getByRole("columnheader", { name: "Parado" })).toBeVisible();
+  const etapa = funil.getByRole("row").filter({ has: page.getByRole("rowheader", { name: dashboardFixture.funil[0].nome }) });
+  await expect(etapa.getByRole("cell", { name: String(dashboardFixture.funil[0].quantidade), exact: true })).toHaveCount(1);
+  await expect(etapa.getByRole("cell", { name: "Métrica indisponível" })).toHaveCount(1);
+  const equipe = page.getByRole("table", { name: textos.dashboard.secoes.equipe, exact: true });
+  await expect(equipe.getByRole("columnheader", { name: "1ª resposta" })).toBeVisible();
+  await expect(equipe.getByRole("row").filter({ hasText: dashboardFixture.equipeDesempenho[0].nome })
+    .getByRole("cell", { name: "Métrica indisponível" })).toHaveCount(2);
+  await expect(page.getByRole("link", { name: "Ver equipe" })).toHaveAttribute("href", "/gestao");
+  await page.locator('[data-slot="dashboard-analises"]').evaluate((elemento) => {
+    elemento.scrollIntoView({ block: "start" });
+  });
+  await page.screenshot({ path: `${pasta}/dashboard-v2-tabelas-1920.png` });
+  await page.locator('[data-slot="dashboard-corpo"]').evaluate((elemento) => { elemento.scrollTop = 0; });
   const ano = page.locator("#dashboard-ano");
   const outroAno = String(Number(await ano.locator('[data-slot="select-value"]').innerText()) - 1);
   await ano.click();
