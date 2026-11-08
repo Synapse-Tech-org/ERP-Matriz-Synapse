@@ -1703,6 +1703,11 @@
           "example" : 7,
           "format" : "int32",
           "type" : "integer"
+        },
+        "notaRecomendacao" : {
+          "example" : 9,
+          "format" : "int32",
+          "type" : "integer"
         }
       },
       "required" : [ "nota" ],
