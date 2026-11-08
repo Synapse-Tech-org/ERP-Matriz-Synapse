@@ -48,14 +48,61 @@
   width: 10px;
 }
 
+.pagina :global([data-slot="dashboard-topo"]) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 38px;
+  margin-bottom: -16px;
+}
+
 .pagina :global([data-slot="dashboard-caminho"]) {
   display: flex;
   align-items: center;
   gap: 8px;
   min-height: 38px;
-  margin-bottom: -16px;
   color: var(--muted-foreground);
   font-size: 13.5px;
+}
+
+.pagina :global([data-slot="dashboard-busca"]) {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: min(360px, 100%);
+  height: 38px;
+  padding: 0 6px 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--muted-foreground);
+  box-shadow: var(--sombra-sm);
+  font-size: 13.5px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.pagina :global([data-slot="dashboard-busca"]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.pagina :global([data-slot="dashboard-busca"]) > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pagina :global([data-slot="dashboard-busca"]) kbd {
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--background);
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .pagina :global([data-slot="dashboard-caminho"]) :global([aria-current="page"]) {
@@ -630,6 +677,13 @@
 }
 
 @media (max-width: 639px) {
+  .pagina :global([data-slot="dashboard-topo"]) {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .pagina :global([data-slot="dashboard-busca"]) kbd {
+    display: none;
+  }
   .pagina {
     height: 100%;
     margin: 0;

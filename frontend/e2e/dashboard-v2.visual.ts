@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { prepararFrontendV2, temaFixture } from "./fixtures/frontend-v2";
+import { cartoesFixture, prepararFrontendV2, temaFixture } from "./fixtures/frontend-v2";
 import { dashboardFixture, dashboardVazioFixture } from "./fixtures/dashboard-v2";
 
 const textos = JSON.parse(readFileSync(resolve("../backend/crm-app/src/main/resources/textos.json"), "utf8"));
@@ -63,6 +63,62 @@ test("Dashboard legado permanece sem flag e flag de Atendimentos não o habilita
   await expect(page.getByTestId(`kpi-${textos.dashboard.kpis.atendimentos}`)).toHaveText("84");
   await expect(page.locator("[data-dashboard-kpi]")).toHaveCount(7);
   await expect(page.locator("[data-dashboard-kpi][data-indisponivel]")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Buscar contatos", exact: true })).toHaveCount(0);
+});
+
+test("busca por contato usa o filtro da Agenda e abre a ficha selecionada", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const fixture = await prepararFrontendV2(page, { features: ["dashboard_layout_v2"], dashboard: dashboardFixture });
+  const contato = cartoesFixture[0];
+  const termo = "Contato de verificação";
+  let consultas = 0;
+  await page.route("**/api/v1/leads/filtrar", async (rota) => {
+    consultas += 1;
+    await rota.fulfill({ json: { leads: [{ id: contato.leadId, nome: contato.leadNome, empresa: null }], pagina: 0, temMais: false } });
+  });
+  await page.goto("/dashboard");
+  await expect(page.getByRole("button", { name: "Buscar contatos", exact: true })).toBeVisible();
+  await page.keyboard.press("Control+k");
+  const dialogo = page.getByRole("dialog", { name: "Buscar contatos" });
+  const campo = dialogo.getByRole("searchbox", { name: "Buscar contatos" });
+  await expect(campo).toBeFocused();
+  await campo.fill(`  ${termo}  `);
+  await page.waitForLoadState("networkidle");
+  expect(consultas).toBe(0);
+
+  const requisicao = page.waitForRequest((r) => new URL(r.url()).pathname === "/api/v1/leads/filtrar");
+  await campo.press("Enter");
+  const consulta = await requisicao;
+  expect(consulta.method()).toBe("POST");
+  expect(new URL(consulta.url()).search).toBe("");
+  expect(consulta.postDataJSON()).toEqual({
+    pagina: 0, tamanho: 10,
+    criterio: {
+      tipo: "COMPOSTO", conector: "OU",
+      criterios: ["nome", "telefone", "cpf"].map((campo) => ({ tipo: "SIMPLES", campo, operador: "CONTEM", valor: termo })),
+    },
+  });
+  const resultado = dialogo.getByRole("button", { name: contato.leadNome, exact: true });
+  await expect(resultado).toBeVisible();
+  await page.screenshot({ path: `${pasta}/dashboard-v2-busca-1440.png` });
+  await resultado.click();
+  const ficha = page.getByRole("dialog", { name: textos.painelLead.titulo, exact: true });
+  await expect(ficha.getByRole("textbox", { name: textos.painelLead.dados.nome })).toHaveValue(contato.leadNome);
+  expect(fixture.chamadas).toContain(`/leads/${contato.leadId}/agenda`);
+  await ficha.getByRole("button", { name: textos.painelLead.fechar, exact: true }).click();
+  await expect(page.getByRole("button", { name: "Buscar contatos", exact: true })).toBeFocused();
+  expect(fixture.desconhecidas).toEqual([]);
+});
+
+test("busca do Dashboard fica indisponível sem acesso a clientes", async ({ page }) => {
+  await prepararFrontendV2(page, {
+    features: ["dashboard_layout_v2"], dashboard: dashboardFixture, acessaClientes: false,
+  });
+  await page.goto("/dashboard");
+  await expect(page.getByTestId(`kpi-${textos.dashboard.kpis.atendimentos}`)).toHaveText("84");
+  await expect(page.getByRole("button", { name: "Buscar contatos", exact: true })).toHaveCount(0);
+  await page.keyboard.press("Control+k");
+  await expect(page.getByRole("dialog", { name: "Buscar contatos" })).toHaveCount(0);
 });
 
 test("Dashboard vazio não fabrica números, comparativos ou séries", async ({ page }) => {

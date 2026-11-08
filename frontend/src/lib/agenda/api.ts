@@ -21,10 +21,12 @@ export function filtrarLeads(
   criterio: CriterioRequisicao,
   pagina: number,
   tamanho: number,
+  signal?: AbortSignal,
 ): Promise<PaginaDeLeads> {
   return apiFetch<PaginaDeLeads>("/api/v1/leads/filtrar", {
     method: "POST",
     body: JSON.stringify({ criterio, pagina, tamanho }),
+    signal,
   });
 }
 

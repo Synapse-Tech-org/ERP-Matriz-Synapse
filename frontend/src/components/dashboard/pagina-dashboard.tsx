@@ -47,6 +47,7 @@ import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn, iniciaisDoNome } from "@/lib/utils";
 
 import { GraficoKpi, type CampoSerie } from "./grafico-kpi";
+import { BuscaDoDashboard } from "./busca-do-dashboard";
 import estilosV2 from "./dashboard-v2.module.css";
 import { IconeDashboardV2 } from "./icone-dashboard-v2";
 
@@ -235,15 +236,18 @@ export function PaginaDashboard() {
       className={cn("flex min-h-full flex-col gap-5 bg-background p-6 lg:p-7 max-sm:gap-4 max-sm:p-4", layoutV2 && [estilosV2.pagina, fonteFrontendV2.variable])}
     >
       {layoutV2 && (
-        <nav data-slot="dashboard-caminho" aria-label={textos.titulo}>
-          <a href="/atendimentos" aria-label={catalogo.menu.itens.atendimentos}>
-            <IconeDashboardV2 nome="home-5-line" />
-          </a>
-          <span aria-hidden>/</span>
-          <span>{catalogo.menu.grupoGestao}</span>
-          <span aria-hidden>/</span>
-          <span aria-current="page">{textos.titulo}</span>
-        </nav>
+        <div data-slot="dashboard-topo">
+          <nav data-slot="dashboard-caminho" aria-label={textos.titulo}>
+            <a href="/atendimentos" aria-label={catalogo.menu.itens.atendimentos}>
+              <IconeDashboardV2 nome="home-5-line" />
+            </a>
+            <span aria-hidden>/</span>
+            <span>{catalogo.menu.grupoGestao}</span>
+            <span aria-hidden>/</span>
+            <span aria-current="page">{textos.titulo}</span>
+          </nav>
+          <BuscaDoDashboard />
+        </div>
       )}
       <header data-slot="dashboard-cabecalho" className="-mx-6 -mt-6 border-b bg-card px-6 pt-7 lg:-mx-7 lg:-mt-7 lg:px-7 max-sm:-mx-4 max-sm:-mt-4 max-sm:px-4">
         <div className="flex items-start justify-between gap-3">

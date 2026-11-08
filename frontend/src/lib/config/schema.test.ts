@@ -129,6 +129,14 @@ describe("TextosSchema", () => {
           colunaParado: "Parado",
           colunaPrimeiraResposta: "1ª resposta",
           verEquipe: "Ver equipe",
+          busca: {
+            rotulo: "Buscar contatos",
+            descricao: "Busque por nome, telefone ou CPF e abra a ficha do contato.",
+            acao: "Buscar",
+            vazio: "Nenhum contato encontrado.",
+            mais: "Refine a busca para encontrar outros contatos.",
+            atalho: "Ctrl K",
+          },
         },
       },
     });

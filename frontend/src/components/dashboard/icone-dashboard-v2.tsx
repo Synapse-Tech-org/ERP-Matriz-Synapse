@@ -26,6 +26,7 @@ const glifos = {
   "arrow-up-line": "\uea76",
   "arrow-down-line": "\uea4c",
   "arrow-right-up-line": "\uea70",
+  "search-line": "\uf0d1",
 } as const;
 
 export function IconeDashboardV2({ nome }: { nome: keyof typeof glifos }) {

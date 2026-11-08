@@ -1,5 +1,13 @@
 # Dashboard da alternativa A
 
+## Etapa 5 · Busca de contatos
+
+O cabeçalho V2 ganhou o controle Buscar contatos para sessões com a capacidade `clientes.acessar`. O botão e o atalho Ctrl+K ou Cmd+K abrem o mesmo diálogo. A pesquisa é enviada ao confirmar um termo e usa o filtro paginado da Agenda por nome, telefone ou CPF. [Componente](../../../frontend/src/components/dashboard/busca-do-dashboard.tsx) · [Filtro da Agenda](../../../frontend/src/lib/agenda/use-agenda.ts)
+
+O termo viaja no corpo da consulta. Cada resultado abre a ficha existente sob a autorização da Agenda. Digitar ou sair da busca descarta os resultados exibidos. Os testes cobrem o atalho, a consulta somente após confirmação, a abertura da ficha e a ausência do controle em sessões sem acesso. [Cenários](../../../frontend/e2e/dashboard-v2.visual.ts)
+
+O protótipo descreve uma busca global que inclui atendentes e relatórios. A entrega cobre contatos. Sino, atalho de pipeline e métricas pendentes continuam como diferenças da referência. [Captura do cabeçalho](dashboard-v2-tema-referencia-1920.png) · [Busca em uso](dashboard-v2-busca-1440.png)
+
 ## Etapa 4 · Funil e equipe
 
 O funil V2 separa a contagem de leads da barra e mantém a linha Perdido fora da sequência de passagem. A tabela de equipe aproxima o espaçamento e a ordenação da referência. As duas tabelas têm rolagem horizontal própria em telas estreitas. O atalho Ver equipe aponta para Gestão e depende de `acessaGestao` e `equipe.ver`. [Captura das tabelas](dashboard-v2-tabelas-1920.png)

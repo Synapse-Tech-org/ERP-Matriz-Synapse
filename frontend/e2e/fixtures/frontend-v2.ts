@@ -9,6 +9,7 @@ interface OpcoesFrontendV2 {
   tema?: Record<string, unknown>;
   dashboard?: VisaoGeralDashboard;
   acessaEquipe?: boolean;
+  acessaClientes?: boolean;
 }
 
 export const temaFixture = JSON.parse(readFileSync(resolve("../backend/crm-app/src/main/resources/tema.json"), "utf8"));
@@ -29,7 +30,7 @@ export const cartoesFixture = Array.from({ length: 15 }, (_, indice) => ({
 }));
 
 export async function prepararFrontendV2(page: Page, opcoes: OpcoesFrontendV2 = {}) {
-  const { features = [], quantidade = 15, tema: temaDaFixture = temaFixture, dashboard, acessaEquipe = false } = opcoes;
+  const { features = [], quantidade = 15, tema: temaDaFixture = temaFixture, dashboard, acessaEquipe = false, acessaClientes = true } = opcoes;
   const cartoes = cartoesFixture;
   await page.request.post("http://127.0.0.1:38981/__fixture/tema", { data: temaDaFixture });
   const chamadas: string[] = [];
@@ -65,7 +66,7 @@ export async function prepararFrontendV2(page: Page, opcoes: OpcoesFrontendV2 = 
     else if (caminho === "/gestao/permissoes/minhas") corpo = {
       usuarioId, papel: "ATENDENTE", revisao: "fixture",
       acessaGestao: acessaEquipe,
-      capacidades: Object.fromEntries(["clientes.acessar", "atendimentos.ver", "atendimentos.responder", "contatos.ver", "contatos.editar", ...(dashboard ? ["dashboard.ver"] : []), ...(acessaEquipe ? ["equipe.ver"] : [])].map((chave) => [chave, { permitido: true, alcance: "MEUS" }])),
+      capacidades: Object.fromEntries(["atendimentos.ver", "atendimentos.responder", "contatos.ver", "contatos.editar", ...(acessaClientes ? ["clientes.acessar"] : []), ...(dashboard ? ["dashboard.ver"] : []), ...(acessaEquipe ? ["equipe.ver"] : [])].map((chave) => [chave, { permitido: true, alcance: "MEUS" }])),
     };
     else if (caminho === "/me") corpo = { id: usuarioId, nome: "Pessoa de teste", papel: "ATENDENTE", presenca: "ONLINE", usuarioTeste: false };
     else if (caminho === "/config/canal") corpo = { exigeTemplateForaDaJanela: false, gerenciaTemplates: false };
@@ -83,17 +84,18 @@ export async function prepararFrontendV2(page: Page, opcoes: OpcoesFrontendV2 = 
     else if (caminho.endsWith("/informacoes-do-chatbot")) corpo = { habilitado: false, cards: [], proximoCursor: null };
     else if (caminho.endsWith("/resumo-ia") || caminho.endsWith("/pedido-entrada/meu") || caminho.endsWith("/avaliacao")) corpo = null;
     else if (caminho === "/usuarios/me/presenca") corpo = { status: "ONLINE" };
-    else if (/^\/leads\/[^/]+$/.test(caminho)) corpo = {
+    else if (/^\/leads\/[^/]+(?:\/agenda)?$/.test(caminho)) corpo = {
       id: cartao.leadId, nome: cartao.leadNome, fotoUrl: null, telefone: null,
       email: null, cpf: null, empresa: null, codigo: null, localizacao: null,
       canalOrigemId: null, status: "EM_ATENDIMENTO", etapaAtendimentoId: null,
       atendenteResponsavelId: usuarioId, notas: null, resumoIa: null, resumoIaAtualizadoEm: null,
       numAtendimentos: 1, numMensagens: 1, criadoEm: instante, dadosCustomizados: {},
     };
+    else if (/^\/leads\/[^/]+\/timeline$/.test(caminho)) corpo = { eventos: [], pagina: 0, temMais: false };
     else if (caminho.endsWith("/midias/contagem")) corpo = { imagens: 0, videos: 0, audios: 0, documentos: 0, total: 0 };
     else if (caminho === "/lembretes") corpo = { lembretes: [], total: 0 };
     else if (caminho === "/mensagens-programadas") corpo = { mensagens: [], total: 0 };
-    else if (["/etapas", "/tags", "/campos-customizados", "/usuarios", "/mensagens-rapidas"].includes(caminho) || caminho.endsWith("/tags") || caminho.endsWith("/participantes") || caminho.endsWith("/pedidos-entrada")) corpo = [];
+    else if (["/etapas", "/tags", "/campos-customizados", "/canais", "/usuarios", "/mensagens-rapidas"].includes(caminho) || caminho.endsWith("/tags") || caminho.endsWith("/participantes") || caminho.endsWith("/pedidos-entrada")) corpo = [];
     else {
       desconhecidas.push(caminho);
       await rota.fulfill({ status: 501, json: { detail: "Rota não prevista pela fixture local." } });
