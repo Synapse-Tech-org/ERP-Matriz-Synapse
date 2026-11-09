@@ -23,7 +23,7 @@ objetos=$(psql -X -qAt --set ON_ERROR_STOP=1 --command "SELECT count(*) FROM pg_
 [ "$objetos" = 0 ] || { printf '%s\n' 'Destino sem marcador contem objetos; nenhum objeto foi apagado' >&2; exit 1; }
 # So estrutura: nao copia registros de credenciais, usuarios ou execucoes.
 PGUSER="$N8N_DB_USER" PGPASSWORD="$N8N_DB_PASSWORD" PGDATABASE="$N8N_DB_NAME" \
-  pg_dump --format=custom --schema-only --no-owner --no-privileges --file "$temporario/estrutura.dump"
+  pg_dump --format=custom --schema-only --no-owner --no-privileges --lock-wait-timeout=10s --file "$temporario/estrutura.dump"
 pg_restore --schema-only --no-owner --no-privileges --clean --if-exists \
   --file "$temporario/estrutura.sql" "$temporario/estrutura.dump"
 # O destino foi verificado vazio. Restore e marcador sao uma unica transacao.

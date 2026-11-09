@@ -1,3 +1,5 @@
+# Alternativa separada. O caminho recomendado agora e docker/dokploy-stack.yml.
+# Nao implantar as duas opcoes ao mesmo tempo com o mesmo dominio/banco.
 # Servico NOVO no Dokploy, tipo Docker Compose (nao Docker Stack).
 # Nao substitui docker/dokploy-stack.yml e nao altera a stack do CRM.
 services:

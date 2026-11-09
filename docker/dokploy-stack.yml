@@ -417,20 +417,33 @@ services:
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.timeout=3s'
 
   # Base TypeScript opcional. Nao substitui o n8n nem muda os destinos do CRM.
-  # A imagem usa a mesma tag de release da stack, publicada pelo CI.
+  # O override de imagem permite homologar sem trocar as imagens do CRM.
   automacao:
-    image: ghcr.io/synapse-auto/erp-matriz-synapse-automacao:${SYNAPSE_IMAGE_TAG:?obrigatoria}
+    image: ghcr.io/synapse-auto/erp-matriz-synapse-automacao:${AUTOMACAO_IMAGE_TAG:-${SYNAPSE_IMAGE_TAG:?obrigatoria}}
     environment:
       NODE_ENV: production
       AUTOMACAO_HOST: 0.0.0.0
       AUTOMACAO_PORT: "3100"
       AUTOMACAO_HABILITADA: ${AUTOMACAO_HABILITADA:-false}
       AUTOMACAO_FOLLOWUP_HABILITADO: ${AUTOMACAO_FOLLOWUP_HABILITADO:-false}
+      AUTOMACAO_CRM_URL: ${AUTOMACAO_CRM_URL:-http://synapse-backend-internal:8080}
+      AUTOMACAO_TOKEN: ${AUTOMACAO_TOKEN:-}
+      AUTOMACAO_DB_HOST: postgres
+      AUTOMACAO_DB_PORT: "5432"
+      AUTOMACAO_DB_NAME: ${AUTOMACAO_DB_NAME:-}
+      AUTOMACAO_DB_USER: ${AUTOMACAO_DB_USER:-}
+      AUTOMACAO_DB_PASSWORD: ${AUTOMACAO_DB_PASSWORD:-}
+      AUTOMACAO_DB_SCHEMA: ${AUTOMACAO_DB_SCHEMA:-public}
+      AUTOMACAO_DB_POOL_MAX: ${AUTOMACAO_DB_POOL_MAX:-3}
+      # Apenas nomes, para recusar bancos de negocio como destino. Sem suas senhas.
+      POSTGRES_DB: ${POSTGRES_DB:?obrigatoria}
+      N8N_DB_NAME: ${N8N_DB_NAME:?obrigatoria}
       TZ: ${SYNAPSE_TIMEZONE:?obrigatoria}
     networks:
       synapse-internal:
         aliases:
           - synapse-automacao-internal
+      dokploy-network:
     expose:
       - "3100"
     stop_grace_period: 30s
@@ -458,8 +471,56 @@ services:
       resources:
         # Orcamento unico do servico. Workers/painel futuros nao ganham cotas separadas.
         limits:
-          cpus: ${AUTOMACAO_CPU_LIMIT:-1.0}
           memory: ${AUTOMACAO_MEMORY_LIMIT:-768M}
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        # Publicacao do painel e independente da execucao de follow-up.
+        - "traefik.enable=${AUTOMACAO_PAINEL_HABILITADO:-false}"
+        - "traefik.swarm.network=dokploy-network"
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}.rule=Host(`${AUTOMACAO_PAINEL_DOMINIO:-automacao-desligada.invalid}`) && (PathPrefix(`/painel/`) || Path(`/painel`) || Path(`/`))'
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}.entrypoints=websecure'
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}.tls=true'
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}.tls.certresolver=letsencrypt'
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}.service=${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}'
+        - 'traefik.http.services.${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}.loadbalancer.server.port=3100'
+
+  # Tarefa unica: nao modifica o servico postgres nem seu init/volume.
+  # Ausente = zero tarefas. Falha deve ser inspecionada, sem loop automatico.
+  automacao-banco:
+    image: postgres:15-alpine
+    command: ["sh", "/opt/automacao/provisionar.sh"]
+    environment:
+      AUTOMACAO_DB_HOST: postgres
+      AUTOMACAO_DB_PORT: "5432"
+      AUTOMACAO_DB_NAME: ${AUTOMACAO_DB_NAME:-}
+      AUTOMACAO_DB_USER: ${AUTOMACAO_DB_USER:-}
+      AUTOMACAO_DB_PASSWORD: ${AUTOMACAO_DB_PASSWORD:-}
+      POSTGRES_DB: ${POSTGRES_DB:?obrigatoria}
+      POSTGRES_USER: ${POSTGRES_USER:?obrigatoria}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?obrigatoria}
+      N8N_DB_NAME: ${N8N_DB_NAME:?obrigatoria}
+      N8N_DB_USER: ${N8N_DB_USER:?obrigatoria}
+      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:?obrigatoria}
+    configs:
+      - source: automacao-provisionar-sh-v1
+        target: /opt/automacao/provisionar.sh
+      - source: automacao-provisionar-sql-v1
+        target: /opt/automacao/provisionar.sql
+      - source: automacao-clonar-sh-v1
+        target: /opt/automacao/clonar-estrutura.sh
+      - source: automacao-marcador-sql-v1
+        target: /opt/automacao/marcador.sql
+    networks:
+      - synapse-internal
+    deploy:
+      replicas: ${AUTOMACAO_PROVISIONAR_REPLICAS:-0}
+      restart_policy:
+        condition: none
+      resources:
+        limits:
+          memory: 256M
       placement:
         constraints:
           - node.role == manager
@@ -619,3 +680,12 @@ volumes:
 configs:
   postgres-init-n8n:
     file: ./postgres-init/10-create-n8n-database.sh
+  # Novos configs exclusivos; os configs do PostgreSQL existente nao mudam.
+  automacao-provisionar-sh-v1:
+    file: ../automacao/banco/provisionar.sh
+  automacao-provisionar-sql-v1:
+    file: ../automacao/banco/provisionar.sql
+  automacao-clonar-sh-v1:
+    file: ../automacao/banco/clonar-estrutura.sh
+  automacao-marcador-sql-v1:
+    file: ../automacao/banco/marcador.sql

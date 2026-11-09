@@ -9,7 +9,7 @@ docker run -d --name "$container" --network none \
   -v "$raiz/banco:/opt/automacao:ro" postgres:15-alpine >/dev/null
 pronto=false
 for tentativa in $(seq 1 60); do
-  if docker exec "$container" pg_isready -U postgres -d crm_fixture >/dev/null 2>&1; then pronto=true; break; fi
+  if docker exec "$container" pg_isready -h 127.0.0.1 -U postgres -d crm_fixture >/dev/null 2>&1; then pronto=true; break; fi
   sleep 1
 done
 [ "$pronto" = true ] || { echo 'PostgreSQL de teste nao iniciou' >&2; exit 1; }
@@ -21,6 +21,8 @@ CREATE TABLE workflow_entity (id varchar PRIMARY KEY, name varchar NOT NULL);
 CREATE TABLE execution_entity (id bigserial PRIMARY KEY, "workflowId" varchar REFERENCES workflow_entity(id), status varchar NOT NULL, "startedAt" timestamptz, "stoppedAt" timestamptz);
 CREATE TABLE execution_data ("executionId" bigint PRIMARY KEY REFERENCES execution_entity(id), data text);
 CREATE TABLE credentials_entity (id varchar PRIMARY KEY, data text);
+CREATE TYPE fixture_enum AS ENUM ('um', 'dois');
+CREATE INDEX fixture_status_idx ON execution_entity(status);
 INSERT INTO workflow_entity VALUES ('fluxo_teste', 'Fixture');
 INSERT INTO execution_entity ("workflowId",status) VALUES ('fluxo_teste','success');
 INSERT INTO credentials_entity VALUES ('credencial_teste','NAO_COPIAR');
@@ -40,6 +42,8 @@ provisionar
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM credentials_entity')" = 0 ]
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM execution_entity')" = 0 ]
 [ "$(consulta n8n_fixture 'SELECT count(*) FROM credentials_entity')" = 1 ]
+[ "$(consulta automacao_fixture "SELECT count(*) FROM pg_type WHERE typname='fixture_enum'")" = 1 ]
+[ "$(consulta automacao_fixture "SELECT to_regclass('public.fixture_status_idx') IS NOT NULL")" = t ]
 consulta automacao_fixture "INSERT INTO workflow_entity VALUES ('preservar','Nao apagar')" >/dev/null
 provisionar
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM workflow_entity')" = 1 ]
@@ -47,4 +51,26 @@ consulta postgres 'CREATE DATABASE destino_ocupado OWNER automacao_fixture_app' 
 consulta destino_ocupado 'CREATE TABLE nao_apagar (id integer)' >/dev/null
 if provisionar destino_ocupado; then echo 'ERRO: aceitou destino ocupado' >&2; exit 1; fi
 [ "$(consulta destino_ocupado "SELECT to_regclass('public.nao_apagar') IS NOT NULL")" = t ]
-echo 'OK: clone sem dados, origem preservada, redeploy idempotente e destino ocupado protegido'
+
+# A origem de TESTE ganha um schema que conflita com nosso marcador, forcando
+# falha depois do restore. Tudo no destino deve voltar ao estado vazio.
+consulta n8n_fixture 'CREATE SCHEMA automacao_infra AUTHORIZATION n8n_fixture' >/dev/null
+if provisionar destino_falha; then echo 'ERRO: aceitou conflito de schema' >&2; exit 1; fi
+[ "$(consulta destino_falha "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'")" = 0 ]
+[ "$(consulta destino_falha "SELECT to_regclass('automacao_infra.provisionamento') IS NULL")" = t ]
+consulta n8n_fixture 'DROP SCHEMA automacao_infra' >/dev/null
+provisionar destino_falha
+[ "$(consulta destino_falha 'SELECT count(*) FROM automacao_infra.provisionamento')" = 1 ]
+
+# Duas tarefas disputam o mesmo destino, como pode ocorrer num redeploy.
+provisionar corrida_fixture & primeiro=$!
+provisionar corrida_fixture & segundo=$!
+wait "$primeiro"
+wait "$segundo"
+[ "$(consulta corrida_fixture 'SELECT count(*) FROM automacao_infra.provisionamento')" = 1 ]
+
+for proibido in crm_fixture n8n_fixture postgres; do
+  if provisionar "$proibido"; then echo 'ERRO: aceitou banco protegido' >&2; exit 1; fi
+done
+[ "$(consulta n8n_fixture 'SELECT count(*) FROM credentials_entity')" = 1 ]
+echo 'OK: schema sem dados, origem preservada, repeticao, rollback, concorrencia e destinos protegidos'

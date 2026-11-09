@@ -71,6 +71,46 @@ test('processo compilado rejeita toggle invalido antes de abrir HTTP', async () 
   );
 });
 
+test('Swarm: HTTP inicia antes do preparador e readiness aguarda o banco', { timeout: 15000 }, async (t) => {
+  const reserva = await reservarPorta();
+  const port = reserva.address().port;
+  await new Promise((resolve) => reserva.close(resolve));
+  const reservaDb = await reservarPorta();
+  const dbPort = reservaDb.address().port;
+  await new Promise((resolve) => reservaDb.close(resolve));
+  const env = {
+    ...envBase, AUTOMACAO_PORT: String(port),
+    AUTOMACAO_DB_HOST: '127.0.0.1', AUTOMACAO_DB_PORT: String(dbPort),
+    AUTOMACAO_DB_NAME: 'automacao_runtime_fixture', AUTOMACAO_DB_USER: 'fixture',
+    AUTOMACAO_DB_PASSWORD: 'senha-somente-de-teste',
+    POSTGRES_DB: 'crm_runtime_fixture', N8N_DB_NAME: 'n8n_runtime_fixture',
+    AUTOMACAO_CRM_URL: `http://127.0.0.1:${port}`,
+  };
+  const filho = spawn(process.execPath, ['dist/src/server.js'], { cwd, env });
+  const encerrado = once(filho, 'exit');
+  let log = '';
+  filho.stderr.on('data', (chunk) => { log += chunk; });
+  t.after(async () => {
+    if (filho.exitCode === null && filho.signalCode === null) filho.kill('SIGTERM');
+    await encerrado;
+  });
+  await new Promise((resolve, reject) => {
+    filho.once('error', reject);
+    filho.once('exit', () => reject(new Error(`Processo encerrou antes do boot: ${log}`)));
+    filho.stdout.on('data', (chunk) => {
+      log += chunk;
+      if (log.includes('Server listening at')) resolve();
+    });
+  });
+  const base = `http://127.0.0.1:${port}`;
+  assert.equal((await fetch(base + '/health/liveness')).status, 200);
+  const ready = await fetch(base + '/health/readiness');
+  assert.equal(ready.status, 503);
+  assert.equal((await ready.json()).codigo, 'BANCO_AUTOMACAO_NAO_PRONTO');
+  assert.equal((await fetch(base + '/painel/')).status, 200);
+  assert.equal((await fetch(base + '/painel/api/status')).status, 401);
+});
+
 test('falha de bind encerra o processo sem ficar pendurado', async (t) => {
   const reserva = await reservarPorta();
   t.after(() => new Promise((resolve) => reserva.close(resolve)));

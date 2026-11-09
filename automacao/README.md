@@ -1,9 +1,9 @@
 # Automacao TypeScript
 
-Entrega na branch `feat/automacao-local-base`: banco separado, Fastify e
-painel independente em TypeScript. Nenhum arquivo Java, frontend do CRM ou
-Compose principal foi alterado nesta entrega. Publicar a branch nao comprova
-deploy: a nova aplicacao exige o servico separado descrito abaixo.
+Integracao preparada localmente na branch `feat/automacao-local-base`: banco
+separado, Fastify e painel TypeScript dentro do MESMO pacote `crm-teste` do
+Dokploy, sem alterar Java ou frontend do CRM. A configuracao principal e
+`docker/dokploy-stack.yml`. Preparar arquivos nao publica imagem nem faz deploy.
 
 **Follow-up ainda nao foi implementado.** Nao ha agendamento, envio, consumidor
 de fila ou reprocessamento. pg-boss instalado nao significa fila em execucao.
@@ -12,7 +12,9 @@ de fila ou reprocessamento. pg-boss instalado nao significa fila em execucao.
 
 | Caminho | Responsabilidade |
 | --- | --- |
-| `compose.yml` | Novo servico Dokploy, separado da stack existente |
+| `../docker/dokploy-stack.yml` | Opcao principal: integra ao pacote existente |
+| `compose.yml` | Alternativa separada; nao implantar junto com a principal |
+| `STACK-CRM.md` | Mudancas exatas, ativacao em etapas e retorno seguro |
 | `Dockerfile` | Build do servidor/painel; runtime Node nao-root |
 | `.env.banco.example` | Variaveis sem segredos reais |
 | `banco/provisionar.sh` e `.sql` | Criacao condicional de usuario e banco |
@@ -24,36 +26,39 @@ de fila ou reprocessamento. pg-boss instalado nao significa fila em execucao.
 
 ## Dokploy: procedimento para um deploy futuro autorizado
 
-1. Publicar a revisao aprovada na branch de teste. **Push pode disparar deploy**
-   se o Autodeploy estiver ligado; obter autorizacao antes de publicar.
-2. Criar um servico NOVO do tipo **Docker Compose**, na homologacao. Selecionar
-   este repositorio, branch `feat/automacao-local-base`, Compose Path
-   `automacao/compose.yml`. Nao trocar o caminho do servico CRM existente.
-3. Configurar nesse novo servico as envs de `.env.banco.example`. Dokploy nao
-   transfere automaticamente as variaveis de outro servico.
-4. Confirmar `AUTOMACAO_REDE_CRM`, alias `postgres` e URL interna do backend.
-   O nome de rede no exemplo e referencia, nao foi verificado nesta sessao.
-5. Usar dominio NOVO para o painel e prefixo Traefik exclusivo. Nao reutilizar
-   dominio do CRM, n8n ou Evolution. O proxy precisa conseguir emitir HTTPS.
-6. Revisar Preview Compose e executar Deploy somente com autorizacao.
+1. Seguir `STACK-CRM.md`. Manter o servico `crm-teste` existente, branch de teste
+   e Compose Path `docker/dokploy-stack.yml`. Nao criar outro item no Dokploy.
+2. Obter aprovacao antes de push: Autodeploy pode transforma-lo em deploy.
+3. Publicar e conferir a imagem da automacao no GHCR. Esta Stack nao executa
+   build; a branch no Dokploy nao substitui `AUTOMACAO_IMAGE_TAG`.
+4. Configurar as envs no MESMO servico, usando `.env.banco.example` como guia.
+   Credenciais de PostgreSQL/n8n ja existentes continuam onde estao.
+5. Revisar Preview Compose, imagens e backup antes de cada deploy autorizado.
 
-Este arquivo usa `build` e `depends_on: service_completed_successfully`.
-**Nao usar `docker stack deploy` nele.** O Dokploy constroi a imagem com a raiz
-do repositorio como contexto e `automacao/Dockerfile`. Nao exige SSH/npm manual
-na VPS nem muda a publicacao das imagens do CRM.
+`AUTOMACAO_IMAGE_TAG`, quando preenchido, seleciona apenas a imagem da automacao.
+Ausente/vazio usa `SYNAPSE_IMAGE_TAG`, preservando a versao conjunta como padrao.
+Nao modificar a tag conjunta do CRM para testar uma imagem da automacao.
+O CI existente publica imagens em `main` ou execucao manual autorizada com
+`publicar_imagens=true`; push na branch de teste, sozinho, so valida.
+Publicar uma imagem tambem nao executa deploy no Dokploy.
 
 ### Inicializacao automatica
 
-1. O container temporario `banco` conecta ao PostgreSQL existente na rede privada.
+1. Com `AUTOMACAO_PROVISIONAR_REPLICAS=1`, a tarefa `automacao-banco` conecta ao
+   PostgreSQL existente na rede privada. Default 0: nao executa nada.
 2. Cria usuario proprio sem privilegios administrativos e banco proprio se ausentes.
 3. Faz `pg_dump --schema-only` do banco interno do n8n e restaura no destino vazio.
 4. Grava `automacao_infra.provisionamento` na mesma transacao da restauracao.
-5. Somente apos sucesso, o container `automacao` inicia servidor e painel.
-6. O servidor valida as tabelas de execucao e aplica migracoes proprias pendentes,
+5. Com `AUTOMACAO_REPLICAS=1`, servidor/painel iniciam independentemente. Swarm
+   nao usa `depends_on`. Enquanto banco nao esta pronto, readiness retorna 503,
+   consultas permanecem indisponiveis e o servidor tenta novamente a cada 10s.
+6. Quando o banco fica pronto, valida as tabelas e aplica migracoes pendentes,
    com versao/checksum em `automacao_infra.migracao`.
 
 Funciona mesmo com volume PostgreSQL existente: nao depende de executar de novo
 o `/docker-entrypoint-initdb.d` do servidor original.
+O preparador termina em sucesso ou falha, sem restart automatico. Uma tarefa
+concluida pode aparecer com zero containers rodando; conferir exit code e logs.
 
 ### Garantias e limites
 
@@ -77,7 +82,7 @@ o `/docker-entrypoint-initdb.d` do servidor original.
 - Extensoes/objetos que exigem privilegios adicionais fazem o clone falhar.
   Nao ha ampliacao automatica de privilegios; revisar com o responsavel.
 
-### Variaveis do novo servico
+### Variaveis no servico existente
 
 `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`: banco CRM e credencial
 administrativa existente capaz de criar banco/usuario. Somente provisionador.
@@ -92,8 +97,9 @@ Nomes minusculos, numeros e underscore, sem iniciar por numero.
 `AUTOMACAO_CRM_URL`: endereco que o servidor da automacao usa para consultar
 login e permissoes no CRM. Nao e o endereco do painel. O default
 `http://synapse-backend-internal:8080` usa o nome privado do backend no Docker;
-funciona apenas se o novo servico estiver conectado a rede privada do CRM,
-selecionada por `AUTOMACAO_REDE_CRM`. Tambem pode ser configurado com a URL
+funciona na rede privada ja compartilhada pela Stack. `AUTOMACAO_REDE_CRM`
+nao e necessario nessa opcao; so e usado pelo Compose separado alternativo.
+Tambem pode ser configurado com a URL
 publica existente `https://crm-teste.187.77.47.30.sslip.io` (sem `/login`).
 
 `AUTOMACAO_PAINEL_DOMINIO`: endereco publico NOVO para abrir o painel, sem
@@ -118,7 +124,8 @@ Fastify entrega arquivos Vite e API. Nenhuma mudanca no frontend ou Java do CRM.
 Com o dominio sugerido em `.env.banco.example`, o endereco sera
 `https://painel-automacao-hml.187.77.47.30.sslip.io/painel/`.
 Esse endereco so ficara disponivel depois da configuracao e deploy autorizado
-do novo servico; criar os arquivos locais nao publica o painel.
+da Stack com `AUTOMACAO_REPLICAS=1` e `AUTOMACAO_PAINEL_HABILITADO=true`;
+criar arquivos ou preencher somente o dominio nao publica o painel.
 
 Usa APIs EXISTENTES: `POST /api/v1/auth/login`, `GET /api/v1/me` e
 `GET /api/v1/gestao/permissoes/minhas`. Exige GESTOR, SUBGESTOR ou ADMINISTRADOR
@@ -148,6 +155,9 @@ incompativeis sao recusadas explicitamente.
 Follow-up exige ambas `true`; ausente/vazio desliga, invalido impede boot.
 Nesta etapa nao ha executor, mesmo com ambas `true`. Painel/saude continuam
 acessiveis. Essas variaveis nao desligam o n8n existente.
+`AUTOMACAO_REPLICAS=0`, `AUTOMACAO_PROVISIONAR_REPLICAS=0` e
+`AUTOMACAO_PAINEL_HABILITADO=false` sao os defaults da Stack. Novas envs da
+automacao nao sao obrigatorias nos filhos desligados.
 
 ## Validacao local
 
@@ -169,7 +179,9 @@ privada nao ha consulta real ao PostgreSQL da homologacao.
 
 Com Docker disponivel: `bash test/banco-integracao.sh`. Cria/remove apenas um
 PostgreSQL efemero local, sem portas publicadas ou credenciais reais. Usa schema
-representativo e verifica clone sem dados, repeticao e recusa de destino ocupado.
+representativo e verifica clone sem dados, repeticao, rollback do restore,
+concorrencia, indices/tipos e recusa de destinos protegidos/ocupados. O CI foi
+configurado para executar esse teste isolado antes de publicar imagens.
 
 Nesta maquina nao ha Docker/psql. Provisionamento precisa passar pelo teste real
 e pela validacao de rede, permissoes e versao na homologacao. Testes HTTP/build

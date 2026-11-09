@@ -139,6 +139,9 @@ jobs:
           docker build -f automacao/Dockerfile -t synapse-automacao-ci .
           bash docker/verificacao/testar-automacao-container.sh
 
+      - name: Provar clone sem dados e repeticao sem perda em PostgreSQL isolado
+        run: bash automacao/test/banco-integracao.sh
+
   infra:
     name: Stack de producao
     runs-on: ubuntu-latest
@@ -188,6 +191,19 @@ jobs:
           sh -n docker/postgres-init/10-create-n8n-database.sh
           python3 -m unittest discover -s docker/verificacao -p test_validar_automacao.py
           docker compose -f docker/dokploy-stack.yml config --format json | python3 docker/verificacao/validar_automacao.py
+
+      - name: Validar ativacao explicita de homologacao sem alterar tag do CRM
+        run: |
+          AUTOMACAO_REPLICAS=1 \
+          AUTOMACAO_PROVISIONAR_REPLICAS=1 \
+          AUTOMACAO_PAINEL_HABILITADO=true \
+          AUTOMACAO_PAINEL_DOMINIO=painel.example.test \
+          AUTOMACAO_IMAGE_TAG=hml-automacao-ci \
+          AUTOMACAO_DB_NAME=automacao_ci \
+          AUTOMACAO_DB_USER=automacao_ci_app \
+          AUTOMACAO_DB_PASSWORD=dummy-automacao-ci \
+          docker compose -f docker/dokploy-stack.yml config --format json \
+            | python3 docker/verificacao/validar_automacao.py --homologacao --tag-automacao hml-automacao-ci
 
       - name: Provar que internal v1 nao tem rota publica
         run: |
