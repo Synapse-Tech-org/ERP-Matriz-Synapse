@@ -1,5 +1,13 @@
 # Dashboard da alternativa A
 
+## Tons do ZIP, trilho de equipe e exportação
+
+Os gráficos e os indicadores V2 usam os tons semânticos do ZIP. Os cartões operacionais ganharam fundos e sombras na cor do indicador. Textos e números usam variações mais escuras no tema claro para manter legibilidade. O bloco opcional `paletaV2` do tema permite ajustar esses tons por instância. A cor primária e os fundos de marca continuam vindo do tema da instância.
+
+Na largura de desktop que comporta a conversa, Atendimentos V2 exibe o trilho de equipe quando o Chat Interno está habilitado. O trilho usa a mesma lista autorizada de contatos e abre a conversa pelo fluxo existente. O botão de exportação baixa um CSV UTF-8 com as linhas da tabela de equipe após aplicar os filtros da visão operacional.
+
+[Dashboard com a nova paleta](dashboard-v2-tema-referencia-1920.png) · [Atendimentos com trilho e exportação](../implementacao/atendimentos-v2-painel-1920.png)
+
 ## Revisão visual de Dashboard e Atendimentos
 
 A comparação de desktop usa as três telas do ZIP na resolução nativa de 1920×1080. O ZIP tem largura fixa e a janela de 390 px mostra um recorte. O CRM adapta a navegação e mantém a conversa e o campo de envio acessíveis nessa largura.
@@ -14,7 +22,7 @@ O Dashboard recebeu a busca de 360 px e os marcadores da referência. As duas te
 
 Em Atendimentos, a lista ocupa 360 px, a ficha 340 px e o cabeçalho da conversa 74 px na largura nativa. O histórico e o composer usam os limites de 760 px e 800 px do ZIP. A lista oferece o atalho `/` e o sino abre a central de avisos da sessão. A visão geral organiza os seis indicadores em uma linha quando há espaço e usa os filtros da fila operacional.
 
-As capturas do CRM usam dados sintéticos de teste. A igualdade pixel a pixel permanece pendente. Entre as diferenças visíveis estão o atalho de busca da barra lateral, o trilho de equipe e o botão de exportação da visão geral de Atendimentos, e os valores e ações do Dashboard que ainda dependem de contrato. A espera da visão operacional considera respostas da IA e o limite configurado da instância. Os indicadores de espera humana do Dashboard têm outra regra. [Consulta operacional](../../../backend/crm-atendimento/src/main/java/com/synapse/crm/atendimento/infrastructure/persistencia/painel/PainelOperacionalRepositorioJdbc.java) · [Contratos do Dashboard](contratos-pendentes.md)
+As capturas do CRM usam dados sintéticos de teste. A igualdade pixel a pixel permanece pendente. Entre as diferenças visíveis estão o atalho de busca da barra lateral e os valores e ações do Dashboard que ainda dependem de contrato. A espera da visão operacional considera respostas da IA e o limite configurado da instância. Os indicadores de espera humana do Dashboard têm outra regra. [Consulta operacional](../../../backend/crm-atendimento/src/main/java/com/synapse/crm/atendimento/infrastructure/persistencia/painel/PainelOperacionalRepositorioJdbc.java) · [Contratos do Dashboard](contratos-pendentes.md)
 
 ## NPS, leads parados e notificações
 

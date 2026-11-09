@@ -83,6 +83,20 @@ const TOM_IA = "var(--cor-ia)";
 const TOM_NOVOS_LEADS = "var(--cor-destaque-2)";
 const TOM_VENDAS = "var(--cor-destaque-3)";
 
+const TONS_KPI_V2 = {
+  atendimentos: "var(--v2-azul)",
+  novosLeads: "var(--v2-azul)",
+  tempoMedioSegundos: "var(--v2-turquesa)",
+  vendasFechadas: "var(--v2-verde)",
+  taxaConversao: "var(--v2-verde)",
+  avaliacaoMedia: "var(--v2-dourado)",
+  resolucaoPorIa: "var(--v2-violeta)",
+  primeiraResposta: "var(--v2-turquesa)",
+  nps: "var(--v2-indigo)",
+  transferencias: "var(--v2-violeta)",
+  leadsParados: "var(--v2-vermelho)",
+} as const;
+
 /*
  * Ouro / prata / bronze do pódio. Não existe token de "prata" nem de "bronze" no tema; o mais
  * próximo honesto é --texto-fraco (cinza azulado) e --cor-atencao-escura (âmbar queimado), ambos
@@ -637,7 +651,7 @@ function ConteudoDashboard({
           apoio={textos.kpis.novosLeadsApoio}
           comparativo={dados.novosLeads.comparativo}
           Icone={UserPlus}
-          tom={layoutV2 ? TOM_ATENDIMENTOS : TOM_NOVOS_LEADS}
+          tom={TOM_NOVOS_LEADS}
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="novosLeads"
@@ -647,7 +661,6 @@ function ConteudoDashboard({
           <KpiSemSerie
             chave="primeiraResposta"
             icone="user-voice-fill"
-            tom="var(--cor-destaque-3)"
           />
         )}
         <Kpi
@@ -656,7 +669,7 @@ function ConteudoDashboard({
           apoio={textos.kpis.tempoMedioApoio}
           comparativo={dados.tempoMedioAtendimento.comparativo}
           Icone={Clock3}
-          tom={layoutV2 ? "var(--cor-destaque-3)" : TOM_TEMPO}
+          tom={TOM_TEMPO}
           modo={modo}
           quedaPositiva
           serie={dados.seriesMensais ?? []}
@@ -671,7 +684,7 @@ function ConteudoDashboard({
           })}
           comparativo={dados.vendasFechadas.comparativo}
           Icone={CircleDollarSign}
-          tom={layoutV2 ? TOM_CONVERSAO : TOM_VENDAS}
+          tom={TOM_VENDAS}
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="vendasFechadas"
@@ -709,7 +722,7 @@ function ConteudoDashboard({
             campoSerie="nps"
             layoutV2
           />
-        ) : <KpiSemSerie chave="nps" icone="emotion-happy-fill" tom={TOM_NOVOS_LEADS} />)}
+        ) : <KpiSemSerie chave="nps" icone="emotion-happy-fill" />)}
         <Kpi
           titulo={textos.kpis.csat}
           valor={
@@ -744,8 +757,8 @@ function ConteudoDashboard({
         />
         {layoutV2 && (
           <>
-            <KpiSemSerie chave="transferencias" icone="arrow-left-right-line" tom={TOM_IA} />
-            <KpiSemSerie chave="leadsParados" icone="user-unfollow-fill" tom="var(--destructive)"
+            <KpiSemSerie chave="transferencias" icone="arrow-left-right-line" />
+            <KpiSemSerie chave="leadsParados" icone="user-unfollow-fill"
               valor={dados.leadsParados == null ? undefined : numero(dados.leadsParados)}
               apoio={textos.v2.leadsParadosApoio} />
           </>
@@ -826,7 +839,7 @@ function Kpi({
     <Card
       data-dashboard-kpi={campoSerie}
       className={cn(modo === "compacta" ? "min-h-22 gap-1 py-2" : "min-h-60 gap-1.5 py-5")}
-      style={{ "--tom": tom } as React.CSSProperties}
+      style={{ "--tom": layoutV2 ? TONS_KPI_V2[campoSerie] : tom } as React.CSSProperties}
     >
       <CardHeader className="flex items-center gap-3 px-4">
         <span
@@ -914,20 +927,18 @@ function Kpi({
 function KpiSemSerie({
   chave,
   icone,
-  tom,
   valor,
   apoio,
 }: {
   chave: "primeiraResposta" | "nps" | "transferencias" | "leadsParados";
   icone: React.ComponentProps<typeof IconeFrontendV2>["nome"];
-  tom: string;
   valor?: string;
   apoio?: string;
 }) {
   const textos = useTextos().dashboard;
   return (
     <Card data-dashboard-kpi={chave} data-indisponivel={valor == null ? "true" : undefined}
-      style={{ "--tom": tom } as React.CSSProperties}>
+      style={{ "--tom": TONS_KPI_V2[chave] } as React.CSSProperties}>
       <CardHeader>
         <span className="shrink-0 text-[var(--tom)]"><IconeFrontendV2 nome={icone} /></span>
         <CardTitle>{textos.v2[chave]}</CardTitle>

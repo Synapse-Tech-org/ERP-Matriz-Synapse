@@ -198,8 +198,8 @@
 .pagina :global([data-slot="dashboard-selo-novo"]) {
   flex: none;
   margin-inline-start: auto;
-  background: var(--accent);
-  color: var(--primary);
+  background: color-mix(in srgb, var(--v2-azul) 10%, var(--card));
+  color: color-mix(in srgb, var(--v2-azul) 64%, var(--chat-texto-forte));
 }
 
 .pagina :global([data-slot="dashboard-areas"]) :global([aria-current="page"]) {
@@ -355,7 +355,7 @@
   place-items: center;
   border-radius: var(--raio-pill);
   border: 1px solid color-mix(in srgb, var(--tom) 22%, var(--card));
-  background: color-mix(in srgb, var(--tom) 10%, var(--card));
+  background: color-mix(in srgb, var(--tom) 12%, var(--card));
 }
 
 .pagina :global([data-dashboard-kpi]) :global([data-slot="card-title"]) {
@@ -554,9 +554,9 @@
 }
 
 .pagina :global([data-dashboard-satisfacao]) {
-  --satisfacao-otimo: var(--primary);
-  --satisfacao-bom: color-mix(in srgb, var(--primary) 44%, var(--card));
-  --satisfacao-ruim: color-mix(in srgb, var(--destructive) 64%, var(--card));
+  --satisfacao-otimo: var(--v2-azul);
+  --satisfacao-bom: color-mix(in srgb, var(--v2-azul) 44%, var(--card));
+  --satisfacao-ruim: color-mix(in srgb, var(--v2-vermelho) 64%, var(--card));
 }
 
 .pagina :global([data-dashboard-satisfacao]) :global([data-slot="card-content"]) {

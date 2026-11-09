@@ -15,6 +15,7 @@ export const TEXTOS_PAINEL_OPERACIONAL = {
   mostrarVazios: "Mostrar atendentes sem atendimentos em aberto",
   ocultarVazios: "Ocultar atendentes sem atendimentos em aberto",
   equipe: "Equipe",
+  exportar: "Exportar",
   orientacao: "Clique em um número para abrir a fila filtrada; expanda para ver os atendimentos.",
   atendente: "Atendente",
   presenca: "Presença",

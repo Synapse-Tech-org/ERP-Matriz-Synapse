@@ -66,6 +66,20 @@ const TemaBaseSchema = z.object({
   corErro: z.string(),
   corErroSuave: z.string(),
 
+  // Tons semânticos do protótipo, aplicados apenas aos componentes V2.
+  paletaV2: z.object({
+    azul: z.string().default("#2563EB"),
+    verde: z.string().default("#16A34A"),
+    turquesa: z.string().default("#0D9488"),
+    violeta: z.string().default("#9333EA"),
+    indigo: z.string().default("#4F46E5"),
+    dourado: z.string().default("#CA8A04"),
+    laranja: z.string().default("#D97706"),
+    vermelho: z.string().default("#DC2626"),
+    contrasteEscuro: z.string().default("#0E1220"),
+    contrasteClaro: z.string().default("#FFFFFF"),
+  }).prefault({}),
+
   fonteBase: z.string(),
   fonteMono: z.string(),
 

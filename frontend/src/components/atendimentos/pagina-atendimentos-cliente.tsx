@@ -13,6 +13,7 @@ import { Composer, type ComposerHandle } from "@/components/atendimentos/compose
 import { DialogoEncaminhar } from "@/components/atendimentos/dialogo-encaminhar";
 import { DialogoNovoContato } from "@/components/atendimentos/dialogo-novo-contato";
 import { ListaConversas } from "@/components/atendimentos/lista-conversas";
+import { TrilhoEquipe } from "@/components/atendimentos/trilho-equipe";
 import { PainelOperacional } from "@/components/atendimentos/painel-operacional";
 import { useAcessoPainelOperacional, type FiltroOperacional } from "@/lib/atendimento/painel-operacional";
 import { EVENTO_VOLTAR_PAINEL, voltarAoPainelOperacional } from "@/lib/atendimento/navegacao-painel";
@@ -163,6 +164,7 @@ export function PaginaAtendimentosCliente({
   const [painelDetalhesAberto, setPainelDetalhesAberto] = useState<boolean | null>(null);
   const gradeRef = useRef<HTMLDivElement>(null);
   const [modoGrade, setModoGrade] = useState<ModoDaGrade>("ampla");
+  const [trilhoCabe, setTrilhoCabe] = useState(false);
   const [respostaAlvo, setRespostaAlvo] = useState<{
     leadId: string;
     mensagem: MensagemResposta;
@@ -191,7 +193,10 @@ export function PaginaAtendimentosCliente({
           + 2 * (parseFloat(estilo.columnGap) || 0)
         : 0;
       const largura = grade.getBoundingClientRect().width - moldura;
-      if (largura > 0) setModoGrade(modoDaGrade(largura, dimensoesGrade));
+      if (largura > 0) {
+        setModoGrade(modoDaGrade(largura, dimensoesGrade));
+        setTrilhoCabe(layoutV2 && modoDaGrade(largura - 62 - (parseFloat(estilo.columnGap) || 0), dimensoesGrade) === "ampla");
+      }
     };
     atualizar();
     if (typeof ResizeObserver === "undefined") {
@@ -206,10 +211,18 @@ export function PaginaAtendimentosCliente({
   const { data: configuracao } = useConfiguracaoComposer();
   const chatInternoHabilitado = flags?.includes("chat_interno") ?? false;
   const contatosInternos = useQuery({ queryKey: ["chat-interno", "contatos"], queryFn: listarContatosChat, enabled: chatInternoHabilitado });
+  const selecionarConversaInterna = useCallback((conversaId: string) => {
+    setConversaInternaId(conversaId);
+    setAtendimentoSelecionadoId(null);
+    setSincronizacaoLiberada(null);
+    setAvisoRevogacao(false);
+    setAvisoTransferencia(null);
+    setBuscaAberta(false);
+  }, []);
   const abrirConversaInterna = useMutation({
     mutationFn: abrirConversaDireta,
     onSuccess: (resposta) => {
-      setConversaInternaId(resposta.id);
+      selecionarConversaInterna(resposta.id);
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   });
@@ -217,7 +230,7 @@ export function PaginaAtendimentosCliente({
     mutationFn: ({ nome, participantes }: { nome: string; participantes: string[] }) =>
       criarGrupoChat(nome, participantes),
     onSuccess: (resposta) => {
-      setConversaInternaId(resposta.id);
+      selecionarConversaInterna(resposta.id);
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   });
@@ -298,12 +311,7 @@ export function PaginaAtendimentosCliente({
   const selecionarAtendimento = useCallback(
     (cartao: ItemInbox, origem: "lista" | "rota" = "lista") => {
       if (cartao.tipo === "EQUIPE_INTERNA") {
-        setConversaInternaId(cartao.conversaId);
-        setAtendimentoSelecionadoId(null);
-        setSincronizacaoLiberada(null);
-        setAvisoRevogacao(false);
-        setAvisoTransferencia(null);
-        setBuscaAberta(false);
+        selecionarConversaInterna(cartao.conversaId);
         return;
       }
       if (!acessoClientes) return;
@@ -330,7 +338,7 @@ export function PaginaAtendimentosCliente({
         cartaoSelecionadoId: idParaAbrir,
       });
     },
-    [marcarLeituraDaConversa, sessao.papel, sessao.usuarioId, visaoAtendimento, acessoPainel.permitido, acessoClientes],
+    [marcarLeituraDaConversa, selecionarConversaInterna, sessao.papel, sessao.usuarioId, visaoAtendimento, acessoPainel.permitido, acessoClientes],
   );
 
   useEffect(() => {
@@ -989,6 +997,7 @@ export function PaginaAtendimentosCliente({
     substituirReacoesDoHistorico(cache, ["mensagens", historicoId], mensagem.id, resposta.reacoes);
   }
 
+  const mostrarTrilho = layoutV2 && chatInternoHabilitado && trilhoCabe && !conversaEmColunaUnica;
   const colunasDoPainel = conversaEmColunaUnica
     ? "minmax(0, 1fr)"
     : listaOcultaComPainel
@@ -1004,7 +1013,7 @@ export function PaginaAtendimentosCliente({
       data-slot="pagina-atendimentos"
       data-layout={layoutV2 ? "v2" : "legado"}
       className={cn("relative grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)] overflow-hidden", layoutV2 && estilosV2.pagina)}
-      style={{ gridTemplateColumns: colunasDoPainel }}
+      style={{ gridTemplateColumns: mostrarTrilho ? `${colunasDoPainel} 62px` : colunasDoPainel }}
     >
       {(falhasDeMidia.length > 0 || notificacao || erroDeAbertura) && (
         <div className="pointer-events-none absolute right-4 top-4 z-30 flex w-80 max-w-[calc(100%-2rem)] flex-col gap-2">
@@ -1287,7 +1296,7 @@ export function PaginaAtendimentosCliente({
             {estadoSelecionadoQuery.isError ? textos.tempoReal.sincronizacaoFalhou : textos.tempoReal.sincronizacaoCarregando}
           </div>
         ) : acessoPainel.permitido ? (
-          <PainelOperacional onFiltrar={filtrarOperacional} onAbrir={abrirFilaOperacional} conectado={estado === "conectado"} usuarioAtualId={sessao.usuarioId ?? undefined} />
+          <PainelOperacional layoutV2={layoutV2} onFiltrar={filtrarOperacional} onAbrir={abrirFilaOperacional} conectado={estado === "conectado"} usuarioAtualId={sessao.usuarioId ?? undefined} />
         ) : (
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
             {textosGerais.estados.vazio}
@@ -1304,6 +1313,12 @@ export function PaginaAtendimentosCliente({
             onRetrair={() => setPainelDetalhesAberto(false)}
           />
         </div>
+      )}
+
+      {mostrarTrilho && (
+        <TrilhoEquipe contatos={contatosInternos.data ?? []} carregando={contatosInternos.isLoading}
+          erro={contatosInternos.isError} abrindo={abrirConversaInterna.isPending}
+          onRecarregar={() => void contatosInternos.refetch()} onAbrir={abrirConversaInterna.mutateAsync} />
       )}
 
       <DialogoNovoContato

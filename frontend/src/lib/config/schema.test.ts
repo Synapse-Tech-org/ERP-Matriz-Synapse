@@ -205,7 +205,7 @@ describe("TextosSchema", () => {
 });
 
 describe("TemaSchema", () => {
-  it("preserva o tema completo servido pelo backend e só acrescenta os dois tokens derivados da D1 da Disbrel", () => {
+  it("preserva os tokens do backend e completa os defaults da V2 e da Disbrel", () => {
     const tema = carregarJson("../backend/crm-app/src/main/resources/tema.json");
 
     // O tema padrão não traz sidebarTextoForte nem mensagemFalhaTexto; o frontend os deriva reproduzindo o
@@ -214,6 +214,11 @@ describe("TemaSchema", () => {
       ...tema,
       sidebarTextoForte: "#FFFFFF",
       mensagemFalhaTexto: tema.sidebarItemTextoPerigo,
+      paletaV2: {
+        azul: "#2563EB", verde: "#16A34A", turquesa: "#0D9488", violeta: "#9333EA",
+        indigo: "#4F46E5", dourado: "#CA8A04", laranja: "#D97706", vermelho: "#DC2626",
+        contrasteEscuro: "#0E1220", contrasteClaro: "#FFFFFF",
+      },
     });
   });
 

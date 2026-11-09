@@ -63,14 +63,15 @@ for (const largura of [1920, 1440, 1040, 720, 390]) {
   });
 }
 
-test("painel operacional alinha os seis indicadores e abre a fila filtrada", async ({ page }) => {
+test("painel operacional exibe tons vivos, exporta a equipe e abre a fila e o chat", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   const referencia = JSON.parse(readFileSync(resolve("../docs/refatoracao-frontend/dashboard/tema-referencia.json"), "utf8"));
   const agora = new Date();
   const depois = new Date(agora.getTime() + 3_600_000).toISOString();
   const fixture = await prepararFrontendV2(page, {
-    features: ["atendimentos_layout_v2"],
+    features: ["atendimentos_layout_v2", "chat_interno"],
     tema: referencia,
+    contatosChat: [{ id: "b2a77107-05f3-48c8-bc58-fbc2594841c9", nome: "Colega de verificação", presenca: "ONLINE" }],
     painelOperacional: {
       atualizadoEm: agora.toISOString(),
       finalizadosInicio: agora.toISOString(),
@@ -95,6 +96,10 @@ test("painel operacional alinha os seis indicadores e abre a fila filtrada", asy
   const indicadores = page.locator('[data-slot="painel-operacional-indicadores"]');
   await expect(indicadores.getByRole("button")).toHaveCount(6);
   await expect(indicadores.locator('[data-indicador="ativos"]')).toHaveCSS("height", "154px");
+  const tomNovas = await indicadores.locator('[data-indicador="novas"]').evaluate(
+    (cartao) => getComputedStyle(cartao).getPropertyValue("--tom-indicador").trim(),
+  );
+  expect(tomNovas.toLowerCase()).toBe("#16a34a");
   await expect(page.locator('[data-slot="painel-operacional-contagem"]').first()).toHaveCSS("height", "30px");
   await expect.poll(() => indicadores.getByRole("button").evaluateAll(
     (botoes) => new Set(botoes.map((botao) => botao.getBoundingClientRect().top)).size,
@@ -104,8 +109,19 @@ test("painel operacional alinha os seis indicadores e abre a fila filtrada", asy
     path: "../docs/refatoracao-frontend/implementacao/atendimentos-v2-painel-1920.png",
     style: "nextjs-portal { display: none }",
   });
+  const csv = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Exportar", exact: true }).click();
+  const arquivo = await csv;
+  expect(arquivo.suggestedFilename()).toBe("equipe-atendimentos.csv");
+  expect(readFileSync(await arquivo.path(), "utf8")).toContain('"Pessoa de teste";"Online";2;4;1;0;0;5');
   await indicadores.locator('[data-indicador="ativos"]').click();
   await expect.poll(() => fixture.requisicoes.some((rota) => rota.includes("/painel-operacional/fila?") && rota.includes("recorte=ATIVOS"))).toBe(true);
+  const trilho = page.locator('[data-slot="trilho-equipe"]');
+  await expect(trilho).toHaveCSS("width", "62px");
+  await trilho.getByRole("button", { name: "Colega de verificação, Online" }).click();
+  await expect.poll(() => fixture.chamadas.includes("/chat-interno/conversas/b2a77107-05f3-48c8-bc58-fbc2594841c9/mensagens")).toBe(true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(trilho).toHaveCount(0);
   expect(fixture.desconhecidas).toEqual([]);
 });
 

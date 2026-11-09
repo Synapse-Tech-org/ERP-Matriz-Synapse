@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import { AlarmClock, ArrowLeft, ArrowRight, ArrowUpRight, CheckCheck, ChevronDown, ChevronRight, Clock, Eye, EyeOff, Headset, Inbox, MessageCircleMore, MessageSquare, PauseCircle, Search, Users } from "lucide-react";
+import { AlarmClock, ArrowLeft, ArrowRight, ArrowUpRight, CheckCheck, ChevronDown, ChevronRight, Clock, Download, Eye, EyeOff, Headset, Inbox, MessageCircleMore, MessageSquare, PauseCircle, Search, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Seletor } from "@/components/ui/seletor";
@@ -10,6 +10,7 @@ import { CartaoConversa } from "./cartao-conversa";
 import type { ItemInbox } from "@/lib/atendimento/types";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { useTextos } from "@/lib/config/textos-provider";
+import { baixarBlobComoArquivo } from "@/lib/midia/baixar-arquivo";
 import { cn, iniciaisDoNome } from "@/lib/utils";
 import { totalizarOperacional, useFilaOperacional, useSnapshotOperacional, type FiltroOperacional, type FilaOperacional, type LinhaOperacional, type SnapshotOperacional, type ConversaOperacional, type ConsultaFilaOperacional } from "@/lib/atendimento/painel-operacional";
 
@@ -18,9 +19,16 @@ interface Props {
   onAbrir: (atendimentoId: string) => void;
   conectado?: boolean;
   usuarioAtualId?: string;
+  layoutV2?: boolean;
 }
 
-export function PainelOperacional({ onFiltrar, onAbrir, conectado = false, usuarioAtualId }: Props) {
+function campoCsv(valor: string | number) {
+  if (typeof valor === "number") return String(valor);
+  const texto = /^(?:[\t\r\n]|\s*[=+@-])/.test(valor) ? "'" + valor : valor;
+  return '"' + texto.replaceAll('"', '""') + '"';
+}
+
+export function PainelOperacional({ onFiltrar, onAbrir, conectado = false, usuarioAtualId, layoutV2 = false }: Props) {
   const catalogo = useTextos();
   const t = catalogo.painelOperacional;
   const consulta = useSnapshotOperacional(true);
@@ -40,14 +48,27 @@ export function PainelOperacional({ onFiltrar, onAbrir, conectado = false, usuar
   const elegiveis = snapshot?.equipe.filter(l => l.elegivel).length ?? 0;
   const limite = snapshot?.limiteMinutos;
   const atraso = t.semResposta.replace("{minutos}", String(limite ?? "—"));
+  function exportarEquipe() {
+    const linhas = [
+      [t.atendente, t.status, t.novas, t.ativos, t.pendentes, atraso, t.finalizadosAba, t.total],
+      ...equipe.map(({ nome, entrada, presenca, contagens }) => [
+        nome ?? t.entrada,
+        entrada ? "" : presenca === "ONLINE" ? t.onlineStatus : presenca === "AUSENTE" ? t.ausenteStatus : t.offlineStatus,
+        contagens.novasMensagens, contagens.ativos, contagens.pendentes, contagens.semResposta,
+        contagens.finalizados, contagens.emAberto,
+      ]),
+    ];
+    const csv = linhas.map((linha) => linha.map(campoCsv).join(";")).join("\r\n");
+    baixarBlobComoArquivo(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }), "equipe-atendimentos.csv");
+  }
   const rotulos = { EM_ABERTO: t.aberto, NOVAS: t.novas, ATIVOS: t.ativos, PENDENTES: t.pendentes,
     SEM_RESPOSTA: atraso, FINALIZADOS: t.finalizados, POTENCIAIS: t.potenciais };
   const cards = [
     { chave: "online", label: t.atendentesOnline, valor: online, detalhe: t.elegiveis.replace("{total}", String(elegiveis)), Icone: Users, classe: "text-cor-sucesso", acao: () => setGrupo("online") },
     { chave: "potenciais", label: t.potenciais, valor: total.potenciais, detalhe: t.naFila, Icone: Inbox, classe: "text-primary", acao: () => onFiltrar({ recorte: "POTENCIAIS" }) },
     { chave: "novas", label: t.novas, valor: total.novasMensagens, detalhe: t.conversas.replace("{total}", String(total.novasConversas)), Icone: MessageSquare, classe: "text-cor-sucesso", acao: () => onFiltrar({ recorte: "EM_ABERTO", sinal: "NOVAS" }) },
-    { chave: "ativos", label: t.ativosCard, valor: total.ativos, detalhe: t.emAndamento, Icone: Headset, classe: "text-primary", acao: () => onFiltrar({ recorte: "ATIVOS" }) },
-    { chave: "pendentes", label: t.pendentesCard, valor: total.pendentes, detalhe: t.aguardandoRetomada, Icone: PauseCircle, classe: "text-operacional-pendente", acao: () => onFiltrar({ recorte: "PENDENTES" }) },
+    { chave: "ativos", label: layoutV2 ? t.ativos : t.ativosCard, valor: total.ativos, detalhe: t.emAndamento, Icone: Headset, classe: "text-primary", acao: () => onFiltrar({ recorte: "ATIVOS" }) },
+    { chave: "pendentes", label: layoutV2 ? t.pendentes : t.pendentesCard, valor: total.pendentes, detalhe: t.aguardandoRetomada, Icone: PauseCircle, classe: "text-operacional-pendente", acao: () => onFiltrar({ recorte: "PENDENTES" }) },
     { chave: "atraso", label: atraso, valor: total.semResposta, detalhe: total.esperaDesde && snapshot
       ? t.maiorEsperaTempo.replace("{tempo}", formatarEspera(total.esperaDesde, snapshot.atualizadoEm, t))
       : t.semEspera, Icone: AlarmClock, classe: "text-destructive", acao: () => onFiltrar({ recorte: "EM_ABERTO", sinal: "SEM_RESPOSTA" }) },
@@ -88,7 +109,20 @@ export function PainelOperacional({ onFiltrar, onAbrir, conectado = false, usuar
             </button>)}
           </div>
           <div data-slot="painel-operacional-equipe" className="mt-5 min-w-0 overflow-hidden rounded-[var(--raio-md)] border border-border bg-card">
-            <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4"><h3 className="text-sm font-bold text-secondary-foreground">{t.equipe}</h3><p className="text-[11px] text-muted-foreground">{t.orientacao}</p></div>
+            <div data-slot="painel-operacional-equipe-topo" className="flex flex-wrap items-center justify-between gap-2 px-5 py-4">
+              {layoutV2 ? (
+                <>
+                  <div>
+                    <h3 className="text-sm font-bold text-secondary-foreground">{t.equipe}</h3>
+                    <p className="mt-0.5 text-[13px] text-muted-foreground">{t.orientacao}</p>
+                  </div>
+                  <Button type="button" variant="outline" disabled={equipe.length === 0} onClick={exportarEquipe}>
+                    <Download aria-hidden />
+                    {t.exportar}
+                  </Button>
+                </>
+              ) : <><h3 className="text-sm font-bold text-secondary-foreground">{t.equipe}</h3><p className="text-[11px] text-muted-foreground">{t.orientacao}</p></>}
+            </div>
             <div className="max-w-full overflow-x-auto" tabIndex={0} aria-label={t.equipe}>
               <table className="w-full min-w-[820px] text-[13px]">
                 <colgroup>{[20,10,13,11,11,13,11,7,4].map((largura, i) => <col key={i} style={{ width: `${largura}%` }} />)}</colgroup>
@@ -113,7 +147,7 @@ export function PainelOperacional({ onFiltrar, onAbrir, conectado = false, usuar
                         <span className="min-w-0"><span className="block truncate font-semibold text-secondary-foreground">{nome}</span><span className="block truncate text-[11px] italic text-muted-foreground">{linha.entrada ? t.filaDescricao : linha.papel && catalogo.gestao.papeis[linha.papel as keyof typeof catalogo.gestao.papeis]}{linha.atendenteId === usuarioAtualId && ` · ${t.voce}`}</span></span>
                       </button></th>
                       <td className={cn("whitespace-nowrap px-3 py-3 text-xs", linha.presenca === "ONLINE" ? "text-cor-sucesso" : linha.presenca === "AUSENTE" ? "text-operacional-pendente" : "text-muted-foreground")}>{linha.entrada ? "—" : <><span className={cn("mr-1.5 inline-block size-1.5 rounded-full", linha.presenca === "ONLINE" ? "bg-cor-sucesso" : linha.presenca === "AUSENTE" ? "bg-cor-atencao" : "bg-muted-foreground/40")} aria-hidden />{linha.presenca === "ONLINE" ? t.onlineStatus : linha.presenca === "AUSENTE" ? t.ausenteStatus : t.offlineStatus}</>}</td>
-                      {valores.map(([fila, valor, cor]) => <td key={fila} className="px-2 py-3 text-center">{linha.entrada && valor === 0 && ["ATIVOS","PENDENTES","FINALIZADOS"].includes(fila) ? <span className="text-muted-foreground">—</span> : <button type="button" data-slot="painel-operacional-contagem" onClick={() => onFiltrar({ ...filtroBase, recorte: fila === "NOVAS" || fila === "SEM_RESPOSTA" ? "EM_ABERTO" : fila, sinal: fila === "NOVAS" || fila === "SEM_RESPOSTA" ? fila : "TODOS" }, nome)} className={cn("inline-flex h-8 w-full min-w-8 items-center justify-center gap-1 rounded-[var(--raio-sm)] px-2 text-xs font-bold tabular-nums outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring", fila === "EM_ABERTO" ? "text-secondary-foreground" : valor > 0 ? `${cor} text-primary-foreground` : "text-muted-foreground/70")} aria-label={`${nome}: ${rotulos[fila]} (${valor})`}>{valor > 0 && fila === "SEM_RESPOSTA" && <AlarmClock className="size-3" aria-hidden />}{valor > 0 && fila === "FINALIZADOS" && <CheckCheck className="size-3" aria-hidden />}{valor}</button>}</td>)}
+                      {valores.map(([fila, valor, cor]) => <td key={fila} className="px-2 py-3 text-center">{linha.entrada && valor === 0 && ["ATIVOS","PENDENTES","FINALIZADOS"].includes(fila) ? <span className="text-muted-foreground">—</span> : <button type="button" data-slot="painel-operacional-contagem" data-fila-com-valor={valor > 0 ? fila : undefined} onClick={() => onFiltrar({ ...filtroBase, recorte: fila === "NOVAS" || fila === "SEM_RESPOSTA" ? "EM_ABERTO" : fila, sinal: fila === "NOVAS" || fila === "SEM_RESPOSTA" ? fila : "TODOS" }, nome)} className={cn("inline-flex h-8 w-full min-w-8 items-center justify-center gap-1 rounded-[var(--raio-sm)] px-2 text-xs font-bold tabular-nums outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring", fila === "EM_ABERTO" ? "text-secondary-foreground" : valor > 0 ? `${cor} text-primary-foreground` : "text-muted-foreground/70")} aria-label={`${nome}: ${rotulos[fila]} (${valor})`}>{valor > 0 && fila === "SEM_RESPOSTA" && <AlarmClock className="size-3" aria-hidden />}{valor > 0 && fila === "FINALIZADOS" && <CheckCheck className="size-3" aria-hidden />}{valor}</button>}</td>)}
                       <td className="pr-3"><Button variant="outline" size="icon" className="size-8 rounded-[var(--raio-sm)]" aria-label={(aberto ? t.recolher : t.expandir).replace("{nome}", nome)} aria-expanded={aberto} aria-controls={`fila-${chave}`} onClick={alternar}>{aberto ? <ChevronDown aria-hidden className="size-4" /> : <ChevronRight aria-hidden className="size-4" />}</Button></td>
                     </tr>
                     {aberto && <tr id={`fila-${chave}`}><td colSpan={9}><FilaExpandida linha={linha} rotulos={rotulos} referencia={snapshot} onAbrir={onAbrir} onFiltrar={onFiltrar} /></td></tr>}

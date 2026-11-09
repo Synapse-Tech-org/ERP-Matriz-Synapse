@@ -12,8 +12,8 @@
 .canvas {
   --fonte-base-carregada: var(--fonte-frontend-v2);
   background-image: linear-gradient(
-    color-mix(in srgb, var(--card) 16%, transparent),
-    color-mix(in srgb, var(--card) 16%, transparent)
+    color-mix(in srgb, var(--card) 18%, transparent),
+    color-mix(in srgb, var(--card) 12%, transparent)
   ), url("/images/frontend-v2-canvas.jpg");
   background-position: left bottom;
   background-size: auto, 1920px 2400px;
@@ -28,7 +28,7 @@
   border: 1px solid var(--sidebar-border);
   border-radius: 22px;
   background: linear-gradient(
-    color-mix(in srgb, var(--sidebar) 88%, transparent),
+    color-mix(in srgb, color-mix(in srgb, var(--sidebar) 90%, var(--primary)) 88%, transparent),
     color-mix(in srgb, var(--sidebar) 82%, transparent) 45%,
     color-mix(in srgb, var(--sidebar) 90%, transparent)
   );

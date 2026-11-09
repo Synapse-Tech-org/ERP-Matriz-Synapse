@@ -173,6 +173,7 @@ test("Dashboard com a paleta da referência e geometria nativa 1920×1080", asyn
   await expect(page.locator('[data-slot="sidebar-logo"]')).toHaveCSS("width", "44px");
   await expect(page.locator('[data-slot="dashboard-busca"]')).toHaveCSS("width", "360px");
   await expect(page.locator('[data-slot="dashboard-selo-novo"]')).toHaveCount(3);
+  await expect(page.getByTestId("serie-vendasFechadas").locator(".recharts-rectangle").first()).toHaveCSS("fill", "rgb(22, 163, 74)");
   await expect(page.getByRole("heading", { name: textos.dashboard.titulo, exact: true })).toHaveCSS("font-size", "30px");
   await expect(page.locator('[data-dashboard-kpi="atendimentos"]')).toHaveCSS("border-radius", "18px");
   await expect(page.locator("[data-dashboard-kpi]")).toHaveCount(11);

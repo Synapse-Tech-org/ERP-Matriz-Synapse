@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { VisaoGeralDashboard } from "../../src/lib/dashboard/types";
 import type { SnapshotOperacional } from "../../src/lib/atendimento/painel-operacional";
+import type { ChatContato, ChatConversa } from "../../src/lib/chat-interno/types";
 
 interface OpcoesFrontendV2 {
   features?: string[];
@@ -10,6 +11,7 @@ interface OpcoesFrontendV2 {
   tema?: Record<string, unknown>;
   dashboard?: VisaoGeralDashboard;
   painelOperacional?: SnapshotOperacional;
+  contatosChat?: ChatContato[];
   acessaEquipe?: boolean;
   acessaClientes?: boolean;
 }
@@ -32,12 +34,13 @@ export const cartoesFixture = Array.from({ length: 15 }, (_, indice) => ({
 }));
 
 export async function prepararFrontendV2(page: Page, opcoes: OpcoesFrontendV2 = {}) {
-  const { features = [], quantidade = 15, tema: temaDaFixture = temaFixture, dashboard, painelOperacional, acessaEquipe = false, acessaClientes = true } = opcoes;
+  const { features = [], quantidade = 15, tema: temaDaFixture = temaFixture, dashboard, painelOperacional, contatosChat, acessaEquipe = false, acessaClientes = true } = opcoes;
   const cartoes = cartoesFixture;
   await page.request.post("http://127.0.0.1:38981/__fixture/tema", { data: temaDaFixture });
   const chamadas: string[] = [];
   const requisicoes: string[] = [];
   const desconhecidas: string[] = [];
+  const conversasChat: ChatConversa[] = [];
   await page.context().addCookies([{
     name: "synapse_refresh", value: "fixture-local-sem-autenticacao-real",
     url: "http://127.0.0.1:3105", httpOnly: true,
@@ -61,6 +64,18 @@ export async function prepararFrontendV2(page: Page, opcoes: OpcoesFrontendV2 = 
     const cartao = cartoes.find((item) => caminho.includes(item.atendimentoId) || caminho.includes(item.leadId)) ?? cartoes[0];
     let corpo: unknown;
     if (caminho === "/config/features") corpo = features;
+    else if (caminho === "/chat-interno/contatos" && contatosChat) corpo = contatosChat;
+    else if (caminho === "/chat-interno/conversas" && contatosChat) corpo = conversasChat;
+    else if (caminho === "/chat-interno/conversas/direta" && contatosChat) {
+      const contato = contatosChat.find(({ id }) => id === rota.request().postDataJSON().usuarioId);
+      if (!contato) { await rota.fulfill({ status: 404 }); return; }
+      const conversa = { id: contato.id, tipo: "DIRETA" as const, participantes: contato.nome, ultimaMensagem: null, ultimaMensagemEm: null, naoLidas: 0 };
+      if (!conversasChat.some(({ id }) => id === conversa.id)) conversasChat.push(conversa);
+      corpo = { id: conversa.id };
+    }
+    else if (caminho.startsWith("/chat-interno/conversas/") && caminho.endsWith("/mensagens") && contatosChat) {
+      corpo = { mensagens: [], proximoCursor: null };
+    }
     else if (caminho === "/dashboard/visao-geral" && dashboard) corpo = dashboard;
     else if (caminho === "/config/tema") corpo = temaDaFixture;
     else if (caminho === "/config/logo") { await rota.fulfill({ status: 204 }); return; }
