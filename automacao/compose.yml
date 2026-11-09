@@ -1,0 +1,86 @@
+# Servico NOVO no Dokploy, tipo Docker Compose (nao Docker Stack).
+# Nao substitui docker/dokploy-stack.yml e nao altera a stack do CRM.
+services:
+  banco:
+    image: postgres:15-alpine
+    restart: "no"
+    command: ["sh", "/opt/automacao/provisionar.sh"]
+    environment:
+      AUTOMACAO_DB_HOST: postgres
+      AUTOMACAO_DB_PORT: "5432"
+      AUTOMACAO_DB_NAME: ${AUTOMACAO_DB_NAME:?configure}
+      AUTOMACAO_DB_USER: ${AUTOMACAO_DB_USER:?configure}
+      AUTOMACAO_DB_PASSWORD: ${AUTOMACAO_DB_PASSWORD:?configure}
+      POSTGRES_DB: ${POSTGRES_DB:?configure}
+      POSTGRES_USER: ${POSTGRES_USER:?configure}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?configure}
+      N8N_DB_NAME: ${N8N_DB_NAME:?configure}
+      N8N_DB_USER: ${N8N_DB_USER:?configure}
+      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:?configure}
+    configs:
+      - source: provisionar-sh
+        target: /opt/automacao/provisionar.sh
+      - source: provisionar-sql
+        target: /opt/automacao/provisionar.sql
+      - source: clonar-sh
+        target: /opt/automacao/clonar-estrutura.sh
+      - source: marcador-sql
+        target: /opt/automacao/marcador.sql
+    networks: [crm]
+    mem_limit: 256m
+
+  automacao:
+    build:
+      context: ..
+      dockerfile: automacao/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      banco:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      AUTOMACAO_HOST: 0.0.0.0
+      AUTOMACAO_PORT: "3100"
+      AUTOMACAO_HABILITADA: ${AUTOMACAO_HABILITADA:-false}
+      AUTOMACAO_FOLLOWUP_HABILITADO: ${AUTOMACAO_FOLLOWUP_HABILITADO:-false}
+      AUTOMACAO_TOKEN: ${AUTOMACAO_TOKEN:-}
+      AUTOMACAO_DB_HOST: postgres
+      AUTOMACAO_DB_PORT: "5432"
+      AUTOMACAO_DB_NAME: ${AUTOMACAO_DB_NAME:?configure}
+      AUTOMACAO_DB_USER: ${AUTOMACAO_DB_USER:?configure}
+      AUTOMACAO_DB_PASSWORD: ${AUTOMACAO_DB_PASSWORD:?configure}
+      AUTOMACAO_DB_SCHEMA: ${AUTOMACAO_DB_SCHEMA:-public}
+      AUTOMACAO_DB_POOL_MAX: ${AUTOMACAO_DB_POOL_MAX:-3}
+      AUTOMACAO_CRM_URL: ${AUTOMACAO_CRM_URL:-http://synapse-backend-internal:8080}
+      TZ: ${SYNAPSE_TIMEZONE:-America/Sao_Paulo}
+    expose: ["3100"]
+    networks: [crm, dokploy]
+    mem_limit: ${AUTOMACAO_MEMORY_LIMIT:-768m}
+    stop_grace_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:?configure}.rule=Host(`${AUTOMACAO_PAINEL_DOMINIO:?configure}`) && (PathPrefix(`/painel`) || Path(`/`))
+      - traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:?configure}.entrypoints=websecure
+      - traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:?configure}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:?configure}.service=${AUTOMACAO_ROUTER_PREFIX:?configure}
+      - traefik.http.services.${AUTOMACAO_ROUTER_PREFIX:?configure}.loadbalancer.server.port=3100
+      - traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:?configure}.observability.accessLogs=false
+
+networks:
+  crm:
+    external: true
+    name: ${AUTOMACAO_REDE_CRM:?configure_nome_da_rede_privada_do_filho}
+  dokploy:
+    external: true
+    name: dokploy-network
+
+configs:
+  provisionar-sh:
+    file: ./banco/provisionar.sh
+  provisionar-sql:
+    file: ./banco/provisionar.sql
+  clonar-sh:
+    file: ./banco/clonar-estrutura.sh
+  marcador-sql:
+    file: ./banco/marcador.sql

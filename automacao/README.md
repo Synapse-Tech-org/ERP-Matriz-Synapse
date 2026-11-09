@@ -1,164 +1,176 @@
 # Automacao TypeScript
 
-Servico Node.js/Fastify do mesmo monorepo e release do CRM, isolado por filho.
-Esta entrega prepara imagem, inicializacao e Compose. Nao ha follow-up, worker,
-fila inicializada, conexao PostgreSQL, painel ou envio de mensagens implementados.
-Ter pg-boss instalado nao significa que exista uma fila em execucao.
+Entrega na branch `feat/automacao-local-base`: banco separado, Fastify e
+painel independente em TypeScript. Nenhum arquivo Java, frontend do CRM ou
+Compose principal foi alterado nesta entrega. Publicar a branch nao comprova
+deploy: a nova aplicacao exige o servico separado descrito abaixo.
 
-## Inicializacao sem SSH
+**Follow-up ainda nao foi implementado.** Nao ha agendamento, envio, consumidor
+de fila ou reprocessamento. pg-boss instalado nao significa fila em execucao.
 
-O operador nao precisa instalar Node.js ou executar npm na VPS:
+## Arquivos
 
-1. O CI instala dependencias, executa testes, compila e testa a imagem Docker.
-2. A publicacao no GHCR gera imagens de backend, frontend e automacao com a
-   mesma tag SHA curta, somente apos todos os jobs necessarios passarem.
-3. O Dokploy le `docker/dokploy-stack.yml` e utiliza a `SYNAPSE_IMAGE_TAG`
-   escolhida no ambiente da instancia. Mudar a branch nao muda essa tag.
-4. Quando autorizado a implantar e com `AUTOMACAO_REPLICAS=1`, o Swarm baixa a
-   imagem e executa `node dist/src/server.js`. O processo recebe as envs do Compose,
-   valida a configuracao e inicia o HTTP. Nao executa npm, migracoes ou clonagem de banco.
-5. O Docker verifica `/health/liveness`. SIGTERM fecha o Fastify e drena requisicoes.
+| Caminho | Responsabilidade |
+| --- | --- |
+| `compose.yml` | Novo servico Dokploy, separado da stack existente |
+| `Dockerfile` | Build do servidor/painel; runtime Node nao-root |
+| `.env.banco.example` | Variaveis sem segredos reais |
+| `banco/provisionar.sh` e `.sql` | Criacao condicional de usuario e banco |
+| `banco/clonar-estrutura.sh` | Clone da estrutura do n8n, sem dados |
+| `banco/migrations/` | Adaptacoes versionadas da automacao |
+| `src/operacao/` | Consultas, migracoes, identidade e sessoes |
+| `painel/` | Interface propria, sem alterar frontend do CRM |
+| `DECISOES-FOLLOWUP-UNIFICADO.md` | Decisoes do futuro follow-up |
 
-O Dockerfile usa build multi-stage, Node 22 e usuario nao-root. O runtime recebe
-apenas dependencias de producao, JavaScript compilado e o healthcheck; nao leva
-testes, TypeScript, tsx, `.env` ou segredos.
+## Dokploy: procedimento para um deploy futuro autorizado
 
-O servico participa apenas da rede privada `synapse-internal`, pelo endereco
-`http://synapse-automacao-internal:3100`. Nao ha porta publicada no host nem
-rota no Traefik. O status aparece na saude/logs do container no Dokploy. Uma rota
-publica para o futuro painel so deve ser adicionada com autenticacao definida.
-Liveness/readiness nesta etapa verificam somente o processo HTTP, nao banco ou
-prontidao do follow-up. Nenhuma URL do CRM foi redirecionada para o TypeScript.
+1. Publicar a revisao aprovada na branch de teste. **Push pode disparar deploy**
+   se o Autodeploy estiver ligado; obter autorizacao antes de publicar.
+2. Criar um servico NOVO do tipo **Docker Compose**, na homologacao. Selecionar
+   este repositorio, branch `feat/automacao-local-base`, Compose Path
+   `automacao/compose.yml`. Nao trocar o caminho do servico CRM existente.
+3. Configurar nesse novo servico as envs de `.env.banco.example`. Dokploy nao
+   transfere automaticamente as variaveis de outro servico.
+4. Confirmar `AUTOMACAO_REDE_CRM`, alias `postgres` e URL interna do backend.
+   O nome de rede no exemplo e referencia, nao foi verificado nesta sessao.
+5. Usar dominio NOVO para o painel e prefixo Traefik exclusivo. Nao reutilizar
+   dominio do CRM, n8n ou Evolution. O proxy precisa conseguir emitir HTTPS.
+6. Revisar Preview Compose e executar Deploy somente com autorizacao.
 
-## Publicacao e autorizacao
+Este arquivo usa `build` e `depends_on: service_completed_successfully`.
+**Nao usar `docker stack deploy` nele.** O Dokploy constroi a imagem com a raiz
+do repositorio como contexto e `automacao/Dockerfile`. Nao exige SSH/npm manual
+na VPS nem muda a publicacao das imagens do CRM.
 
-O workflow `.github/workflows/ci.yml` valida a automacao em pushes e PRs.
-Publica imagens em push na `main`; nao realiza deploy no Dokploy por conta propria.
-Ha tambem `workflow_dispatch`: para publicar uma versao de homologacao de uma
-branch, executar o CI nessa branch com `publicar_imagens=true`. Publica as tres
-imagens da stack com a mesma tag SHA; fora da `main`, nao atualiza `latest`.
-Com a opcao falsa, a execucao manual apenas valida. A disponibilidade desse botao
-depende de o workflow estar registrado na branch padrao do GitHub; se a mudanca
-ainda nao chegou a ela, concluir a integracao do workflow antes de depender do botao.
+### Inicializacao automatica
 
-PUBLICAR NA BRANCH MONITORADA PODE DISPARAR DEPLOY PELO DOKPLOY. O print de
-06/11/2026 mostra `feat/automacao-local-base` com gatilho `On Push`; nao basta
-afirmar que push nunca faz deploy. Antes de qualquer push nessa branch, conferir
-Autodeploy e obter autorizacao explicita. Desativar esse gatilho tambem exige
-combinacao com o operador. Nao executar workflows/publicacao/deploy automaticamente.
+1. O container temporario `banco` conecta ao PostgreSQL existente na rede privada.
+2. Cria usuario proprio sem privilegios administrativos e banco proprio se ausentes.
+3. Faz `pg_dump --schema-only` do banco interno do n8n e restaura no destino vazio.
+4. Grava `automacao_infra.provisionamento` na mesma transacao da restauracao.
+5. Somente apos sucesso, o container `automacao` inicia servidor e painel.
+6. O servidor valida as tabelas de execucao e aplica migracoes proprias pendentes,
+   com versao/checksum em `automacao_infra.migracao`.
 
-Antes de uma futura implantacao autorizada:
+Funciona mesmo com volume PostgreSQL existente: nao depende de executar de novo
+o `/docker-entrypoint-initdb.d` do servidor original.
 
-- Confirmar a branch e o commit revisados, incluindo as correcoes atuais da `main`.
-- Aguardar CI e publicacao das TRES imagens da mesma tag; uma branch selecionada
-  no Dokploy sem imagens publicadas nao e suficiente.
-- Configurar o Registry privado do GHCR no Dokploy, como nos demais servicos.
-- Selecionar a nova `SYNAPSE_IMAGE_TAG`, sabendo que ela tambem atualiza o CRM.
-- Conferir Preview Compose e os valores da instancia. Nao aplicar por engano nos filhos.
-- Obter autorizacao especifica para esse deploy. Esta documentacao nao a concede.
+### Garantias e limites
 
-## Variaveis do Compose por filho
+- Somente estrutura: nao copia registros, credenciais, usuarios ou execucoes.
+  A tabela de migrations original tambem fica vazia. Defaults, comentarios e
+  corpos de funcoes sao estrutura e podem conter literais; revisar o schema.
+- Nao modifica CRM/n8n de origem. Dados de negocio continuam nas tabelas/APIs
+  dos fluxos atuais; nao sao recriados aqui.
+- Destino diferente de CRM, n8n e bancos de sistema. Sem marcador, qualquer
+  tabela/view/sequencia existente bloqueia restauracao.
+- Com marcador valido, redeploy preserva estrutura e dados. Nao reclona nem
+  acompanha automaticamente mudancas futuras de schema do n8n.
+- Advisory lock serializa provisionamentos do mesmo destino. Falha no restore
+  desfaz restore e marcador; banco/usuario vazios podem permanecer.
+- Usuario existente com privilegios administrativos ou banco com outro dono
+  sao recusados. Senha de usuario existente nao e trocada automaticamente.
+- O clone nao e um n8n executavel. Nao apontar n8n para o clone adaptado. O
+  escritor de execucoes sera implementado na aplicacao TypeScript depois.
+- Cliente PostgreSQL 15, como a referencia da stack. Confirmar versao real:
+  cliente antigo nao consegue fazer dump de servidor mais novo.
+- Extensoes/objetos que exigem privilegios adicionais fazem o clone falhar.
+  Nao ha ampliacao automatica de privilegios; revisar com o responsavel.
 
-| Variavel | Padrao | Efeito |
-| --- | --- | --- |
-| `AUTOMACAO_REPLICAS` | `0` | Zero nao inicia processos; `1` permite validar a base HTTP |
-| `AUTOMACAO_CPU_LIMIT` | `1.0` | Teto provisorio de CPU para o servico inteiro |
-| `AUTOMACAO_MEMORY_LIMIT` | `768M` | Teto provisorio de memoria para o servico inteiro |
+### Variaveis do novo servico
 
-Todos possuem defaults no Compose: nao adicionam env obrigatoria aos filhos.
-Um servico com zero replicas nao executa a aplicacao, mas o Swarm ainda pode
-consultar o registry ao resolver a imagem. Por isso a imagem da tag deve existir
-antes de implantar, mesmo quando os fluxos estao desligados.
+`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`: banco CRM e credencial
+administrativa existente capaz de criar banco/usuario. Somente provisionador.
 
-Para validar SOMENTE a base na homologacao, apos publicacao e autorizacao:
+`N8N_DB_NAME`, `N8N_DB_USER`, `N8N_DB_PASSWORD`: origem com acesso para dump
+completo. Somente provisionador. O servidor HTTP nao recebe essas credenciais.
 
-```dotenv
-AUTOMACAO_REPLICAS=1
-AUTOMACAO_HABILITADA=false
-AUTOMACAO_FOLLOWUP_HABILITADO=false
-AUTOMACAO_CPU_LIMIT=1.0
-AUTOMACAO_MEMORY_LIMIT=768M
-```
+`AUTOMACAO_DB_NAME`, `AUTOMACAO_DB_USER`, `AUTOMACAO_DB_PASSWORD`: destino novo.
+Nomes minusculos, numeros e underscore, sem iniciar por numero.
+`AUTOMACAO_DB_POOL_MAX`: padrao 3, limite 10 conexoes da aplicacao.
 
-Nos outros filhos, manter replicas zero e as duas chaves falsas. Os limites sao
-um ponto de partida para medir, nao capacidade comprovada da VPS. Ha um unico
-orcamento por replica; esta etapa nao cria processos de worker ou cotas separadas.
-O desenho final dos dois workers e seu teto combinado de 512 MiB continua para
-a implementacao deles; nao confundir com o limite do servico completo.
+`AUTOMACAO_CRM_URL`: endereco que o servidor da automacao usa para consultar
+login e permissoes no CRM. Nao e o endereco do painel. O default
+`http://synapse-backend-internal:8080` usa o nome privado do backend no Docker;
+funciona apenas se o novo servico estiver conectado a rede privada do CRM,
+selecionada por `AUTOMACAO_REDE_CRM`. Tambem pode ser configurado com a URL
+publica existente `https://crm-teste.187.77.47.30.sslip.io` (sem `/login`).
 
-## Rodar localmente
+`AUTOMACAO_PAINEL_DOMINIO`: endereco publico NOVO para abrir o painel, sem
+`https://` nem caminho. `AUTOMACAO_ROUTER_PREFIX`: identificador unico da rota
+no proxy Traefik; nao e uma URL nem algo que o usuario precisa acessar.
+`AUTOMACAO_MEMORY_LIMIT`: teto de memoria do servico inteiro, inicialmente
+768 MiB. Provisionador temporario tem teto de 256 MiB. Este Compose nao impoe
+limite de CPU.
 
-Requer Node.js 22.12+ e npm. Dentro de `automacao/`:
+`AUTOMACAO_TOKEN`: opcional para API interna de consulta; ausente recusa acesso.
+O painel usa sessoes e nao recebe esse token.
+
+O `.env.example` local existente contem valores reais fornecidos pelo operador.
+Nao publicar nem copiar para imagens. Usar `.env.banco.example` como referencia
+segura e guardar os segredos no Dokploy. Nenhum exemplo e carregado automaticamente.
+
+## Painel independente
+
+URL: `https://<AUTOMACAO_PAINEL_DOMINIO>/painel/`.
+Fastify entrega arquivos Vite e API. Nenhuma mudanca no frontend ou Java do CRM.
+
+Com o dominio sugerido em `.env.banco.example`, o endereco sera
+`https://painel-automacao-hml.187.77.47.30.sslip.io/painel/`.
+Esse endereco so ficara disponivel depois da configuracao e deploy autorizado
+do novo servico; criar os arquivos locais nao publica o painel.
+
+Usa APIs EXISTENTES: `POST /api/v1/auth/login`, `GET /api/v1/me` e
+`GET /api/v1/gestao/permissoes/minhas`. Exige GESTOR, SUBGESTOR ou ADMINISTRADOR
+com `automacao.ver`, `clientes.acessar`, `atendimentos.ver` no alcance `TODOS`.
+Evita expor historico global a quem ve somente atendimentos proprios.
+
+Senha nao e persistida; JWT fica somente no servidor. Navegador recebe cookie
+HttpOnly/Secure/SameSite=Strict. Sessoes em memoria, maximo 100, expiram junto
+ao access token (teto 24h) e revalidam permissoes a cada 30s. Reinicio exige novo
+login. Suporta uma replica; sem refresh automatico. Login tem limite de tentativas.
+HTTPS e obrigatorio no ambiente publicado. CRM indisponivel nao libera acesso.
+
+Contadores reais, filtros, paginacao e detalhes de etapas. Banco vazio mostra
+zero execucoes; banco inacessivel/incompativel mostra falha, sem dados simulados.
+Inputs/outputs, headers e erros brutos nao sao expostos. Detalhes limitados a
+payload de 1 MiB e 500 etapas. Consultas publicas somente em `/painel/api` com
+sessao; `/internal/v1/operacao` exige token e nao e exposto pelo Traefik.
+
+O clone fica vazio e o executor vem depois: **nenhuma execucao de follow-up
+aparecera agora**. Sem controles ficticios de executar/reprocessar. O adaptador
+espera `execution_entity` com `id`, `status`, `startedAt`, `stoppedAt`; variantes
+incompativeis sao recusadas explicitamente.
+
+## Ativacao
+
+`AUTOMACAO_HABILITADA=false` e `AUTOMACAO_FOLLOWUP_HABILITADO=false` por padrao.
+Follow-up exige ambas `true`; ausente/vazio desliga, invalido impede boot.
+Nesta etapa nao ha executor, mesmo com ambas `true`. Painel/saude continuam
+acessiveis. Essas variaveis nao desligam o n8n existente.
+
+## Validacao local
+
+Node 22.12+ e npm, dentro de `automacao/`:
 
 ```sh
 npm ci
-npm test
 npm run typecheck
-npm run dev
+npm test
+npm run build
+npm run test:runtime
+npm start
 ```
 
-O servidor fica em `http://127.0.0.1:3100/health/liveness`. O arquivo `.env` e
-opcional e deve ficar somente na maquina local; use `.env.example` como referencia.
-## Chaves de ativacao por filho
+URL local: `http://127.0.0.1:3100/painel/`. Para autenticar sem HTTPS localmente,
+usar `AUTOMACAO_PAINEL_COOKIE_SECURE=false` apenas fora de producao e configurar
+`AUTOMACAO_CRM_URL`. `.env` e opcional/ignorado pelo Git. Sem acesso a rede
+privada nao ha consulta real ao PostgreSQL da homologacao.
 
-| Variavel | Padrao | Efeito |
-| --- | --- | --- |
-| `AUTOMACAO_HABILITADA` | `false` | Chave geral da automacao TypeScript |
-| `AUTOMACAO_FOLLOWUP_HABILITADO` | `false` | Solicita a ativacao do follow-up |
+Com Docker disponivel: `bash test/banco-integracao.sh`. Cria/remove apenas um
+PostgreSQL efemero local, sem portas publicadas ou credenciais reais. Usa schema
+representativo e verifica clone sem dados, repeticao e recusa de destino ocupado.
 
-O follow-up so fica habilitado quando as DUAS chaves sao `true`. Ausencia ou
-valor vazio significa desligado. Qualquer outro valor diferente de `true` e
-`false` impede a inicializacao, mesmo se a outra chave estiver desligada.
-`followUpHabilitado` na configuracao e no healthcheck e o estado efetivo,
-ja combinado com a chave geral. O HTTP/healthcheck permanece disponivel.
-
-No Dokploy, cada filho conserva seus valores. Nao e necessario adicionar as
-variaveis nos filhos existentes para mante-los desligados. Na homologacao,
-ativar ambas explicitamente apenas quando o fluxo estiver pronto para testes.
-Mudancas nas envs exigem reiniciar/reimplantar o servico. Nao desligam o n8n
-nem desfazem efeitos externos que ja aconteceram.
-
-Nesta base, os toggles ainda so controlam o estado exposto: nao existem jobs,
-envios ou painel. Ao implementar esses pontos, agendadores, consumidores,
-reprocessamento e efeitos externos devem verificar a capacidade efetiva;
-o painel de consulta deve continuar acessivel. Nao basta ocultar controles.
-O Compose repassa ambas com default `false`, sem exigir novas envs dos filhos.
-
-## Banco: proxima etapa separada
-
-Decisao do usuario em 06/11/2026: investigar diretamente o PostgreSQL e o banco
-interno do n8n, depois preparar uma copia SOMENTE DA ESTRUTURA em um banco
-separado e vazio para adaptar a automacao. Nao copiar registros, credenciais,
-execucoes antigas ou dados de clientes. Nao modificar o banco de origem.
-
-O inventario precisa confirmar schemas, tabelas, tipos, extensoes, funcoes,
-indices, relacionamentos e dependencias antes do schema-only. Objetos copiados
-nao tornam o runtime do n8n reutilizavel automaticamente. O novo codigo precisara
-de repositorios e migracoes proprios; nao apontar um n8n para o clone adaptado.
-Consulta, dump e restauracao nao devem ocorrer no startup de cada replica.
-
-Esta entrega nao faz consultas, dump, restauracao, provisionamento, pg-boss.start
-ou alteracoes no banco. Nao exige credencial PostgreSQL para o bootstrap HTTP.
-O Redis existente pode ser reutilizado quando a implementacao realmente precisar.
-
-O primeiro fluxo-fonte confirmado e `Envio de FollowUps` (`aKmYgITO0HpAyZsX`).
-Conversao desse fluxo e painel sao posteriores a esta preparacao de ambiente.
-
-## Validacao do container
-
-Depois de `npm run build`, `npm run test:runtime` tambem exercita o processo
-compilado real: boot HTTP, healthcheck, toggle invalido e falha de porta ocupada.
-No Linux verifica encerramento por SIGTERM; no Windows o teste encerra o processo
-sem afirmar que o handler Linux foi exercitado.
-
-Com Docker disponivel, a partir da raiz do monorepo:
-
-```sh
-docker build -f automacao/Dockerfile -t synapse-automacao-ci .
-bash docker/verificacao/testar-automacao-container.sh
-```
-
-Esse teste cria apenas containers efemeros locais, sem rede externa, com filesystem
-somente leitura e sem credenciais. Verifica boot, saude, usuario nao-root,
-ausencia de dependencias de desenvolvimento, toggles e encerramento por SIGTERM.
-Nao implanta uma stack nem acessa o Dokploy.
+Nesta maquina nao ha Docker/psql. Provisionamento precisa passar pelo teste real
+e pela validacao de rede, permissoes e versao na homologacao. Testes HTTP/build
+nao substituem isso. Nenhum deploy foi feito.
