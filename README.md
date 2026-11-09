@@ -301,9 +301,10 @@ Sem os cinco, o agregado fica protegido só pela camada 2.
 
 O arquivo [`docker/dokploy-stack.yml`](docker/dokploy-stack.yml) descreve os sete serviços da
 instância: PostgreSQL, Redis, RabbitMQ, MinIO, backend, frontend e n8n. Ele é para **Docker Stack
-(Swarm)** e referencia somente imagens pré-compiladas. O CI publica backend e frontend no GHCR com
-as tags `latest` e SHA curto; use sempre o SHA em `SYNAPSE_IMAGE_TAG`, porque ele identifica uma
-versão exata e permite rollback sem rebuild. O n8n usa sua imagem oficial, sempre com versão exata
+(Swarm)** e referencia somente imagens pré-compiladas. O CI publica backend e frontend no GHCR do
+proprietário atual do repositório, com as tags `latest` e SHA curto. Use o SHA em
+`SYNAPSE_IMAGE_TAG` para identificar uma versão exata e permitir rollback sem rebuild.
+O n8n usa sua imagem oficial, sempre com versão exata
 informada em `N8N_IMAGE_TAG`.
 
 Backend e frontend usam `start-first`, healthcheck em `/health/liveness` e rollback automático. Os
@@ -349,6 +350,7 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | Variável | Descrição |
 |---|---|
 | `SYNAPSE_IMAGE_TAG` | SHA curto publicado pelo CI; use a mesma tag no backend e frontend. |
+| `SYNAPSE_IMAGE_NAMESPACE` | Proprietário das imagens no GHCR, em minúsculas. O padrão `synapse-auto` mantém acesso às tags históricas. Use `synapse-tech-org` para tags publicadas pela nova organização. |
 | `N8N_IMAGE_TAG` | Versão exata da imagem oficial do n8n; nunca use `latest`. |
 | `TRAEFIK_ROUTER_PREFIX` | Identificador curto e único no servidor, sem espaços, por exemplo `estrutural-hml`. |
 | `SYNAPSE_DOMINIO` | Host do CRM sem protocolo, por exemplo `hml.crm.exemplo.com`. |
@@ -521,8 +523,28 @@ Roteiro no Dokploy:
 3. Cadastre todas as variáveis obrigatórias e revise os limites para o tamanho real da VPS.
 4. Confira o Preview Compose: nenhuma porta de banco/broker deve estar publicada e os healthchecks
    de backend/frontend devem terminar em `/health/liveness`.
-5. Aponte os três registros DNS para a VPS e faça o deploy. Para rollback do CRM, troque apenas
-   `SYNAPSE_IMAGE_TAG` pelo SHA anterior e redeploye.
+5. Aponte os três registros DNS para a VPS e faça o deploy. Para rollback do CRM, restaure o par
+   `SYNAPSE_IMAGE_NAMESPACE` e `SYNAPSE_IMAGE_TAG` da versão anterior e faça o deploy.
+
+#### Migração do repositório para `Synapse-Tech-org`
+
+1. Em **Git** no Dokploy, instale ou autorize o GitHub App na organização `Synapse-Tech-org` para
+   `ERP-Matriz-Synapse`. Na stack existente, selecione o novo provedor/repositório, com branch
+   `main` e Compose Path `docker/dokploy-stack.yml`.
+2. Depois do merge da correção, aguarde os dois jobs de publicação GHCR do mesmo SHA na `main`.
+   Confira as tags de backend e frontend em `ghcr.io/synapse-tech-org`.
+3. No **Registry** do Dokploy, teste a credencial `ghcr.io`. Para pacotes privados, a conta do
+   token clássico precisa de `read:packages` e acesso aos dois pacotes. Autorize SSO se a
+   organização exigir. No Swarm, use `--with-registry-auth` no comando da stack. Valide o pull das
+   duas tags com a credencial do servidor de deploy, pois o login sozinho não comprova acesso.
+4. Na stack de testes, salve `SYNAPSE_IMAGE_NAMESPACE=synapse-tech-org` junto com
+   `SYNAPSE_IMAGE_TAG=<SHA curto publicado>`. Confira as duas imagens no Preview Compose, faça o
+   deploy e verifique se os serviços convergiram. Repita para as instâncias produtivas na janela
+   operacional autorizada. Para voltar a uma tag antiga, restaure também `synapse-auto`.
+
+Referências: [GitHub no Dokploy](https://docs.dokploy.com/docs/core/github),
+[registro privado em Docker Stack](https://docs.dokploy.com/docs/core/docker-compose) e
+[permissões no GHCR](https://docs.github.com/en/packages/learn-github-packages/about-permissions-for-github-packages).
 
 **Webhooks Z-API:** as labels de `/webhook/z-api` e `/webhook/canal` agora estão diretamente em
 `docker/dokploy-stack.yml`, o Compose Path único do Dokploy. O router dedicado remove `Origin` e

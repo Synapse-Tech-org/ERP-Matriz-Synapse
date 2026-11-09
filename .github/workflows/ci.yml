@@ -162,6 +162,16 @@ jobs:
           fi
           grep -F 'SYNAPSE_API_URL: http://synapse-backend-internal:8080/internal/v1' docker/dokploy-stack.yml
 
+      - name: Validar imagens antes e depois da migracao do GHCR
+        run: |
+          legado=$(SYNAPSE_IMAGE_NAMESPACE= docker compose -f docker/dokploy-stack.yml config --images)
+          organizacao=${GITHUB_REPOSITORY_OWNER,,}
+          atual=$(SYNAPSE_IMAGE_NAMESPACE="$organizacao" docker compose -f docker/dokploy-stack.yml config --images)
+          for componente in backend frontend; do
+            grep -Fx "ghcr.io/synapse-auto/erp-matriz-synapse-$componente:$SYNAPSE_IMAGE_TAG" <<< "$legado"
+            grep -Fx "ghcr.io/$organizacao/erp-matriz-synapse-$componente:$SYNAPSE_IMAGE_TAG" <<< "$atual"
+          done
+
       - name: Fumaca de boot dos quatro papeis e handshake WebSocket
         run: docker/verificacao/testar-websocket-empacotado.sh
 
@@ -180,10 +190,8 @@ jobs:
         include:
           - nome: backend
             dockerfile: backend/Dockerfile
-            imagem: ghcr.io/synapse-auto/erp-matriz-synapse-backend
           - nome: frontend
             dockerfile: frontend/Dockerfile
-            imagem: ghcr.io/synapse-auto/erp-matriz-synapse-frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -201,7 +209,7 @@ jobs:
         id: metadata
         uses: docker/metadata-action@v5
         with:
-          images: ${{ matrix.imagem }}
+          images: ghcr.io/${{ github.repository_owner }}/erp-matriz-synapse-${{ matrix.nome }}
           tags: |
             type=sha,format=short,prefix=
             type=raw,value=latest
