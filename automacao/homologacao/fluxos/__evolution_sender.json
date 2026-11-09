@@ -1,0 +1,164 @@
+{
+  "name": "HML - Enviar pela Evolution",
+  "nodes": [
+    {
+      "id": "c2f1597c-8ebf-4316-b64b-ba7dd4648779",
+      "name": "Entrada",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "c241fc83-3ec7-45e8-98ad-c50c95ecb02c",
+      "name": "Configuracao HML",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9222053a-ac31-4e2d-b64f-f2211c25cdce",
+              "name": "evolution_base_url",
+              "value": "https://evolution-hml.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "618a1a5a-ec48-4fac-85ba-5eacc805d81d",
+              "name": "evolution_instancia",
+              "value": "instancia_numero_teste",
+              "type": "string"
+            },
+            {
+              "id": "a430c9d8-d623-406e-8339-3e8c88b00541",
+              "name": "envios_habilitados",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "07e713f4-64a1-45c3-80fc-a652707e0fc6",
+              "name": "numeros_permitidos",
+              "value": "555491082498,556196791022,556198430401,558398779442",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "9ce4224c-b486-4edc-9793-5c96a61eb613",
+      "name": "Preparar Evolution",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Traduz o contrato legado Meta para Evolution. Este node nao chama APIs.\nconst entrada = $('Entrada').item.json;\nconst config = $('Configuracao HML').first().json;\nif (config.envios_habilitados !== true) throw new Error('HML_ENVIOS_DESLIGADOS: revisar antes de habilitar.');\nconst payload = typeof entrada.payload === 'string' ? JSON.parse(entrada.payload) : entrada.payload;\nif (!payload || typeof payload !== 'object') throw new Error('PAYLOAD_INVALIDO');\nconst number = String(payload.to || entrada.destinatario || '').replace(/\\D/g, '');\nconst permitidos = String(config.numeros_permitidos || '').split(/[,;\\s]+/).map(v => v.replace(/\\D/g, '')).filter(Boolean);\nif (!number || !permitidos.includes(number)) throw new Error('DESTINATARIO_FORA_DA_LISTA_HML');\nlet route;\nlet body;\nif (payload.typing_indicator || payload.status === 'read') {\n  // Presenca nao significa que a mensagem recebida foi marcada como lida.\n  route = 'chat/sendPresence'; body = { number, delay: 1000, presence: 'composing' };\n} else if (payload.type === 'text') {\n  route = 'message/sendText'; body = { number, text: payload.text?.body, linkPreview: Boolean(payload.text?.preview_url) };\n  if (!body.text) throw new Error('TEXTO_VAZIO');\n} else if (payload.type === 'interactive' && payload.interactive?.type === 'button') {\n  const i = payload.interactive; route = 'message/sendButtons';\n  body = { number, title: i.body?.text, footer: i.footer?.text || '',\n    buttons: (i.action?.buttons || []).map(b => ({ type: 'reply', displayText: b.reply?.title, id: b.reply?.id })) };\n  if (!body.title || !body.buttons.length || body.buttons.length > 3 || body.buttons.some(b => !b.id || !b.displayText)) throw new Error('BOTOES_INVALIDOS');\n} else if (payload.type === 'interactive' && payload.interactive?.type === 'list') {\n  const i = payload.interactive; route = 'message/sendList';\n  body = { number, title: i.header?.text || '', description: i.body?.text, buttonText: i.action?.button, footerText: i.footer?.text || '',\n    sections: (i.action?.sections || []).map(s => ({ title: s.title, rows: (s.rows || []).map(r => ({ title: r.title, description: r.description || '', rowId: r.id })) })) };\n  if (!body.description || !body.buttonText || !body.sections.length) throw new Error('LISTA_INVALIDA');\n} else {\n  // Um template Meta nao pode virar texto livre sem definir seu conteudo e sua regra.\n  throw new Error('FORMATO_NAO_ADAPTADO_EVOLUTION: ' + String(payload.type));\n}\nreturn [{ json: { url: config.evolution_base_url.replace(/\\/$/, '') + '/' + route + '/' + encodeURIComponent(config.evolution_instancia), body, presenca: route === 'chat/sendPresence' } }];\n"
+      }
+    },
+    {
+      "id": "df04e0ce-f77f-4bd0-8073-aa86d80a6df4",
+      "name": "Enviar Evolution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Preparar Evolution').item.json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Preparar Evolution').item.json.body }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "s1xd4bsOnaxZAu2n",
+          "name": "HML Evolution"
+        }
+      },
+      "retryOnFail": false
+    },
+    {
+      "id": "adc8d2fa-3b6f-4434-9e92-e4b43bc3f98c",
+      "name": "Compatibilizar comprovante",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Preserva o formato que os subfluxos usam para registrar o identificador do envio.\nconst r = $('Enviar Evolution').item.json;\nif ($('Preparar Evolution').item.json.presenca) return [{json:{success:true,presenca:true}}];\nif (!r.key?.id || r.key.fromMe !== true) throw new Error('EVOLUTION_SEM_COMPROVANTE: nao reenviar automaticamente');\nreturn [{json:{...r,messages:[{id:r.key.id}],messageId:r.key.id}}];"
+      }
+    }
+  ],
+  "connections": {
+    "Entrada": {
+      "main": [
+        [
+          {
+            "node": "Configuracao HML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuracao HML": {
+      "main": [
+        [
+          {
+            "node": "Preparar Evolution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Evolution": {
+      "main": [
+        [
+          {
+            "node": "Enviar Evolution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Evolution": {
+      "main": [
+        [
+          {
+            "node": "Compatibilizar comprovante",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

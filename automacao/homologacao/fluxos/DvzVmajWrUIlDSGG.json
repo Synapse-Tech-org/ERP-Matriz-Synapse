@@ -1,0 +1,1161 @@
+{
+  "name": "HML - EV-07 | Fidelização e mensagens festivas",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -4528,
+        2896
+      ],
+      "id": "e44bd013-ae9b-4ad4-ac1e-9e9bbda2fac2",
+      "name": "Consultar a cada hora",
+      "notesInFlow": true,
+      "notes": "Uma rotina para aniversário, datas festivas e fidelização. O CRM é a fonte de verdade."
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -4528,
+        3056
+      ],
+      "id": "c07d2ce1-f712-4f19-94f7-bd062b5a8247",
+      "name": "Executar conferência manual",
+      "notesInFlow": true,
+      "notes": "Confere os endpoints sem ler banco do CRM e sem disparar mensagens."
+    },
+    {
+      "parameters": {
+        "content": "# EV-07 — UMA FAMÍLIA, UMA ROTINA\n\nAniversário, datas festivas e fidelização são conferidos a cada hora. Os endpoints de aniversariantes de hoje e regras de fidelização pertencem à mesma família de fidelização do CRM.\n\n**Regra:** se houver contrato HTTP do CRM, o n8n usa a API. Nenhuma tabela do CRM é lida diretamente.\n\n**Homologação:** `modo_teste=true` no node Bases do CRM permite somente `telefone_teste`. Número vazio bloqueia todos os envios.",
+        "height": 310,
+        "width": 700,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3440,
+        2528
+      ],
+      "id": "79954587-5a21-4e76-bf1a-95942b3cf0fe",
+      "name": "Regra de arquitetura"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "base-internal",
+              "name": "crmInternalBase",
+              "value": "https://crm-teste.187.77.47.30.sslip.io/internal/v1",
+              "type": "string"
+            },
+            {
+              "id": "base-api",
+              "name": "crmApiBase",
+              "value": "https://crm-teste.187.77.47.30.sslip.io/api/v1",
+              "type": "string"
+            },
+            {
+              "id": "ev07-modo-teste",
+              "name": "modo_teste",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "ev07-telefone-teste",
+              "name": "telefone_teste",
+              "value": "5554991082498",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4208,
+        2976
+      ],
+      "id": "d28b1a42-087d-4f4e-bcbc-237f396f6b28",
+      "name": "Bases do CRM",
+      "notesInFlow": true,
+      "notes": "Centraliza as bases e a trava de homologacao. Com modo_teste=true, as buscas de leads ja sao limitadas ao telefone_teste no CRM e a validacao e repetida antes da Meta. Telefone vazio bloqueia todos os envios."
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Bases do CRM').first().json.crmInternalBase + '/automation-config' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3632,
+        2976
+      ],
+      "id": "a3f50612-cdf9-417c-aff4-05adb7bb8a91",
+      "name": "Buscar configurações gerais",
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "notes": "GET já usado no EV-01 e EV-05. Busca `fidelizacao.aniversario.habilitado` e `fidelizacao.aniversario.mensagem`; o CRM troca `[nome]` no executor."
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Bases do CRM').first().json.crmInternalBase + '/fidelizacao/aniversariantes-hoje' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3360,
+        2976
+      ],
+      "id": "dff9b5ee-6f00-4756-a383-dcea915214fc",
+      "name": "Buscar aniversariantes de hoje",
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "notes": "GET /internal/v1/fidelizacao/aniversariantes-hoje. O CRM devolve os aniversariantes do dia; o EV-07 não calcula nascimento nem lê leads."
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Bases do CRM').first().json.crmInternalBase + '/mensagens-festivas/hoje' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3056,
+        2976
+      ],
+      "id": "33392435-1cab-4716-8fc8-1224987023ae",
+      "name": "Buscar mensagem festiva de hoje",
+      "notesInFlow": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "notes": "GET /internal/v1/mensagens-festivas/hoje. Retorna a mensagem do dia; HTTP 404 significa que não há configuração para hoje."
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Bases do CRM').first().json.crmInternalBase + '/regras/fidelizacao' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2768,
+        2976
+      ],
+      "id": "b0d7af38-fc24-4133-9d22-63f367c3ffc4",
+      "name": "Buscar regras de fidelização",
+      "notesInFlow": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "notes": "GET das regras existentes pelo contrato interno. Não consulta PostgreSQL."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Consolida as quatro respostas do CRM sem confundir campos de negocio com o envelope HTTP.\n// Importante: mensagem festiva possui um campo chamado data. Ele NAO e o body da resposta.\n\nfunction respostaDo(nome) {\n  const itens = $(nome).all().map((item) => item.json ?? {});\n  if (itens.length === 0) return { statusCode: 204, body: null };\n\n  const primeira = itens[0];\n  const temEnvelopeHttp = Object.prototype.hasOwnProperty.call(primeira, 'body');\n  return {\n    statusCode: Number(temEnvelopeHttp ? (primeira.statusCode ?? 200) : 200),\n    body: temEnvelopeHttp ? primeira.body : (itens.length === 1 ? primeira : itens),\n  };\n}\n\nfunction lista(valor) {\n  if (Array.isArray(valor)) return valor;\n  if (Array.isArray(valor?.items)) return valor.items;\n  if (Array.isArray(valor?.data)) return valor.data;\n  if (Array.isArray(valor?.resultados)) return valor.resultados;\n  if (Array.isArray(valor?.leads)) return valor.leads;\n  return [];\n}\n\nfunction parametro(fonte, chave) {\n  const itens = fonte?.parametros ?? fonte?.items ?? fonte?.data ?? fonte;\n  if (Array.isArray(itens)) {\n    const item = itens.find((x) => String(x.chave ?? x.key ?? '') === chave);\n    return item?.valor ?? item?.value;\n  }\n  return itens?.[chave];\n}\n\nconst geral = respostaDo('Buscar configurações gerais');\nconst aniversariantes = respostaDo('Buscar aniversariantes de hoje');\nconst festivas = respostaDo('Buscar mensagem festiva de hoje');\nconst regras = respostaDo('Buscar regras de fidelização');\n\n// Festivas sem cadastro hoje podem chegar como lista vazia (200) ou 404, conforme a versao do CRM.\nconst falhas = [\n  ['configuracoes gerais', geral, false],\n  ['aniversariantes de hoje', aniversariantes, false],\n  ['mensagens festivas de hoje', festivas, true],\n  ['regras de fidelizacao', regras, false],\n].filter(([, resposta, permite404]) =>\n  (resposta.statusCode < 200 || resposta.statusCode >= 300) && !(permite404 && resposta.statusCode === 404),\n).map(([nome, resposta]) => ({ nome, statusCode: resposta.statusCode }));\n\nconst corpoAniversario = aniversariantes.body ?? {};\nconst leadsAniversariantes = lista(corpoAniversario.leads ?? corpoAniversario);\nconst habilitadoNoEndpoint = typeof corpoAniversario.habilitado === 'boolean'\n  ? corpoAniversario.habilitado\n  : null;\nconst habilitadoNaConfig = String(parametro(geral.body, 'fidelizacao.aniversario.habilitado')).toLowerCase() === 'true';\nconst mensagemAniversario = corpoAniversario.mensagem\n  ?? parametro(geral.body, 'fidelizacao.aniversario.mensagem')\n  ?? null;\n\nlet mensagensFestivas = [];\nif (festivas.statusCode >= 200 && festivas.statusCode < 300) {\n  mensagensFestivas = lista(festivas.body);\n  // Compatibilidade com a resposta antiga que devolvia um objeto unico.\n  if (mensagensFestivas.length === 0 && festivas.body?.mensagem) mensagensFestivas = [festivas.body];\n}\n\nconst regrasAtivas = lista(regras.body)\n  .filter((regra) => regra.ativo !== false && regra.habilitado !== false)\n  .filter((regra) => Number(regra.diasSemContato ?? regra.dias_sem_contato) > 0 && String(regra.mensagem ?? '').trim());\n\nreturn [{ json: {\n  configuracoesDisponiveis: falhas.length === 0,\n  falhasDeConsulta: falhas,\n  aniversario: {\n    habilitado: habilitadoNoEndpoint ?? habilitadoNaConfig,\n    mensagem: mensagemAniversario,\n    aniversariantesHoje: leadsAniversariantes,\n  },\n  festiva: {\n    mensagensConfiguradasHoje: mensagensFestivas,\n    elegivelParaDisparo: mensagensFestivas.length > 0,\n  },\n  regrasFidelizacaoAtivas: regrasAtivas,\n  totalAniversariantesHoje: leadsAniversariantes.length,\n  totalMensagensFestivasHoje: mensagensFestivas.length,\n  totalRegrasFidelizacaoAtivas: regrasAtivas.length,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2448,
+        2976
+      ],
+      "id": "8fe7f814-aa93-4451-90b1-1449f9a024f2",
+      "name": "Consolidar configurações remotas",
+      "notesInFlow": true,
+      "notes": "Normaliza os envelopes HTTP sem interpretar o campo de negocio data como body. Separa aniversario, mensagens festivas e regras de fidelizacao."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ok",
+              "leftValue": "={{ $('Consolidar configurações remotas').first().json.configuracoesDisponiveis }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2160,
+        2976
+      ],
+      "id": "373f030d-2acb-42fd-b78e-a12ebde8dd88",
+      "name": "Configurações disponíveis?",
+      "notesInFlow": true,
+      "notes": "Não compensa endpoint com consulta em tabela: falha de API deve aparecer e parar a execução."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Diagnóstico da saída falsa: os status HTTP ficam explícitos na execução.\nconst resultado = $(\"Consolidar configurações remotas\").first().json;\nreturn [{ json: {\n  status: \"CONFIGURACAO_REMOTA_INDISPONIVEL\",\n  falhasDeConsulta: resultado.falhasDeConsulta,\n  acao: \"Corrigir a rota ou autorização da credencial CRM Synapse Interno.\",\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1840,
+        3520
+      ],
+      "id": "73380b8e-4c4a-47fb-9e62-8b083d5cc996",
+      "name": "Exibir falha de configuração",
+      "notesInFlow": true,
+      "notes": "Diagnóstico de rota ou permissão sem recorrer ao banco."
+    },
+    {
+      "parameters": {
+        "content": "# ENDPOINTS USADOS\\n\\n- `GET /internal/v1/automation-config` — configurações de aniversário\\n- `GET /internal/v1/fidelizacao/aniversariantes-hoje` — destinatários de aniversário\\n- `GET /internal/v1/mensagens-festivas/hoje` — mensagem configurada hoje\\n- `GET /internal/v1/regras/fidelizacao` — regras comuns\\n\\nA data festiva é inteiramente decidida pela configuração devolvida pelo CRM. Sem fontes externas.",
+        "height": 350,
+        "width": 700,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2720,
+        2512
+      ],
+      "id": "fef6e398-1490-4a8b-83a5-f92504e56f63",
+      "name": "Endpoints EV-07"
+    },
+    {
+      "parameters": {
+        "content": "# SELECAO DE DESTINATARIOS PELO CRM\n\n- Aniversario: o proprio endpoint devolve apenas os aniversariantes de hoje.\n- Fidelizacao: `POST /api/v1/leads/filtrar` usa `semRetornoDias` e paginacao.\n- Festivas: o endpoint festivo devolve as mensagens do dia; `POST /api/v1/leads/filtrar` fornece o publico paginado.\n\nNenhum ramo le tabelas do CRM diretamente e nenhum usa a listagem de todos os atendimentos.",
+        "height": 368,
+        "width": 1504,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1872,
+        2368
+      ],
+      "id": "d6bac323-765d-43f9-9763-bef096c767ca",
+      "name": "Dependência do CRM"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ev07-meta-graph-base",
+              "name": "meta_graph_base_url",
+              "value": "https://evolution-hml.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "ev07-meta-graph-version",
+              "name": "meta_graph_version",
+              "value": "evolution",
+              "type": "string"
+            },
+            {
+              "id": "ev07-meta-phone-number",
+              "name": "phone_number_id_meta",
+              "value": "instancia_numero_teste",
+              "type": "string"
+            },
+            {
+              "id": "ev07-meta-template-name",
+              "name": "template_nome_marketing",
+              "value": "interno_aniversario",
+              "type": "string"
+            },
+            {
+              "id": "ev07-meta-template-id",
+              "name": "template_id_meta",
+              "value": "1749218763051583",
+              "type": "string"
+            },
+            {
+              "id": "ev07-meta-template-language",
+              "name": "template_idioma",
+              "value": "pt_BR",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1840,
+        2976
+      ],
+      "id": "e3aaa637-bdaa-4369-b658-35ee74e2ed05",
+      "name": "Configurar template Meta marketing",
+      "notesInFlow": true,
+      "notes": "Template Meta compartilhado pelos três ramos. Nome usado no envio: interno_aniversario. ID de referência no Meta: 1749218763051583. O BODY possui uma única variável nomeada: texto."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Monta um item por destinatário para a categoria ANIVERSARIO.\n// O texto vem do CRM e entra como o único parâmetro BODY do template Meta.\n// Sem template aprovado, texto ou telefone, não devolvemos item e não enviamos nada.\n\nconst dados = $(\"Consolidar configurações remotas\").first().json;\nconst meta = $(\"Configurar template Meta marketing\").first().json;\nconst templateNome = String(meta.template_nome_marketing ?? \"\").trim();\nconst templateIdioma = String(meta.template_idioma ?? \"pt_BR\").trim();\nconst phoneNumberId = String(meta.phone_number_id_meta ?? \"\").trim();\n\nfunction lista(valor) {\n  return Array.isArray(valor) ? valor : valor?.items ?? valor?.data ?? valor?.resultados ?? [];\n}\n\nfunction telefoneDo(destinatario) {\n  return String(\n    destinatario.telefoneNormalizado ??\n    destinatario.telefone_normalizado ??\n    destinatario.telefone ??\n    destinatario.waId ??\n    destinatario.wa_id ??\n    destinatario.phone ??\n    \"\"\n  ).replace(/\\D/g, \"\");\n}\n\nconst candidatos = dados.aniversario.aniversariantesHoje;\nconst textoConfigurado = String(dados.aniversario.mensagem ?? \"\").trim();\n\nif (!templateNome || !templateIdioma || !phoneNumberId || !textoConfigurado) {\n  return [];\n}\n\nreturn lista(candidatos)\n  .map((destinatario) => {\n    const telefone = telefoneDo(destinatario);\n    const nome = String(destinatario.nome ?? destinatario.leadNome ?? \"\").trim();\n    const leadId = String(destinatario.leadId ?? destinatario.lead_id ?? destinatario.id ?? \"\").trim();\n    const textoParaTemplate = textoConfigurado\n      .replace(/\\[nome\\]/gi, nome)\n      .replace(/\\s{2,}/g, \" \")\n      .trim();\n\n    if (!leadId || !telefone || !textoParaTemplate) return null;\n\n    return {\n      json: {\n        categoria: \"ANIVERSARIO\",\n        template_id_referencia: String(meta.template_id_meta ?? \"\"),\n        lead_id: leadId,\n        telefone,\n        phone_number_id: phoneNumberId,\n        nome_recebido: nome,\n        texto_original: textoConfigurado,\n        texto_configurado: textoParaTemplate,\n        payload_meta: {\n          messaging_product: \"whatsapp\",\n          recipient_type: \"individual\",\n          to: telefone,\n          type: \"template\",\n          template: {\n            name: templateNome,\n            language: { code: templateIdioma },\n            components: [{\n              type: \"body\",\n              parameters: [{ type: \"text\", parameter_name: \"texto\", text: textoParaTemplate }],\n            }],\n          },\n        },\n      },\n    };\n  })\n  .filter(Boolean);\n\n// A lista de aniversariantes vem do endpoint interno do CRM."
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1488,
+        2640
+      ],
+      "id": "71b8398d-f654-4625-82ff-65b1a874ae2d",
+      "name": "Preparar envios aniversário",
+      "notesInFlow": true,
+      "notes": "Ramo independente de aniversário. Usa somente os aniversariantes devolvidos pelo CRM e substitui [nome] no texto configurado."
+    },
+    {
+      "parameters": {
+        "errorMessage": "HML_PENDENTE: TEMPLATE_META_PRECISA_DE_CONTEUDO_EVOLUTION"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        2640
+      ],
+      "id": "65005753-b8c4-48b0-a811-f89696defd3a",
+      "name": "Enviar template aniversário pela Meta",
+      "notesInFlow": true,
+      "notes": "Envia o template Meta compartilhado usando o payload que passou pela reserva idempotente.",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "jsCode": "// Cruza as mensagens festivas de hoje com as paginas de leads devolvidas pelo CRM.\n// Cada combinacao mensagem + lead recebe uma chave diaria e passa pela reserva anti-repeticao.\n\nconst dados = $('Consolidar configurações remotas').first().json;\nconst meta = $('Configurar template Meta marketing').first().json;\nconst configuracao = $('Bases do CRM').first().json;\nconst mensagens = dados.festiva.mensagensConfiguradasHoje ?? [];\nconst templateNome = String(meta.template_nome_marketing ?? '').trim();\nconst templateIdioma = String(meta.template_idioma ?? 'pt_BR').trim();\nconst phoneNumberId = String(meta.phone_number_id_meta ?? '').trim();\n\nfunction normalizarTelefone(valor) {\n  let telefone = String(valor ?? '').replace(/\\D/g, '');\n  if (telefone.startsWith('55') && (telefone.length === 12 || telefone.length === 13)) telefone = telefone.slice(2);\n  return telefone;\n}\n\nfunction leadsDaResposta(valor) {\n  if (Array.isArray(valor)) return valor.flatMap(leadsDaResposta);\n  if (Array.isArray(valor?.leads)) return valor.leads;\n  if (valor?.body) return leadsDaResposta(valor.body);\n  if (valor?.id && valor?.telefone) return [valor];\n  return [];\n}\n\nfunction dataHojeNoFuso() {\n  const partes = new Intl.DateTimeFormat('en-US', {\n    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',\n  }).formatToParts(new Date()).reduce((acc, parte) => ({ ...acc, [parte.type]: parte.value }), {});\n  return partes.year + '-' + partes.month + '-' + partes.day;\n}\n\nconst telefoneTeste = normalizarTelefone(configuracao.telefone_teste);\nconst modoTeste = configuracao.modo_teste === true;\nconst unicos = new Map();\nfor (const item of $input.all()) {\n  for (const lead of leadsDaResposta(item.json)) unicos.set(String(lead.id ?? lead.leadId), lead);\n}\n\nif (!templateNome || !templateIdioma || !phoneNumberId) return [];\nconst ciclo = dataHojeNoFuso();\nconst saida = [];\n\nfor (const mensagem of mensagens) {\n  const textoOriginal = String(mensagem.mensagem ?? mensagem.texto ?? '').trim();\n  if (!textoOriginal) continue;\n  const referencia = String(mensagem.id ?? (mensagem.titulo ?? 'FESTIVA') + '-' + String(mensagem.data ?? ciclo));\n\n  for (const lead of unicos.values()) {\n    const leadId = String(lead.id ?? lead.leadId ?? '').trim();\n    const nome = String(lead.nome ?? lead.leadNome ?? '').trim();\n    const telefone = String(lead.telefone ?? lead.telefoneNormalizado ?? '').replace(/\\D/g, '');\n    if (!leadId || !telefone) continue;\n    if (modoTeste && (!telefoneTeste || normalizarTelefone(telefone) !== telefoneTeste)) continue;\n    if (/(\\[nome\\]|\\{nome\\})/i.test(textoOriginal) && !nome) continue;\n\n    const texto = textoOriginal.replace(/\\[nome\\]|\\{nome\\}/gi, nome).replace(/\\s{2,}/g, ' ').trim();\n    const payload = {\n      messaging_product: 'whatsapp', recipient_type: 'individual', to: telefone, type: 'template',\n      template: {\n        name: templateNome, language: { code: templateIdioma },\n        components: [{ type: 'body', parameters: [{ type: 'text', parameter_name: 'texto', text: texto }] }],\n      },\n    };\n\n    saida.push({ json: {\n      categoria: 'DATA_FESTIVA', referencia_id: referencia, ciclo_chave: ciclo,\n      lead_id: leadId, telefone, nome_lead: nome, phone_number_id: phoneNumberId,\n      texto_original: textoOriginal, texto_configurado: texto,\n      texto_base64: Buffer.from(texto, 'utf8').toString('base64'),\n      payload_meta: payload,\n      payload_base64: Buffer.from(JSON.stringify(payload), 'utf8').toString('base64'),\n    } });\n  }\n}\n\nreturn saida;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        2976
+      ],
+      "id": "ecd239f6-a2b6-4634-86b2-d1ee89d18e7b",
+      "name": "Preparar envios festivos",
+      "notesInFlow": true,
+      "notes": "Usa as paginas de leads do filtro do CRM, substitui [nome]/{nome} e cria um envio por mensagem festiva e lead."
+    },
+    {
+      "parameters": {
+        "errorMessage": "HML_PENDENTE: TEMPLATE_META_PRECISA_DE_CONTEUDO_EVOLUTION"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        2976
+      ],
+      "id": "7aaad6fd-3b14-4b4d-be04-ae8ec115c2c9",
+      "name": "Enviar template festivo pela Meta",
+      "notesInFlow": true,
+      "notes": "Envia o template Meta compartilhado usando o payload que passou pela reserva idempotente.",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "jsCode": "// Seleciona, para cada lead inativo, somente a maior regra de fidelizacao que ele ja atingiu.\n// Isso evita mandar de uma vez as mensagens de 30, 60 e 90 dias para o mesmo lead antigo.\n\nconst dados = $('Consolidar configurações remotas').first().json;\nconst meta = $('Configurar template Meta marketing').first().json;\nconst configuracao = $('Bases do CRM').first().json;\nconst templateNome = String(meta.template_nome_marketing ?? '').trim();\nconst templateIdioma = String(meta.template_idioma ?? 'pt_BR').trim();\nconst phoneNumberId = String(meta.phone_number_id_meta ?? '').trim();\nconst regras = (dados.regrasFidelizacaoAtivas ?? [])\n  .map((regra) => ({ ...regra, dias: Number(regra.diasSemContato ?? regra.dias_sem_contato) }))\n  .filter((regra) => Number.isFinite(regra.dias) && regra.dias > 0 && String(regra.mensagem ?? '').trim())\n  .sort((a, b) => a.dias - b.dias);\n\nfunction normalizarTelefone(valor) {\n  let telefone = String(valor ?? '').replace(/\\D/g, '');\n  if (telefone.startsWith('55') && (telefone.length === 12 || telefone.length === 13)) telefone = telefone.slice(2);\n  return telefone;\n}\n\nfunction leadsDaResposta(valor) {\n  if (Array.isArray(valor)) return valor.flatMap(leadsDaResposta);\n  if (Array.isArray(valor?.leads)) return valor.leads;\n  if (valor?.body) return leadsDaResposta(valor.body);\n  if (valor?.id && valor?.telefone) return [valor];\n  return [];\n}\n\nconst telefoneTeste = normalizarTelefone(configuracao.telefone_teste);\nconst modoTeste = configuracao.modo_teste === true;\nconst agora = Date.now();\nconst unicos = new Map();\nfor (const item of $input.all()) {\n  for (const lead of leadsDaResposta(item.json)) unicos.set(String(lead.id ?? lead.leadId), lead);\n}\n\nif (!templateNome || !templateIdioma || !phoneNumberId || regras.length === 0) return [];\nconst saida = [];\n\nfor (const lead of unicos.values()) {\n  const leadId = String(lead.id ?? lead.leadId ?? '').trim();\n  const nome = String(lead.nome ?? lead.leadNome ?? '').trim();\n  const telefone = String(lead.telefone ?? lead.telefoneNormalizado ?? '').replace(/\\D/g, '');\n  const marco = String(lead.ultimaInteracaoEm ?? lead.ultima_interacao_em ?? lead.criadoEm ?? lead.criado_em ?? '').trim();\n  const marcoMs = Date.parse(marco);\n  if (!leadId || !telefone || !Number.isFinite(marcoMs)) continue;\n  if (modoTeste && (!telefoneTeste || normalizarTelefone(telefone) !== telefoneTeste)) continue;\n\n  const diasSemContato = Math.floor((agora - marcoMs) / 86400000);\n  const regra = regras.filter((item) => item.dias <= diasSemContato).at(-1);\n  if (!regra) continue;\n\n  const textoOriginal = String(regra.mensagem).trim();\n  if (/(\\[nome\\]|\\{nome\\})/i.test(textoOriginal) && !nome) continue;\n  const texto = textoOriginal.replace(/\\[nome\\]|\\{nome\\}/gi, nome).replace(/\\s{2,}/g, ' ').trim();\n  const payload = {\n    messaging_product: 'whatsapp', recipient_type: 'individual', to: telefone, type: 'template',\n    template: {\n      name: templateNome, language: { code: templateIdioma },\n      components: [{ type: 'body', parameters: [{ type: 'text', parameter_name: 'texto', text: texto }] }],\n    },\n  };\n\n  saida.push({ json: {\n    categoria: 'FIDELIZACAO',\n    referencia_id: String(regra.id ?? 'DIAS-' + regra.dias),\n    regra_id: String(regra.id ?? ''), regra_dias_sem_contato: regra.dias,\n    ciclo_chave: marco,\n    lead_id: leadId, telefone, nome_lead: nome, phone_number_id: phoneNumberId,\n    dias_sem_contato_calculados: diasSemContato,\n    texto_original: textoOriginal, texto_configurado: texto,\n    texto_base64: Buffer.from(texto, 'utf8').toString('base64'),\n    payload_meta: payload,\n    payload_base64: Buffer.from(JSON.stringify(payload), 'utf8').toString('base64'),\n  } });\n}\n\nreturn saida;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        3312
+      ],
+      "id": "a9b317d9-ba79-434e-96c7-79d5c2e0464f",
+      "name": "Preparar envios fidelização",
+      "notesInFlow": true,
+      "notes": "Recebe somente candidatos filtrados pelo CRM e escolhe a maior regra atingida por lead. A ultimaInteracaoEm vira parte do ciclo anti-repeticao."
+    },
+    {
+      "parameters": {
+        "errorMessage": "HML_PENDENTE: TEMPLATE_META_PRECISA_DE_CONTEUDO_EVOLUTION"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        3312
+      ],
+      "id": "a1451168-3378-4459-9068-0b87f91ba42c",
+      "name": "Enviar template fidelização pela Meta",
+      "notesInFlow": true,
+      "notes": "Envia o template Meta compartilhado usando o payload que passou pela reserva idempotente.",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "content": "# TRES RAMOS + TRAVA ANTI-REPETICAO\n\nCada categoria monta o mesmo template `interno_aniversario`, com o texto do CRM na variavel BODY `texto`.\n\nAntes da Meta, o envio e reservado em `ev07_envios_automaticos` (banco interno da automacao). Depois do sucesso, vira `ENVIADO`. Assim a rotina horaria nao repete aniversario, data festiva ou a mesma regra de fidelizacao no mesmo ciclo.",
+        "height": 288,
+        "width": 1840,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1552,
+        2080
+      ],
+      "id": "f69d94ad-5b38-4bd9-a54c-87b4eecbac8c",
+      "name": "Envio template Meta"
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Bases do CRM\").first().json.crmApiBase.replace(/\\/$/, \"\") + \"/leads/\" + encodeURIComponent($(\"Preparar envios aniversário\").item.json.lead_id) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1200,
+        2640
+      ],
+      "id": "74bbe82c-6b57-48dc-bafb-a107442862dc",
+      "name": "Buscar lead do aniversário",
+      "notesInFlow": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "vVM51dBWEAWnTxtg",
+          "name": "HML CRM JWT - PENDENTE LOGIN"
+        }
+      },
+      "notes": "GET /api/v1/leads/{id}. Busca nome e telefone atuais do lead antes de montar o template aniversário."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combina o aniversariante do endpoint interno com a ficha atual do lead.\n// Resolve [nome] ou {nome}, repete a trava de teste e gera a chave anual de idempotencia.\n\nconst preparados = $('Preparar envios aniversário').all();\nconst configuracao = $('Bases do CRM').first().json;\nconst modoTeste = configuracao.modo_teste === true;\nconst telefoneTeste = normalizarTelefone(configuracao.telefone_teste);\n\nfunction normalizarTelefone(valor) {\n  let telefone = String(valor ?? '').replace(/\\D/g, '');\n  if (telefone.startsWith('55') && (telefone.length === 12 || telefone.length === 13)) telefone = telefone.slice(2);\n  return telefone;\n}\n\nfunction anoNoFuso() {\n  return new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', year: 'numeric' }).format(new Date());\n}\n\nreturn $input.all().map((resposta, index) => {\n  const envio = preparados[index]?.json ?? {};\n  const bruto = resposta.json ?? {};\n  const lead = bruto.data && !Array.isArray(bruto.data) ? bruto.data : bruto;\n  const nome = String(lead.nome ?? lead.nomeCompleto ?? lead.nome_completo ?? lead.name ?? envio.nome_recebido ?? '').trim();\n  const telefone = String(lead.telefoneNormalizado ?? lead.telefone_normalizado ?? lead.telefone ?? lead.whatsapp ?? envio.telefone ?? '').replace(/\\D/g, '');\n  const textoOriginal = String(envio.texto_original ?? envio.texto_configurado ?? '').trim();\n\n  if (/(\\[nome\\]|\\{nome\\})/i.test(textoOriginal) && !nome) return null;\n  const texto = textoOriginal.replace(/\\[nome\\]|\\{nome\\}/gi, nome).replace(/\\s{2,}/g, ' ').trim();\n  if (!telefone || !texto || !envio.lead_id) return null;\n  if (modoTeste && (!telefoneTeste || normalizarTelefone(telefone) !== telefoneTeste)) return null;\n\n  const payload = JSON.parse(JSON.stringify(envio.payload_meta ?? {}));\n  payload.to = telefone;\n  payload.template.components[0].parameters[0] = { type: 'text', parameter_name: 'texto', text: texto };\n\n  return { json: {\n    ...envio,\n    referencia_id: 'ANIVERSARIO',\n    ciclo_chave: anoNoFuso(),\n    nome_lead: nome,\n    telefone,\n    texto_configurado: texto,\n    texto_base64: Buffer.from(texto, 'utf8').toString('base64'),\n    payload_meta: payload,\n    payload_base64: Buffer.from(JSON.stringify(payload), 'utf8').toString('base64'),\n  }, pairedItem: { item: index } };\n}).filter(Boolean);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        2640
+      ],
+      "id": "5299cd64-3f65-496e-a5da-58c139396a18",
+      "name": "Aplicar nome no aniversário",
+      "notesInFlow": true,
+      "notes": "Resolve [nome], monta BODY texto e aplica a trava de homologação. Se modo_teste estiver ativo, somente telefone_teste segue para a Meta."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS public.ev07_envios_automaticos (\n  id bigserial PRIMARY KEY,\n  categoria text NOT NULL,\n  referencia_id text NOT NULL,\n  lead_id text NOT NULL,\n  ciclo_chave text NOT NULL,\n  telefone text NOT NULL,\n  texto_enviado text NOT NULL,\n  payload_meta jsonb NOT NULL,\n  status text NOT NULL DEFAULT 'RESERVADO',\n  execucao_n8n_id text,\n  meta_message_id text,\n  reservado_em timestamptz NOT NULL DEFAULT now(),\n  enviado_em timestamptz,\n  updated_at timestamptz NOT NULL DEFAULT now()\n);\n\nCREATE UNIQUE INDEX IF NOT EXISTS ev07_envios_automaticos_idempotencia_idx\nON public.ev07_envios_automaticos (categoria, referencia_id, lead_id, ciclo_chave);\n\nCREATE INDEX IF NOT EXISTS ev07_envios_automaticos_status_idx\nON public.ev07_envios_automaticos (status, updated_at);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -3920,
+        2976
+      ],
+      "id": "5472cfaa-24f3-4a07-ba4c-8c9b9632e947",
+      "name": "Garantir idempotência dos envios EV-07",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Cria somente no banco interno da automacao o controle de repeticao. Nao consulta nem altera tabelas do CRM."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Cria uma unica consulta paginada para o publico da data festiva.\n// O endpoint festivo decide o conteudo/data; o filtro de leads decide os destinatarios.\n\nconst dados = $('Consolidar configurações remotas').first().json;\nconst configuracao = $('Bases do CRM').first().json;\nconst mensagens = dados.festiva.mensagensConfiguradasHoje ?? [];\nif (!Array.isArray(mensagens) || mensagens.length === 0) return [];\n\nconst todosOsStatus = { tipo: 'SIMPLES', campo: 'status', operador: 'EM', valores: ['IA', 'EM_ATENDIMENTO', 'FINALIZADO'] };\nlet criterio = todosOsStatus;\n\nif (configuracao.modo_teste === true) {\n  const telefone = String(configuracao.telefone_teste ?? '').replace(/\\D/g, '');\n  if (!telefone) return [];\n  const telefoneLocal = telefone.startsWith('55') ? telefone.slice(2) : telefone;\n  criterio = {\n    tipo: 'COMPOSTO', conector: 'E', criterios: [\n      todosOsStatus,\n      { tipo: 'SIMPLES', campo: 'telefone', operador: 'CONTEM', valor: telefoneLocal },\n    ],\n  };\n}\n\nreturn [{ json: { filtro: { criterio, pagina: 0, tamanho: 200 } } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1488,
+        2976
+      ],
+      "id": "329c0c90-1b52-4b54-8a25-d3f15217bffb",
+      "name": "Preparar público da data festiva",
+      "notesInFlow": true,
+      "notes": "Em producao busca todos os leads visiveis de forma paginada. Em teste acrescenta o telefone_teste ao filtro no proprio CRM."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Bases do CRM').first().json.crmApiBase.replace(/\\/$/, '') + '/leads/filtrar' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.filtro }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "type": "body",
+                    "name": "pagina",
+                    "value": "={{ $pageCount }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.temMais !== true }}"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1200,
+        2976
+      ],
+      "id": "f6a72bfc-178e-465c-8e9a-ce6f470a481e",
+      "name": "Buscar leads para data festiva",
+      "notesInFlow": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "vVM51dBWEAWnTxtg",
+          "name": "HML CRM JWT - PENDENTE LOGIN"
+        }
+      },
+      "notes": "POST /api/v1/leads/filtrar, tamanho 200. O node incrementa pagina ate temMais=false; nao carrega atendimentos nem historico."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Busca candidatos uma unica vez usando a menor regra ativa.\n// Depois do retorno, o node Preparar envios fidelizacao escolhe a maior regra ja atingida por cada lead.\n\nconst dados = $('Consolidar configurações remotas').first().json;\nconst configuracao = $('Bases do CRM').first().json;\nconst regras = (dados.regrasFidelizacaoAtivas ?? [])\n  .map((regra) => ({ ...regra, dias: Number(regra.diasSemContato ?? regra.dias_sem_contato) }))\n  .filter((regra) => Number.isFinite(regra.dias) && regra.dias > 0);\nif (regras.length === 0) return [];\n\nconst menorPrazo = Math.min(...regras.map((regra) => regra.dias));\nconst janela = { tipo: 'SIMPLES', campo: 'semRetornoDias', operador: 'MAIOR_QUE', valor: String(menorPrazo) };\nlet criterio = janela;\n\nif (configuracao.modo_teste === true) {\n  const telefone = String(configuracao.telefone_teste ?? '').replace(/\\D/g, '');\n  if (!telefone) return [];\n  const telefoneLocal = telefone.startsWith('55') ? telefone.slice(2) : telefone;\n  criterio = {\n    tipo: 'COMPOSTO', conector: 'E', criterios: [\n      janela,\n      { tipo: 'SIMPLES', campo: 'telefone', operador: 'CONTEM', valor: telefoneLocal },\n    ],\n  };\n}\n\nreturn [{ json: { filtro: { criterio, pagina: 0, tamanho: 200 }, menorPrazo } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1488,
+        3312
+      ],
+      "id": "ae95c302-b100-437a-add6-e9d9208690c1",
+      "name": "Preparar busca de leads para fidelização",
+      "notesInFlow": true,
+      "notes": "Filtra por semRetornoDias no CRM. No modo de teste acrescenta telefone_teste; em producao a API pagina somente os leads que atingiram ao menos a menor regra."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Bases do CRM').first().json.crmApiBase.replace(/\\/$/, '') + '/leads/filtrar' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.filtro }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "type": "body",
+                    "name": "pagina",
+                    "value": "={{ $pageCount }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.temMais !== true }}"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1200,
+        3312
+      ],
+      "id": "d270a12a-bb9a-4df8-95e0-0e7b6e2f8635",
+      "name": "Buscar leads elegíveis da fidelização",
+      "notesInFlow": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "vVM51dBWEAWnTxtg",
+          "name": "HML CRM JWT - PENDENTE LOGIN"
+        }
+      },
+      "notes": "POST /api/v1/leads/filtrar com semRetornoDias e paginacao por temMais. Nao usa a lista de atendimentos nem o banco do CRM."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reservado AS (\n  INSERT INTO public.ev07_envios_automaticos (\n    categoria, referencia_id, lead_id, ciclo_chave, telefone,\n    texto_enviado, payload_meta, status, execucao_n8n_id,\n    reservado_em, updated_at\n  ) VALUES (\n    $1, $2, $3, $4, $5,\n    convert_from(decode($6, 'base64'), 'UTF8'),\n    convert_from(decode($7, 'base64'), 'UTF8')::jsonb,\n    'RESERVADO', $8, now(), now()\n  )\n  ON CONFLICT (categoria, referencia_id, lead_id, ciclo_chave)\n  DO UPDATE SET\n    telefone = EXCLUDED.telefone,\n    texto_enviado = EXCLUDED.texto_enviado,\n    payload_meta = EXCLUDED.payload_meta,\n    status = 'RESERVADO',\n    execucao_n8n_id = EXCLUDED.execucao_n8n_id,\n    reservado_em = now(),\n    updated_at = now()\n  WHERE public.ev07_envios_automaticos.status = 'FALHOU'\n     OR (public.ev07_envios_automaticos.status = 'RESERVADO'\n         AND public.ev07_envios_automaticos.updated_at < now() - interval '6 hours')\n  RETURNING id, categoria, referencia_id, lead_id, ciclo_chave, telefone,\n            texto_enviado AS texto_configurado, payload_meta\n)\nSELECT * FROM reservado;",
+        "options": {
+          "queryReplacement": "={{ $json.categoria }},{{ $json.referencia_id }},{{ $json.lead_id }},{{ $json.ciclo_chave }},{{ $json.telefone }},{{ $json.texto_base64 }},{{ $json.payload_base64 }},{{ $execution.id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -624,
+        2640
+      ],
+      "id": "e2d72771-18c5-4d27-88f1-e91dcefa0da7",
+      "name": "Reservar aniversário sem repetir",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Reserva atomica no banco interno. Conflito ja ENVIADO retorna zero itens. Reserva interrompida so pode ser retomada depois de 6 horas."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reservado AS (\n  INSERT INTO public.ev07_envios_automaticos (\n    categoria, referencia_id, lead_id, ciclo_chave, telefone,\n    texto_enviado, payload_meta, status, execucao_n8n_id,\n    reservado_em, updated_at\n  ) VALUES (\n    $1, $2, $3, $4, $5,\n    convert_from(decode($6, 'base64'), 'UTF8'),\n    convert_from(decode($7, 'base64'), 'UTF8')::jsonb,\n    'RESERVADO', $8, now(), now()\n  )\n  ON CONFLICT (categoria, referencia_id, lead_id, ciclo_chave)\n  DO UPDATE SET\n    telefone = EXCLUDED.telefone,\n    texto_enviado = EXCLUDED.texto_enviado,\n    payload_meta = EXCLUDED.payload_meta,\n    status = 'RESERVADO',\n    execucao_n8n_id = EXCLUDED.execucao_n8n_id,\n    reservado_em = now(),\n    updated_at = now()\n  WHERE public.ev07_envios_automaticos.status = 'FALHOU'\n     OR (public.ev07_envios_automaticos.status = 'RESERVADO'\n         AND public.ev07_envios_automaticos.updated_at < now() - interval '6 hours')\n  RETURNING id, categoria, referencia_id, lead_id, ciclo_chave, telefone,\n            texto_enviado AS texto_configurado, payload_meta\n)\nSELECT * FROM reservado;",
+        "options": {
+          "queryReplacement": "={{ $json.categoria }},{{ $json.referencia_id }},{{ $json.lead_id }},{{ $json.ciclo_chave }},{{ $json.telefone }},{{ $json.texto_base64 }},{{ $json.payload_base64 }},{{ $execution.id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -624,
+        2976
+      ],
+      "id": "23189c86-f16e-4293-b294-03c49aa76e71",
+      "name": "Reservar data festiva sem repetir",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Reserva atomica no banco interno. Conflito ja ENVIADO retorna zero itens. Reserva interrompida so pode ser retomada depois de 6 horas."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reservado AS (\n  INSERT INTO public.ev07_envios_automaticos (\n    categoria, referencia_id, lead_id, ciclo_chave, telefone,\n    texto_enviado, payload_meta, status, execucao_n8n_id,\n    reservado_em, updated_at\n  ) VALUES (\n    $1, $2, $3, $4, $5,\n    convert_from(decode($6, 'base64'), 'UTF8'),\n    convert_from(decode($7, 'base64'), 'UTF8')::jsonb,\n    'RESERVADO', $8, now(), now()\n  )\n  ON CONFLICT (categoria, referencia_id, lead_id, ciclo_chave)\n  DO UPDATE SET\n    telefone = EXCLUDED.telefone,\n    texto_enviado = EXCLUDED.texto_enviado,\n    payload_meta = EXCLUDED.payload_meta,\n    status = 'RESERVADO',\n    execucao_n8n_id = EXCLUDED.execucao_n8n_id,\n    reservado_em = now(),\n    updated_at = now()\n  WHERE public.ev07_envios_automaticos.status = 'FALHOU'\n     OR (public.ev07_envios_automaticos.status = 'RESERVADO'\n         AND public.ev07_envios_automaticos.updated_at < now() - interval '6 hours')\n  RETURNING id, categoria, referencia_id, lead_id, ciclo_chave, telefone,\n            texto_enviado AS texto_configurado, payload_meta\n)\nSELECT * FROM reservado;",
+        "options": {
+          "queryReplacement": "={{ $json.categoria }},{{ $json.referencia_id }},{{ $json.lead_id }},{{ $json.ciclo_chave }},{{ $json.telefone }},{{ $json.texto_base64 }},{{ $json.payload_base64 }},{{ $execution.id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -624,
+        3312
+      ],
+      "id": "2cf782f6-7dab-4ec0-b1ab-b2e1a95970a3",
+      "name": "Reservar fidelização sem repetir",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Reserva atomica no banco interno. Conflito ja ENVIADO retorna zero itens. Reserva interrompida so pode ser retomada depois de 6 horas."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.ev07_envios_automaticos\nSET status = 'ENVIADO',\n    meta_message_id = NULLIF($2, ''),\n    enviado_em = now(),\n    updated_at = now()\nWHERE id = $1::bigint\nRETURNING id AS envio_id, categoria, referencia_id, lead_id, ciclo_chave,\n          status, meta_message_id, enviado_em;",
+        "options": {
+          "queryReplacement": "={{ $('Reservar aniversário sem repetir').item.json.id }},{{ $json.messages?.[0]?.id ?? '' }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -48,
+        2640
+      ],
+      "id": "6c919a7e-c77a-4973-a6a7-ba5aedc16cd5",
+      "name": "Confirmar envio de aniversário",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Confirma ENVIADO somente depois que a Meta respondeu com sucesso e guarda o message id quando disponivel."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.ev07_envios_automaticos\nSET status = 'ENVIADO',\n    meta_message_id = NULLIF($2, ''),\n    enviado_em = now(),\n    updated_at = now()\nWHERE id = $1::bigint\nRETURNING id AS envio_id, categoria, referencia_id, lead_id, ciclo_chave,\n          status, meta_message_id, enviado_em;",
+        "options": {
+          "queryReplacement": "={{ $('Reservar data festiva sem repetir').item.json.id }},{{ $json.messages?.[0]?.id ?? '' }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -48,
+        2976
+      ],
+      "id": "293e04b0-8fcd-4639-b19a-a48ccd02f35b",
+      "name": "Confirmar envio de data festiva",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Confirma ENVIADO somente depois que a Meta respondeu com sucesso e guarda o message id quando disponivel."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.ev07_envios_automaticos\nSET status = 'ENVIADO',\n    meta_message_id = NULLIF($2, ''),\n    enviado_em = now(),\n    updated_at = now()\nWHERE id = $1::bigint\nRETURNING id AS envio_id, categoria, referencia_id, lead_id, ciclo_chave,\n          status, meta_message_id, enviado_em;",
+        "options": {
+          "queryReplacement": "={{ $('Reservar fidelização sem repetir').item.json.id }},{{ $json.messages?.[0]?.id ?? '' }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -48,
+        3312
+      ],
+      "id": "7d7fc0d4-b17a-40c5-97dc-3c016f278bbb",
+      "name": "Confirmar envio de fidelização",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Confirma ENVIADO somente depois que a Meta respondeu com sucesso e guarda o message id quando disponivel."
+    },
+    {
+      "id": "ba471ccf-1361-44eb-ad59-542cd724bc48",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-07 | Fidelização e mensagens festivas\nCRM de teste / Evolution.\n- Enviar template aniversário pela Meta: TEMPLATE_META_PRECISA_DE_CONTEUDO_EVOLUTION\n- Enviar template festivo pela Meta: TEMPLATE_META_PRECISA_DE_CONTEUDO_EVOLUTION\n- Enviar template fidelização pela Meta: TEMPLATE_META_PRECISA_DE_CONTEUDO_EVOLUTION\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "Consultar a cada hora": {
+      "main": [
+        [
+          {
+            "node": "Bases do CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar conferência manual": {
+      "main": [
+        [
+          {
+            "node": "Bases do CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bases do CRM": {
+      "main": [
+        [
+          {
+            "node": "Garantir idempotência dos envios EV-07",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Garantir idempotência dos envios EV-07": {
+      "main": [
+        [
+          {
+            "node": "Buscar configurações gerais",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar configurações gerais": {
+      "main": [
+        [
+          {
+            "node": "Buscar aniversariantes de hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar aniversariantes de hoje": {
+      "main": [
+        [
+          {
+            "node": "Buscar mensagem festiva de hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar mensagem festiva de hoje": {
+      "main": [
+        [
+          {
+            "node": "Buscar regras de fidelização",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar regras de fidelização": {
+      "main": [
+        [
+          {
+            "node": "Consolidar configurações remotas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar configurações remotas": {
+      "main": [
+        [
+          {
+            "node": "Configurações disponíveis?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configurações disponíveis?": {
+      "main": [
+        [
+          {
+            "node": "Configurar template Meta marketing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exibir falha de configuração",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configurar template Meta marketing": {
+      "main": [
+        [
+          {
+            "node": "Preparar envios aniversário",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Preparar público da data festiva",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Preparar busca de leads para fidelização",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar envios aniversário": {
+      "main": [
+        [
+          {
+            "node": "Buscar lead do aniversário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar lead do aniversário": {
+      "main": [
+        [
+          {
+            "node": "Aplicar nome no aniversário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aplicar nome no aniversário": {
+      "main": [
+        [
+          {
+            "node": "Reservar aniversário sem repetir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reservar aniversário sem repetir": {
+      "main": [
+        [
+          {
+            "node": "Enviar template aniversário pela Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar template aniversário pela Meta": {
+      "main": [
+        [
+          {
+            "node": "Confirmar envio de aniversário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar público da data festiva": {
+      "main": [
+        [
+          {
+            "node": "Buscar leads para data festiva",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar leads para data festiva": {
+      "main": [
+        [
+          {
+            "node": "Preparar envios festivos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar envios festivos": {
+      "main": [
+        [
+          {
+            "node": "Reservar data festiva sem repetir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reservar data festiva sem repetir": {
+      "main": [
+        [
+          {
+            "node": "Enviar template festivo pela Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar template festivo pela Meta": {
+      "main": [
+        [
+          {
+            "node": "Confirmar envio de data festiva",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar busca de leads para fidelização": {
+      "main": [
+        [
+          {
+            "node": "Buscar leads elegíveis da fidelização",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar leads elegíveis da fidelização": {
+      "main": [
+        [
+          {
+            "node": "Preparar envios fidelização",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar envios fidelização": {
+      "main": [
+        [
+          {
+            "node": "Reservar fidelização sem repetir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reservar fidelização sem repetir": {
+      "main": [
+        [
+          {
+            "node": "Enviar template fidelização pela Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar template fidelização pela Meta": {
+      "main": [
+        [
+          {
+            "node": "Confirmar envio de fidelização",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}

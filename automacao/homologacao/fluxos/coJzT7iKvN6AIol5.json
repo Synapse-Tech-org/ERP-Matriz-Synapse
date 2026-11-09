@@ -1,0 +1,891 @@
+{
+  "name": "HML - EV-14 Coletar Fotos Contatos",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ev14-config-uzapi-base-url",
+              "name": "uzapi_base_url",
+              "value": "https://evolution-hml.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "ev14-config-uzapi-username",
+              "name": "uzapi_username",
+              "value": "instancia_numero_teste",
+              "type": "string"
+            },
+            {
+              "id": "ev14-config-uzapi-version",
+              "name": "uzapi_version",
+              "value": "evolution",
+              "type": "string"
+            },
+            {
+              "id": "ev14-config-uzapi-phone-number-id",
+              "name": "uzapi_phone_number_id",
+              "value": "instancia_numero_teste",
+              "type": "string"
+            },
+            {
+              "id": "ev14-config-crm-base-url",
+              "name": "crm_base_url",
+              "value": "https://crm-teste.187.77.47.30.sslip.io",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8384,
+        4560
+      ],
+      "id": "57f9672b-4aa9-4944-a63c-d3bf02f59ce9",
+      "name": "Configurar sincronizacao fotos",
+      "notesInFlow": true,
+      "notes": "Centraliza dados globais da execucao. UZAPI usa os valores preenchidos aqui; CRM usa crm_base_url com /internal/v1/leads/{leadId}/foto. Tokens ficam apenas nas credenciais do n8n."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH origem AS (\n  SELECT to_jsonb(l) AS dados\n  FROM public.lead l\n), normalizados AS (\n  SELECT\n    COALESCE(\n      dados->>'id',\n      dados->>'leadId',\n      dados->>'lead_id',\n      dados->>'uuid'\n    ) AS lead_id,\n    regexp_replace(\n      COALESCE(\n        dados->>'telefone',\n        dados->>'phone',\n        dados->>'whatsapp',\n        dados->>'celular',\n        dados->>'telefone_normalizado',\n        dados->>'numero',\n        ''\n      ),\n      '\\D',\n      '',\n      'g'\n    ) AS phone,\n    COALESCE(\n      NULLIF(dados->>'atualizado_em', ''),\n      NULLIF(dados->>'updated_at', ''),\n      NULLIF(dados->>'criado_em', ''),\n      NULLIF(dados->>'created_at', ''),\n      now()::text\n    ) AS lead_updated_at\n  FROM origem\n)\nSELECT\n  lead_id,\n  phone,\n  lead_updated_at\nFROM normalizados\nWHERE length(phone) BETWEEN 10 AND 15\nAND ($1 = '0' OR lead_id > $2)\nORDER BY lead_id NULLS LAST, phone\nLIMIT 3000;",
+        "options": {
+          "queryReplacement": "={{ String($('Ler cursor EV14').first().json.ultimo_lead_id ?? '').trim() || '0' }},{{ String($('Ler cursor EV14').first().json.ultimo_lead_id ?? '').trim() || '0' }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        9040,
+        4608
+      ],
+      "id": "2973c47f-b4ce-4362-93ba-b6f635cf90cf",
+      "name": "Buscar leads no Postgres",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "IprZddvnhajgbwdx",
+          "name": "HML PostgreSQL CRM"
+        }
+      },
+      "notes": "Consulta public.lead em paginas de 800. Cursor vazio vira 0 para a primeira pagina; depois usa o ultimo lead_id processado."
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        9280,
+        4608
+      ],
+      "id": "fedd2d1f-0f90-4d2f-b301-a493705240a2",
+      "name": "Loop leads",
+      "notesInFlow": true,
+      "notes": "Processa um lead por vez para escalar melhor e evitar envio de centenas de fotos em um unico Code node."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepara os dados para buscar a foto na UZAPI e enviar ao CRM v2.\n// No lote, le o item atual do Loop leads. No subworkflow, usa os dados recebidos na configuracao.\nlet lead;\ntry {\n  lead = $('Loop leads').item.json;\n} catch {\n  lead = $('Configurar sincronizacao fotos').first().json;\n}\nconst config = $('Configurar sincronizacao fotos').first().json;\nconst phone = String(lead.phone ?? '').replace(/\\D/g, '');\nconst leadId = String(lead.lead_id ?? '').trim();\nconst username = String(config.uzapi_username ?? '').trim();\nconst version = String(config.uzapi_version ?? '').trim();\nconst phoneNumberId = String(config.uzapi_phone_number_id ?? '').trim();\nconst crmBaseUrl = String(config.crm_base_url ?? '').trim();\nconst phoneMasked = phone ? phone.replace(/^(\\d{4})\\d+(\\d{2})$/, '$1*****$2') : '';\nconst valido = /^\\d{10,15}$/.test(phone) && Boolean(leadId && username && version && phoneNumberId && crmBaseUrl);\nreturn [{ json: {\n  valido,\n  motivo_invalido: valido ? '' : 'LEAD_TELEFONE_OU_CONFIG_INVALIDA',\n  lead_id: leadId,\n  phone,\n  phone_masked: phoneMasked,\n  uzapi_username: username,\n  uzapi_version: version,\n  uzapi_phone_number_id: phoneNumberId\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9504,
+        4496
+      ],
+      "id": "a70bf302-4712-473d-9226-83783c036180",
+      "name": "Preparar lead para foto",
+      "notesInFlow": true,
+      "notes": "Cria somente lead_id, telefone mascarado e configuracao UZAPI. O CRM v2 recebe o UUID do lead no path e o arquivo no multipart."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Preparar lead para foto').item.json.valido }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        9760,
+        4496
+      ],
+      "id": "096fdfd2-993e-4d66-89bc-e9a6c0436096",
+      "name": "Lead valido para foto?",
+      "notesInFlow": true,
+      "notes": "Segue apenas quando existe telefone internacional valido e configuracao UZAPI completa."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Item invalido volta ao loop sem chamar UZAPI ou CRM.\nconst lead = $('Preparar lead para foto').item.json;\nreturn [{ json: {\n  codigo: 'LEAD_IGNORADO_FOTO',\n  motivo: lead.motivo_invalido,\n  lead_id: lead.lead_id,\n  phone_masked: lead.phone_masked,\n  enviado_crm: false\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10000,
+        4720
+      ],
+      "id": "5bec7383-bb4c-4f5c-8b54-cfb5b5b10f33",
+      "name": "Ignorar lead invalido",
+      "notesInFlow": true,
+      "notes": "Retorno seguro sem telefone completo."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evolution-hml.187.77.47.30.sslip.io/chat/fetchProfilePictureUrl/instancia_numero_teste",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {number: $('Preparar lead para foto').item.json.phone} }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        10000,
+        4384
+      ],
+      "id": "8645cd3b-4944-45c5-b09c-f97e6dc255f8",
+      "name": "Buscar foto UZAPI",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput",
+      "notes": "Usa UZAPI contacts/getPicture com a mesma credencial Bearer uzapi-api. A URL de foto retornada e usada apenas para download imediato e nao vai para o CRM.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "s1xd4bsOnaxZAu2n",
+          "name": "HML Evolution"
+        }
+      },
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai a URL real da foto retornada pela UZAPI.\n// Contrato CRM v2: se nao houver URL, o caminho correto e chamar DELETE /internal/v1/leads/{leadId}/foto.\nconst evento = $('Preparar lead para foto').item.json;\nconst resposta = $('Buscar foto UZAPI').item.json ?? {};\nconst dadosFoto = resposta.data?.data ?? {};\nconst statusInterno = String(dadosFoto.status ?? resposta.data?.status ?? resposta.status ?? '').trim().toLowerCase();\nconst mensagemInterna = String(resposta.data?.message ?? resposta.message ?? '').trim();\nconst candidatos = [\n  resposta.profilePictureUrl,\n  dadosFoto.url,\n  dadosFoto.link,\n  dadosFoto.picture,\n  dadosFoto.pictureUrl,\n  dadosFoto.profilePictureUrl,\n  dadosFoto.profilePicUrl,\n  dadosFoto.imageUrl,\n  dadosFoto.imgUrl,\n  resposta.data?.url,\n  resposta.data?.link,\n  resposta.url,\n  resposta.link\n];\nconst url = String(candidatos.find((valor) => /^https?:\\/\\//i.test(String(valor ?? ''))) ?? '').trim();\nconst erroUzapi = !url && (statusInterno === 'error' || Boolean(mensagemInterna));\nreturn [{ json: {\n  ...evento,\n  tem_foto: Boolean(url),\n  profilePictureUrl: url,\n  foto_indisponivel: !url,\n  motivo_foto_indisponivel: url ? '' : (erroUzapi ? mensagemInterna : 'UZAPI_NAO_RETORNOU_URL_DE_FOTO'),\n  codigo_busca_foto: url ? 'URL_FOTO_ENCONTRADA' : (erroUzapi ? 'FOTO_INDISPONIVEL_UZAPI' : 'URL_FOTO_NAO_RETORNADA_PELA_UZAPI'),\n  uzapi_arquivo_nome: String(dadosFoto.filename ?? ''),\n  uzapi_midia_id: String(dadosFoto.id ?? ''),\n  uzapi_midia_tipo: String(dadosFoto.type ?? '')\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10240,
+        4384
+      ],
+      "id": "0b95b12a-4ed5-4779-8442-bc8f128de5d7",
+      "name": "Extrair URL da foto",
+      "notesInFlow": true,
+      "notes": "Extrai a URL da foto no formato real da UZAPI observado em execucao: data.data.url. Sem URL segue para DELETE no CRM v2."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Extrair URL da foto').item.json.tem_foto }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        10480,
+        4384
+      ],
+      "id": "97ac3d44-f0a8-4743-b57c-46dc8fdafbf3",
+      "name": "UZAPI retornou foto?",
+      "notesInFlow": true,
+      "notes": "Se houver URL, baixa a imagem e envia original ao CRM. Se nao houver, chama DELETE /internal/v1/leads/{leadId}/foto."
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ \"http://synapse-backend-internal:8080\".replace(/\\/$/, '') + '/internal/v1/leads/' + encodeURIComponent($('Extrair URL da foto').item.json.lead_id) + '/foto' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        10720,
+        4624
+      ],
+      "id": "2d0078b4-8097-4bea-a24c-5d9cac7d861f",
+      "name": "Remover foto no CRM",
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Contrato v2: quando a UZAPI nao retornar foto, remove a foto do lead com DELETE. Erros seguem ao node de confirmacao para classificar 4xx definitivo e 5xx repetivel."
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Extrair URL da foto').item.json.profilePictureUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        10720,
+        4240
+      ],
+      "id": "e77de7f9-4329-4edc-a8f3-3f5d46502dee",
+      "name": "Baixar foto imediatamente",
+      "notesInFlow": true,
+      "notes": "Baixa a URL temporaria no mesmo fluxo. O arquivo original baixado e enviado ao CRM como multipart campo arquivo; a URL nao e enviada ao CRM."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Confirma o resultado do DELETE do CRM v2.\n// REMOVIDA e sucesso idempotente. 4xx e definitivo; 5xx deve ser repetido conforme contrato.\nconst evento = $('Extrair URL da foto').item.json;\nconst crm = $('Remover foto no CRM').item.json ?? {};\nconst erro = crm.error ?? {};\nconst status = String(crm.status ?? '').trim().toUpperCase();\nconst statusCode = Number(crm.statusCode ?? erro.statusCode ?? erro.httpCode ?? 0);\nconst sucesso = status === 'REMOVIDA';\nconst erroDefinitivo = statusCode >= 400 && statusCode < 500;\nconst erroRepetivel = statusCode >= 500;\nreturn [{ json: {\n  codigo: sucesso\n    ? 'FOTO_CRM_REMOVIDA'\n    : (erroRepetivel ? 'FOTO_CRM_REMOCAO_ERRO_5XX_REPETIVEL' : (erroDefinitivo ? 'FOTO_CRM_REMOCAO_ERRO_4XX_DEFINITIVO' : 'FOTO_CRM_REMOCAO_RESPOSTA_INESPERADA')),\n  enviado_crm: sucesso,\n  retry_recomendado: erroRepetivel,\n  erro_definitivo: erroDefinitivo,\n  lead_id: evento.lead_id,\n  phone_masked: evento.phone_masked,\n  operation: 'DELETE',\n  status_crm: status,\n  status_code: Number.isFinite(statusCode) ? statusCode : 0,\n  motivo_origem: String(evento.motivo_foto_indisponivel ?? ''),\n  erro_titulo: String(erro.title ?? erro.message ?? crm.title ?? '')\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11008,
+        4576
+      ],
+      "id": "49b88cd6-b66a-4152-a0b4-6f64d6b909f5",
+      "name": "Confirmar remocao CRM",
+      "notesInFlow": true,
+      "notes": "Trata REMOVIDA como sucesso. O contrato v2 diz que DELETE e idempotente."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"http://synapse-backend-internal:8080\".replace(/\\/$/, '') + '/internal/v1/leads/' + encodeURIComponent($('Extrair URL da foto').item.json.lead_id) + '/foto' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "arquivo",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        11008,
+        4256
+      ],
+      "id": "a3ce649b-4d27-4670-827d-f8cb42193307",
+      "name": "Enviar foto para CRM",
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Contrato v2: envia somente multipart/form-data com a parte binaria arquivo. Nao envia campos extras nem URL temporaria. Erros seguem ao node de confirmacao para classificar 4xx definitivo e 5xx repetivel."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Valida os status aceitos pelo contrato v2 do CRM.\n// ATUALIZADA e INALTERADA sao sucesso; INALTERADA nao deve gerar retry.\nconst evento = $('Extrair URL da foto').item.json;\nconst crm = $('Enviar foto para CRM').item.json ?? {};\nconst erro = crm.error ?? {};\nconst status = String(crm.status ?? '').trim().toUpperCase();\nconst statusCode = Number(crm.statusCode ?? erro.statusCode ?? erro.httpCode ?? 0);\nconst sucessos = ['ATUALIZADA', 'INALTERADA'];\nconst sucesso = sucessos.includes(status);\nconst erroDefinitivo = statusCode >= 400 && statusCode < 500;\nconst erroRepetivel = statusCode >= 500;\nreturn [{ json: {\n  codigo: sucesso\n    ? 'FOTO_CRM_SINCRONIZADA'\n    : (erroRepetivel ? 'FOTO_CRM_ERRO_5XX_REPETIVEL' : (erroDefinitivo ? 'FOTO_CRM_ERRO_4XX_DEFINITIVO' : 'FOTO_CRM_RESPOSTA_INESPERADA')),\n  enviado_crm: sucesso,\n  retry_recomendado: erroRepetivel,\n  erro_definitivo: erroDefinitivo,\n  lead_id: String(crm.leadId ?? evento.lead_id ?? ''),\n  phone_masked: evento.phone_masked,\n  operation: 'POST',\n  status_crm: status,\n  status_code: Number.isFinite(statusCode) ? statusCode : 0,\n  erro_titulo: String(erro.title ?? erro.message ?? crm.title ?? '')\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11248,
+        4256
+      ],
+      "id": "c58d3d77-b9d7-48e4-a3dc-6089333e28b7",
+      "name": "Confirmar foto CRM",
+      "notesInFlow": true,
+      "notes": "Retorna apenas dados seguros e trata ATUALIZADA/INALTERADA como sucesso conforme contrato v2."
+    },
+    {
+      "parameters": {
+        "content": "## EV-14 Fotos de perfil dos leads - contrato v2\n\nCron standalone a cada 20 dias.\n\nFluxo:\n1. Busca leads em public.lead pela credencial estrutural_matriz.\n2. Processa um lead por vez.\n3. Busca foto na UZAPI pelo telefone usando contacts/getPicture.\n4. Se houver foto: baixa a imagem e envia os bytes originais ao CRM em POST /internal/v1/leads/{leadId}/foto, multipart campo arquivo.\n5. Se nao houver URL de foto: chama DELETE /internal/v1/leads/{leadId}/foto.\n\nContrato v2 removeu do n8n:\n- conversao para JPEG;\n- redimensionamento;\n- calculo de SHA-256;\n- eventId / Idempotency-Key;\n- provider / providerInstance;\n- sourceUpdatedAt;\n- envio de telefone, URL temporaria ou base64 ao CRM.\n\nCredenciais usadas:\n- UZAPI: uzapi-api\n- CRM: CRM Synapse Interno\n- Leads: estrutural_matriz",
+        "height": 688,
+        "width": 760,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        8544,
+        3728
+      ],
+      "id": "79370c66-7f11-49db-9775-dd17f2429db2",
+      "name": "Contrato fotos"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0,1,2,3,4,23 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        8096,
+        4560
+      ],
+      "id": "999dbcbf-2060-4b37-9e41-cda8160e80b7",
+      "name": "Atualizar fotos diariamente de 23h a 4h",
+      "notesInFlow": true,
+      "notes": "Dispara a sincronizacao periodica de fotos de perfil dos leads. Standalone: nao depende do EV-00 nem do EV-01."
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "CWEEJbvPYzQrlKSz",
+          "mode": "list",
+          "cachedResultName": "ev14-cursor",
+          "cachedResultUrl": "/projects/ql14e10AVol6jTJv/datatables/CWEEJbvPYzQrlKSz"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chave",
+              "keyValue": "ev14-fotos-contatos"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "id": "bd9a707b-1bd8-474a-8a29-8245ca230795",
+      "name": "Ler cursor EV14",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        9040,
+        4432
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "CWEEJbvPYzQrlKSz",
+          "mode": "list",
+          "cachedResultName": "ev14-cursor"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chave",
+              "keyValue": "ev14-fotos-contatos"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ultimo_lead_id": "={{ $('Buscar leads no Postgres').all().length === 800 ? ($('Buscar leads no Postgres').all().slice(-1)[0]?.json?.lead_id ?? '') : '' }}",
+            "status_ciclo": "={{ $('Buscar leads no Postgres').all().length === 800 ? 'EM_ANDAMENTO' : 'CONCLUIDO' }}",
+            "quantidade_ultimo_lote": "={{ $('Buscar leads no Postgres').all().length }}",
+            "atualizado_em": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "chave",
+              "displayName": "chave",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ultimo_lead_id",
+              "displayName": "ultimo_lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status_ciclo",
+              "displayName": "status_ciclo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "quantidade_ultimo_lote",
+              "displayName": "quantidade_ultimo_lote",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "atualizado_em",
+              "displayName": "atualizado_em",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "4e8361a8-41fe-4150-a894-64dd47e39eb0",
+      "name": "Atualizar cursor EV14",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        9520,
+        4752
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "lead_id"
+            },
+            {
+              "name": "phone"
+            }
+          ]
+        }
+      },
+      "id": "abb6442d-20b5-4ca9-b3e2-d198a819bbd4",
+      "name": "Quando chamado pelo EV-01",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        8096,
+        4320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ Boolean($('Configurar sincronizacao fotos').first().json.lead_id) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "40a9291d-9520-41f5-99ad-3337381f598c",
+      "name": "Execucao individual de foto?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        8656,
+        4560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ Boolean($('Configurar sincronizacao fotos').first().json.lead_id) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "43e33c85-8194-4152-8979-f7d76a3e2dbd",
+      "name": "Encerrar foto individual ou continuar lote?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        11584,
+        4896
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "741968db-1749-4d2c-b36a-c3849fc02585",
+      "name": "Retornar resultado da foto individual",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        11792,
+        4752
+      ]
+    },
+    {
+      "id": "3d46a43f-e899-4a03-88d4-9d39520b2425",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-14 Coletar Fotos Contatos\nCRM de teste / Evolution.\nVer pendencias gerais no manifesto local.\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "Configurar sincronizacao fotos": {
+      "main": [
+        [
+          {
+            "node": "Execucao individual de foto?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar leads no Postgres": {
+      "main": [
+        [
+          {
+            "node": "Loop leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop leads": {
+      "main": [
+        [
+          {
+            "node": "Atualizar cursor EV14",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar lead para foto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar lead para foto": {
+      "main": [
+        [
+          {
+            "node": "Lead valido para foto?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead valido para foto?": {
+      "main": [
+        [
+          {
+            "node": "Buscar foto UZAPI",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignorar lead invalido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ignorar lead invalido": {
+      "main": [
+        [
+          {
+            "node": "Encerrar foto individual ou continuar lote?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar foto UZAPI": {
+      "main": [
+        [
+          {
+            "node": "Extrair URL da foto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignorar lead invalido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair URL da foto": {
+      "main": [
+        [
+          {
+            "node": "UZAPI retornou foto?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UZAPI retornou foto?": {
+      "main": [
+        [
+          {
+            "node": "Baixar foto imediatamente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Remover foto no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remover foto no CRM": {
+      "main": [
+        [
+          {
+            "node": "Confirmar remocao CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar foto imediatamente": {
+      "main": [
+        [
+          {
+            "node": "Enviar foto para CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar remocao CRM": {
+      "main": [
+        [
+          {
+            "node": "Encerrar foto individual ou continuar lote?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar foto para CRM": {
+      "main": [
+        [
+          {
+            "node": "Confirmar foto CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar foto CRM": {
+      "main": [
+        [
+          {
+            "node": "Encerrar foto individual ou continuar lote?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar fotos diariamente de 23h a 4h": {
+      "main": [
+        [
+          {
+            "node": "Configurar sincronizacao fotos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler cursor EV14": {
+      "main": [
+        [
+          {
+            "node": "Buscar leads no Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quando chamado pelo EV-01": {
+      "main": [
+        [
+          {
+            "node": "Configurar sincronizacao fotos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execucao individual de foto?": {
+      "main": [
+        [
+          {
+            "node": "Preparar lead para foto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ler cursor EV14",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Encerrar foto individual ou continuar lote?": {
+      "main": [
+        [
+          {
+            "node": "Retornar resultado da foto individual",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}

@@ -1,0 +1,82 @@
+{
+  "name": "HML - EV-99 Tratamento de Erros",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        -32
+      ],
+      "id": "70129fff-052c-413d-9e85-163da644674c",
+      "name": "Error Trigger",
+      "notesInFlow": true,
+      "notes": "É acionado automaticamente por uma execução com erro. Configure este fluxo como Error Workflow nas opções de cada fluxo publicado."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Recebe os dados enviados automaticamente pelo Error Trigger.\n// Mantemos somente uma descrição curta: nunca propagamos payloads, tokens ou dados pessoais.\nconst entrada = $('Error Trigger').first().json;\nconst erro = entrada.execution?.error ?? entrada.error ?? {};\n\nreturn [{\n  json: {\n    codigo: 'ERRO_REDACTADO_AGUARDANDO_TELEMETRIA',\n    workflow_origem: String(entrada.workflow?.name ?? ''),\n    node_origem: String(entrada.lastNodeExecuted ?? ''),\n    mensagem: String(erro.message ?? erro.name ?? 'Erro sem descrição').slice(0, 500)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        -32
+      ],
+      "id": "05108324-2df6-4e25-a571-608c5971a3ec",
+      "name": "Preparar erro seguro",
+      "notesInFlow": true,
+      "notes": "Placeholder seguro: prepara um resumo para a futura telemetria, sem enviar nada nem gravar no CRM."
+    },
+    {
+      "parameters": {
+        "content": "## Central de erros\n\nEste é um Error Workflow real, não um subworkflow.\n\nDepois de importá-lo, abra as configurações de cada fluxo publicado e selecione EV-99 como Error Workflow. A telemetria para o CRM será adicionada quando o contrato definir o endpoint e o corpo aceito.",
+        "height": 190,
+        "width": 520,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        -336
+      ],
+      "id": "62bd1e8a-cabc-46d2-9170-a8b7947ae7a8",
+      "name": "Como usar este fluxo"
+    },
+    {
+      "id": "46130fac-8623-4071-a5b8-392cc05f1e1c",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-99 Tratamento de Erros\nCRM de teste / Evolution.\nVer pendencias gerais no manifesto local.\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Preparar erro seguro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}
