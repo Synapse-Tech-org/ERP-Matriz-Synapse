@@ -4,10 +4,15 @@
  * de tema é sobrescrito. Cores, fontes, raios e sombras pertencem à instância.
  */
 .pagina {
-  gap: calc(var(--spacing) * 2.5);
-  padding: calc(var(--spacing) * 2.5);
-  background: color-mix(in srgb, var(--muted) 82%, transparent);
+  height: calc(100% - 20px);
+  margin: 10px 10px 10px 0;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 24px;
+  background: var(--fundo-canvas);
+  box-shadow: var(--sombra-xl);
   font-family: var(--fonte-base-carregada, var(--fonte-base)), sans-serif;
+  font-variant-numeric: tabular-nums;
 }
 
 .pagina > :global([data-slot="lista-conversas"]),
@@ -15,13 +20,13 @@
 .pagina > :global([data-slot="coluna-detalhes"]) {
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: var(--raio-xl);
+  border-radius: 18px;
   background: var(--card);
-  box-shadow: var(--sombra-md);
+  box-shadow: var(--sombra-sm);
 }
 
 .pagina :global([data-slot="lista-conversas-cabecalho"]) {
-  padding-top: calc(var(--spacing) * 4.5);
+  padding-top: 18px;
 }
 
 .pagina :global([data-slot="lista-conversas-cabecalho"]) h1 {
@@ -33,33 +38,115 @@
 
 .pagina :global([data-slot="lista-conversas-cabecalho"]) input {
   border-color: var(--border);
-  border-radius: var(--raio-md);
+  border-radius: 12px;
+  background: var(--background);
+  font-size: 13.5px;
+}
+
+.pagina :global([data-slot="lista-conversas-acoes"]) {
+  gap: 8px;
+}
+
+.pagina :global([data-slot="lista-conversas-acoes"]) > button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--sombra-sm);
+}
+
+.pagina :global([data-slot="lista-conversas-acoes"]) > button:hover {
   background: var(--muted);
+}
+
+.pagina :global([data-slot="lista-conversas-acoes"]) > :global([data-slot="dashboard-sino"]) {
+  position: relative;
+}
+
+.pagina :global([data-slot="sino-contagem"]) {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 4px;
+  place-items: center;
+  border: 2px solid var(--card);
+  border-radius: var(--raio-pill);
+  background: var(--cor-atencao);
+  color: var(--chat-texto-forte);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.pagina :global([data-slot="lista-conversas-acoes"]) > :global([data-slot="novo-atendimento"]) {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: var(--sombra-primaria);
+}
+
+.pagina :global([data-slot="lista-conversas-acoes"]) > :global([data-slot="novo-atendimento"]):hover {
+  background: var(--cor-primaria-hover);
+}
+
+.pagina :global([data-slot="lista-conversas-busca"]) {
+  margin-top: 14px;
+}
+
+.pagina :global([data-slot="lista-conversas-busca"]) input {
+  padding-inline-end: 38px;
+}
+
+.pagina :global([data-slot="lista-conversas-busca"]) kbd {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-size: 11px;
+  pointer-events: none;
 }
 
 .pagina :global([data-slot="abas-conversas"]) {
   display: flex;
   height: auto;
-  min-height: calc(var(--spacing) * 13);
-  gap: 0;
-  padding: calc(var(--spacing) * 0.75);
-  border-radius: var(--raio-lg);
+  min-height: 50px;
+  gap: 2px;
+  margin-top: 14px;
+  padding: 3px;
+  border-radius: 13px;
   background: var(--muted);
   overflow-x: auto;
 }
 
 .pagina :global([data-slot="abas-conversas"]) :global([data-slot="tabs-trigger"]) {
-  flex: 1 0 auto;
+  flex: 1 0 max-content;
   flex-direction: column-reverse;
-  min-height: calc(var(--spacing) * 11);
+  min-height: 44px;
   height: auto;
   gap: calc(var(--spacing) * 0.5);
-  padding: calc(var(--spacing) * 1.5);
+  padding: 3px 4px;
   border: 0;
-  border-radius: var(--raio-md);
+  border-radius: 10px;
   color: var(--muted-foreground);
   background: transparent;
-  font-size: var(--texto-xs);
+  font-size: 11.5px;
 }
 
 .pagina :global([data-slot="abas-conversas"]) :global([data-slot="tabs-trigger"])::after {
@@ -77,7 +164,7 @@
   border: 0;
   background: transparent;
   color: inherit;
-  font-size: var(--texto-md);
+  font-size: 16px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -87,18 +174,20 @@
 }
 
 .pagina :global([data-slot="lista-conversas-itens"]) {
-  padding-top: calc(var(--spacing) * 2);
+  padding-top: 4px;
 }
 
 .pagina :global([data-slot="cartao-conversa"]) {
-  border-radius: var(--raio-lg);
+  margin-inline: 9px;
+  width: calc(100% - 28px);
+  border-radius: 14px;
   border: 1px solid transparent;
   box-shadow: none;
 }
 
 .pagina :global([data-slot="cartao-conversa"][aria-current="true"]) {
   border-color: var(--primary);
-  background: var(--accent);
+  background: var(--background);
   box-shadow: inset 0 0 0 1px var(--primary);
 }
 
@@ -108,21 +197,56 @@
 }
 
 .pagina :global([data-slot="cabecalho-conversa"]) {
+  min-height: 74px;
+  padding-inline: 20px 18px;
   background: var(--card);
 }
 
 .pagina :global([data-slot="historico-mensagens"]) {
-  background: var(--background);
+  padding: 24px 28px 0;
+  background: color-mix(in srgb, var(--card) 40%, var(--background));
+}
+
+.pagina :global([data-slot="mensagens-virtualizadas"]) {
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+.pagina :global([data-slot="bolha-mensagem"]) {
+  padding: 10px 14px;
+  border-radius: 18px 18px 18px 6px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+}
+
+.pagina :global([data-slot="bolha-mensagem"][data-enviada="true"]) {
+  border-radius: 18px 18px 6px 18px;
+  background: var(--primary);
+  box-shadow: var(--sombra-primaria);
 }
 
 .pagina :global([data-slot="composer"]) {
-  padding-inline: calc(var(--spacing) * 4);
-  padding-bottom: max(calc(var(--spacing) * 4), env(safe-area-inset-bottom));
+  padding-inline: 20px;
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+}
+
+.pagina :global([data-slot="composer"]) > div {
+  max-width: 800px;
+  margin-inline: auto;
 }
 
 .pagina :global([data-slot="composer"]) > div > div {
-  border-radius: var(--raio-lg);
-  box-shadow: var(--sombra-md);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--card) 82%, transparent);
+  box-shadow: var(--sombra-lg);
+  backdrop-filter: blur(22px);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .pagina :global([data-slot="composer"]) > div > div {
+    background: var(--card);
+    backdrop-filter: none;
+  }
 }
 
 .pagina :global([data-slot="painel-detalhes-lead"]) {
@@ -136,17 +260,152 @@
   border-radius: var(--raio-lg);
 }
 
+.pagina > :global([data-slot="coluna-conversa"]):has(:global(.painel-operacional)) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .pagina :global(.painel-operacional) {
-  background: var(--muted);
+  container: painel-operacional-v2 / inline-size;
+  background: transparent;
 }
 
 .pagina :global(.painel-operacional) > header {
-  background: var(--card);
+  padding: 10px 8px 18px;
+  border: 0;
+  background: transparent;
 }
 
 .pagina :global(.painel-operacional) h2 {
-  font-size: var(--texto-2xl);
-  letter-spacing: -0.03em;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+}
+
+.pagina :global([data-slot="painel-operacional-corpo"]) {
+  padding: 2px 2px 12px;
+  background: transparent;
+}
+
+.pagina :global([data-slot="painel-operacional-indicadores"]) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pagina :global([data-indicador]) {
+  --tom-indicador: var(--primary);
+  min-height: 154px;
+  padding: 18px;
+  border-color: var(--card);
+  border-radius: 18px;
+  color: var(--tom-indicador);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tom-indicador) 9%, var(--card)), var(--card));
+}
+
+.pagina :global([data-indicador="online"]) { --tom-indicador: var(--cor-destaque-3); }
+.pagina :global([data-indicador="potenciais"]) { --tom-indicador: var(--cor-ia); }
+.pagina :global([data-indicador="novas"]) { --tom-indicador: var(--cor-sucesso); }
+.pagina :global([data-indicador="pendentes"]) { --tom-indicador: var(--cor-atencao-escura); }
+.pagina :global([data-indicador="atraso"]) { --tom-indicador: var(--destructive); }
+
+.pagina :global([data-indicador]):hover {
+  border-color: var(--tom-indicador);
+}
+
+.pagina :global([data-indicador]) > span {
+  color: inherit;
+}
+
+.pagina :global([data-indicador]) > span:first-child {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  gap: 11px;
+}
+
+.pagina :global([data-indicador]) > span:first-child > span:first-child {
+  min-width: 0;
+  max-width: none;
+  overflow: hidden;
+  color: inherit;
+  font-size: 13.5px;
+  letter-spacing: normal;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.pagina :global([data-indicador]) > span:first-child > span:last-child {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--raio-pill);
+  background: var(--tom-indicador);
+  color: var(--primary-foreground);
+}
+
+.pagina :global([data-indicador]) > span:nth-child(2) {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.pagina :global([data-indicador]) > span:last-child > span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pagina :global([data-slot="painel-operacional-equipe"]) {
+  margin-top: 10px;
+  border-radius: 18px;
+  box-shadow: var(--sombra-sm);
+}
+
+.pagina :global([data-slot="painel-operacional-equipe"]) > div:first-child {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pagina :global([data-slot="painel-operacional-equipe"]) > div:first-child > p {
+  font-size: 13px;
+}
+
+.pagina :global([data-slot="painel-operacional-equipe"]) th[scope="col"] {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.pagina :global([data-slot="painel-operacional-equipe"]) :global(.avatar-operacional) {
+  border-radius: var(--raio-pill);
+}
+
+.pagina :global([data-slot="painel-operacional-contagem"]) {
+  width: auto;
+  min-width: 56px;
+  height: 30px;
+  border-radius: var(--raio-pill);
+  font-size: 13.5px;
+}
+
+@container painel-operacional-v2 (min-width: 660px) {
+  .pagina :global([data-slot="painel-operacional-indicadores"]) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container painel-operacional-v2 (min-width: 1200px) {
+  .pagina :global([data-slot="painel-operacional-indicadores"]) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .pagina :global([data-indicador]) {
+    height: 154px;
+  }
 }
 
 /* A lista operacional reutiliza o mesmo read model e a mesma paginação. */
@@ -167,8 +426,11 @@
 /* Coluna única é decidida pela largura útil medida, não pela largura fixa do mockup. */
 @media (max-width: 639px) {
   .pagina {
+    height: 100%;
     gap: 0;
+    margin: 0;
     padding: 0;
+    border-radius: 0;
   }
 
   .pagina > :global([data-slot="lista-conversas"]),
@@ -182,5 +444,9 @@
   .pagina :global([data-slot="composer"]) {
     padding-inline: calc(var(--spacing) * 2);
     padding-bottom: max(calc(var(--spacing) * 2), env(safe-area-inset-bottom));
+  }
+
+  .pagina :global([data-slot="historico-mensagens"]) {
+    padding: 12px 12px 0;
   }
 }

@@ -58,6 +58,7 @@ import {
 } from "./expansao-da-sidebar";
 import { NovidadesDialog } from "./novidades-dialog";
 import { SeloBeta } from "./selo-beta";
+import { IconeFrontendV2, type NomeIconeFrontendV2 } from "./icone-frontend-v2";
 
 interface ItemDeMenu extends ItemDeMenuBase {
   icone: React.ComponentType<{ className?: string }>;
@@ -90,6 +91,29 @@ const ITENS_MENU: ItemDeMenu[] = ITENS_MENU_BASE.map((item) => ({
 
 // Feedbacks permanece no menu "Mais" do mobile; no desktop é um atalho compacto do rodapé.
 const ITENS_MENU_SIDEBAR = ITENS_MENU.filter((item) => item.chave !== "feedbacks");
+
+const ITENS_RECURSOS_V2 = [
+  "mensagensRapidas", "templatesWhatsApp", "mensagensProgramadas", "lembretes", "bancoArquivos", "tags",
+].flatMap((chave) => ITENS_MENU_SIDEBAR.filter((item) => item.chave === chave));
+const ITENS_PRINCIPAIS_V2 = ITENS_MENU_SIDEBAR.filter((item) => !ITENS_RECURSOS_V2.includes(item));
+
+const ICONES_SIDEBAR_V2: Partial<Record<string, [NomeIconeFrontendV2, NomeIconeFrontendV2]>> = {
+  atendimentos: ["chat-smile-2-line", "chat-smile-2-fill"],
+  dashboard: ["dashboard-horizontal-line", "dashboard-horizontal-fill"],
+  agenda: ["contacts-book-3-line", "contacts-book-3-fill"],
+  mensagensRapidas: ["flashlight-line", "flashlight-fill"],
+  templatesWhatsApp: ["file-text-line", "file-text-fill"],
+  mensagensProgramadas: ["calendar-schedule-line", "calendar-schedule-fill"],
+  lembretes: ["notification-3-line", "notification-3-fill"],
+  bancoArquivos: ["folder-3-line", "folder-3-fill"],
+  tags: ["price-tag-3-line", "price-tag-3-fill"],
+  gestao: ["shield-user-line", "shield-user-fill"],
+  campanhas: ["megaphone-line", "megaphone-fill"],
+  automacao: ["robot-2-line", "robot-2-fill"],
+  horarios: ["time-line", "time-fill"],
+  relatorios: ["bar-chart-box-line", "bar-chart-box-fill"],
+  administracao: ["shield-check-line", "shield-check-fill"],
+};
 
 const ITENS_GESTAO: ItemDeMenu[] = ITENS_GESTAO_BASE.map((item) => ({
   ...item,
@@ -226,6 +250,7 @@ export function Sidebar({
         }}
       >
       <div
+        data-slot="sidebar-marca"
         className={
           retraida
             ? "flex flex-col items-center gap-2 px-2 py-4"
@@ -238,6 +263,7 @@ export function Sidebar({
           // cliente sem editar código". <img> puro aceita qualquer URL em runtime.
           // eslint-disable-next-line @next/next/no-img-element
           <img
+            data-slot="sidebar-logo"
             src={tema.logoUrl}
             alt={textos.app.marca}
             className="size-10 flex-none rounded-lg object-contain"
@@ -245,6 +271,7 @@ export function Sidebar({
           />
         ) : (
           <div
+            data-slot="sidebar-logo"
             className="flex size-10 flex-none items-center justify-center rounded-lg"
             style={{
               background: `linear-gradient(150deg, var(--marca-icone-gradiente-inicio), var(--marca-icone-gradiente-fim))`,
@@ -304,26 +331,24 @@ export function Sidebar({
             className="mx-2 border-[color-mix(in_srgb,var(--sidebar-texto-forte)_15%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-texto-forte)_5%,transparent)] text-cor-erro-suave"
           />
         )}
-        <MenuGrupo
-          titulo={textos.menu.grupoMenu}
-          itens={ITENS_MENU_SIDEBAR}
-          visivel={itemVisivel}
-          rotulos={textos.menu.itens}
-          pathname={pathname}
-          contagemPendentes={contagens?.PENDENTES}
-          retraida={retraida}
-          rotuloContagemPendentes={textos.menu.contagemPendentes}
-        />
-        <MenuGrupo
-          titulo={textos.menu.grupoGestao}
-          itens={ITENS_GESTAO}
-          visivel={itemVisivel}
-          rotulos={textos.menu.itens}
-          pathname={pathname}
-          contagemPendentes={contagens?.PENDENTES}
-          retraida={retraida}
-          rotuloContagemPendentes={textos.menu.contagemPendentes}
-        />
+        {[
+          { chave: "principal", titulo: visualV2 ? textos.menu.grupoPrincipal : textos.menu.grupoMenu, itens: visualV2 ? ITENS_PRINCIPAIS_V2 : ITENS_MENU_SIDEBAR },
+          ...(visualV2 ? [{ chave: "recursos", titulo: textos.menu.grupoRecursos, itens: ITENS_RECURSOS_V2 }] : []),
+          { chave: "gestao", titulo: textos.menu.grupoGestao, itens: ITENS_GESTAO },
+        ].map(({ chave, titulo, itens }) => (
+          <MenuGrupo
+            key={chave}
+            titulo={titulo}
+            itens={itens}
+            visivel={itemVisivel}
+            rotulos={textos.menu.itens}
+            pathname={pathname}
+            contagemPendentes={contagens?.PENDENTES}
+            retraida={retraida}
+            rotuloContagemPendentes={textos.menu.contagemPendentes}
+            visualV2={visualV2}
+          />
+        ))}
       </nav>
 
       <div className={retraida ? "relative border-t border-[color-mix(in_srgb,var(--sidebar-texto-forte)_8%,transparent)] px-2 py-3" : "relative border-t border-[color-mix(in_srgb,var(--sidebar-texto-forte)_8%,transparent)] px-3 py-3.5"}>
@@ -455,6 +480,7 @@ interface MenuGrupoProps {
   contagemPendentes?: number;
   retraida: boolean;
   rotuloContagemPendentes: string;
+  visualV2: boolean;
 }
 
 function MenuGrupo({
@@ -466,13 +492,14 @@ function MenuGrupo({
   contagemPendentes,
   retraida,
   rotuloContagemPendentes,
+  visualV2,
 }: MenuGrupoProps) {
   const acessoPainel = useMinhasPermissoes();
   const itensVisiveis = itens.filter(visivel);
   if (itensVisiveis.length === 0) return null;
 
   return (
-    <div className="mb-2">
+    <div className="mb-2" data-slot="sidebar-grupo">
       <p
         className="overflow-hidden px-2.5 text-[10.5px] font-bold tracking-[.11em] text-texto-sidebar-titulo uppercase whitespace-nowrap"
         style={{
@@ -491,6 +518,7 @@ function MenuGrupo({
         {itensVisiveis.map((item) => {
           const Icone = item.icone;
           const ativo = pathname.startsWith(item.rota);
+          const iconeV2 = visualV2 ? ICONES_SIDEBAR_V2[item.chave]?.[ativo ? 1 : 0] : undefined;
           const rotulo = rotulos[item.chave] ?? item.chave;
           const rotuloAcessivel =
             retraida && item.chave === "atendimentos" && contagemPendentes !== undefined
@@ -499,6 +527,8 @@ function MenuGrupo({
           return (
             <li key={item.chave}>
               <Link
+                data-slot="sidebar-link"
+                aria-current={ativo ? "page" : undefined}
                 href={item.rota}
                 onClick={(evento) => {
                   if (!evento.ctrlKey && !evento.metaKey && !evento.shiftKey && !evento.altKey && ativo && item.chave === "atendimentos" && !acessoPainel.isError
@@ -515,7 +545,7 @@ function MenuGrupo({
                     : "relative flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[16px] font-medium text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
                 }
               >
-                <Icone
+                {iconeV2 ? <IconeFrontendV2 nome={iconeV2} /> : <Icone
                   className={
                     ativo && item.chave === "administracao"
                       ? "size-(--tamanho-icone-sidebar) shrink-0 text-cor-ia"
@@ -523,7 +553,7 @@ function MenuGrupo({
                         ? "size-(--tamanho-icone-sidebar) shrink-0 text-sidebar-item-icone-ativo"
                         : "size-(--tamanho-icone-sidebar) shrink-0"
                   }
-                />
+                />}
                 <span
                   className="flex-1 truncate whitespace-nowrap"
                   style={estiloDoRotuloDaSidebar(retraida)}
@@ -537,7 +567,7 @@ function MenuGrupo({
                     <SeloBeta />
                   </span>
                 )}
-                {item.chave === "atendimentos" && contagemPendentes !== undefined && (
+                {item.chave === "atendimentos" && contagemPendentes !== undefined && (!visualV2 || contagemPendentes > 0) && (
                   <Badge
                     className={
                       retraida

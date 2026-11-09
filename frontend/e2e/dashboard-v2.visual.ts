@@ -170,6 +170,9 @@ test("Dashboard com a paleta da referência e geometria nativa 1920×1080", asyn
   await expect(page.getByTestId("dashboard-conteudo")).toHaveAttribute("data-layout", "v2");
   await expect(page.getByTestId(`kpi-${textos.dashboard.kpis.atendimentos}`)).toHaveText("84");
   await expect(page.locator('[data-slot="sidebar-slot"]')).toHaveCSS("width", "88px");
+  await expect(page.locator('[data-slot="sidebar-logo"]')).toHaveCSS("width", "44px");
+  await expect(page.locator('[data-slot="dashboard-busca"]')).toHaveCSS("width", "360px");
+  await expect(page.locator('[data-slot="dashboard-selo-novo"]')).toHaveCount(3);
   await expect(page.getByRole("heading", { name: textos.dashboard.titulo, exact: true })).toHaveCSS("font-size", "30px");
   await expect(page.locator('[data-dashboard-kpi="atendimentos"]')).toHaveCSS("border-radius", "18px");
   await expect(page.locator("[data-dashboard-kpi]")).toHaveCount(11);
@@ -184,12 +187,12 @@ test("Dashboard com a paleta da referência e geometria nativa 1920×1080", asyn
   await expect(page.locator("#dashboard-ano")).toHaveCSS("height", "46px");
   await expect.poll(() => page.evaluate(() =>
     Array.from(document.fonts).some((fonte) =>
-      fonte.family.includes("Remix Icon Dashboard") && fonte.status === "loaded",
+      fonte.family.includes("Remix Icon V2") && fonte.status === "loaded",
     ),
   )).toBe(true);
   await page.waitForLoadState("networkidle");
   await geometria(page);
-  await page.screenshot({ path: `${pasta}/dashboard-v2-tema-referencia-1920.png` });
+  await page.screenshot({ path: `${pasta}/dashboard-v2-tema-referencia-1920.png`, style: "nextjs-portal { display: none }" });
   await page.getByRole("button", { name: "Notificações", exact: true }).click();
   await expect(page.getByText("Nenhuma notificação nesta sessão.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Marcar lidas", exact: true })).toBeDisabled();

@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listarConversasChat } from "@/lib/chat-interno/api";
 import { previewUltimaMensagem } from "@/lib/chat-interno/mensagem-sistema";
 import { useEtapas } from "@/lib/lead/use-painel-lead";
-import { MoreHorizontal, Search, SlidersHorizontal, UserPlus, UsersRound, X } from "lucide-react";
+import { MoreHorizontal, Plus, Search, SlidersHorizontal, UserPlus, UsersRound, X } from "lucide-react";
 import { ListaFilaOperacional } from "./painel-operacional";
 import { totalizarOperacional, useFilaOperacional, useSnapshotOperacional, type FiltroOperacional, type ConsultaFilaOperacional } from "@/lib/atendimento/painel-operacional";
 
@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { CentralDeAvisos } from "@/components/notificacoes/central-de-avisos";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Seletor } from "@/components/ui/seletor";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,6 +68,7 @@ type Props = {
   onCriarGrupoInterno?: (nome: string, participantes: string[]) => Promise<unknown>;
   onNovoContato?: () => void;
   className?: string;
+  layoutV2?: boolean;
   painelOperacionalPermitido?: boolean;
   filtroOperacional?: FiltroOperacional | null;
   nomeFiltroOperacional?: string;
@@ -173,6 +175,7 @@ function ListaConversasBase({
   nomeFiltroOperacional,
   onFiltroOperacionalAlterado,
   onVoltarPainel,
+  layoutV2,
   onAbrirFilaOperacional,
   operacional,
 }: Props & { operacional?: EstadoOperacionalDaLista }) {
@@ -203,6 +206,20 @@ function ListaConversasBase({
   const busca = operacional?.busca ?? buscaLegada;
   const setBusca = operacional?.setBusca ?? setBuscaLegada;
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const buscaRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!layoutV2) return;
+    function focarBusca(evento: KeyboardEvent) {
+      if (evento.defaultPrevented || evento.key !== "/" || evento.ctrlKey || evento.metaKey || evento.altKey) return;
+      if (evento.target instanceof HTMLElement && evento.target.closest("input, textarea, select, [contenteditable]")) return;
+      if (!buscaRef.current?.getClientRects().length || document.querySelector('[aria-modal="true"]')) return;
+      evento.preventDefault();
+      buscaRef.current.focus();
+    }
+    window.addEventListener("keydown", focarBusca);
+    return () => window.removeEventListener("keydown", focarBusca);
+  }, [layoutV2]);
   const [etapaLegada, setEtapaLegada] = useState<string | null>(null);
   const filtroEtapa = operacional?.etapa ?? etapaLegada;
   const setFiltroEtapa = operacional?.setEtapa ?? setEtapaLegada;
@@ -366,6 +383,22 @@ function ListaConversasBase({
       )
     : -1;
 
+  const botaoFiltros = (
+    <Button type="button" variant="outline" size="icon-sm" className="min-h-10 min-w-10"
+      aria-label={textos.lista.filtros} aria-pressed={filtrosAbertos}
+      disabled={etapas.length === 0 && !temFiltroDeAtendente} onClick={() => setFiltrosAbertos((abertos) => !abertos)}>
+      <SlidersHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />
+    </Button>
+  );
+  const botaoNovoContato = onNovoContato && (
+    <Button type="button" data-slot="novo-atendimento" variant="outline" size="icon-sm" className="min-h-10 min-w-10"
+      aria-label={textos.novoContato.botao} onClick={onNovoContato}>
+      {layoutV2
+        ? <Plus className="size-(--tamanho-icone-interface)" aria-hidden />
+        : <UserPlus className="size-(--tamanho-icone-interface)" aria-hidden />}
+    </Button>
+  );
+
   return (
     <div data-slot="lista-conversas" className={cn("flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background", painelOperacionalPermitido && "bg-card", className)}>
       <div data-slot="lista-conversas-cabecalho" className="px-4 pt-4">
@@ -373,8 +406,10 @@ function ListaConversasBase({
           <h1 className={cn("text-lg font-bold tracking-tight text-foreground", painelOperacionalPermitido && "text-sm text-primary")}>{onVoltarPainel
             ? <button type="button" onClick={onVoltarPainel} className="rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={catalogo.painelOperacional.voltar}>{catalogo.menu.itens.atendimentos}</button>
             : catalogo.menu.itens.atendimentos}</h1>
-          <div className="flex items-center gap-1">
-            <DropdownMenu>
+          <div data-slot="lista-conversas-acoes" className="flex items-center gap-1">
+            {layoutV2 && <CentralDeAvisos mostrarContagem />}
+            {layoutV2 && botaoFiltros}
+            {(!layoutV2 || !painelOperacionalPermitido || podeFinalizarEmLote) && <DropdownMenu>
               <DropdownMenuTrigger
                 className="inline-flex size-10 items-center justify-center rounded-[var(--raio-botao-md)] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={textos.finalizar.todosMenu}
@@ -399,19 +434,8 @@ function ListaConversasBase({
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
-            </DropdownMenu>
-            {onNovoContato && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                className="min-h-10 min-w-10"
-                aria-label={textos.novoContato.botao}
-                onClick={onNovoContato}
-              >
-                <UserPlus className="size-(--tamanho-icone-interface)" aria-hidden />
-              </Button>
-            )}
+            </DropdownMenu>}
+            {!layoutV2 && botaoNovoContato}
             {chatInternoHabilitado && (
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -441,19 +465,20 @@ function ListaConversasBase({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            <Button type="button" variant="outline" size="icon-sm" className="min-h-10 min-w-10" aria-label={textos.lista.filtros} aria-pressed={filtrosAbertos} disabled={etapas.length === 0 && !temFiltroDeAtendente} onClick={() => setFiltrosAbertos((abertos) => !abertos)}>
-              <SlidersHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />
-            </Button>
+            {layoutV2 ? botaoNovoContato : botaoFiltros}
           </div>
         </div>
-        <div className="relative mt-3">
+        <div data-slot="lista-conversas-busca" className="relative mt-3">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-(--tamanho-icone-interface) -translate-y-1/2 text-muted-foreground" />
           <Input
+            ref={buscaRef}
+            aria-keyshortcuts={layoutV2 ? "/" : undefined}
             value={busca}
             onChange={(evento) => setBusca(evento.target.value)}
             placeholder={textos.lista.busca}
             className="h-10 rounded-xl bg-muted/60 pl-9"
           />
+          {layoutV2 && <kbd aria-hidden="true">/</kbd>}
         </div>
         {filtroOperacional && <div className="mt-3 flex flex-wrap items-center gap-1 text-xs">
           {filtroOperacional.recorte && filtroOperacional.recorte !== "EM_ABERTO" && <button type="button" className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary" aria-label={catalogo.painelOperacional.remover.replace("{filtro}", ({ NOVAS: catalogo.painelOperacional.novas, ATIVOS: catalogo.painelOperacional.ativos, PENDENTES: catalogo.painelOperacional.pendentes, POTENCIAIS: catalogo.painelOperacional.potenciais, SEM_RESPOSTA: catalogo.painelOperacional.comAtraso, FINALIZADOS: catalogo.painelOperacional.finalizados })[filtroOperacional.recorte])} onClick={() => onFiltroOperacionalAlterado?.({ ...filtroOperacional, recorte: "EM_ABERTO" })}>{({ NOVAS: catalogo.painelOperacional.novas, ATIVOS: catalogo.painelOperacional.ativos, PENDENTES: catalogo.painelOperacional.pendentes, POTENCIAIS: catalogo.painelOperacional.potenciais, SEM_RESPOSTA: catalogo.painelOperacional.comAtraso, FINALIZADOS: catalogo.painelOperacional.finalizados })[filtroOperacional.recorte]}<X className="size-3" aria-hidden /></button>}

@@ -1,16 +1,5 @@
 /* Alternativa A: todos os seletores dependem da raiz habilitada por instância.
    Geometria extraída do HTML de referência; cores continuam nos tokens da marca. */
-@font-face {
-  font-family: "Remix Icon Dashboard";
-  src: url("/fonts/remixicon-4.5.0.woff2") format("woff2");
-  font-display: block;
-}
-
-.icone {
-  flex: none;
-  font: 16px/1 "Remix Icon Dashboard";
-}
-
 .pagina {
   --fonte-base-carregada: var(--fonte-frontend-v2);
   container: dashboard-v2 / inline-size;
@@ -70,6 +59,7 @@
   display: flex;
   align-items: center;
   min-width: 0;
+  max-width: 65%;
   gap: 10px;
 }
 
@@ -103,7 +93,8 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  width: min(360px, 100%);
+  width: 360px;
+  min-width: 0;
   height: 38px;
   padding: 0 6px 0 13px;
   border: 1px solid var(--border);
@@ -191,7 +182,8 @@
   opacity: 1;
 }
 
-.pagina :global([data-slot="dashboard-em-breve"]) {
+.pagina :global([data-slot="dashboard-em-breve"]),
+.pagina :global([data-slot="dashboard-selo-novo"]) {
   display: inline-flex;
   align-items: center;
   height: 18px;
@@ -201,6 +193,13 @@
   color: var(--cor-ia);
   font-size: 10.5px;
   font-weight: 600;
+}
+
+.pagina :global([data-slot="dashboard-selo-novo"]) {
+  flex: none;
+  margin-inline-start: auto;
+  background: var(--accent);
+  color: var(--primary);
 }
 
 .pagina :global([data-slot="dashboard-areas"]) :global([aria-current="page"]) {
@@ -242,7 +241,7 @@
   cursor: pointer;
 }
 
-.pagina :global([data-slot="dashboard-ano"]) .icone {
+.pagina :global([data-slot="dashboard-ano"]) :global([data-slot="icone-frontend-v2"]) {
   color: var(--muted-foreground);
 }
 
@@ -383,7 +382,7 @@
   font-size: 11px;
 }
 
-.pagina :global([data-slot="dashboard-tendencia"]) .icone {
+.pagina :global([data-slot="dashboard-tendencia"]) :global([data-slot="icone-frontend-v2"]) {
   font-size: 11px;
 }
 
@@ -513,7 +512,7 @@
   color: var(--chat-texto-forte);
 }
 
-.pagina :global([data-dashboard-tabela="equipe"]) tbody td:last-child .icone {
+.pagina :global([data-dashboard-tabela="equipe"]) tbody td:last-child :global([data-slot="icone-frontend-v2"]) {
   color: var(--cor-atencao-escura);
   font-size: 13px;
 }
@@ -702,6 +701,12 @@
 }
 
 @container dashboard-v2 (min-width: 1300px) {
+  .corpo {
+    padding-inline-end: 10px;
+    margin-inline-end: -10px;
+    scrollbar-gutter: stable;
+  }
+
   .pagina[data-modo="compacta"] :global([data-slot="dashboard-indicadores"]) {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -713,6 +718,7 @@
 @media (max-width: 639px) {
   .pagina :global([data-slot="dashboard-acoes-topo"]) {
     width: 100%;
+    max-width: 100%;
   }
   .pagina :global([data-slot="dashboard-sino"]):only-child {
     margin-inline-start: auto;
@@ -741,7 +747,7 @@
     padding-inline: 6px;
     font-size: 11px;
   }
-  .pagina :global([data-slot="dashboard-areas"]) button .icone,
+  .pagina :global([data-slot="dashboard-areas"]) button :global([data-slot="icone-frontend-v2"]),
   .pagina :global([data-slot="dashboard-em-breve"]) {
     display: none;
   }

@@ -18,10 +18,14 @@ async function verificarGeometria(page: Page) {
   expect(geometria.larguraConversa).toBeGreaterThanOrEqual(320);
 }
 
-for (const largura of [1440, 1040, 720, 390]) {
+for (const largura of [1920, 1440, 1040, 720, 390]) {
   test(`v2: lista, conversa e composer utilizáveis em ${largura}px`, async ({ page }) => {
-    await page.setViewportSize({ width: largura, height: largura === 390 ? 844 : 900 });
-    const fixture = await preparar(page, true);
+    const nativa = largura === 1920;
+    await page.setViewportSize({ width: largura, height: nativa ? 1080 : largura === 390 ? 844 : 900 });
+    const temaDoCenario = nativa
+      ? JSON.parse(readFileSync(resolve("../docs/refatoracao-frontend/dashboard/tema-referencia.json"), "utf8"))
+      : tema;
+    const fixture = await preparar(page, true, 15, temaDoCenario);
     const erros: string[] = [];
     page.on("pageerror", (erro) => erros.push(erro.message));
     await page.goto("/atendimentos");
@@ -31,7 +35,23 @@ for (const largura of [1440, 1040, 720, 390]) {
     await expect(page.locator('[data-slot="composer"] textarea')).toBeVisible();
     await page.waitForLoadState("networkidle");
     await verificarGeometria(page);
-    await page.screenshot({ path: `../docs/refatoracao-frontend/implementacao/atendimentos-v2-${largura}.png` });
+    if (nativa) {
+      await expect(page.locator('[data-slot="lista-conversas"]')).toHaveCSS("width", "360px");
+      await expect(page.locator('[data-slot="coluna-detalhes"]')).toHaveCSS("width", "340px");
+      await expect(page.locator('[data-slot="cabecalho-conversa"]')).toHaveCSS("height", "74px");
+      await expect(page.locator('[data-slot="mensagens-virtualizadas"]')).toHaveCSS("width", "760px");
+      await page.keyboard.press("/");
+      await expect(page.locator('[aria-keyshortcuts="/"]')).toBeFocused();
+      await page.locator('[aria-keyshortcuts="/"]').blur();
+    }
+    await page.screenshot({
+      path: `../docs/refatoracao-frontend/implementacao/atendimentos-v2-${largura}.png`,
+      style: "nextjs-portal { display: none }",
+    });
+    if (nativa) {
+      await page.getByRole("button", { name: "Notificações", exact: true }).click();
+      await expect(page.getByText("Nenhuma notificação nesta sessão.")).toBeVisible();
+    }
     if (largura === 390) {
       await page.setViewportSize({ width: 390, height: 520 });
       await verificarGeometria(page);
@@ -42,6 +62,52 @@ for (const largura of [1440, 1040, 720, 390]) {
     expect(erros.filter((erro) => !erro.includes("negative time stamp"))).toEqual([]);
   });
 }
+
+test("painel operacional alinha os seis indicadores e abre a fila filtrada", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  const referencia = JSON.parse(readFileSync(resolve("../docs/refatoracao-frontend/dashboard/tema-referencia.json"), "utf8"));
+  const agora = new Date();
+  const depois = new Date(agora.getTime() + 3_600_000).toISOString();
+  const fixture = await prepararFrontendV2(page, {
+    features: ["atendimentos_layout_v2"],
+    tema: referencia,
+    painelOperacional: {
+      atualizadoEm: agora.toISOString(),
+      finalizadosInicio: agora.toISOString(),
+      finalizadosFim: depois,
+      proximaTransicaoEm: depois,
+      fuso: "America/Sao_Paulo",
+      limiteMinutos: 20,
+      equipe: [{
+        atendenteId: cartoes[0].atendenteId,
+        nome: cartoes[0].atendenteNome,
+        fotoUrl: null,
+        papel: "ATENDENTE",
+        presenca: "ONLINE",
+        entrada: false,
+        elegivel: true,
+        contagens: { novasMensagens: 2, novasConversas: 1, ativos: 4, pendentes: 1,
+          semResposta: 0, finalizados: 0, emAberto: 5, potenciais: 0, esperaDesde: null },
+      }],
+    },
+  });
+  await page.goto("/atendimentos");
+  const indicadores = page.locator('[data-slot="painel-operacional-indicadores"]');
+  await expect(indicadores.getByRole("button")).toHaveCount(6);
+  await expect(indicadores.locator('[data-indicador="ativos"]')).toHaveCSS("height", "154px");
+  await expect(page.locator('[data-slot="painel-operacional-contagem"]').first()).toHaveCSS("height", "30px");
+  await expect.poll(() => indicadores.getByRole("button").evaluateAll(
+    (botoes) => new Set(botoes.map((botao) => botao.getBoundingClientRect().top)).size,
+  )).toBe(1);
+  await page.waitForLoadState("networkidle");
+  await page.screenshot({
+    path: "../docs/refatoracao-frontend/implementacao/atendimentos-v2-painel-1920.png",
+    style: "nextjs-portal { display: none }",
+  });
+  await indicadores.locator('[data-indicador="ativos"]').click();
+  await expect.poll(() => fixture.requisicoes.some((rota) => rota.includes("/painel-operacional/fila?") && rota.includes("recorte=ATIVOS"))).toBe(true);
+  expect(fixture.desconhecidas).toEqual([]);
+});
 
 test("sem flag mantém legado; mais linhas não acrescentam consultas por contato", async ({ browser }) => {
   const resultados: string[][] = [];

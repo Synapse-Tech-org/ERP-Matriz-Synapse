@@ -47,7 +47,7 @@ import {
   statusHttpDoErro,
 } from "@/lib/atendimento/abertura-atendimento";
 import { TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO } from "@/lib/atendimento/arquivos-do-composer";
-import { modoDaGrade, type ModoDaGrade } from "@/lib/atendimento/modo-da-grade";
+import { GRADE_LEGADA, GRADE_V2, modoDaGrade, type ModoDaGrade } from "@/lib/atendimento/modo-da-grade";
 import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/falhas-de-midia";
 import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
 import { ReconciliadorEstadoAtendimento } from "@/lib/atendimento/reconciliar-estado-atendimento";
@@ -177,6 +177,7 @@ export function PaginaAtendimentosCliente({
   // A mesma consulta já alimenta o chat interno; o rollout não adiciona requisição nem polling.
   const { data: flags } = useQuery({ queryKey: ["config", "features"], queryFn: () => apiFetch<string[]>("/api/v1/config/features") });
   const layoutV2 = flags?.includes("atendimentos_layout_v2") ?? false;
+  const dimensoesGrade = layoutV2 ? GRADE_V2 : GRADE_LEGADA;
   const telaEstreita = useTelaEstreita();
   useLayoutEffect(() => {
     const grade = gradeRef.current;
@@ -190,7 +191,7 @@ export function PaginaAtendimentosCliente({
           + 2 * (parseFloat(estilo.columnGap) || 0)
         : 0;
       const largura = grade.getBoundingClientRect().width - moldura;
-      if (largura > 0) setModoGrade(modoDaGrade(largura));
+      if (largura > 0) setModoGrade(modoDaGrade(largura, dimensoesGrade));
     };
     atualizar();
     if (typeof ResizeObserver === "undefined") {
@@ -200,7 +201,7 @@ export function PaginaAtendimentosCliente({
     const observador = new ResizeObserver(atualizar);
     observador.observe(grade);
     return () => observador.disconnect();
-  }, [layoutV2]);
+  }, [dimensoesGrade, layoutV2]);
   const { definir: definirConversaEmTelaCheia } = useConversaEmTelaCheia();
   const { data: configuracao } = useConfiguracaoComposer();
   const chatInternoHabilitado = flags?.includes("chat_interno") ?? false;
@@ -989,12 +990,12 @@ export function PaginaAtendimentosCliente({
   }
 
   const colunasDoPainel = conversaEmColunaUnica
-    ? "grid-cols-1"
+    ? "minmax(0, 1fr)"
     : listaOcultaComPainel
-      ? "grid-cols-[minmax(0,1fr)_344px]"
+      ? `minmax(0, 1fr) ${dimensoesGrade.ficha}px`
     : conversa && painelVisivel
-      ? "grid-cols-[346px_minmax(0,1fr)_344px]"
-      : "grid-cols-[346px_minmax(0,1fr)]";
+      ? `${dimensoesGrade.lista}px minmax(0, 1fr) ${dimensoesGrade.ficha}px`
+      : `${dimensoesGrade.lista}px minmax(0, 1fr)`;
 
   return (
     <ProvedorDeAberturaDeConversa valor={aberturaDeConversaDoContato}>
@@ -1002,7 +1003,8 @@ export function PaginaAtendimentosCliente({
       ref={gradeRef}
       data-slot="pagina-atendimentos"
       data-layout={layoutV2 ? "v2" : "legado"}
-      className={cn(`relative grid h-full min-h-0 flex-1 ${colunasDoPainel} grid-rows-[minmax(0,1fr)] overflow-hidden`, layoutV2 && estilosV2.pagina)}
+      className={cn("relative grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)] overflow-hidden", layoutV2 && estilosV2.pagina)}
+      style={{ gridTemplateColumns: colunasDoPainel }}
     >
       {(falhasDeMidia.length > 0 || notificacao || erroDeAbertura) && (
         <div className="pointer-events-none absolute right-4 top-4 z-30 flex w-80 max-w-[calc(100%-2rem)] flex-col gap-2">
@@ -1110,6 +1112,7 @@ export function PaginaAtendimentosCliente({
         </div>
       )}
       <ListaConversas
+        layoutV2={layoutV2}
         painelOperacionalPermitido={acessoPainel.permitido}
         filtroOperacional={acessoPainel.permitido ? filtroOperacional : null}
         nomeFiltroOperacional={nomeFiltroOperacional}

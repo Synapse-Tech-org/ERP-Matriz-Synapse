@@ -113,9 +113,15 @@ describe("TextosSchema", () => {
 
     expect(textos).toEqual({
       ...catalogo,
+      menu: {
+        ...(catalogo.menu as Record<string, unknown>),
+        grupoPrincipal: "Principal",
+        grupoRecursos: "Recursos",
+      },
       dashboard: {
         ...(catalogo.dashboard as Record<string, unknown>),
         v2: {
+          seloNovo: "Novo",
           aoVivo: "Ao vivo",
           primeiraResposta: "1ª resposta humana",
           nps: "NPS",

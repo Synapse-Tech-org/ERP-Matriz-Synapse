@@ -10,11 +10,11 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useMinhasPermissoes } from "@/lib/gestao/use-gestao";
 
-import { IconeDashboardV2 } from "./icone-dashboard-v2";
+import { IconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
 
 const FILTROS = ["todas", "naoLidas", "atendimentos", "chatInterno"] as const;
 
-export function AvisosDoDashboard() {
+export function CentralDeAvisos({ mostrarContagem = false }: { mostrarContagem?: boolean }) {
   const catalogo = useTextos();
   const usuarioId = useAuthStore((estado) => estado.usuarioId);
   const { data: permissoes } = useMinhasPermissoes();
@@ -37,8 +37,12 @@ export function AvisosDoDashboard() {
   return (
     <Popover open={aberto} onOpenChange={setAberto}>
       <PopoverTrigger data-slot="dashboard-sino" aria-label={textos.titulo} title={textos.titulo}>
-        <IconeDashboardV2 nome="notification-3-line" />
-        {naoLidos > 0 && <span data-slot="dashboard-sino-ponto" aria-hidden="true" />}
+        <IconeFrontendV2 nome="notification-3-line" />
+        {naoLidos > 0 && (
+          <span data-slot={mostrarContagem ? "sino-contagem" : "dashboard-sino-ponto"} aria-hidden="true">
+            {mostrarContagem ? naoLidos : null}
+          </span>
+        )}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[min(412px,calc(100vw-2rem))] gap-0 overflow-hidden rounded-2xl p-0">
         <div className="flex items-center justify-between gap-2 border-b p-4">

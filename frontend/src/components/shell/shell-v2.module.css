@@ -1,8 +1,22 @@
+@font-face {
+  font-family: "Remix Icon V2";
+  src: url("/fonts/remixicon-4.5.0.woff2") format("woff2");
+  font-display: block;
+}
+
+.icone {
+  flex: none;
+  font: 16px/1 "Remix Icon V2";
+}
+
 .canvas {
   --fonte-base-carregada: var(--fonte-frontend-v2);
-  background-image: url("/images/frontend-v2-canvas.jpg");
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--card) 16%, transparent),
+    color-mix(in srgb, var(--card) 16%, transparent)
+  ), url("/images/frontend-v2-canvas.jpg");
   background-position: left bottom;
-  background-size: 1920px 2400px;
+  background-size: auto, 1920px 2400px;
   font-family: var(--fonte-frontend-v2), var(--fonte-base), sans-serif;
 }
 
@@ -12,9 +26,53 @@
   left: 10px;
   height: calc(100% - 20px);
   border: 1px solid var(--sidebar-border);
-  border-radius: 24px;
-  background: color-mix(in srgb, var(--sidebar) 84%, transparent);
-  backdrop-filter: blur(24px);
+  border-radius: 22px;
+  background: linear-gradient(
+    color-mix(in srgb, var(--sidebar) 88%, transparent),
+    color-mix(in srgb, var(--sidebar) 82%, transparent) 45%,
+    color-mix(in srgb, var(--sidebar) 90%, transparent)
+  );
+  backdrop-filter: blur(22px) saturate(1.5);
+}
+
+.canvas :global([data-slot="sidebar-marca"]) {
+  padding-top: 14px;
+}
+
+.canvas :global([data-slot="sidebar-logo"]) {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+
+.canvas :global([data-slot="sidebar"][data-state="collapsed"]) :global([data-slot="sidebar-grupo"]) {
+  margin: 8px 0 12px;
+  padding-top: 14px;
+  background: linear-gradient(var(--sidebar-border), var(--sidebar-border)) center top / 20px 1px no-repeat;
+}
+
+.canvas :global([data-slot="sidebar"][data-state="collapsed"]) :global([data-slot="sidebar-link"]) {
+  width: 44px;
+  height: 38px;
+  margin-inline: auto;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+  border-radius: 12px;
+}
+
+.canvas :global([data-slot="sidebar-link"][aria-current="page"]) {
+  color: var(--sidebar-item-icone-ativo);
+  box-shadow: var(--sombra-sm);
+}
+
+.canvas :global([data-slot="sidebar-link"]) .icone {
+  font-size: 18px;
+}
+
+.canvas :global([data-slot="sidebar"][data-state="collapsed"]) :global([data-slot="sidebar-link"]) :global([data-slot="rotulo-sidebar"]) {
+  position: absolute;
+  pointer-events: none;
 }
 
 .canvas :global([data-slot="sidebar"][data-fixada="true"]) {

@@ -2,12 +2,14 @@ import type { Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { VisaoGeralDashboard } from "../../src/lib/dashboard/types";
+import type { SnapshotOperacional } from "../../src/lib/atendimento/painel-operacional";
 
 interface OpcoesFrontendV2 {
   features?: string[];
   quantidade?: number;
   tema?: Record<string, unknown>;
   dashboard?: VisaoGeralDashboard;
+  painelOperacional?: SnapshotOperacional;
   acessaEquipe?: boolean;
   acessaClientes?: boolean;
 }
@@ -30,7 +32,7 @@ export const cartoesFixture = Array.from({ length: 15 }, (_, indice) => ({
 }));
 
 export async function prepararFrontendV2(page: Page, opcoes: OpcoesFrontendV2 = {}) {
-  const { features = [], quantidade = 15, tema: temaDaFixture = temaFixture, dashboard, acessaEquipe = false, acessaClientes = true } = opcoes;
+  const { features = [], quantidade = 15, tema: temaDaFixture = temaFixture, dashboard, painelOperacional, acessaEquipe = false, acessaClientes = true } = opcoes;
   const cartoes = cartoesFixture;
   await page.request.post("http://127.0.0.1:38981/__fixture/tema", { data: temaDaFixture });
   const chamadas: string[] = [];
@@ -66,11 +68,25 @@ export async function prepararFrontendV2(page: Page, opcoes: OpcoesFrontendV2 = 
     else if (caminho === "/gestao/permissoes/minhas") corpo = {
       usuarioId, papel: "ATENDENTE", revisao: "fixture",
       acessaGestao: acessaEquipe,
-      capacidades: Object.fromEntries(["atendimentos.ver", "atendimentos.responder", "contatos.ver", "contatos.editar", ...(acessaClientes ? ["clientes.acessar"] : []), ...(dashboard ? ["dashboard.ver"] : []), ...(acessaEquipe ? ["equipe.ver"] : [])].map((chave) => [chave, { permitido: true, alcance: "MEUS" }])),
+      capacidades: Object.fromEntries(["atendimentos.ver", "atendimentos.responder", "contatos.ver", "contatos.editar", ...(acessaClientes ? ["clientes.acessar"] : []), ...(dashboard ? ["dashboard.ver"] : []), ...(painelOperacional ? ["atendimentos.painel_operacional"] : []), ...(acessaEquipe ? ["equipe.ver"] : [])].map((chave) => [chave, { permitido: true, alcance: "MEUS" }])),
     };
     else if (caminho === "/me") corpo = { id: usuarioId, nome: "Pessoa de teste", papel: "ATENDENTE", presenca: "ONLINE", usuarioTeste: false };
     else if (caminho === "/config/canal") corpo = { exigeTemplateForaDaJanela: false, gerenciaTemplates: false };
     else if (caminho === "/atendimentos/configuracao-composer") corpo = { tempoNotificacaoSegundos: 8 };
+    else if (caminho === "/atendimentos/painel-operacional" && painelOperacional) corpo = painelOperacional;
+    else if (caminho === "/atendimentos/painel-operacional/fila" && painelOperacional) {
+      const recorte = url.searchParams.get("recorte");
+      corpo = {
+        itens: recorte === "ATIVOS" || recorte === "EM_ABERTO"
+          ? cartoes.slice(0, painelOperacional.equipe[0]?.contagens.ativos ?? 0).map((item) => ({
+            ...item,
+            atividadeEm: item.ultimaMensagemEm,
+            esperaDesde: null,
+          }))
+          : [],
+        proximoCursor: null,
+      };
+    }
     else if (caminho === "/atendimentos/inbox") corpo = { itens: cartoes.slice(0, quantidade), proximoCursor: null };
     else if (caminho === "/atendimentos/contagem") corpo = { TODOS: quantidade, ATIVOS: quantidade, PENDENTES: 0, POTENCIAIS: 0, FINALIZADOS: 0 };
     else if (caminho.endsWith("/estado")) corpo = { cartao, versao: 1, participantes: [], usuarioAtualEhResponsavel: true, usuarioAtualParticipa: false, podeEnviar: true };

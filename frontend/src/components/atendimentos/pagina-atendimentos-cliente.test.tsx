@@ -1165,8 +1165,8 @@ describe("PaginaAtendimentosCliente", () => {
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
     act(() => callbacks.abrir?.(cartaoInicial));
 
+    expect(pagina.container.firstElementChild).toHaveStyle({ gridTemplateColumns: "346px minmax(0, 1fr) 344px" });
     expect(pagina.container.firstElementChild).toHaveClass(
-      "grid-cols-[346px_minmax(0,1fr)_344px]",
       "grid-rows-[minmax(0,1fr)]",
       "min-h-0",
       "overflow-hidden",
@@ -1181,9 +1181,7 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("responsavel-painel")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Retrair detalhes do lead" }));
 
-    expect(pagina.container.firstElementChild).toHaveClass(
-      "grid-cols-[346px_minmax(0,1fr)]",
-    );
+    expect(pagina.container.firstElementChild).toHaveStyle({ gridTemplateColumns: "346px minmax(0, 1fr)" });
     expect(screen.queryByTestId("responsavel-painel")).not.toBeInTheDocument();
     expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Ana Atendente");
     expect(screen.getByTestId("composer")).toBeInTheDocument();
@@ -1522,7 +1520,7 @@ describe("PaginaAtendimentosCliente", () => {
 
     expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
     expect(screen.getByTestId("composer")).toBeInTheDocument();
-    expect(pagina.container.firstElementChild).toHaveClass("grid-cols-1");
+    expect(pagina.container.firstElementChild).toHaveStyle({ gridTemplateColumns: "minmax(0, 1fr)" });
     expect(screen.queryByTestId("responsavel-painel")).not.toBeInTheDocument();
   });
 });

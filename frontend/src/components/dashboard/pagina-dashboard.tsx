@@ -48,9 +48,9 @@ import { cn, iniciaisDoNome } from "@/lib/utils";
 
 import { GraficoKpi, type CampoSerie } from "./grafico-kpi";
 import { BuscaDoDashboard } from "./busca-do-dashboard";
-import { AvisosDoDashboard } from "./avisos-do-dashboard";
+import { CentralDeAvisos } from "@/components/notificacoes/central-de-avisos";
 import estilosV2 from "./dashboard-v2.module.css";
-import { IconeDashboardV2 } from "./icone-dashboard-v2";
+import { IconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
 
 
 const ANOS_DISPONIVEIS = 7;
@@ -63,7 +63,7 @@ const ICONES_KPI_V2 = {
   avaliacaoMedia: "star-fill",
   nps: "emotion-happy-fill",
   resolucaoPorIa: "robot-2-fill",
-} as const satisfies Record<CampoSerie, React.ComponentProps<typeof IconeDashboardV2>["nome"]>;
+} as const satisfies Record<CampoSerie, React.ComponentProps<typeof IconeFrontendV2>["nome"]>;
 
 const HORAS_DO_DIA = Array.from({ length: 24 }, (_, hora) => hora);
 type PeriodoEnxuto = "hoje" | "seteDias" | "mes" | "ano";
@@ -241,7 +241,7 @@ export function PaginaDashboard() {
         <div data-slot="dashboard-topo">
           <nav data-slot="dashboard-caminho" aria-label={textos.titulo}>
             <a href="/atendimentos" aria-label={catalogo.menu.itens.atendimentos}>
-              <IconeDashboardV2 nome="home-5-line" />
+              <IconeFrontendV2 nome="home-5-line" />
             </a>
             <span aria-hidden>/</span>
             <span>{catalogo.menu.grupoGestao}</span>
@@ -250,7 +250,7 @@ export function PaginaDashboard() {
           </nav>
           <div data-slot="dashboard-acoes-topo">
             <BuscaDoDashboard dados={consulta.data} />
-            <AvisosDoDashboard />
+            <CentralDeAvisos />
           </div>
         </div>
       )}
@@ -339,7 +339,7 @@ export function PaginaDashboard() {
             {layoutV2 ? (
               <Select value={String(ano)} onValueChange={(valor) => { if (valor) setAno(Number(valor)); }}>
                 <SelectTrigger id="dashboard-ano">
-                  <IconeDashboardV2 nome="calendar-2-line" />
+                  <IconeFrontendV2 nome="calendar-2-line" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
@@ -416,7 +416,7 @@ export function PaginaDashboard() {
               onClick={() => setModo("compacta")}
               className={cn("h-8 gap-1.5 px-2 text-xs", modo === "compacta" && "text-primary shadow-sm")}
             >
-              {layoutV2 ? <IconeDashboardV2 nome="layout-grid-fill" /> : <LayoutGrid className="size-3.5" aria-hidden />}
+              {layoutV2 ? <IconeFrontendV2 nome="layout-grid-fill" /> : <LayoutGrid className="size-3.5" aria-hidden />}
               {textos.modos.compacta}
             </Button>
             <Button
@@ -427,7 +427,7 @@ export function PaginaDashboard() {
               onClick={() => setModo("expandida")}
               className={cn("h-8 gap-1.5 px-2 text-xs", modo === "expandida" && "text-primary shadow-sm")}
             >
-              {layoutV2 ? <IconeDashboardV2 nome="bar-chart-box-fill" /> : <ChartColumn className="size-3.5" aria-hidden />}
+              {layoutV2 ? <IconeFrontendV2 nome="bar-chart-box-fill" /> : <ChartColumn className="size-3.5" aria-hidden />}
               {textos.modos.expandida}
             </Button>
           </div>
@@ -495,7 +495,7 @@ function Aba({
   children: React.ReactNode;
   ativa?: boolean;
   className?: string;
-  icone?: React.ComponentProps<typeof IconeDashboardV2>["nome"];
+  icone?: React.ComponentProps<typeof IconeFrontendV2>["nome"];
   emBreve?: string;
 }) {
   return (
@@ -511,7 +511,7 @@ function Aba({
         className,
       )}
     >
-      {icone && <IconeDashboardV2 nome={icone} />}
+      {icone && <IconeFrontendV2 nome={icone} />}
       {children}
       {emBreve && (icone ? <span data-slot="dashboard-em-breve">{emBreve}</span> : ` · ${emBreve}`)}
     </Button>
@@ -556,9 +556,9 @@ function SeletorDeOriginacao({
           />
         }
       >
-        {layoutV2 && <IconeDashboardV2 nome="calendar-line" />}
+        {layoutV2 && <IconeFrontendV2 nome="calendar-line" />}
         <span className="truncate">{rotulo}</span>
-        {layoutV2 ? <IconeDashboardV2 nome="arrow-down-s-line" /> : <CalendarDays className="size-(--tamanho-icone-interface)" aria-hidden />}
+        {layoutV2 ? <IconeFrontendV2 nome="arrow-down-s-line" /> : <CalendarDays className="size-(--tamanho-icone-interface)" aria-hidden />}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-auto p-0">
         <Calendar
@@ -837,7 +837,7 @@ function Kpi({
           )}
         >
           {layoutV2
-            ? <IconeDashboardV2 nome={ICONES_KPI_V2[campoSerie]} />
+            ? <IconeFrontendV2 nome={ICONES_KPI_V2[campoSerie]} />
             : <Icone className="size-(--tamanho-icone-interface)" aria-hidden />}
         </span>
         <div className="min-w-0 flex-1">
@@ -860,6 +860,7 @@ function Kpi({
             </div>
           )}
         </div>
+        {layoutV2 && campoSerie === "nps" && <span data-slot="dashboard-selo-novo">{textos.v2.seloNovo}</span>}
         {/*
           Sem comparativo, sem selo. A API só devolve variação quando existe período anterior
           comparável; calcular no cliente daria selo inventado em painel executivo.
@@ -918,7 +919,7 @@ function KpiSemSerie({
   apoio,
 }: {
   chave: "primeiraResposta" | "nps" | "transferencias" | "leadsParados";
-  icone: React.ComponentProps<typeof IconeDashboardV2>["nome"];
+  icone: React.ComponentProps<typeof IconeFrontendV2>["nome"];
   tom: string;
   valor?: string;
   apoio?: string;
@@ -928,8 +929,9 @@ function KpiSemSerie({
     <Card data-dashboard-kpi={chave} data-indisponivel={valor == null ? "true" : undefined}
       style={{ "--tom": tom } as React.CSSProperties}>
       <CardHeader>
-        <span className="shrink-0 text-[var(--tom)]"><IconeDashboardV2 nome={icone} /></span>
+        <span className="shrink-0 text-[var(--tom)]"><IconeFrontendV2 nome={icone} /></span>
         <CardTitle>{textos.v2[chave]}</CardTitle>
+        {chave !== "transferencias" && <span data-slot="dashboard-selo-novo">{textos.v2.seloNovo}</span>}
       </CardHeader>
       <CardContent data-slot="dashboard-kpi-leitura">
         <div>
@@ -970,7 +972,7 @@ function SeloDeTendencia({
       data-slot="dashboard-tendencia"
       data-testid="selo-tendencia"
     >
-      {layoutV2 && <IconeDashboardV2 nome={subiu ? "arrow-up-line" : "arrow-down-line"} />}
+      {layoutV2 && <IconeFrontendV2 nome={subiu ? "arrow-up-line" : "arrow-down-line"} />}
       {texto}
       <span className="sr-only"> {sufixo}</span>
     </span>
@@ -1226,7 +1228,7 @@ function Equipe({ dados, layoutV2 }: { dados: VisaoGeralDashboard; layoutV2: boo
                       )}
                       <td className="py-3 pl-3 text-right font-semibold text-[var(--cor-atencao-escura)] tabular-nums">
                         <span className={cn(layoutV2 && "inline-flex items-center gap-1")}>
-                          {layoutV2 && atendente.nota !== null && <IconeDashboardV2 nome="star-fill" />}
+                          {layoutV2 && atendente.nota !== null && <IconeFrontendV2 nome="star-fill" />}
                           {atendente.nota === null ? textos.equipe.semNota : percentual(atendente.nota)}
                         </span>
                       </td>
@@ -1260,7 +1262,7 @@ function LinkParaEquipe() {
   return (
     <a href="/gestao" data-slot="dashboard-equipe-link" className="focus-visible:ring-2 focus-visible:ring-ring">
       {textos.verEquipe}
-      <IconeDashboardV2 nome="arrow-right-up-line" />
+      <IconeFrontendV2 nome="arrow-right-up-line" />
     </a>
   );
 }

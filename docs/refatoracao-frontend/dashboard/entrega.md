@@ -1,5 +1,21 @@
 # Dashboard da alternativa A
 
+## Revisão visual de Dashboard e Atendimentos
+
+A comparação de desktop usa as três telas do ZIP na resolução nativa de 1920×1080. O ZIP tem largura fixa e a janela de 390 px mostra um recorte. O CRM adapta a navegação e mantém a conversa e o campo de envio acessíveis nessa largura.
+
+| Tela | Referência do ZIP | CRM com paleta de referência |
+|---|---|---|
+| Dashboard | [Dashboard](mockup-dashboard-1920.png) | [Dashboard](dashboard-v2-tema-referencia-1920.png) |
+| Atendimentos, visão geral | [Visão geral](../mockup/AtendimentosV2-1920x1080.png) | [Visão geral](../implementacao/atendimentos-v2-painel-1920.png) |
+| Atendimentos, conversa | [Conversa](../mockup/Conversa-1920x1080.png) | [Conversa](../implementacao/atendimentos-v2-1920.png) |
+
+O Dashboard recebeu a busca de 360 px e os marcadores da referência. As duas telas usam os grupos e os glifos do ZIP na barra lateral V2. Os destinos continuam sujeitos às permissões e às funcionalidades habilitadas.
+
+Em Atendimentos, a lista ocupa 360 px, a ficha 340 px e o cabeçalho da conversa 74 px na largura nativa. O histórico e o composer usam os limites de 760 px e 800 px do ZIP. A lista oferece o atalho `/` e o sino abre a central de avisos da sessão. A visão geral organiza os seis indicadores em uma linha quando há espaço e usa os filtros da fila operacional.
+
+As capturas do CRM usam dados sintéticos de teste. A igualdade pixel a pixel permanece pendente. Entre as diferenças visíveis estão o atalho de busca da barra lateral, o trilho de equipe e o botão de exportação da visão geral de Atendimentos, e os valores e ações do Dashboard que ainda dependem de contrato. A espera da visão operacional considera respostas da IA e o limite configurado da instância. Os indicadores de espera humana do Dashboard têm outra regra. [Consulta operacional](../../../backend/crm-atendimento/src/main/java/com/synapse/crm/atendimento/infrastructure/persistencia/painel/PainelOperacionalRepositorioJdbc.java) · [Contratos do Dashboard](contratos-pendentes.md)
+
 ## NPS, leads parados e notificações
 
 O Dashboard V2 exibe o NPS a partir de respostas explícitas à pergunta de recomendação. O agregado, a amostra, o comparativo e a série usam o mesmo recorte temporal da avaliação. Sem amostra, o cartão indica indisponibilidade. O cartão de leads parados usa um snapshot de leads em etapas abertas e sem interação humana nos últimos dois meses de calendário, incluindo mudança manual de etapa. Os dois indicadores são calculados no backend. [Contrato e operação](contratos-pendentes.md)

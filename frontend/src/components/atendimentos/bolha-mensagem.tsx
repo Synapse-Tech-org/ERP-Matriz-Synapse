@@ -195,6 +195,8 @@ export function BolhaMensagem({
       baixando={baixando}
     >
       <div
+        data-slot="bolha-mensagem"
+        data-enviada={doAtendente ? "true" : undefined}
         className={cn(
           "w-fit max-w-full rounded-2xl px-3.5 py-3 text-sm font-normal",
           doAtendente

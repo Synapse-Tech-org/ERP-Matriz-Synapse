@@ -139,6 +139,8 @@ export const TextosSchema = z.object({
   }),
   menu: z.object({
     grupoMenu: z.string(),
+    grupoPrincipal: z.string().default("Principal"),
+    grupoRecursos: z.string().default("Recursos"),
     grupoGestao: z.string(),
     retrair: z.string(),
     reabrir: z.string(),
@@ -1276,6 +1278,7 @@ export const TextosSchema = z.object({
   }),
   dashboard: z.object({
     v2: z.object({
+      seloNovo: z.string().default("Novo"),
       aoVivo: z.string().default("Ao vivo"),
       primeiraResposta: z.string().default("1ª resposta humana"),
       nps: z.string().default("NPS"),

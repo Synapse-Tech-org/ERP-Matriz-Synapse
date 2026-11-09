@@ -15,7 +15,7 @@ import { useTextos } from "@/lib/config/textos-provider";
 import { useMinhasPermissoes } from "@/lib/gestao/use-gestao";
 import type { VisaoGeralDashboard } from "@/lib/dashboard/types";
 
-import { IconeDashboardV2 } from "./icone-dashboard-v2";
+import { IconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
 
 const PainelLateralLead = dynamic(() =>
   import("@/components/leads/painel-lateral-lead").then((modulo) => modulo.PainelLateralLead),
@@ -60,7 +60,7 @@ function BuscaAutorizada({ dados }: { dados?: VisaoGeralDashboard }) {
           data-slot="dashboard-busca"
           aria-keyshortcuts="Control+K Meta+K"
         >
-          <IconeDashboardV2 nome="search-line" />
+          <IconeFrontendV2 nome="search-line" />
           <span>{busca.rotulo}</span>
           <kbd aria-hidden="true">{busca.atalho}</kbd>
         </DialogTrigger>
