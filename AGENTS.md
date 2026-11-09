@@ -117,6 +117,14 @@ interfaces/      controllers REST, handlers WebSocket, DTOs
 
 ---
 
+## Navegação do código com Graphify
+
+- Em investigações de arquitetura, dependências ou fluxos que cruzam módulos, procure primeiro o grafo da revisão em análise com `python tools/graphify_piloto.py --localizar --ref HEAD`. Use `--ref` com o SHA ou a referência correta se estiver analisando outro commit.
+- Consulte um símbolo com `graphify explain <símbolo> --graph <arquivo>` ou rastreie uma relação com `graphify path <origem> <destino> --graph <arquivo>`. Em caso de ambiguidade, use o ID do nó indicado pela ferramenta.
+- Abra os arquivos apontados e confirme o comportamento no código. A injeção do Spring, as filas, as permissões e a configuração podem criar caminhos que a análise estática não representa. Use `rg` para alterações locais, símbolos ausentes e buscas pontuais.
+- Se o grafo da revisão não estiver disponível, gere-o conforme [o guia do Graphify](docs/graphify-piloto.md) quando a investigação justificar a extração. A busca direta continua disponível para prosseguir imediatamente.
+- Gere o grafo pelo script, que usa um snapshot do código versionado e desativa a extração por LLM. Mantenha os artefatos gerados no cache local.
+
 ## Variável nova no `dokploy-stack.yml` quebra o deploy de quem já está no ar
 
 O `docker stack deploy` valida a interpolação **antes** de subir qualquer serviço. Uma variável declarada como `${VAR:?obrigatoria}` que ainda não existe no ambiente do Dokploy derruba o deploy inteiro — não o serviço dela, o deploy inteiro. Aconteceu em 16/08 com `AUTOMACAO_WEBHOOK_EVENTOS_URL`.
