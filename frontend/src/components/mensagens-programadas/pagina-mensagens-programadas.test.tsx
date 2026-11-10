@@ -48,7 +48,16 @@ vi.mock("@/lib/auth/auth-store", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     mensagensProgramadas: {
-      v2: {"todosAtendentes":"Todos os atendentes","proximoEnvio":"Próximo envio","periodoInvalido":"A data final deve ser igual ou posterior à inicial."},
+      v2: {
+        buscaContatos: "Buscar contatos…",
+        todosAtendentes: "Todos os atendentes",
+        proximoEnvio: "Próximo envio",
+        limparPeriodo: "Limpar período",
+        formatoData: "dd/mm/aaaa",
+        mensagemNoDia: "{total} mensagem",
+        mensagensNoDia: "{total} mensagens",
+        periodoInvalido: "A data final deve ser igual ou posterior à inicial.",
+      },
       titulo: "Mensagens programadas",
       descricao: "Mensagens que a Automação enviará no horário escolhido.",
       nova: "Programar mensagem",
@@ -123,6 +132,7 @@ describe("pagina de mensagens programadas", () => {
       inicio: expect.any(String), status: "AGENDADA", pagina: 0,
     }));
     expect(await screen.findAllByRole("rowheader")).toHaveLength(2);
+    expect(screen.getAllByText("1 mensagem")).toHaveLength(2);
   });
 
   it("lista as mensagens como cards, com lead, status e atendente", async () => {
