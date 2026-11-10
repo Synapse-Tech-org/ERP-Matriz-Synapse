@@ -106,6 +106,19 @@ test("Docker Stack real: override vazio tambem preserva tag conjunta", () => {
     );
 });
 
+test("preparador recebe SQL e migracoes por arquivo sem depender da imagem TypeScript", () => {
+    const stack = renderizar();
+    const preparador = stack.services["automacao-banco"];
+    assert.equal(preparador.image, "postgres:15-alpine");
+    const destinos = new Map(preparador.configs.map(c => [c.target, c.source]));
+    assert.equal(destinos.get("/opt/automacao/provisionar.sql"), "automacao-provisionar-sql-v2");
+    assert.equal(destinos.get("/opt/automacao/aplicar-migracoes.sh"), "automacao-migrar-sh-v1");
+    assert.equal(destinos.get("/opt/automacao/migrations/V2__criar_faq_institucional.sql"), "automacao-migracao-v2");
+    const sql = readFileSync(join(raiz, "automacao/banco/provisionar.sql"), "utf8");
+    assert.ok(sql.indexOf("clonar-estrutura.sh") < sql.indexOf("aplicar-migracoes.sh"));
+    assert.equal(stack.services.automacao.deploy.replicas, 0);
+});
+
 test("Docker Stack real: digest seleciona somente automacao, sem mudar outros servicos", () => {
     const base = renderizar();
     const hml = renderizar({

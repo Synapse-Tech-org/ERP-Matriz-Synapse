@@ -506,12 +506,18 @@ services:
     configs:
       - source: automacao-provisionar-sh-v1
         target: /opt/automacao/provisionar.sh
-      - source: automacao-provisionar-sql-v1
+      - source: automacao-provisionar-sql-v2
         target: /opt/automacao/provisionar.sql
       - source: automacao-clonar-sh-v1
         target: /opt/automacao/clonar-estrutura.sh
       - source: automacao-marcador-sql-v1
         target: /opt/automacao/marcador.sql
+      - source: automacao-migrar-sh-v1
+        target: /opt/automacao/aplicar-migracoes.sh
+      - source: automacao-migracao-v1
+        target: /opt/automacao/migrations/V1__registrar_base_de_execucoes.sql
+      - source: automacao-migracao-v2
+        target: /opt/automacao/migrations/V2__criar_faq_institucional.sql
     networks:
       - synapse-internal
     deploy:
@@ -683,9 +689,15 @@ configs:
   # Novos configs exclusivos; os configs do PostgreSQL existente nao mudam.
   automacao-provisionar-sh-v1:
     file: ../automacao/banco/provisionar.sh
-  automacao-provisionar-sql-v1:
+  automacao-provisionar-sql-v2:
     file: ../automacao/banco/provisionar.sql
   automacao-clonar-sh-v1:
     file: ../automacao/banco/clonar-estrutura.sh
   automacao-marcador-sql-v1:
     file: ../automacao/banco/marcador.sql
+  automacao-migrar-sh-v1:
+    file: ../automacao/banco/aplicar-migracoes.sh
+  automacao-migracao-v1:
+    file: ../automacao/banco/migrations/V1__registrar_base_de_execucoes.sql
+  automacao-migracao-v2:
+    file: ../automacao/banco/migrations/V2__criar_faq_institucional.sql

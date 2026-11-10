@@ -24,6 +24,12 @@ FROM pg_database WHERE datname = :'automacao_db'
 -- Apenas true significa clone completo; logs do filho vao para stderr.
 \set clone_ok `sh /opt/automacao/clonar-estrutura.sh`
 \if :clone_ok
+  -- Migra tambem bancos ja clonados. Nao depende da imagem do app TypeScript.
+  \set migracoes_ok `sh /opt/automacao/aplicar-migracoes.sh >&2 && printf true`
+  \if :migracoes_ok
+  \else
+    DO $$ BEGIN RAISE EXCEPTION 'Migracoes da automacao falharam; consulte os logs anteriores'; END $$;
+  \endif
   SELECT pg_advisory_unlock(hashtextextended('synapse:automacao:provisionar:' || :'automacao_db', 0));
 \else
   DO $$ BEGIN RAISE EXCEPTION 'Clone da automacao nao foi concluido; consulte os logs anteriores'; END $$;

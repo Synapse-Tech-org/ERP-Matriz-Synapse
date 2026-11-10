@@ -19,9 +19,10 @@ localmente. Nao foi executado diagnostico nos bancos para este levantamento.
 
 ## Quando a tabela e criada
 
-1. O preparador precisa ter criado o banco da automacao e seu marcador.
-2. A imagem NOVA da automacao, contendo V2, precisa estar publicada/selecionada.
-3. Ao iniciar a aplicacao, ela valida o banco e aplica as versoes pendentes.
+1. O preparador `automacao-banco` cria o banco e o marcador, se ainda necessario.
+2. Na mesma tarefa, executa `aplicar-migracoes.sh`, com V1/V2 montadas do repositorio
+   por Docker configs. Banco ja clonado e preservado e tambem recebe as migracoes.
+3. O executor verifica versoes/checksums e aplica somente as versoes pendentes.
 4. Versao e checksum sao registrados em `automacao_infra.migracao`.
 
 V1 nao foi alterada. Reiniciar a mesma versao nao recria a FAQ nem apaga registros.
@@ -29,9 +30,19 @@ V2 usa CREATE TABLE sem IF NOT EXISTS: se houver uma FAQ criada fora do historic
 a migracao falha e desfaz a transacao, sem aceitar uma estrutura desconhecida ou
 apagar dados. Revisar o conflito em vez de editar uma migracao ja aplicada.
 
-Publicar Git NAO executa SQL. Deploy que continuar usando a imagem anterior nao
-leva V2 para a VPS. Os toggles/replicas desligados tambem nao iniciam migracoes.
+Publicar Git NAO executa SQL. Depois da publicacao autorizada, o deploy normal do
+Stack leva os arquivos SQL ao preparador, sem publicar outra imagem e sem alterar
+`SYNAPSE_IMAGE_TAG`. `AUTOMACAO_PROVISIONAR_REPLICAS=1` inicia a tarefa; ausente/zero
+mantem o preparador desligado. `AUTOMACAO_REPLICAS` nao precisa ser ligado para
+criar FAQ: app/painel/follow-up nao sao requisitos para migrar o banco.
+O executor TypeScript continua compativel com o mesmo historico e checksums;
+quando iniciar, apenas valida e pula as versoes ja aplicadas.
 O procedimento de Stack continua em `../STACK-CRM.md`.
+
+Configs Swarm sao imutaveis. O arquivo do preparador agora usa o config
+`automacao-provisionar-sql-v2`; os SQL de V1/V2 nao foram alterados. Cada nova
+migracao deve ser adicionada a pasta e montada nos configs do preparador.
+Nenhum servico Java, imagem de CRM, volume ou init do PostgreSQL foi alterado.
 
 ## Credencial no n8n de homologacao
 
@@ -46,9 +57,9 @@ somente essa credencial no n8n de TESTE, se ainda nao existir. Uma credencial de
 mesmo nome ja existente e preservada, sem redefinir senha/configuracao.
 CRM, n8n e bancos de sistema sao recusados como destino pela validacao local.
 
-Os nodes de FAQ ainda nao sao remapeados automaticamente. Primeiro confirmar
-V2 aplicada e conexao valida. Depois, com autorizacao, trocar APENAS as consultas
-de FAQ para essa credencial. Memoria/follow-up/outros controles precisam de
+Os seis nodes de FAQ do HML foram remapeados, com autorizacao, para a credencial
+da automacao. O remapeamento nao aplica SQL nem garante a existencia da tabela.
+Memoria/follow-up/outros controles precisam de
 migracoes proprias; V2 nao cria essas tabelas.
 
 ## Verificacao

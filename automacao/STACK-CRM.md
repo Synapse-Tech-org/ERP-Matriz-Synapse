@@ -16,7 +16,7 @@ iniciado por esse mesmo arquivo de infraestrutura.
   do CRM e regras de publicacao do painel no Traefik. Sem limite de CPU.
 - Bloco NOVO `automacao-banco`: tarefa unica para criar usuario/banco e clonar
   a estrutura do n8n, sem dados. Credenciais administrativas ficam so nessa tarefa.
-- Quatro configs novos: montam scripts de `automacao/banco/` apenas no preparador.
+- Sete configs exclusivos: montam scripts e migracoes de `automacao/banco/` apenas no preparador.
 - CI: acrescenta o teste isolado de PostgreSQL e validacao da Stack ativada.
 - Validadores: cobrem defaults desligados, isolamento e rota restrita.
 
@@ -100,7 +100,12 @@ nao comprova o sucesso da tarefa. Falha pode deixar banco/usuario vazios; corrig
 a causa e autorizar nova tentativa, sem apagar bancos existentes.
 
 Sem marcador, destino com objetos e recusado. Com marcador valido, novo deploy
-preserva o banco e nao reclona. Senha de usuario existente nao e redefinida.
+preserva o banco e nao reclona. Depois, o preparador aplica os arquivos V1/V2
+pendentes e registra checksum em `automacao_infra.migracao`. Isso tambem funciona
+no banco ja clonado de homologacao, sem publicar nova imagem ou ligar o app.
+Manter `AUTOMACAO_PROVISIONAR_REPLICAS=1` nos deploys que devem aplicar migracoes.
+O log de sucesso e `Migracoes da automacao aplicadas e verificadas`.
+Senha de usuario existente nao e redefinida.
 Configs Swarm sao imutaveis: futuras alteracoes nos scripts exigem novo nome de
 config, por exemplo sufixo v2, e atualizacao das referencias so do preparador.
 

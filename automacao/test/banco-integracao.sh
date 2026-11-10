@@ -45,6 +45,8 @@ provisionar
 [ "$(consulta automacao_fixture "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('workflow_entity','execution_entity','execution_data','credentials_entity')")" = 4 ]
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM credentials_entity')" = 0 ]
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM execution_entity')" = 0 ]
+[ "$(consulta automacao_fixture 'SELECT count(*) FROM public.faq')" = 0 ]
+[ "$(consulta automacao_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 2 ]
 [ "$(consulta n8n_fixture 'SELECT count(*) FROM credentials_entity')" = 1 ]
 [ "$(consulta automacao_fixture "SELECT count(*) FROM pg_type WHERE typname='fixture_enum'")" = 1 ]
 [ "$(consulta automacao_fixture "SELECT to_regclass('public.fixture_status_idx') IS NOT NULL")" = t ]
@@ -64,6 +66,23 @@ docker run --rm --network "container:$container" \
   -w /app node:22-alpine node test/faq-integracao.mjs
 provisionar
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM public.faq')" = 1 ]
+
+# Simula exatamente a homologacao atual: clone antigo com marcador, sem V1/V2.
+# O preparador atualizado deve migrar sem reclonar nem perder registros.
+consulta postgres 'CREATE DATABASE legado_fixture OWNER automacao_fixture_app' >/dev/null
+consulta legado_fixture "SET ROLE automacao_fixture_app;
+CREATE SCHEMA automacao_infra;
+CREATE TABLE automacao_infra.provisionamento (id smallint PRIMARY KEY, versao integer, banco_origem text);
+INSERT INTO automacao_infra.provisionamento VALUES (1,1,'n8n_fixture');
+CREATE TABLE preservar (id integer PRIMARY KEY);
+INSERT INTO preservar VALUES (1)" >/dev/null
+provisionar legado_fixture
+[ "$(consulta legado_fixture 'SELECT count(*) FROM public.faq')" = 0 ]
+[ "$(consulta legado_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 2 ]
+[ "$(consulta legado_fixture 'SELECT count(*) FROM preservar')" = 1 ]
+consulta legado_fixture "UPDATE automacao_infra.migracao SET checksum='adulterado' WHERE versao=1" >/dev/null
+if provisionar legado_fixture; then echo 'ERRO: aceitou checksum alterado' >&2; exit 1; fi
+[ "$(consulta legado_fixture 'SELECT count(*) FROM preservar')" = 1 ]
 
 consulta postgres 'CREATE DATABASE destino_ocupado OWNER automacao_fixture_app' >/dev/null
 consulta destino_ocupado 'CREATE TABLE nao_apagar (id integer)' >/dev/null

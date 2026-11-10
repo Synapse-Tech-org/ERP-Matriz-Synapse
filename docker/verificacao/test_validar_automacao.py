@@ -42,7 +42,13 @@ def compose_base():
                 "image": "postgres:15-alpine",
                 "command": ["sh", "/opt/automacao/provisionar.sh"],
                 "networks": {"synapse-internal": {}},
-                "configs": [{"source": n} for n in ("init-sh", "init-sql", "clone-sh", "marker-sql")],
+                "configs": [{"source": n, "target": "/opt/automacao/" + destino} for n, destino in (
+                    ("init-sh", "provisionar.sh"), ("init-sql", "provisionar.sql"),
+                    ("clone-sh", "clonar-estrutura.sh"), ("marker-sql", "marcador.sql"),
+                    ("migrar-sh", "aplicar-migracoes.sh"),
+                    ("migracao-v1", "migrations/V1__registrar_base_de_execucoes.sql"),
+                    ("migracao-v2", "migrations/V2__criar_faq_institucional.sql"),
+                )],
                 "deploy": {"replicas": 0, "restart_policy": {"condition": "none"}, "labels": {"traefik.enable": "false"}},
             },
             "backend": {
