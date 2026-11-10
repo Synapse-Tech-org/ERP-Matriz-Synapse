@@ -131,12 +131,12 @@ export function PaginaMensagensProgramadas() {
         {layoutV2 ? (
           <div className={visual.periodo}>
             <CalendarDays aria-hidden className="size-4 shrink-0" />
-            <input type="date" aria-label={t.filtros.inicio} value={inicio}
-              onChange={(e) => mudarFiltro(() => setInicio(e.target.value))} />
+            <SeletorData ariaLabel={t.filtros.inicio} placeholder={t.v2.formatoData} valor={inicio}
+              onChange={(valor) => mudarFiltro(() => setInicio(valor))} />
             <span aria-hidden>→</span>
-            <input type="date" aria-label={t.filtros.fim} value={fim}
-              onChange={(e) => mudarFiltro(() => setFim(e.target.value))} />
-            {(inicio || fim) && <button type="button" aria-label={t.v2.limparPeriodo}
+            <SeletorData ariaLabel={t.filtros.fim} placeholder={t.v2.formatoData} valor={fim}
+              onChange={(valor) => mudarFiltro(() => setFim(valor))} />
+            {(inicio || fim) && <button type="button" className={visual.limparPeriodo} aria-label={t.v2.limparPeriodo}
               onClick={() => mudarFiltro(() => { setInicio(""); setFim(""); })}>
               <X aria-hidden className="size-4" />
             </button>}

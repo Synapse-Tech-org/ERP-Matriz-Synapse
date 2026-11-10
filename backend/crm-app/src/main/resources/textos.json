@@ -1120,6 +1120,7 @@
       "todosAtendentes": "Todos os atendentes",
       "proximoEnvio": "Próximo envio",
       "limparPeriodo": "Limpar período",
+      "formatoData": "dd/mm/aaaa",
       "mensagemNoDia": "{total} mensagem",
       "mensagensNoDia": "{total} mensagens",
       "periodoInvalido": "A data final deve ser igual ou posterior à inicial."

@@ -1141,6 +1141,7 @@ export const TextosSchema = z.object({
       todosAtendentes: z.string().default("Todos os atendentes"),
       proximoEnvio: z.string().default("Próximo envio"),
       limparPeriodo: z.string().default("Limpar período"),
+      formatoData: z.string().default("dd/mm/aaaa"),
       mensagemNoDia: z.string().default("{total} mensagem"),
       mensagensNoDia: z.string().default("{total} mensagens"),
       periodoInvalido: z.string().default("A data final deve ser igual ou posterior à inicial."),

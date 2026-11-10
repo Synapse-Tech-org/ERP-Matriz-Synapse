@@ -91,9 +91,18 @@
   border-radius: 12px;
   box-shadow: var(--agenda-sombra);
 }
-.periodo input { width: min(128px, 32vw); min-width: 0; color: var(--foreground); font-size: 13px; }
-.periodo button { display: grid; width: 26px; height: 26px; flex: none; place-items: center; border-radius: 8px; }
-.periodo button:hover { background: var(--agenda-cinza-fundo); color: var(--foreground); }
+.periodo > button:not(.limparPeriodo) {
+  width: min(128px, 32vw);
+  min-width: 0;
+  padding: 0 4px;
+  border: 0;
+  color: var(--foreground);
+  background: transparent;
+  box-shadow: none;
+  font-size: 13px;
+}
+.limparPeriodo { display: grid; width: 26px; height: 26px; flex: none; place-items: center; border-radius: 8px; }
+.limparPeriodo:hover { background: var(--agenda-cinza-fundo); color: var(--foreground); }
 .pendentes { margin-inline-start: auto; color: var(--muted-foreground); font-size: 13px; }
 .pendentes strong { color: var(--foreground); font-weight: 600; }
 .painel, .cartao, .vazio {
