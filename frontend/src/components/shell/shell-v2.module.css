@@ -86,3 +86,31 @@
     backdrop-filter: none;
   }
 }
+
+.paletaAgenda {
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 16%), rgb(255 255 255 / 16%)), url("/images/frontend-v2-canvas.jpg");
+  --sidebar-border: rgb(255 255 255 / 75%);
+  --sidebar-item-overlay-ativo: #fff;
+  --sidebar-item-overlay-ativo-hover: #fff;
+  --sidebar-item-overlay-hover: rgb(255 255 255 / 60%);
+  --sidebar-item-acento-ativo: transparent;
+  --sidebar-item-icone-ativo: #1f5fd6;
+  --sidebar-item-texto-hover: #0e1220;
+  --sidebar-texto-forte: #0e1220;
+  --texto-sidebar-item: #1a2233;
+  --texto-sidebar-sub: #5b6274;
+}
+
+.paletaAgenda :global([data-slot="sidebar"]) {
+  background: linear-gradient(180deg, rgb(255 255 255 / 50%), rgb(255 255 255 / 30%) 45%, rgb(255 255 255 / 54%));
+  box-shadow: 0 1px 2px rgb(16 24 40 / 5%);
+}
+
+.paletaAgenda :global([data-slot="sidebar-logo"]) {
+  background: #1f5fd6;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 30%), 0 10px 22px -10px rgb(31 95 214 / 90%);
+}
+
+.paletaAgenda :global([data-slot="sidebar-link"][aria-current="page"]) {
+  box-shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 6px 16px -8px rgb(16 24 40 / 28%);
+}

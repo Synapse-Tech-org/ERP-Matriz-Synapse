@@ -14,6 +14,7 @@ export interface Lembrete {
 
 export interface PaginaLembretes {
   lembretes: Lembrete[];
+  resumo?: { pendentes: number; hoje: number; semana: number; automaticos: number };
   pagina: number;
   temMais: boolean;
 }

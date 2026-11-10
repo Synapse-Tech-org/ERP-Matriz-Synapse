@@ -1,10 +1,11 @@
 import Link from "next/link";
 
+import { BuscaDoDashboard } from "@/components/dashboard/busca-do-dashboard";
 import { CentralDeAvisos } from "@/components/notificacoes/central-de-avisos";
 import { IconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
 import { useTextos } from "@/lib/config/textos-provider";
 
-export function CabecalhoListaV2({ titulo, grupo }: { titulo: string; grupo?: string }) {
+export function CabecalhoListaV2({ titulo, grupo, busca }: { titulo: string; grupo?: string; busca?: string }) {
   const { menu } = useTextos();
 
   return (
@@ -18,7 +19,10 @@ export function CabecalhoListaV2({ titulo, grupo }: { titulo: string; grupo?: st
         <span aria-hidden>/</span>
         <span aria-current="page">{titulo}</span>
       </nav>
-      <CentralDeAvisos />
+      {busca ? <div className="flex min-w-0 items-center gap-2.5">
+        <BuscaDoDashboard rotulo={busca} />
+        <CentralDeAvisos />
+      </div> : <CentralDeAvisos />}
     </div>
   );
 }

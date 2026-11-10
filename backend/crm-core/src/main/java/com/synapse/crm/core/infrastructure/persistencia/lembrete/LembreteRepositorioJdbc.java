@@ -3,6 +3,7 @@ package com.synapse.crm.core.infrastructure.persistencia.lembrete;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +40,38 @@ class LembreteRepositorioJdbc implements LembreteRepositorio {
                  WHERE TRUE
                 """);
         List<Object> parametros = new ArrayList<>();
+        aplicarFiltros(sql, parametros, filtro, true);
+        sql.append(" ORDER BY l.data_hora, l.id LIMIT ? OFFSET ?");
+        parametros.add(filtro.tamanho() + 1);
+        parametros.add(Math.multiplyExact(filtro.pagina(), filtro.tamanho()));
+        List<Lembrete> itens = jdbc.query(sql.toString(), LembreteRepositorioJdbc::mapear, parametros.toArray());
+        boolean temMais = itens.size() > filtro.tamanho();
+        if (temMais) itens = new ArrayList<>(itens.subList(0, filtro.tamanho()));
+        return new PaginaLembretes(itens, filtro.pagina(), temMais);
+    }
+
+    @Override
+    public PaginaLembretes.Resumo resumir(FiltroLembretes filtro, Instant agora, Instant fimHoje, Instant fimSemana) {
+        TransacaoObrigatoria.exigir("resumir lembretes");
+        var sql = new StringBuilder("""
+                SELECT count(*) AS pendentes,
+                       count(*) FILTER (WHERE l.data_hora >= ? AND l.data_hora < ?) AS hoje,
+                       count(*) FILTER (WHERE l.data_hora >= ? AND l.data_hora < ?) AS semana,
+                       count(*) FILTER (WHERE l.origem_automatica) AS automaticos
+                  FROM lembrete l
+                  LEFT JOIN lead ON lead.id = l.lead_id
+                 WHERE l.status = 'PENDENTE'
+                """);
+        List<Object> parametros = new ArrayList<>(List.of(
+                Timestamp.from(agora), Timestamp.from(fimHoje), Timestamp.from(agora), Timestamp.from(fimSemana)));
+        aplicarFiltros(sql, parametros, filtro, false);
+        return jdbc.queryForObject(sql.toString(), (linha, indice) -> new PaginaLembretes.Resumo(
+                linha.getLong("pendentes"), linha.getLong("hoje"), linha.getLong("semana"),
+                linha.getLong("automaticos")), parametros.toArray());
+    }
+
+    private static void aplicarFiltros(
+            StringBuilder sql, List<Object> parametros, FiltroLembretes filtro, boolean incluirStatus) {
         if (filtro.inicio() != null) {
             sql.append(" AND l.data_hora >= ?");
             parametros.add(Timestamp.from(filtro.inicio()));
@@ -47,7 +80,7 @@ class LembreteRepositorioJdbc implements LembreteRepositorio {
             sql.append(" AND l.data_hora <= ?");
             parametros.add(Timestamp.from(filtro.fim()));
         }
-        if (filtro.status() != null) {
+        if (incluirStatus && filtro.status() != null) {
             sql.append(" AND l.status = CAST(? AS status_lembrete)");
             parametros.add(filtro.status().name());
         }
@@ -69,13 +102,6 @@ class LembreteRepositorioJdbc implements LembreteRepositorio {
             parametros.add(termo);
             parametros.add(termo);
         }
-        sql.append(" ORDER BY l.data_hora, l.id LIMIT ? OFFSET ?");
-        parametros.add(filtro.tamanho() + 1);
-        parametros.add(Math.multiplyExact(filtro.pagina(), filtro.tamanho()));
-        List<Lembrete> itens = jdbc.query(sql.toString(), LembreteRepositorioJdbc::mapear, parametros.toArray());
-        boolean temMais = itens.size() > filtro.tamanho();
-        if (temMais) itens = new ArrayList<>(itens.subList(0, filtro.tamanho()));
-        return new PaginaLembretes(itens, filtro.pagina(), temMais);
     }
 
     @Override

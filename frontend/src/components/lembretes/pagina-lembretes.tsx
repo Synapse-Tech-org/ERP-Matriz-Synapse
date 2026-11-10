@@ -3,13 +3,14 @@
 import { OpcoesListaV2 } from "@/components/shell/opcoes-lista-v2";
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import listaV2 from "@/components/shell/lista-v2.module.css";
+import visual from "@/components/shell/agenda-recursos-v2.module.css";
 import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Bot, Check, Clock3, Pencil, Trash2 } from "lucide-react";
+import { Bot, Check, CheckCheck, Clock3, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,7 @@ import { FormularioLembrete } from "./formulario-lembrete";
 
 export function PaginaLembretes() {
   const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("recursos_layout_v2") ?? false;
-  const textos = useTextos().lembretes;
+  const { lembretes: textos, menu } = useTextos();
   const papel = useAuthStore((s) => s.papel);
   // Só apresentação: coluna de atendente para quem enxerga os lembretes da equipe.
   const gestor = ["SUBGESTOR", "GESTOR", "ADMINISTRADOR"].includes(papel ?? "");
@@ -80,6 +81,7 @@ export function PaginaLembretes() {
         atendenteId,
         busca: layoutV2 ? buscaAplicada || undefined : undefined,
         origemAutomatica: layoutV2 && automaticos ? true : undefined,
+        incluirResumo: layoutV2,
         pagina,
       }),
   });
@@ -105,17 +107,22 @@ export function PaginaLembretes() {
     setPagina(0);
   }
 
+  const resumo = periodoValido ? consulta.data?.resumo : undefined;
   return (
-    <div data-layout={layoutV2 ? "v2" : "legado"} className={layoutV2 ? `${listaV2.pagina} ${listaV2.modulo}` : "space-y-5 p-6"}>
-      {layoutV2 && <CabecalhoListaV2 titulo={textos.titulo} />}
+    <div data-layout={layoutV2 ? "v2" : "legado"} className={layoutV2 ? `${listaV2.pagina} ${listaV2.modulo} ${visual.paleta}` : "space-y-5 p-6"}>
+      {layoutV2 && <CabecalhoListaV2 titulo={textos.titulo} grupo={menu?.grupoRecursos} busca={textos.v2.buscaContatos} />}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">{textos.titulo}</h1>
           <p className="text-sm text-muted-foreground">{textos.descricao}</p>
         </div>
-        {podeCriar && <Button onClick={() => setAberto(true)}>{textos.novo}</Button>}
+        {podeCriar && <Button data-slot={layoutV2 ? "lista-v2-acao" : "button"} onClick={() => setAberto(true)}>
+          {layoutV2 && <Plus aria-hidden />}{textos.novo}
+        </Button>}
       </header>
 
+      <div className={layoutV2 ? visual.grade : undefined}>
+      <div className={layoutV2 ? visual.lista : "space-y-4"}>
       {layoutV2 && <OpcoesListaV2<StatusLembrete | ""> rotulo={textos.filtros.status} valor={status}
         onChange={(valor) => mudarFiltro(() => setStatus(valor))}
         opcoes={[
@@ -123,10 +130,13 @@ export function PaginaLembretes() {
           { valor: "PENDENTE", rotulo: textos.status.pendente },
           { valor: "CONCLUIDO", rotulo: textos.status.concluido },
         ]} />}
-      <div data-slot="recursos-painel" className="flex flex-wrap items-end gap-3 rounded-lg border p-3">
+      <div className={layoutV2 ? visual.barra : "flex flex-wrap items-end gap-3 rounded-lg border p-3"}>
         {layoutV2 && <>
-          <Input aria-label={textos.v2.buscar} placeholder={textos.v2.buscar} maxLength={150}
-            className="w-full sm:w-64" value={busca} onChange={(e) => setBusca(e.target.value)} />
+          <div className={visual.busca}>
+            <Search aria-hidden className="size-4 shrink-0" />
+            <Input aria-label={textos.v2.buscar} placeholder={textos.v2.buscar} maxLength={150}
+              value={busca} onChange={(e) => setBusca(e.target.value)} />
+          </div>
           {podeFiltrarEquipe && Boolean(equipe.data?.length) && <Seletor
             ariaLabel={textos.colunas.atendente} placeholder={textos.v2.todosAtendentes} className="w-auto max-w-full"
             valor={atendente} opcoes={(equipe.data ?? []).map(({ id, nome }) => ({ valor: id, rotulo: nome }))}
@@ -152,6 +162,7 @@ export function PaginaLembretes() {
             onChange={(valor) => mudarFiltro(() => setFim(valor))}
           />
         </label>
+        {layoutV2 && resumo && <span className={visual.pendentes}><strong>{resumo.pendentes}</strong> {textos.v2.pendentes}</span>}
         {!layoutV2 && <label className="text-sm">
           {textos.filtros.status}
           <Seletor
@@ -177,7 +188,10 @@ export function PaginaLembretes() {
           onTentarNovamente={() => consulta.refetch()}
         />
       ) : !consulta.data?.lembretes.length ? (
-        <p className="text-muted-foreground">{textos.vazio}</p>
+        layoutV2 ? <div className={visual.vazio}>
+          <CheckCheck aria-hidden className="size-7" />
+          <strong>{textos.v2.vazioTitulo}</strong><span>{textos.v2.vazioDescricao}</span>
+        </div> : <p className="text-muted-foreground">{textos.vazio}</p>
       ) : (
         <TabelaDeLembretes
           itens={consulta.data.lembretes}
@@ -194,7 +208,7 @@ export function PaginaLembretes() {
         />
       )}
 
-      <div className="flex justify-end gap-2">
+      {(!layoutV2 || pagina > 0 || consulta.data?.temMais) && <div className="flex justify-end gap-2">
         <Button variant="outline" disabled={pagina === 0} onClick={() => setPagina((p) => p - 1)}>
           {textos.paginacao.anterior}
         </Button>
@@ -205,10 +219,30 @@ export function PaginaLembretes() {
         >
           {textos.paginacao.proxima}
         </Button>
-      </div>
+      </div>}
 
-      <FormularioLembrete aberto={aberto && podeCriar} onFechar={() => setAberto(false)} />
-      {edicao && podeEditarExcluir && <FormularioLembrete key={edicao.id} aberto existente={edicao}
+      </div>
+      {layoutV2 && <aside className={visual.lateral}>
+        {resumo && <section className={visual.painel}>
+          <h2>{textos.v2.resumo}</h2>
+          <dl>
+            {([["hoje", textos.v2.paraHoje, resumo.hoje], ["semana", textos.v2.ateDomingo, resumo.semana],
+              ["automaticos", textos.v2.automaticosPendentes, resumo.automaticos]] as const).map(([tom, rotulo, total]) => (
+              <div key={tom}>
+                <span aria-hidden className={visual.ponto} data-tom={tom} />
+                <dt>{rotulo}</dt><dd>{total}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>}
+        <section className={visual.aviso}>
+          <h2><Bot aria-hidden className="size-4" />{textos.v2.tituloAutomaticos}</h2>
+          <p>{textos.v2.descricaoAutomaticos}</p>
+        </section>
+      </aside>}
+      </div>
+      <FormularioLembrete visualV2={layoutV2} aberto={aberto && podeCriar} onFechar={() => setAberto(false)} />
+      {edicao && podeEditarExcluir && <FormularioLembrete key={edicao.id} visualV2={layoutV2} aberto existente={edicao}
         onFechar={() => setEdicao(null)} />}
     </div>
   );
@@ -239,9 +273,10 @@ function TabelaDeLembretes({
 }) {
   const grupos = agora === undefined ? [{ id: "lista", itens, rotulo: null }] : agruparLembretes(itens, agora, textos);
   return (
-    <div data-slot="recursos-painel" className="overflow-x-auto rounded-lg border border-border bg-card">
+    <div className={agora === undefined ? undefined : visual.lista}>
+      {grupos.map((grupo) => <div key={grupo.id} className={agora === undefined ? "overflow-x-auto rounded-lg border border-border bg-card" : visual.cartao}>
       <table className="w-full text-sm">
-        <thead className="bg-muted/60">
+        {agora === undefined && <thead className="bg-muted/60">
           <tr>
             <th className="w-10 px-4 py-3" />
             <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
@@ -265,11 +300,12 @@ function TabelaDeLembretes({
               {textos.colunas.acoes}
             </th>
           </tr>
-        </thead>
-        {grupos.map((grupo) => <tbody key={grupo.id}>
-          {grupo.rotulo && <tr className="border-t bg-muted/40">
-            <th scope="rowgroup" colSpan={mostrarAtendente ? 7 : 6} className="px-4 py-2 text-left text-xs font-semibold">
-              {grupo.rotulo}
+        </thead>}
+        <tbody>
+          {grupo.rotulo && <tr>
+            <th scope="rowgroup" colSpan={mostrarAtendente ? 7 : 6} className={visual.grupo + " text-left"}>
+              <span><i aria-hidden className={visual.ponto} data-tom={grupo.id === "amanha" ? "semana" : grupo.id} />
+                {grupo.rotulo}<small aria-hidden className={visual.quantidade}>{grupo.itens.length}</small></span>
             </th>
           </tr>}
           {grupo.itens.map((item) => {
@@ -332,9 +368,11 @@ function TabelaDeLembretes({
                   {new Date(item.dataHora).toLocaleString("pt-BR")}
                 </td>
                 <td className="px-4 py-3">
-                  <PillDeStatus tom={concluido ? "sucesso" : "atencao"}>
+                  {agora === undefined ? <PillDeStatus tom={concluido ? "sucesso" : "atencao"}>
                     {concluido ? textos.status.concluido : textos.status.pendente}
-                  </PillDeStatus>
+                  </PillDeStatus> : <span className={visual.status} data-tom={item.status}>
+                    {concluido ? textos.status.concluido : textos.status.pendente}
+                  </span>}
                 </td>
                 {mostrarAtendente && (
                   <td className="px-4 py-3">
@@ -375,8 +413,9 @@ function TabelaDeLembretes({
               </tr>
             );
           })}
-        </tbody>)}
+        </tbody>
       </table>
+      </div>)}
     </div>
   );
 }

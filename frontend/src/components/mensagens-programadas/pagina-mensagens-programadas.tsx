@@ -3,13 +3,14 @@
 import { OpcoesListaV2 } from "@/components/shell/opcoes-lista-v2";
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import listaV2 from "@/components/shell/lista-v2.module.css";
+import visual from "@/components/shell/agenda-recursos-v2.module.css";
 import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Clock3, X } from "lucide-react";
+import { CalendarDays, CheckCheck, CircleX, Clock3, Plus, Send, X } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
@@ -35,9 +36,11 @@ const TOM_DO_STATUS: Record<StatusMensagemProgramada, TomDePill> = {
   CANCELADA: "neutro",
 };
 
+const ICONE_DO_STATUS = { AGENDADA: Clock3, ENVIADA: CheckCheck, CANCELADA: CircleX };
+
 export function PaginaMensagensProgramadas() {
   const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("recursos_layout_v2") ?? false;
-  const t = useTextos().mensagensProgramadas;
+  const { mensagensProgramadas: t, menu } = useTextos();
   // Só apresentação: coluna de atendente para quem enxerga as mensagens da equipe.
   const gestor = ["SUBGESTOR", "GESTOR", "ADMINISTRADOR"].includes(useAuthStore((s) => s.papel) ?? "");
   const capacidades = useCapacidades();
@@ -104,45 +107,62 @@ export function PaginaMensagensProgramadas() {
   }
 
   return (
-    <div data-layout={layoutV2 ? "v2" : "legado"} className={layoutV2 ? `${listaV2.pagina} ${listaV2.modulo}` : "space-y-5 p-6"}>
-      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} />}
+    <div data-layout={layoutV2 ? "v2" : "legado"} className={layoutV2 ? `${listaV2.pagina} ${listaV2.modulo} ${visual.paleta}` : "space-y-5 p-6"}>
+      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} grupo={menu?.grupoRecursos} busca={t.v2.buscaContatos} />}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">{t.titulo}</h1>
           <p className="text-sm text-muted-foreground">{t.descricao}</p>
         </div>
-        {podeCriar && <Button onClick={() => setNovo(true)}>{t.nova}</Button>}
+        {podeCriar && <Button data-slot={layoutV2 ? "lista-v2-acao" : "button"} onClick={() => setNovo(true)}>
+          {layoutV2 && <Plus aria-hidden />}{t.nova}
+        </Button>}
       </header>
 
+      <div className={layoutV2 ? visual.barra : "flex flex-wrap items-end gap-3 rounded-lg border p-3"}>
       {layoutV2 && <OpcoesListaV2<StatusMensagemProgramada | ""> rotulo={t.filtros.status} valor={status}
         onChange={(valor) => mudarFiltro(() => setStatus(valor))}
         opcoes={[
-          { valor: "", rotulo: t.filtros.todos },
           { valor: "AGENDADA", rotulo: t.status.agendada },
           { valor: "ENVIADA", rotulo: t.status.enviada },
           { valor: "CANCELADA", rotulo: t.status.cancelada },
+          { valor: "", rotulo: t.filtros.todos },
         ]} />}
-      <div data-slot="recursos-painel" className="flex flex-wrap items-end gap-3 rounded-lg border p-3">
+        {layoutV2 ? (
+          <div className={visual.periodo}>
+            <CalendarDays aria-hidden className="size-4 shrink-0" />
+            <input type="date" aria-label={t.filtros.inicio} value={inicio}
+              onChange={(e) => mudarFiltro(() => setInicio(e.target.value))} />
+            <span aria-hidden>→</span>
+            <input type="date" aria-label={t.filtros.fim} value={fim}
+              onChange={(e) => mudarFiltro(() => setFim(e.target.value))} />
+            {(inicio || fim) && <button type="button" aria-label={t.v2.limparPeriodo}
+              onClick={() => mudarFiltro(() => { setInicio(""); setFim(""); })}>
+              <X aria-hidden className="size-4" />
+            </button>}
+          </div>
+        ) : <>
+          <label className="text-sm">
+            {t.filtros.inicio}
+            <SeletorData
+              valor={inicio}
+              placeholder={t.filtros.inicio}
+              onChange={(valor) => mudarFiltro(() => setInicio(valor))}
+            />
+          </label>
+          <label className="text-sm">
+            {t.filtros.fim}
+            <SeletorData
+              valor={fim}
+              placeholder={t.filtros.fim}
+              onChange={(valor) => mudarFiltro(() => setFim(valor))}
+            />
+          </label>
+        </>}
         {podeFiltrarEquipe && Boolean(equipe.data?.length) && <Seletor
           ariaLabel={t.colunas.atendente} placeholder={t.v2.todosAtendentes} className="w-auto max-w-full"
           valor={atendente} opcoes={(equipe.data ?? []).map(({ id, nome }) => ({ valor: id, rotulo: nome }))}
           onChange={(valor) => mudarFiltro(() => setAtendente(valor))} />}
-        <label className="text-sm">
-          {t.filtros.inicio}
-          <SeletorData
-            valor={inicio}
-            placeholder={t.filtros.inicio}
-            onChange={(valor) => mudarFiltro(() => setInicio(valor))}
-          />
-        </label>
-        <label className="text-sm">
-          {t.filtros.fim}
-          <SeletorData
-            valor={fim}
-            placeholder={t.filtros.fim}
-            onChange={(valor) => mudarFiltro(() => setFim(valor))}
-          />
-        </label>
         {!layoutV2 && <label className="text-sm">
           {t.filtros.status}
           <Seletor
@@ -159,14 +179,13 @@ export function PaginaMensagensProgramadas() {
             }
           />
         </label>}
-      </div>
-
-      {layoutV2 && periodoValido && proximo.data && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
-        <Clock3 aria-hidden className="size-4 text-primary" />
+      {layoutV2 && periodoValido && proximo.data && <div className={visual.proximo}>
+        <Send aria-hidden className="size-3.5" />
         <span className="text-muted-foreground">{t.v2.proximoEnvio}</span>
         <time dateTime={proximo.data.dataEnvio} className="font-semibold">{new Date(proximo.data.dataEnvio).toLocaleString("pt-BR")}</time>
         <span className="break-words font-medium">{proximo.data.leadNome}</span>
       </div>}
+      </div>
       {!periodoValido ? <p role="status">{t.v2?.periodoInvalido ?? t.vazio}</p> : consulta.isLoading ? (
         <p>{t.carregando}</p>
       ) : consulta.isError ? (
@@ -185,7 +204,7 @@ export function PaginaMensagensProgramadas() {
         />
       )}
 
-      <div className="flex justify-end gap-2">
+      {(!layoutV2 || pagina > 0 || consulta.data?.temMais) && <div className="flex justify-end gap-2">
         <Button variant="outline" disabled={!pagina} onClick={() => setPagina((p) => p - 1)}>
           {t.paginacao.anterior}
         </Button>
@@ -196,16 +215,18 @@ export function PaginaMensagensProgramadas() {
         >
           {t.paginacao.proxima}
         </Button>
-      </div>
+      </div>}
 
       <FormularioMensagemProgramada
         key={novo ? "novo-aberto" : "novo-fechado"}
+        visualV2={layoutV2}
         aberto={novo && podeCriar}
         onFechar={() => setNovo(false)}
       />
       {edicao && podeEditarCancelar && (
         <FormularioMensagemProgramada
           key={edicao.id}
+          visualV2={layoutV2}
           aberto
           existente={edicao}
           onFechar={() => setEdicao(null)}
@@ -234,6 +255,7 @@ function TabelaDeMensagensProgramadas({
   agrupar: boolean;
   cancelando: boolean;
 }) {
+  const hoje = chaveDoDiaLocal(new Date().toISOString());
   const dias = new Map<string, MensagemProgramada[]>();
   for (const mensagem of itens) {
     const dia = agrupar ? chaveDoDiaLocal(mensagem.dataEnvio) : "";
@@ -242,9 +264,10 @@ function TabelaDeMensagensProgramadas({
     else dias.set(dia, [mensagem]);
   }
   return (
-    <div data-slot="recursos-painel" className="overflow-x-auto rounded-lg border border-border bg-card">
+    <div className={agrupar ? visual.lista : undefined}>
+      {[...dias].map(([dia, mensagens]) => <div key={dia} className={agrupar ? visual.cartao : "overflow-x-auto rounded-lg border border-border bg-card"}>
       <table className="w-full text-sm">
-        <thead className="bg-muted/60">
+        {!agrupar && <thead className="bg-muted/60">
           <tr>
             <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
               {textos.colunas.lead}
@@ -267,15 +290,39 @@ function TabelaDeMensagensProgramadas({
               {textos.colunas.acoes}
             </th>
           </tr>
-        </thead>
-        {[...dias].map(([dia, mensagens]) => <tbody key={dia}>
-          {dia && <tr className="border-t bg-muted/40">
-            <th scope="rowgroup" colSpan={mostrarAtendente ? 6 : 5} className="px-4 py-2 text-left text-xs font-semibold">
-              <time dateTime={dia}>{new Date(mensagens[0].dataEnvio).toLocaleDateString("pt-BR", { dateStyle: "full" })}</time>
+        </thead>}
+        <tbody>
+          {dia && <tr>
+            <th scope="rowgroup" colSpan={mostrarAtendente ? 6 : 5} className={visual.grupo + " text-left"}>
+              <span>
+                <small aria-hidden className={visual.dia} data-hoje={dia === hoje}>
+                  {new Date(mensagens[0].dataEnvio).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                </small>
+                <time dateTime={dia}>{new Date(mensagens[0].dataEnvio).toLocaleDateString("pt-BR", { dateStyle: "full" })}</time>
+                <small className={visual.total}>{(mensagens.length === 1 ? textos.v2.mensagemNoDia : textos.v2.mensagensNoDia)
+                  .replace("{total}", String(mensagens.length))}</small>
+              </span>
             </th>
           </tr>}
           {mensagens.map((mensagem) => {
             const editavel = mensagem.status === "AGENDADA";
+            const IconeStatus = ICONE_DO_STATUS[mensagem.status];
+            const hora = (
+              <td className={agrupar ? "px-4 py-3 font-mono font-medium text-foreground" : "px-4 py-3 text-xs font-medium text-muted-foreground"}>
+                  {agrupar ? new Date(mensagem.dataEnvio).toLocaleTimeString("pt-BR", { timeStyle: "short" })
+                    : new Date(mensagem.dataEnvio).toLocaleString("pt-BR")}
+                </td>
+            );
+            const estado = (
+              <td className="px-4 py-3">
+                  {agrupar ? <span className={visual.status} data-tom={mensagem.status}>
+                    <IconeStatus aria-hidden className="size-3.5" />
+                    {textos.status[mensagem.status.toLowerCase() as "agendada" | "enviada" | "cancelada"]}
+                  </span> : <PillDeStatus tom={TOM_DO_STATUS[mensagem.status]}>
+                    {textos.status[mensagem.status.toLowerCase() as "agendada" | "enviada" | "cancelada"]}
+                  </PillDeStatus>}
+                </td>
+            );
             return (
               <tr
                 key={mensagem.id}
@@ -286,6 +333,7 @@ function TabelaDeMensagensProgramadas({
                     : "border-t border-border"
                 }
               >
+                {agrupar && hora}
                 <td className="px-4 py-3">
                   <div className="flex min-w-0 items-center gap-2.5">
                     <AvatarIniciais
@@ -299,14 +347,8 @@ function TabelaDeMensagensProgramadas({
                 <td className="max-w-xs px-4 py-3 truncate text-muted-foreground">
                   {mensagem.conteudo}
                 </td>
-                <td className="px-4 py-3 text-xs font-medium text-muted-foreground">
-                  {new Date(mensagem.dataEnvio).toLocaleString("pt-BR")}
-                </td>
-                <td className="px-4 py-3">
-                  <PillDeStatus tom={TOM_DO_STATUS[mensagem.status]}>
-                    {textos.status[mensagem.status.toLowerCase() as "agendada" | "enviada" | "cancelada"]}
-                  </PillDeStatus>
-                </td>
+                {!agrupar && hora}
+                {!agrupar && estado}
                 {mostrarAtendente && (
                   <td className="px-4 py-3">
                     <div className="flex min-w-0 items-center gap-2">
@@ -319,6 +361,7 @@ function TabelaDeMensagensProgramadas({
                     </div>
                   </td>
                 )}
+                {agrupar && estado}
                 <td className="px-4 py-3 text-right">
                   {editavel && onEditar && onCancelar && (
                     <div className="flex justify-end gap-1">
@@ -341,8 +384,9 @@ function TabelaDeMensagensProgramadas({
               </tr>
             );
           })}
-        </tbody>)}
+        </tbody>
       </table>
+      </div>)}
     </div>
   );
 }

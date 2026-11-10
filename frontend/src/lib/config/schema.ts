@@ -1097,7 +1097,17 @@ export const TextosSchema = z.object({
   }),
   lembretes: z.object({
     v2: z.object({
+      buscaContatos: z.string().default("Buscar contatos…"),
       buscar: z.string().default("Buscar lembrete ou lead"),
+      vazioDescricao: z.string().default("Nenhum lembrete para os filtros selecionados."),
+      vazioTitulo: z.string().default("Tudo em dia por aqui"),
+      descricaoAutomaticos: z.string().default("Os lembretes criados pela automação aparecem com a etiqueta Automático."),
+      tituloAutomaticos: z.string().default("Lembretes automáticos"),
+      pendentes: z.string().default("pendentes"),
+      automaticosPendentes: z.string().default("Automáticos pendentes"),
+      ateDomingo: z.string().default("Até domingo"),
+      paraHoje: z.string().default("Para hoje"),
+      resumo: z.string().default("Resumo"),
       todosAtendentes: z.string().default("Todos os atendentes"),
       soAutomaticos: z.string().default("Somente automáticos"),
       hoje: z.string().default("Hoje e atrasados"),
@@ -1127,8 +1137,12 @@ export const TextosSchema = z.object({
   }),
   mensagensProgramadas: z.object({
     v2: z.object({
+      buscaContatos: z.string().default("Buscar contatos…"),
       todosAtendentes: z.string().default("Todos os atendentes"),
       proximoEnvio: z.string().default("Próximo envio"),
+      limparPeriodo: z.string().default("Limpar período"),
+      mensagemNoDia: z.string().default("{total} mensagem"),
+      mensagensNoDia: z.string().default("{total} mensagens"),
       periodoInvalido: z.string().default("A data final deve ser igual ou posterior à inicial."),
     }).prefault({}),
     titulo:z.string(),descricao:z.string(),nova:z.string(),carregando:z.string(),vazio:z.string(),erro:z.string(),editar:z.string(),cancelar:z.string(),remover:z.string(),confirmarRemocao:z.string(),

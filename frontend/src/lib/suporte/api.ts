@@ -12,6 +12,7 @@ export function listarLembretes(filtros: {
   atendenteId?: string;
   busca?: string;
   origemAutomatica?: boolean;
+  incluirResumo?: boolean;
   pagina: number;
 }): Promise<PaginaLembretes> {
   const query = new URLSearchParams({ pagina: String(filtros.pagina) });
@@ -22,6 +23,7 @@ export function listarLembretes(filtros: {
   if (filtros.atendenteId) query.set("atendenteId", filtros.atendenteId);
   if (filtros.busca) query.set("busca", filtros.busca);
   if (filtros.origemAutomatica !== undefined) query.set("origemAutomatica", String(filtros.origemAutomatica));
+  if (filtros.incluirResumo) query.set("incluirResumo", "true");
   return apiFetch<PaginaLembretes>(`/api/v1/lembretes?${query}`);
 }
 

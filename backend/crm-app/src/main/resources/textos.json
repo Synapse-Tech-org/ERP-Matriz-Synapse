@@ -1044,7 +1044,17 @@
   },
   "lembretes": {
     "v2": {
+      "buscaContatos": "Buscar contatos…",
       "buscar": "Buscar lembrete ou lead",
+      "vazioDescricao": "Nenhum lembrete para os filtros selecionados.",
+      "vazioTitulo": "Tudo em dia por aqui",
+      "descricaoAutomaticos": "Os lembretes criados pela automação aparecem com a etiqueta Automático.",
+      "tituloAutomaticos": "Lembretes automáticos",
+      "pendentes": "pendentes",
+      "automaticosPendentes": "Automáticos pendentes",
+      "ateDomingo": "Até domingo",
+      "paraHoje": "Para hoje",
+      "resumo": "Resumo",
       "todosAtendentes": "Todos os atendentes",
       "soAutomaticos": "Somente automáticos",
       "hoje": "Hoje e atrasados",
@@ -1106,8 +1116,12 @@
   },
   "mensagensProgramadas": {
     "v2": {
+      "buscaContatos": "Buscar contatos…",
       "todosAtendentes": "Todos os atendentes",
       "proximoEnvio": "Próximo envio",
+      "limparPeriodo": "Limpar período",
+      "mensagemNoDia": "{total} mensagem",
+      "mensagensNoDia": "{total} mensagens",
       "periodoInvalido": "A data final deve ser igual ou posterior à inicial."
     },
     "titulo": "Mensagens programadas",

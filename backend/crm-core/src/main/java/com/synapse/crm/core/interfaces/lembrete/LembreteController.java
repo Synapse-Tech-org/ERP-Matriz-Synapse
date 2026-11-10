@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -77,11 +78,12 @@ class LembreteController {
             @RequestParam(required = false) UUID atendenteId,
             @RequestParam(required = false) @Size(max = 150) String busca,
             @RequestParam(required = false) Boolean origemAutomatica,
+            @RequestParam(defaultValue = "false") boolean incluirResumo,
             @Parameter(description = "Índice da página, começando em zero.", example = "0")
                     @RequestParam(defaultValue = "0") int pagina) {
         return PaginaResposta.de(
                 listar.executar(new FiltroLembretes(inicio, fim, status, leadId, atendenteId, busca,
-                        origemAutomatica, pagina, tamanhoPagina)));
+                        origemAutomatica, pagina, tamanhoPagina), incluirResumo));
     }
 
     @Operation(
@@ -152,9 +154,10 @@ class LembreteController {
                     l.texto(), l.dataHora(), l.origemAutomatica(), l.status());
         }
     }
-    record PaginaResposta(List<Resposta> lembretes, int pagina, boolean temMais) {
+    record PaginaResposta(List<Resposta> lembretes, int pagina, boolean temMais,
+            @JsonInclude(JsonInclude.Include.NON_NULL) PaginaLembretes.Resumo resumo) {
         static PaginaResposta de(PaginaLembretes p) {
-            return new PaginaResposta(p.lembretes().stream().map(Resposta::de).toList(), p.pagina(), p.temMais());
+            return new PaginaResposta(p.lembretes().stream().map(Resposta::de).toList(), p.pagina(), p.temMais(), p.resumo());
         }
     }
 }

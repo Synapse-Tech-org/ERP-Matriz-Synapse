@@ -119,6 +119,18 @@ class LembretesIT extends PostgresIT {
                 rota + "&busca=privado&origemAutomatica=true", null).getBody()).doesNotContain(lembreteBruno.toString());
     }
 
+    @Test
+    void resumoContaPendentesAutorizadosMesmoComFiltroDeConcluidos() {
+        jdbc.update("UPDATE lembrete SET origem_automatica = TRUE WHERE id = ?", lembreteBruno);
+        String rota = "/api/v1/lembretes?leadId=" + leadBruno + "&status=CONCLUIDO&incluirResumo=true";
+        var gestor = chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET, rota, null);
+        assertThat(gestor.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(gestor.getBody()).contains("\"lembretes\":[]", "\"pendentes\":1", "\"automaticos\":1");
+        var colega = chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET, rota, null);
+        assertThat(colega.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(colega.getBody()).contains("\"pendentes\":0", "\"automaticos\":0");
+    }
+
     private ResponseEntity<String> chamar(String email, String senha, HttpMethod metodo, String url, Object corpo) {
         String token = ApoioAutenticacao.login(http, email, senha).accessToken();
         HttpHeaders headers = new HttpHeaders();

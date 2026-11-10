@@ -22,12 +22,12 @@ const PainelLateralLead = dynamic(() =>
 );
 const TAMANHO_DA_BUSCA = 10;
 
-export function BuscaDoDashboard({ dados }: { dados?: VisaoGeralDashboard }) {
+export function BuscaDoDashboard({ dados, rotulo }: { dados?: VisaoGeralDashboard; rotulo?: string }) {
   const { data } = useMinhasPermissoes();
-  return data?.capacidades["clientes.acessar"]?.permitido === true ? <BuscaAutorizada dados={dados} /> : null;
+  return data?.capacidades["clientes.acessar"]?.permitido === true ? <BuscaAutorizada dados={dados} rotulo={rotulo} /> : null;
 }
 
-function BuscaAutorizada({ dados }: { dados?: VisaoGeralDashboard }) {
+function BuscaAutorizada({ dados, rotulo }: { dados?: VisaoGeralDashboard; rotulo?: string }) {
   const textos = useTextos();
   const busca = textos.dashboard.v2.busca;
   const gatilho = useRef<HTMLButtonElement>(null);
@@ -58,15 +58,16 @@ function BuscaAutorizada({ dados }: { dados?: VisaoGeralDashboard }) {
         <DialogTrigger
           ref={gatilho}
           data-slot="dashboard-busca"
+          aria-label={rotulo ?? busca.rotulo}
           aria-keyshortcuts="Control+K Meta+K"
         >
           <IconeFrontendV2 nome="search-line" />
-          <span>{busca.rotulo}</span>
+          <span>{rotulo ?? busca.rotulo}</span>
           <kbd aria-hidden="true">{busca.atalho}</kbd>
         </DialogTrigger>
         <DialogContent className="sm:max-w-lg" showCloseButton={false}>
           <DialogHeader className="pr-10">
-            <DialogTitle>{busca.rotulo}</DialogTitle>
+            <DialogTitle>{rotulo ?? busca.rotulo}</DialogTitle>
             <DialogDescription>{busca.descricao}</DialogDescription>
           </DialogHeader>
           {aberta && (

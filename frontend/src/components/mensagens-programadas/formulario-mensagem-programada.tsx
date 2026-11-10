@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import visual from "@/components/shell/agenda-recursos-v2.module.css";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { dataHoraCompleta, SeletorDataHora } from "@/components/ui/seletor-data-hora";
@@ -13,12 +14,12 @@ import { useTextos } from "@/lib/config/textos-provider";
 import { criarMensagemProgramada, editarMensagemProgramada } from "@/lib/suporte/api";
 import type { MensagemProgramada } from "@/lib/suporte/types";
 
-interface Props { aberto: boolean; leadId?: string; leadNome?: string; conteudoInicial?: string;
+interface Props { aberto: boolean; visualV2?: boolean; leadId?: string; leadNome?: string; conteudoInicial?: string;
   existente?: MensagemProgramada; onFechar: () => void; onSalvo?: () => void; }
 
 function paraLocal(iso?: string) { if (!iso) return ""; const d = new Date(iso); const local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000); return local.toISOString().slice(0, 16); }
 
-export function FormularioMensagemProgramada({ aberto, leadId, leadNome, conteudoInicial, existente, onFechar, onSalvo }: Props) {
+export function FormularioMensagemProgramada({ aberto, visualV2 = false, leadId, leadNome, conteudoInicial, existente, onFechar, onSalvo }: Props) {
   const textos = useTextos().mensagensProgramadas.formulario; const cache = useQueryClient();
   const [leadSelecionado, setLeadSelecionado] = useState(leadId ?? existente?.leadId ?? "");
   const [conteudo, setConteudo] = useState(existente?.conteudo ?? conteudoInicial ?? "");
@@ -29,7 +30,7 @@ export function FormularioMensagemProgramada({ aberto, leadId, leadNome, conteud
     ? editarMensagemProgramada(existente.id, { conteudo: conteudo.trim(), dataEnvio: new Date(dataEnvio).toISOString() })
     : criarMensagemProgramada({ leadId: leadId ?? leadSelecionado, conteudo: conteudo.trim(), dataEnvio: new Date(dataEnvio).toISOString() }),
     onSuccess: async () => { await cache.invalidateQueries({ queryKey: ["mensagens-programadas"] }); onSalvo?.(); onFechar(); } });
-  return <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}><DialogContent><DialogHeader><DialogTitle>{existente ? textos.tituloEditar : textos.tituloCriar}</DialogTitle></DialogHeader>
+  return <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}><DialogContent className={visualV2 ? visual.formulario : undefined}><DialogHeader><DialogTitle>{existente ? textos.tituloEditar : textos.tituloCriar}</DialogTitle></DialogHeader>
     <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); if ((leadId ?? leadSelecionado) && conteudo.trim() && dataHoraCompleta(dataEnvio)) salvar.mutate(); }}>
       <label className="block space-y-1 text-sm"><span>{textos.lead}</span>{leadId || existente ? <Input disabled value={leadNome ?? existente?.leadNome ?? leadId} /> : <Seletor obrigatorio valor={leadSelecionado} placeholder={textos.selecionarLead} opcoes={leads.map(([id, nome]) => ({ valor: id, rotulo: nome }))} onChange={setLeadSelecionado} />}</label>
       <label className="block space-y-1 text-sm"><span>{textos.dataEnvio}</span><SeletorDataHora valor={dataEnvio} placeholderData={textos.selecionarData} rotuloHora={textos.hora} rotuloMinuto={textos.minuto} obrigatorio onChange={setDataEnvio} /></label>

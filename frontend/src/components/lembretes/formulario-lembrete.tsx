@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
+import visual from "@/components/shell/agenda-recursos-v2.module.css";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { dataHoraCompleta, SeletorDataHora } from "@/components/ui/seletor-data-hora";
@@ -15,7 +16,7 @@ import { criarLembrete, editarLembrete } from "@/lib/suporte/api";
 import type { Lembrete } from "@/lib/suporte/types";
 
 interface Props {
-  aberto: boolean;
+  aberto: boolean; visualV2?: boolean;
   leadId?: string;
   leadNome?: string;
   existente?: Lembrete;
@@ -28,7 +29,7 @@ function paraLocal(iso: string): string {
   return local.toISOString().slice(0, 16);
 }
 
-export function FormularioLembrete({ aberto, leadId, leadNome, existente, onFechar }: Props) {
+export function FormularioLembrete({ aberto, visualV2 = false, leadId, leadNome, existente, onFechar }: Props) {
   const textos = useTextos().lembretes;
   const cache = useQueryClient();
   const [leadSelecionado, setLeadSelecionado] = useState(leadId ?? existente?.leadId ?? "");
@@ -68,7 +69,7 @@ export function FormularioLembrete({ aberto, leadId, leadNome, existente, onFech
 
   return (
     <Dialog open={aberto} onOpenChange={(novo) => !novo && onFechar()}>
-      <DialogContent>
+      <DialogContent className={visualV2 ? visual.formulario : undefined}>
         <DialogHeader><DialogTitle>{existente ? textos.formulario.tituloEditar : textos.formulario.titulo}</DialogTitle></DialogHeader>
         <form className="space-y-3" onSubmit={salvar}>
           <label className="block space-y-1 text-sm">

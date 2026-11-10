@@ -11,6 +11,8 @@ import com.synapse.crm.core.domain.lembrete.StatusLembrete;
 public interface LembreteRepositorio {
     PaginaLembretes listar(FiltroLembretes filtro);
 
+    PaginaLembretes.Resumo resumir(FiltroLembretes filtro, Instant agora, Instant fimHoje, Instant fimSemana);
+
     Lembrete criar(UUID leadId, UUID atendenteId, String texto, Instant dataHora);
 
     Optional<Lembrete> atualizar(UUID id, String texto, Instant dataHora, StatusLembrete status);
