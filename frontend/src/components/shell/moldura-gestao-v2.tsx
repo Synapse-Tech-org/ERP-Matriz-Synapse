@@ -6,6 +6,7 @@ import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades"
 import { useTextos } from "@/lib/config/textos-provider";
 
 import { CabecalhoListaV2 } from "./cabecalho-lista-v2";
+import visualGestao from "@/components/gestao/gestao-v2.module.css";
 import estilos from "./lista-v2.module.css";
 
 export function MolduraGestaoV2({
@@ -20,8 +21,8 @@ export function MolduraGestaoV2({
 
   const titulo = secao === "configuracoes" ? textos.configuracoes.titulo : textos.menu.itens[secao];
   return (
-    <section data-layout="v2" className={`${estilos.pagina} ${estilos.modulo} ${estilos.gestao}`}>
-      <CabecalhoListaV2 titulo={titulo} />
+    <section data-layout="v2" className={`${estilos.pagina} ${estilos.modulo} ${secao === "gestao" ? visualGestao.moldura : estilos.gestao}`}>
+      {secao !== "gestao" && <CabecalhoListaV2 titulo={titulo} />}
       {children}
     </section>
   );

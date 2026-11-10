@@ -70,11 +70,13 @@ export function AbaExcecoes({
   textos,
   minhas,
   usuarioInicial,
+  embutida = false,
   onSujoChange,
 }: {
   textos: TextosGestao;
   minhas: MinhasPermissoes;
   usuarioInicial?: string;
+  embutida?: boolean;
   onSujoChange: (sujo: boolean) => void;
 }) {
   const catalogo = useCatalogo();
@@ -152,8 +154,8 @@ export function AbaExcecoes({
         <Legenda textos={textos} />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(15rem,19rem)_minmax(0,1fr)]">
-        <ListaDeIntegrantes
+      <div className={embutida ? undefined : "grid grid-cols-1 gap-5 lg:grid-cols-[minmax(15rem,19rem)_minmax(0,1fr)]"}>
+        {!embutida && <ListaDeIntegrantes
           textos={textos}
           usuarios={equipe.data}
           selecionado={usuarioId}
@@ -162,7 +164,7 @@ export function AbaExcecoes({
             descartar();
             setSelecionado(id);
           })}
-        />
+        />}
         <div className="min-w-0">
           {detalhe.isError ? (
             <ErroDeCarregamento mensagem={textos.erro} onTentarNovamente={() => void detalhe.refetch()} />
