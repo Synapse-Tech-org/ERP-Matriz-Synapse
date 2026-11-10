@@ -58,10 +58,11 @@ export function removerLembrete(id: string): Promise<void> {
   return apiFetch<void>(`/api/v1/lembretes/${id}`, { method: "DELETE" });
 }
 
-export function listarMensagensProgramadas(f: { inicio?: string; fim?: string; status?: StatusMensagemProgramada; leadId?: string; atendenteId?: string; pagina: number }): Promise<PaginaMensagensProgramadas> {
+export function listarMensagensProgramadas(f: { inicio?: string; fim?: string; status?: StatusMensagemProgramada; leadId?: string; atendenteId?: string; incluirResumo?: boolean; pagina: number }): Promise<PaginaMensagensProgramadas> {
   const q = new URLSearchParams({ pagina: String(f.pagina) });
   if (f.inicio) q.set("inicio", f.inicio); if (f.fim) q.set("fim", f.fim); if (f.status) q.set("status", f.status); if (f.leadId) q.set("leadId", f.leadId);
   if (f.atendenteId) q.set("atendenteId", f.atendenteId);
+  if (f.incluirResumo) q.set("incluirResumo", "true");
   return apiFetch<PaginaMensagensProgramadas>(`/api/v1/mensagens-programadas?${q}`);
 }
 export function criarMensagemProgramada(d: DadosMensagemProgramada): Promise<MensagemProgramada> {
@@ -82,3 +83,7 @@ export function listarMensagensRapidas(minhas = false, incluirGerais = false): P
 export function criarMensagemRapida(d:DadosMensagemRapida):Promise<MensagemRapida>{return apiFetch<MensagemRapida>("/api/v1/mensagens-rapidas",{method:"POST",body:JSON.stringify(d)})}
 export function editarMensagemRapida(id:string,d:DadosMensagemRapida):Promise<MensagemRapida>{return apiFetch<MensagemRapida>(`/api/v1/mensagens-rapidas/${id}`,{method:"PUT",body:JSON.stringify(d)})}
 export function removerMensagemRapida(id:string):Promise<void>{return apiFetch<void>(`/api/v1/mensagens-rapidas/${id}`,{method:"DELETE"})}
+
+export function enviarMensagemProgramadaAgora(id: string) {
+  return apiFetch<MensagemProgramada>("/api/v1/mensagens-programadas/" + encodeURIComponent(id) + "/enviar-agora", { method: "POST" });
+}

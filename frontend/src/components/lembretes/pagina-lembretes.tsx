@@ -1,6 +1,6 @@
 "use client";
 
-import { OpcoesListaV2 } from "@/components/shell/opcoes-lista-v2";
+import Link from "next/link";
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import listaV2 from "@/components/shell/lista-v2.module.css";
 import visual from "@/components/shell/agenda-recursos-v2.module.css";
@@ -10,19 +10,20 @@ import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades"
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Bot, Check, CheckCheck, Clock3, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Bot, Check, CheckCheck, ChevronDown, Clock3, Plus, Search, Trash2 } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { Seletor } from "@/components/ui/seletor";
 import { SeletorData } from "@/components/ui/seletor-data";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useEquipe } from "@/lib/equipe/use-equipe";
-import { chaveDoDiaLocal, periodoLocal } from "@/lib/suporte/agenda-de-datas";
+import { chaveDoDiaLocal, horaLocal, horariosDeAdiamento, periodoLocal } from "@/lib/suporte/agenda-de-datas";
 import { atualizarLembrete, editarLembrete, listarLembretes, removerLembrete } from "@/lib/suporte/api";
 import type { Lembrete, StatusLembrete } from "@/lib/suporte/types";
 
@@ -37,6 +38,7 @@ export function PaginaLembretes() {
   // Só apresentação: coluna de atendente para quem enxerga os lembretes da equipe.
   const gestor = ["SUBGESTOR", "GESTOR", "ADMINISTRADOR"].includes(papel ?? "");
   const capacidades = useCapacidades();
+  const podeAbrirConversa = capacidades.pode("atendimentos.ver");
   const podeCriar = capacidades.pode("lembretes.criar");
   const podeEditarExcluir = capacidades.pode("lembretes.editar_excluir");
   const podeFiltrarEquipe = layoutV2 && gestor && capacidades.pode("equipe.ver");
@@ -91,9 +93,8 @@ export function PaginaLembretes() {
     onSuccess: () => cache.invalidateQueries({ queryKey: ["lembretes"] }),
   });
   const adiar = useMutation({
-    mutationFn: (item: Lembrete) => editarLembrete(item.id, {
-      texto: item.texto, status: item.status,
-      dataHora: new Date(Math.max(Date.now(), Date.parse(item.dataHora)) + 3_600_000).toISOString(),
+    mutationFn: ({ item, data }: { item: Lembrete; data: Date }) => editarLembrete(item.id, {
+      texto: item.texto, status: item.status, dataHora: data.toISOString(),
     }),
     onSuccess: () => cache.invalidateQueries({ queryKey: ["lembretes"] }),
   });
@@ -114,7 +115,7 @@ export function PaginaLembretes() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">{textos.titulo}</h1>
-          <p className="text-sm text-muted-foreground">{textos.descricao}</p>
+          <p className="text-sm text-muted-foreground">{layoutV2 ? textos.v2.descricao : textos.descricao}</p>
         </div>
         {podeCriar && <Button data-slot={layoutV2 ? "lista-v2-acao" : "button"} onClick={() => setAberto(true)}>
           {layoutV2 && <Plus aria-hidden />}{textos.novo}
@@ -123,13 +124,6 @@ export function PaginaLembretes() {
 
       <div className={layoutV2 ? visual.grade : undefined}>
       <div className={layoutV2 ? visual.lista : "space-y-4"}>
-      {layoutV2 && <OpcoesListaV2<StatusLembrete | ""> rotulo={textos.filtros.status} valor={status}
-        onChange={(valor) => mudarFiltro(() => setStatus(valor))}
-        opcoes={[
-          { valor: "", rotulo: textos.filtros.todos },
-          { valor: "PENDENTE", rotulo: textos.status.pendente },
-          { valor: "CONCLUIDO", rotulo: textos.status.concluido },
-        ]} />}
       <div className={layoutV2 ? visual.barra : "flex flex-wrap items-end gap-3 rounded-lg border p-3"}>
         {layoutV2 && <>
           <div className={visual.busca}>
@@ -146,6 +140,7 @@ export function PaginaLembretes() {
             <Bot aria-hidden />{textos.v2.soAutomaticos}
           </Button>
         </>}
+        {!layoutV2 && <>
         <label className="text-sm">
           {textos.filtros.inicio}
           <SeletorData
@@ -162,6 +157,7 @@ export function PaginaLembretes() {
             onChange={(valor) => mudarFiltro(() => setFim(valor))}
           />
         </label>
+        </>}
         {layoutV2 && resumo && <span className={visual.pendentes}><strong>{resumo.pendentes}</strong> {textos.v2.pendentes}</span>}
         {!layoutV2 && <label className="text-sm">
           {textos.filtros.status}
@@ -189,20 +185,21 @@ export function PaginaLembretes() {
         />
       ) : !consulta.data?.lembretes.length ? (
         layoutV2 ? <div className={visual.vazio}>
-          <CheckCheck aria-hidden className="size-7" />
+          <span className={visual.vazioIcone}><CheckCheck aria-hidden className="size-6" /></span>
           <strong>{textos.v2.vazioTitulo}</strong><span>{textos.v2.vazioDescricao}</span>
         </div> : <p className="text-muted-foreground">{textos.vazio}</p>
       ) : (
         <TabelaDeLembretes
           itens={consulta.data.lembretes}
-          mostrarAtendente={gestor}
+          mostrarAtendente={layoutV2 || gestor}
+          podeAbrirConversa={podeAbrirConversa}
           textos={textos}
           agora={layoutV2 ? agora : undefined}
           ocupado={atualizar.isPending || adiar.isPending || remover.isPending}
           onConcluir={podeEditarExcluir ? (item) => atualizar.mutate({
             item, novo: item.status === "CONCLUIDO" ? "PENDENTE" : "CONCLUIDO",
           }) : undefined}
-          onAdiar={layoutV2 && podeEditarExcluir ? (item) => adiar.mutate(item) : undefined}
+          onAdiar={layoutV2 && podeEditarExcluir ? (item, data) => adiar.mutate({ item, data }) : undefined}
           onEditar={layoutV2 && podeEditarExcluir ? setEdicao : undefined}
           onRemover={podeEditarExcluir ? (id) => remover.mutate(id) : undefined}
         />
@@ -253,6 +250,7 @@ type TextosLembretes = ReturnType<typeof useTextos>["lembretes"];
 function TabelaDeLembretes({
   itens,
   mostrarAtendente,
+  podeAbrirConversa,
   textos,
   onConcluir,
   onRemover,
@@ -263,19 +261,26 @@ function TabelaDeLembretes({
 }: {
   itens: Lembrete[];
   mostrarAtendente: boolean;
+  podeAbrirConversa: boolean;
   textos: TextosLembretes;
   onConcluir?: (item: Lembrete) => void;
   onRemover?: (id: string) => void;
-  onAdiar?: (item: Lembrete) => void;
+  onAdiar?: (item: Lembrete, data: Date) => void;
   onEditar?: (item: Lembrete) => void;
   agora?: number;
   ocupado: boolean;
 }) {
+  const [concluidosAbertos, setConcluidosAbertos] = useState(false);
   const grupos = agora === undefined ? [{ id: "lista", itens, rotulo: null }] : agruparLembretes(itens, agora, textos);
   return (
     <div className={agora === undefined ? undefined : visual.lista}>
-      {grupos.map((grupo) => <div key={grupo.id} className={agora === undefined ? "overflow-x-auto rounded-lg border border-border bg-card" : visual.cartao}>
-      <table className="w-full text-sm">
+      {grupos.map((grupo) => {
+        const recolhivel = grupo.id === "concluidos";
+        const aberto = !recolhivel || concluidosAbertos;
+        const cabecalho = <><i aria-hidden className={visual.ponto} data-tom={grupo.id === "amanha" ? "semana" : grupo.id} />
+          {grupo.rotulo}<small aria-hidden className={visual.quantidade}>{grupo.itens.length}</small></>;
+        return <div key={grupo.id} className={agora === undefined ? "overflow-x-auto rounded-lg border border-border bg-card" : visual.cartao}>
+      <table className={"w-full text-sm " + (agora === undefined ? "" : visual.lembretesTabela)}>
         {agora === undefined && <thead className="bg-muted/60">
           <tr>
             <th className="w-10 px-4 py-3" />
@@ -303,15 +308,18 @@ function TabelaDeLembretes({
         </thead>}
         <tbody>
           {grupo.rotulo && <tr>
-            <th scope="rowgroup" colSpan={mostrarAtendente ? 7 : 6} className={visual.grupo + " text-left"}>
-              <span><i aria-hidden className={visual.ponto} data-tom={grupo.id === "amanha" ? "semana" : grupo.id} />
-                {grupo.rotulo}<small aria-hidden className={visual.quantidade}>{grupo.itens.length}</small></span>
+            <th scope="rowgroup" colSpan={mostrarAtendente ? 6 : 5} className={visual.grupo + " text-left"}>
+              {recolhivel ? <button type="button" className={visual.grupoControle} aria-expanded={aberto}
+                onClick={() => setConcluidosAbertos(!aberto)}>{cabecalho}<ChevronDown aria-hidden className="size-4" /></button>
+                : <span>{cabecalho}{grupo.id === "hoje" && agora !== undefined && <small aria-hidden className={visual.total}>
+                  {new Date(agora).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })}</small>}</span>}
             </th>
           </tr>}
-          {grupo.itens.map((item) => {
+          {aberto && grupo.itens.map((item) => {
             const concluido = item.status === "CONCLUIDO";
+            const atrasado = agora !== undefined && !concluido && Date.parse(item.dataHora) < agora;
             return (
-              <tr key={item.id} className="border-t border-border">
+              <tr key={item.id} data-concluido={concluido} data-atrasado={atrasado} className="border-t border-border">
                 <td className="px-4 py-3">
                   {onConcluir ? (
                     <button
@@ -319,7 +327,7 @@ function TabelaDeLembretes({
                       aria-label={concluido && agora !== undefined ? textos.v2.reabrir : textos.concluir}
                       disabled={ocupado || (concluido && agora === undefined)}
                       onClick={() => onConcluir(item)}
-                      className={`flex size-6 items-center justify-center rounded-full border-2 ${
+                      className={`${agora === undefined ? "" : visual.marca} flex size-6 items-center justify-center rounded-full border-2 ${
                         concluido ? "border-cor-sucesso bg-cor-sucesso" : "border-muted-foreground/40"
                       }`}
                     >
@@ -328,7 +336,7 @@ function TabelaDeLembretes({
                   ) : (
                     <span
                       aria-hidden
-                      className={`flex size-6 items-center justify-center rounded-full border-2 ${
+                      className={`${agora === undefined ? "" : visual.marca} flex size-6 items-center justify-center rounded-full border-2 ${
                         concluido ? "border-cor-sucesso bg-cor-sucesso" : "border-muted-foreground/20"
                       }`}
                     >
@@ -337,43 +345,41 @@ function TabelaDeLembretes({
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    {item.origemAutomatica && (
-                      <PillDeStatus tom="ia" icone={<Bot className="size-[calc(var(--tamanho-icone-interface)*0.75)]" />} className="shrink-0">
-                        {textos.automatico}
-                      </PillDeStatus>
-                    )}
-                    <p
-                      className={`truncate font-medium ${concluido ? "text-muted-foreground line-through" : "text-foreground"}`}
-                    >
+                  <div className={agora === undefined ? "flex items-center gap-2" : visual.assunto}>
+                    {agora !== undefined && onEditar ? <button type="button" className={visual.textoLembrete}
+                      disabled={ocupado} onClick={() => onEditar(item)}>{item.texto}</button> : <span
+                      className={"truncate font-medium " + (concluido ? "text-muted-foreground line-through" : "text-foreground")}>
                       {item.texto}
-                    </p>
+                    </span>}
+                    {item.origemAutomatica && <PillDeStatus tom="ia" icone={<Bot aria-hidden className="size-3" />} className="shrink-0">
+                      {textos.automatico}
+                    </PillDeStatus>}
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  {item.leadNome ? (
-                    <div className="flex min-w-0 items-center gap-2">
-                      <AvatarIniciais
-                        id={item.leadId}
-                        nome={item.leadNome}
-                        className="flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
-                      />
+                  {item.leadNome ? (() => {
+                    const conteudo = <>
+                      <AvatarIniciais id={item.leadId} nome={item.leadNome}
+                        className="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white" />
                       <span className="truncate text-xs font-medium">{item.leadNome}</span>
-                    </div>
-                  ) : (
-                    <span className="text-xs italic text-muted-foreground">{textos.semVinculo}</span>
-                  )}
+                    </>;
+                    return agora !== undefined && item.leadId && podeAbrirConversa
+                      ? <Link href={"/atendimentos?leadId=" + encodeURIComponent(item.leadId) + "&visao=TODOS"} className={visual.lead}>{conteudo}</Link>
+                      : <div className="flex min-w-0 items-center gap-2">{conteudo}</div>;
+                  })() : <span className="text-xs text-muted-foreground">{textos.semVinculo}</span>}
                 </td>
-                <td className="px-4 py-3 text-xs font-medium text-muted-foreground">
-                  {new Date(item.dataHora).toLocaleString("pt-BR")}
+                <td className="px-4 py-3 text-xs font-medium">
+                  {agora === undefined ? new Date(item.dataHora).toLocaleString("pt-BR") : <>
+                    <time dateTime={item.dataHora}>{chaveDoDiaLocal(item.dataHora) === chaveDoDiaLocal(new Date(agora))
+                      ? textos.v2.hoje : new Date(item.dataHora).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })}
+                      {" · "}{horaLocal(item.dataHora)}</time>
+                    <div className={visual.tempoRelativo}>{concluido ? textos.status.concluido.toLowerCase()
+                      : tempoRelativo(item.dataHora, agora)}</div>
+                  </>}
                 </td>
-                <td className="px-4 py-3">
-                  {agora === undefined ? <PillDeStatus tom={concluido ? "sucesso" : "atencao"}>
+                {agora === undefined && <td className="px-4 py-3"><PillDeStatus tom={concluido ? "sucesso" : "atencao"}>
                     {concluido ? textos.status.concluido : textos.status.pendente}
-                  </PillDeStatus> : <span className={visual.status} data-tom={item.status}>
-                    {concluido ? textos.status.concluido : textos.status.pendente}
-                  </span>}
-                </td>
+                </PillDeStatus></td>}
                 {mostrarAtendente && (
                   <td className="px-4 py-3">
                     <div className="flex min-w-0 items-center gap-2">
@@ -388,14 +394,8 @@ function TabelaDeLembretes({
                 )}
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
-                  {onAdiar && !concluido && <Button size="icon" variant="ghost" disabled={ocupado}
-                    className="size-8" title={textos.v2.adiar} aria-label={textos.v2.adiar} onClick={() => onAdiar(item)}>
-                    <Clock3 aria-hidden className="size-4" />
-                  </Button>}
-                  {onEditar && <Button size="icon" variant="ghost" disabled={ocupado} className="size-8"
-                    title={textos.v2.editar} aria-label={textos.v2.editar} onClick={() => onEditar(item)}>
-                    <Pencil aria-hidden className="size-4" />
-                  </Button>}
+                  {onAdiar && !concluido && <MenuAdiamento textos={textos} ocupado={ocupado}
+                    onEscolher={(data) => onAdiar(item, data)} />}
                   {onRemover && (
                     <Button
                       size="icon"
@@ -415,9 +415,49 @@ function TabelaDeLembretes({
           })}
         </tbody>
       </table>
-      </div>)}
+      </div>;
+      })}
     </div>
   );
+}
+
+
+function tempoRelativo(iso: string, agora: number) {
+  const minutos = Math.round((Date.parse(iso) - agora) / 60_000);
+  const unidade = Math.abs(minutos) < 60 ? 1 : Math.abs(minutos) < 1_440 ? 60 : 1_440;
+  const formato = new Intl.RelativeTimeFormat("pt-BR", { style: "short" });
+  return formato.format(Math.round(minutos / unidade), unidade === 1 ? "minute" : unidade === 60 ? "hour" : "day");
+}
+
+function MenuAdiamento({ textos, ocupado, onEscolher }: {
+  textos: TextosLembretes;
+  ocupado: boolean;
+  onEscolher: (data: Date) => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [inicio, setInicio] = useState(() => Date.now());
+  const horarios = horariosDeAdiamento(inicio);
+  const opcoes = [
+    { id: "hora", rotulo: textos.v2.adiarHora },
+    { id: "amanha", rotulo: textos.v2.amanha },
+    { id: "segunda", rotulo: textos.v2.segunda },
+  ] as const;
+  return <Popover open={aberto} onOpenChange={(novo) => {
+    if (novo) setInicio(Date.now());
+    setAberto(novo);
+  }}>
+    <PopoverTrigger render={<Button size="icon" variant="ghost" disabled={ocupado}
+      className="size-8" aria-label={textos.v2.adiar} />}>
+      <Clock3 aria-hidden className="size-4" />
+    </PopoverTrigger>
+    <PopoverContent align="end" sideOffset={6} className={visual.menuAdiar}>
+      <PopoverTitle>{textos.v2.adiarPara}</PopoverTitle>
+      {opcoes.map(({ id, rotulo }) => <button key={id} type="button" onClick={() => {
+        onEscolher(horarios[id]);
+        setAberto(false);
+      }}>{rotulo}<span aria-hidden>{id === "segunda" && horarios[id].toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " "}{horaLocal(horarios[id])}</span></button>)}
+    </PopoverContent>
+  </Popover>;
 }
 
 function agruparLembretes(itens: Lembrete[], agora: number, textos: TextosLembretes) {

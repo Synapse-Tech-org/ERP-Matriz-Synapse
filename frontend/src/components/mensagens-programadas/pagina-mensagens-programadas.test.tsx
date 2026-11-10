@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
 const cancelarMutate = vi.fn();
+const enviarAgoraMock = vi.fn();
 const listarMock = vi.fn();
 
 const MENSAGENS = {
@@ -49,6 +50,15 @@ vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     mensagensProgramadas: {
       v2: {
+        titulo: "Mensagens Programadas",
+        agendadas: "Agendadas",
+        enviadas: "Enviadas",
+        canceladas: "Canceladas",
+        todas: "Todas",
+        descricao: "A Automação envia cada mensagem no horário escolhido.",
+        enviarAgora: "Enviar agora",
+        envioSolicitado: "Envio solicitado",
+        verNoChat: "Ver no chat",
         buscaContatos: "Buscar contatos…",
         todosAtendentes: "Todos os atendentes",
         proximoEnvio: "Próximo envio",
@@ -100,6 +110,10 @@ vi.mock("@/lib/suporte/api", () => ({
     }] });
     return Promise.resolve(MENSAGENS);
   },
+  enviarMensagemProgramadaAgora: (...args: unknown[]) => {
+    enviarAgoraMock(...args);
+    return Promise.resolve();
+  },
   cancelarMensagemProgramada: (...args: unknown[]) => {
     cancelarMutate(...args);
     return Promise.resolve();
@@ -133,6 +147,9 @@ describe("pagina de mensagens programadas", () => {
     }));
     expect(await screen.findAllByRole("rowheader")).toHaveLength(2);
     expect(screen.getAllByText("1 mensagem")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "Enviar agora" }));
+    await waitFor(() => expect(enviarAgoraMock).toHaveBeenCalledWith("p1", expect.anything()));
+    expect(await screen.findByRole("status")).toHaveTextContent("Envio solicitado");
   });
 
   it("lista as mensagens como cards, com lead, status e atendente", async () => {

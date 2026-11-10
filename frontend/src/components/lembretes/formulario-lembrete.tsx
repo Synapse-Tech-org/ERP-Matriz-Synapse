@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { AtalhosDeHorario } from "@/components/shell/atalhos-de-horario";
 import { Button } from "@/components/ui/button";
 import visual from "@/components/shell/agenda-recursos-v2.module.css";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { dataHoraCompleta, SeletorDataHora } from "@/components/ui/seletor-data-hora";
 import { Seletor } from "@/components/ui/seletor";
@@ -43,7 +44,7 @@ export function FormularioLembrete({ aberto, visualV2 = false, leadId, leadNome,
     return [...unicos.entries()];
   }, [atendimentos.data]);
   const criar = useMutation({
-    mutationFn: (dados: { leadId: string; texto: string; dataHora: string }) =>
+    mutationFn: (dados: { leadId: string | null; texto: string; dataHora: string }) =>
       existente
         ? editarLembrete(existente.id, {
             texto: dados.texto,
@@ -63,31 +64,38 @@ export function FormularioLembrete({ aberto, visualV2 = false, leadId, leadNome,
   const leadEfetivo = leadId ?? leadSelecionado;
   function salvar(evento: React.FormEvent) {
     evento.preventDefault();
-    if ((!existente && !leadEfetivo) || !texto.trim() || !dataHoraCompleta(dataHora)) return;
-    criar.mutate({ leadId: leadEfetivo, texto: texto.trim(), dataHora: new Date(dataHora).toISOString() });
+    if ((!visualV2 && !existente && !leadEfetivo) || !texto.trim() || !dataHoraCompleta(dataHora)) return;
+    criar.mutate({ leadId: leadEfetivo || null, texto: texto.trim(), dataHora: new Date(dataHora).toISOString() });
   }
 
   return (
     <Dialog open={aberto} onOpenChange={(novo) => !novo && onFechar()}>
       <DialogContent className={visualV2 ? visual.formulario : undefined}>
-        <DialogHeader><DialogTitle>{existente ? textos.formulario.tituloEditar : textos.formulario.titulo}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{existente ? textos.formulario.tituloEditar : textos.formulario.titulo}</DialogTitle>
+          {visualV2 && <DialogDescription>{textos.v2.subtituloFormulario}</DialogDescription>}
+        </DialogHeader>
         <form className="space-y-3" onSubmit={salvar}>
+          {visualV2 && <label className="block space-y-1 text-sm">
+            <span>{textos.v2.oQueLembrar}</span>
+            <Input placeholder={textos.v2.exemploLembrete} value={texto} onChange={(e) => setTexto(e.target.value)} required />
+          </label>}
           <label className="block space-y-1 text-sm">
             <span>{textos.formulario.lead}</span>
             {leadId || existente ? (
               <Input value={leadNome ?? existente?.leadNome ?? leadId ?? ""} disabled />
             ) : (
               <Seletor
-                obrigatorio
+                obrigatorio={!visualV2}
                 valor={leadSelecionado}
-                placeholder={textos.formulario.selecionarLead}
+                placeholder={visualV2 ? textos.v2.semLead : textos.formulario.selecionarLead}
                 opcoes={leads.map(([id, nome]) => ({ valor: id, rotulo: nome }))}
                 onChange={setLeadSelecionado}
               />
             )}
           </label>
           <label className="block space-y-1 text-sm">
-            <span>{textos.formulario.dataHora}</span>
+            <span>{visualV2 ? textos.v2.quando : textos.formulario.dataHora}</span>
+            {visualV2 && <AtalhosDeHorario rotulos={textos.v2} valor={dataHora} onChange={setDataHora} />}
             <SeletorDataHora
               valor={dataHora}
               placeholderData={textos.formulario.selecionarData}
@@ -97,10 +105,10 @@ export function FormularioLembrete({ aberto, visualV2 = false, leadId, leadNome,
               onChange={setDataHora}
             />
           </label>
-          <label className="block space-y-1 text-sm">
+          {!visualV2 && <label className="block space-y-1 text-sm">
             <span>{textos.formulario.texto}</span>
             <Textarea value={texto} onChange={(e) => setTexto(e.target.value)} required />
-          </label>
+          </label>}
           {criar.isError && <p role="alert" className="text-sm text-destructive">{textos.formulario.erroOperacao ?? textos.formulario.erro}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onFechar}>{textos.formulario.cancelar}</Button>

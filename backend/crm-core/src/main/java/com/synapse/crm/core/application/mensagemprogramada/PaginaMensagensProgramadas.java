@@ -4,4 +4,6 @@ import java.util.List;
 
 import com.synapse.crm.core.domain.mensagemprogramada.MensagemProgramada;
 
-public record PaginaMensagensProgramadas(List<MensagemProgramada> mensagens, int pagina, boolean temMais) {}
+public record PaginaMensagensProgramadas(List<MensagemProgramada> mensagens, int pagina, boolean temMais, Resumo resumo) {
+    public record Resumo(long agendadas, long enviadas, long canceladas, long total) {}
+}

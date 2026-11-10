@@ -8,10 +8,11 @@ import java.util.UUID;
 import com.synapse.crm.core.domain.mensagemprogramada.MensagemProgramada;
 
 public interface MensagemProgramadaRepositorio {
-    PaginaMensagensProgramadas listar(FiltroMensagensProgramadas filtro);
+    PaginaMensagensProgramadas listar(FiltroMensagensProgramadas filtro, boolean incluirResumo);
     MensagemProgramada criar(UUID leadId, UUID atendenteId, String conteudo, Instant dataEnvio);
     Optional<MensagemProgramada> porIdVisivel(UUID id);
     Optional<MensagemProgramada> atualizarAgendada(UUID id, String conteudo, Instant dataEnvio);
+    Optional<MensagemProgramada> anteciparAgendada(UUID id, Instant agora);
     Optional<MensagemProgramada> cancelarAgendada(UUID id);
 
     List<UUID> idsVencidos(Instant agora, int limite);

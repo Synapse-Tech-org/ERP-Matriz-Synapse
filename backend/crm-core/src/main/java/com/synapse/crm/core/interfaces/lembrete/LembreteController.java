@@ -88,7 +88,7 @@ class LembreteController {
 
     @Operation(
             summary = "Criar lembrete",
-            description = "Cria um lembrete manual para um lead dentro do recorte de visibilidade do usuário.",
+            description = "Cria um lembrete pessoal. O lead, quando informado, deve estar no recorte de visibilidade do usuário.",
             responses = {
                 @ApiResponse(responseCode = "201", description = "Lembrete criado."),
                 @ApiResponse(responseCode = "404", description = "Lead não encontrado ou não visível.")
@@ -134,8 +134,7 @@ class LembreteController {
     }
 
     record Criacao(
-            @Schema(description = "Lead visível ao qual o lembrete pertence.", requiredMode = Schema.RequiredMode.REQUIRED)
-                    @NotNull UUID leadId,
+            @Schema(description = "Lead visível ao qual o lembrete pertence, quando vinculado.") UUID leadId,
             @Schema(description = "Texto do lembrete.", example = "Retornar com o orçamento", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotBlank String texto,
             @Schema(description = "Data e hora em UTC.", example = "2026-08-06T13:00:00Z", requiredMode = Schema.RequiredMode.REQUIRED)

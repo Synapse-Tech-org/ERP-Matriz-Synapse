@@ -10,5 +10,7 @@ public class ListarMensagensProgramadasUseCase {
     public ListarMensagensProgramadasUseCase(MensagemProgramadaRepositorio mensagens) { this.mensagens = mensagens; }
     @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR','OPERADOR') and @capacidades.permite('mensagens_programadas.ver')")
     @Transactional(readOnly = true)
-    public PaginaMensagensProgramadas executar(FiltroMensagensProgramadas filtro) { return mensagens.listar(filtro); }
+    public PaginaMensagensProgramadas executar(FiltroMensagensProgramadas filtro, boolean incluirResumo) {
+        return mensagens.listar(filtro, incluirResumo);
+    }
 }

@@ -27,6 +27,9 @@ public class CriarLembreteUseCase {
     @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR','OPERADOR') and @capacidades.permite('lembretes.criar')")
     @Transactional
     public Optional<Lembrete> executar(UUID leadId, String texto, Instant dataHora) {
+        if (leadId == null) {
+            return Optional.of(lembretes.criar(null, usuario.atual().id(), texto.trim(), dataHora));
+        }
         return leads.porId(leadId)
                 .map(lead -> lembretes.criar(lead.id(), usuario.atual().id(), texto.trim(), dataHora));
     }

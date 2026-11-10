@@ -52,7 +52,7 @@ vi.mock("@/lib/auth/auth-store", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     lembretes: {
-      v2: {"buscar":"Buscar lembrete ou lead","todosAtendentes":"Todos os atendentes","soAutomaticos":"Somente automáticos","hoje":"Hoje e atrasados","amanha":"Amanhã","proximos":"Próximos dias","concluidos":"Concluídos","adiar":"Adiar 1 hora","reabrir":"Reabrir","editar":"Editar","periodoInvalido":"A data final deve ser igual ou posterior à inicial."},
+      v2: {"buscar":"Buscar lembrete ou lead","todosAtendentes":"Todos os atendentes","soAutomaticos":"Somente automáticos","hoje":"Hoje","amanha":"Amanhã","proximos":"Próximos dias","concluidos":"Concluídos","adiar":"Adiar","adiarPara":"Adiar para","adiarHora":"1 hora","segunda":"Segunda","reabrir":"Reabrir","editar":"Editar","periodoInvalido":"A data final deve ser igual ou posterior à inicial."},
       titulo: "Lembretes",
       descricao: "Compromissos pessoais ligados aos seus leads.",
       novo: "Novo lembrete",
@@ -127,17 +127,21 @@ describe("pagina de lembretes", () => {
   it("no V2 pesquisa no servidor, agrupa, adia e reabre", async () => {
     v2.ativo = true;
     renderComQuery();
-    expect(await screen.findByRole("rowheader", { name: "Hoje e atrasados" })).toBeInTheDocument();
+    expect(await screen.findByRole("rowheader", { name: "Hoje" })).toBeInTheDocument();
     expect(screen.getByRole("rowheader", { name: "Concluídos" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Somente automáticos" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Buscar lembrete ou lead" }), { target: { value: "retomar" } });
     await waitFor(() => expect(listarLembretesMock).toHaveBeenCalledWith(expect.objectContaining({
       busca: "retomar", origemAutomatica: true, pagina: 0,
     })));
-    fireEvent.click(await screen.findByRole("button", { name: "Adiar 1 hora" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Adiar" }));
+    expect(screen.getByRole("button", { name: "Amanhã" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Segunda" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "1 hora" }));
     await waitFor(() => expect(editarMutate).toHaveBeenCalledWith("r1", expect.objectContaining({
       status: "PENDENTE", dataHora: expect.any(String),
     })));
+    fireEvent.click(screen.getByRole("button", { name: "Concluídos" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Reabrir" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Reabrir" }));
     await waitFor(() => expect(atualizarMutate).toHaveBeenCalledWith(expect.objectContaining({ id: "r2" }), "PENDENTE"));

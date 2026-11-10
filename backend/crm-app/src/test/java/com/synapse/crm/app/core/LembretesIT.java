@@ -77,6 +77,17 @@ class LembretesIT extends PostgresIT {
     }
 
     @Test
+    void criaLembretePessoalSemVinculoEProtegeDeOutroAtendente() {
+        String texto = "Lembrete pessoal " + UUID.randomUUID();
+        var criado = chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.POST, "/api/v1/lembretes",
+                Map.of("texto", texto, "dataHora", "2026-08-05T13:00:00Z"));
+        assertThat(criado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(criado.getBody()).contains(texto);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.GET,
+                "/api/v1/lembretes", null).getBody()).doesNotContain(texto);
+    }
+
+    @Test
     @DisplayName("RN-CRM-04: atendente NAO lista, altera, remove nem cria no lead do colega")
     void negativoPrivacidadeDoAtendente() {
         String listaAna = chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET,

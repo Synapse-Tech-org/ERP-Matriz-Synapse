@@ -20,7 +20,7 @@ export interface PaginaLembretes {
 }
 
 export interface DadosLembrete {
-  leadId: string;
+  leadId: string | null;
   texto: string;
   dataHora: string;
 }
@@ -30,7 +30,12 @@ export interface MensagemProgramada {
   id: string; leadId: string; leadNome: string; atendenteId: string; atendenteNome: string;
   conteudo: string; dataEnvio: string; status: StatusMensagemProgramada;
 }
-export interface PaginaMensagensProgramadas { mensagens: MensagemProgramada[]; pagina: number; temMais: boolean; }
+export interface PaginaMensagensProgramadas {
+  mensagens: MensagemProgramada[];
+  pagina: number;
+  temMais: boolean;
+  resumo?: { agendadas: number; enviadas: number; canceladas: number; total: number };
+}
 export interface DadosMensagemProgramada { leadId: string; conteudo: string; dataEnvio: string; }
 
 export interface MensagemRapida { geral?:boolean; id:string; atendenteId:string; atendenteNome:string; palavraChave:string; conteudo:string; tipoMidia:string|null; }
