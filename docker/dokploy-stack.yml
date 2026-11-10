@@ -419,7 +419,7 @@ services:
   # Base TypeScript opcional. Nao substitui o n8n nem muda os destinos do CRM.
   # O override de imagem permite homologar sem trocar as imagens do CRM.
   automacao:
-    image: ghcr.io/synapse-auto/erp-matriz-synapse-automacao:${SYNAPSE_IMAGE_TAG:?obrigatoria}${AUTOMACAO_IMAGE_DIGEST:-}
+    image: ${AUTOMACAO_IMAGE_REPOSITORIO:-ghcr.io/synapse-auto/erp-matriz-synapse-automacao}:${SYNAPSE_IMAGE_TAG:?obrigatoria}${AUTOMACAO_IMAGE_DIGEST:-}
     environment:
       NODE_ENV: production
       AUTOMACAO_HOST: 0.0.0.0

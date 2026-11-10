@@ -174,3 +174,13 @@ test("Docker Stack real: roteadores padrao sao exclusivos por filho", () => {
         ],
     );
 });
+
+test("repositorio e digest publicados na org atual alteram somente a imagem da automacao", () => {
+    const base = renderizar();
+    const repositorio = "ghcr.io/fixture-org/erp-matriz-synapse-automacao";
+    const hml = renderizar({AUTOMACAO_IMAGE_REPOSITORIO:repositorio, AUTOMACAO_IMAGE_DIGEST:digest});
+    assert.equal(hml.services.automacao.image, repositorio + ":abcdef1" + digest);
+    for (const [nome, servico] of Object.entries(base.services)) {
+        if (nome !== "automacao") assert.deepEqual(hml.services[nome], servico, nome);
+    }
+});

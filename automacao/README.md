@@ -22,6 +22,7 @@ de fila ou reprocessamento. pg-boss instalado nao significa fila em execucao.
 | `banco/migrations/` | Adaptacoes versionadas da automacao |
 | `banco/FAQ-MIGRACAO.md` | V2 da FAQ e credencial do banco da automacao |
 | `banco/TABELAS-AUXILIARES.md` | Oito tabelas auxiliares, V2-V9 e aplicacao no deploy |
+| `PUBLICACAO-IMAGEM-HML.md` | Publicacao isolada da imagem e checklist do painel |
 | `src/operacao/` | Consultas, migracoes, identidade e sessoes |
 | `painel/` | Interface propria, sem alterar frontend do CRM |
 | `DECISOES-FOLLOWUP-UNIFICADO.md` | Decisoes do futuro follow-up |

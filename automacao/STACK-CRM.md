@@ -111,6 +111,35 @@ config, por exemplo sufixo v2, e atualizacao das referencias so do preparador.
 
 ## Etapa B: liberar somente o painel
 
+### Checklist completo do painel
+
+- `AUTOMACAO_REPLICAS=1`: solicita o processo da aplicacao. Nao garante que a
+  imagem consiga ser baixada ou que a tarefa consiga iniciar.
+- `AUTOMACAO_PAINEL_HABILITADO=true`: publica a rota no Traefik; ausente e false.
+- `AUTOMACAO_PAINEL_DOMINIO`: host do painel, sem https nem /painel/.
+- `AUTOMACAO_DB_NAME/USER/PASSWORD`: mesmas credenciais da automacao ja criada.
+  Nao usar credenciais/banco do produto n8n ou do CRM como destino.
+- Identificacao do filho `TRAEFIK_ROUTER_PREFIX`, `SYNAPSE_TIMEZONE`, `POSTGRES_DB`
+  e `N8N_DB_NAME` ja pertencem ao ambiente existente e continuam necessarios.
+
+Para selecionar a imagem publicada no namespace atual, usar as duas referencias
+de `PUBLICACAO-IMAGEM-HML.md`: `AUTOMACAO_IMAGE_REPOSITORIO` e
+`AUTOMACAO_IMAGE_DIGEST`. Nao trocar `SYNAPSE_IMAGE_TAG` para atualizar so o painel.
+O override de repositorio e opcional para filhos que usam a publicacao anterior.
+Defaults internos:
+`AUTOMACAO_ROUTER_PREFIX=painel`, `AUTOMACAO_MEMORY_LIMIT=768M`,
+`AUTOMACAO_CRM_URL=http://synapse-backend-internal:8080`, schema public e pool 3.
+Host postgres, porta PostgreSQL 5432 e HTTP 3100 ja sao definidos no Stack.
+`AUTOMACAO_TOKEN` protege a API interna de operacao; nao e a senha de login do
+painel, que usa o usuario/permissoes do CRM. Preservar o segredo existente.
+As chaves geral/follow-up podem continuar false para testar somente o painel.
+
+O painel exige uma imagem da aplicacao publicada no registry; nao e servido pela
+tarefa automacao-banco. Com replicas=1 mas sem container, conferir o erro da tarefa
+Swarm/imagem selecionada. A flag de rota nao resolve falha ao baixar/iniciar imagem.
+Um 404 de texto simples com certificado padrao pode vir do Traefik sem rota ativa,
+antes de chegar ao Fastify. Nao tratar isso como erro de migration ou login.
+
 Depois de confirmar A e obter autorizacao para outro deploy:
 
 ```dotenv
