@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Pencil, Trash2, Zap } from "lucide-react";
+import { Copy, Layers, Pencil, Plus, Search, Trash2, Zap } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
+import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
+import listaV2 from "@/components/shell/lista-v2.module.css";
+import { copiarTexto } from "@/lib/mensagens/copiar-texto";
+import { cn } from "@/lib/utils";
 import {
   criarMensagemRapida,
   editarMensagemRapida,
@@ -27,9 +32,11 @@ import {
   removerMensagemRapida,
 } from "@/lib/suporte/api";
 import type { MensagemRapida } from "@/lib/suporte/types";
+import estilos from "./mensagens-rapidas-v2.module.css";
 
 export function PaginaMensagensRapidas() {
   const t = useTextos().mensagensRapidas;
+  const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("mensagens_rapidas_layout_v2") ?? false;
   // Só apresentação: agrupa por autor para quem enxerga as mensagens de toda a equipe.
   const gestor = ["SUBGESTOR", "GESTOR", "ADMINISTRADOR"].includes(useAuthStore((s) => s.papel) ?? "");
   const capacidades = useCapacidades();
@@ -38,6 +45,8 @@ export function PaginaMensagensRapidas() {
   const cache = useQueryClient();
   const [aberto, setAberto] = useState(false);
   const [edicao, setEdicao] = useState<MensagemRapida | null>(null);
+  const [busca, setBusca] = useState("");
+  const [lista, setLista] = useState<string | null>(null);
 
   const consulta = useQuery({
     queryKey: ["mensagens-rapidas"],
@@ -49,38 +58,80 @@ export function PaginaMensagensRapidas() {
   });
 
   const grupos = agruparPorAtendente(consulta.data ?? []);
+  const termo = busca.trim().replace(/^\//, "").toLocaleLowerCase("pt-BR");
+  const gruposExibidos = layoutV2 ? grupos
+    .filter((grupo) => lista === null || grupo.atendenteId === lista)
+    .map((grupo) => ({
+      ...grupo,
+      itens: grupo.itens.filter(({ palavraChave, conteudo }) =>
+        palavraChave.toLocaleLowerCase("pt-BR").includes(termo) || conteudo.toLocaleLowerCase("pt-BR").includes(termo)),
+    }))
+    .filter((grupo) => grupo.itens.length > 0) : grupos;
 
   return (
-    <div className="space-y-5 p-6">
+    <div data-layout={layoutV2 ? "v2" : "legado"} className={layoutV2 ? listaV2.pagina : "space-y-5 p-6"}>
+      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} />}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">{t.titulo}</h1>
           <p className="text-sm text-muted-foreground">{t.descricao}</p>
         </div>
-        {podeCriar && <Button onClick={() => setAberto(true)}>{t.nova}</Button>}
+        {podeCriar && <Button data-slot="lista-v2-acao" onClick={() => setAberto(true)}>
+          {layoutV2 && <Plus aria-hidden />}
+          {t.nova}
+        </Button>}
       </header>
 
-      <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+      {!layoutV2 && <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
         <Zap className="size-[calc(var(--tamanho-icone-interface)*1.25)] shrink-0 text-primary" />
         <p className="text-sm text-primary">{t.dica}</p>
-      </div>
+      </div>}
 
+      <div className={layoutV2 ? estilos.corpo : undefined}>
+        {layoutV2 && (
+          <aside className={estilos.listas} aria-label={t.v2.listas}>
+            <h2>{t.v2.listas}</h2>
+            <button type="button" aria-pressed={lista === null} onClick={() => setLista(null)}>
+              <Layers aria-hidden className="size-4" />
+              <span>{t.v2.todas}</span><small>{consulta.data?.length ?? 0}</small>
+            </button>
+            {grupos.map((grupo) => (
+              <button type="button" key={grupo.atendenteId} aria-pressed={lista === grupo.atendenteId} onClick={() => setLista(grupo.atendenteId)}>
+                <AvatarIniciais id={grupo.atendenteId} nome={grupo.atendenteNome}
+                  className="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" />
+                <span>{grupo.atendenteNome}</span><small>{grupo.itens.length}</small>
+              </button>
+            ))}
+            <p>{t.dica}</p>
+          </aside>
+        )}
+        <div className={layoutV2 ? estilos.conteudo : undefined}>
+        {layoutV2 && (
+          <div className={estilos.busca}>
+            <label>
+              <Search aria-hidden className="size-4" />
+              <Input aria-label={t.v2.buscar} placeholder={t.v2.buscar} value={busca}
+                onChange={(evento) => setBusca(evento.target.value)} />
+            </label>
+            <span>{t.v2.total.replace("{total}", String(gruposExibidos.reduce((total, grupo) => total + grupo.itens.length, 0)))}</span>
+          </div>
+        )}
       {consulta.isLoading ? (
         <p>{t.carregando}</p>
       ) : consulta.isError ? (
         <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => consulta.refetch()} />
-      ) : !consulta.data?.length ? (
+      ) : !gruposExibidos.length ? (
         <p className="text-muted-foreground">{t.vazio}</p>
       ) : (
         <div className="space-y-6">
-          {grupos.map((grupo) => (
+          {gruposExibidos.map((grupo) => (
             <div key={grupo.atendenteId}>
-              {gestor && (
+              {(gestor || layoutV2) && (
                 <div className="mb-3 flex items-center gap-2.5">
                   <AvatarIniciais
                     id={grupo.atendenteId}
                     nome={grupo.atendenteNome}
-                    className="flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
+                    className={cn("flex size-8 shrink-0 items-center justify-center text-xs font-bold text-white", layoutV2 ? "rounded-full" : "rounded-lg")}
                   />
                   <span className="text-sm font-bold">{grupo.atendenteNome}</span>
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
@@ -88,12 +139,13 @@ export function PaginaMensagensRapidas() {
                   </span>
                 </div>
               )}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className={layoutV2 ? estilos.grade : "grid grid-cols-1 gap-3 sm:grid-cols-2"}>
                 {grupo.itens.map((mensagem) => (
                   <CardDeMensagemRapida
                     key={mensagem.id}
                     mensagem={mensagem}
                     textos={t}
+                    layoutV2={layoutV2}
                     onEditar={podeEditarExcluir ? () => setEdicao(mensagem) : undefined}
                     onRemover={podeEditarExcluir ? () => remover.mutate(mensagem.id) : undefined}
                   />
@@ -103,6 +155,8 @@ export function PaginaMensagensRapidas() {
           ))}
         </div>
       )}
+        </div>
+      </div>
 
       <Formulario aberto={aberto && podeCriar} onFechar={() => setAberto(false)} />
       {edicao && podeEditarExcluir && <Formulario aberto existente={edicao} onFechar={() => setEdicao(null)} />}
@@ -134,21 +188,30 @@ function agruparPorAtendente(
 function CardDeMensagemRapida({
   mensagem,
   textos,
+  layoutV2,
   onEditar,
   onRemover,
 }: {
   mensagem: MensagemRapida;
   textos: TextosMensagensRapidas;
+  layoutV2: boolean;
   onEditar?: () => void;
   onRemover?: () => void;
 }) {
+  const [resultadoCopia, setResultadoCopia] = useState<string | null>(null);
+
   return (
-    <div className="flex flex-col gap-2.5 rounded-lg border bg-card p-4">
+    <div className={cn("flex flex-col gap-2.5 rounded-lg border bg-card p-4", layoutV2 && estilos.cartao)}>
       <div className="flex items-center gap-2">
         <span className="rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1 font-mono text-xs font-bold text-primary">
           /{mensagem.palavraChave}
         </span>
         <div className="ml-auto flex gap-1">
+          {layoutV2 && <Button type="button" size="icon" variant="ghost" className="size-8"
+            aria-label={`${textos.v2.copiar} /${mensagem.palavraChave}`}
+            onClick={async () => setResultadoCopia(await copiarTexto(mensagem.conteudo) ? textos.v2.copiado : textos.v2.erroCopia)}>
+            <Copy aria-hidden />
+          </Button>}
           {onEditar && (
             <Button
               size="icon"
@@ -173,7 +236,11 @@ function CardDeMensagemRapida({
           )}
         </div>
       </div>
-      <p className="text-sm text-muted-foreground">{mensagem.conteudo}</p>
+      <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{mensagem.conteudo}</p>
+      {layoutV2 && <div className={estilos.rodape}>
+        <span>{textos.v2.caracteres.replace("{total}", String(Array.from(mensagem.conteudo).length))}</span>
+        {resultadoCopia && <span role="status">{resultadoCopia}</span>}
+      </div>}
     </div>
   );
 }
@@ -221,7 +288,7 @@ function Formulario({
               <span className="px-2 font-mono">/</span>
               <Input
                 required
-                pattern="[\p{L}\p{N}_-]+"
+                pattern={String.raw`[\p{L}\p{N}_\-]+`}
                 value={chave}
                 onChange={(e) => setChave(e.target.value)}
               />

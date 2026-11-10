@@ -1,0 +1,103 @@
+.pagina {
+  display: flex;
+  height: calc(100% - 20px);
+  min-height: 0;
+  flex-direction: column;
+  gap: 14px;
+  margin: 10px 10px 10px 0;
+  padding: 16px 28px 24px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--background);
+  box-shadow: var(--sombra-xl);
+  font-family: var(--fonte-frontend-v2), var(--fonte-base), sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.pagina :global([data-slot="lista-v2-topo"]),
+.pagina :global([data-slot="lista-v2-topo"]) nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagina :global([data-slot="lista-v2-topo"]) {
+  min-height: 38px;
+  justify-content: space-between;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.pagina :global([data-slot="lista-v2-topo"]) :global([aria-current="page"]) {
+  color: var(--chat-texto-forte);
+  font-weight: 500;
+}
+
+.pagina :global([data-slot="dashboard-sino"]) {
+  position: relative;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+}
+
+.pagina :global([data-slot="dashboard-sino-ponto"]) {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--card);
+  border-radius: 50%;
+  background: var(--v2-laranja);
+}
+
+.pagina > header {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+}
+
+.pagina > header h1 {
+  color: var(--chat-texto-forte);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+
+.pagina > header :global([data-slot="button"]) {
+  min-height: 38px;
+  border-radius: 12px;
+  box-shadow: var(--sombra-sm);
+}
+
+.pagina > header :global([data-slot="lista-v2-acao"]) {
+  min-height: 38px;
+  border-radius: 12px;
+  box-shadow: var(--sombra-primaria);
+}
+
+@media (max-width: 639px) {
+  .pagina {
+    height: 100%;
+    margin: 0;
+    padding: 12px;
+    border-radius: 0;
+  }
+
+  .pagina > header h1 {
+    font-size: 23px;
+  }
+}

@@ -78,6 +78,7 @@ interface Props {
   textoSemResponsavel: string;
   /** "Exibindo N de M leads" (E17b §Bloco 3) — mesma linha da barra, como no protótipo. */
   contador: ReactNode;
+  atalhos?: ReactNode;
   onAdicionar: (filtro: FiltroAtivo) => void;
   onFiltrosRapidosChange: (filtros: FiltrosRapidosAgenda) => void;
   onRemover: (id: string) => void;
@@ -97,6 +98,7 @@ export function BarraDeFiltros({
   textosStatus,
   textoSemResponsavel,
   contador,
+  atalhos,
   onAdicionar,
   onFiltrosRapidosChange,
   onRemover,
@@ -177,9 +179,17 @@ export function BarraDeFiltros({
 
   const haFiltros = chipsRapidos.length > 0 || filtrosAtivos.length > 0;
 
+  const botaoAvancados = (
+    <Button type="button" data-slot="agenda-abrir-avancados" variant={atalhos ? "outline" : "ghost"} size="sm"
+      aria-expanded={avancadosAbertos} onClick={() => setAvancadosAbertos((abertos) => !abertos)}>
+      {textos.avancados}
+      <ChevronDown className={avancadosAbertos ? "rotate-180 transition-transform" : "transition-transform"} />
+    </Button>
+  );
+
   return (
-    <div className="mb-3 space-y-2 border-b border-border pb-3">
-      <div className="flex flex-wrap items-center gap-2.5">
+    <div data-slot="agenda-filtros" className="mb-3 space-y-2 border-b border-border pb-3">
+      <div data-slot="agenda-filtros-rapidos" className="flex flex-wrap items-center gap-2.5">
         <div className="relative min-w-72 max-w-[380px] flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-(--tamanho-icone-interface) -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -195,14 +205,15 @@ export function BarraDeFiltros({
             }
           />
         </div>
-        <SeletorMultiplo
+        {atalhos}
+        {!atalhos && <SeletorMultiplo
           className="min-w-28"
           ariaLabel={textos.etapa}
           valores={filtrosRapidos.etapas}
           opcoes={opcoesRapidas.etapas}
           placeholder={textos.etapa}
           onChange={(valores) => atualizarRapido("etapas", valores)}
-        />
+        />}
         <SeletorMultiplo
           className="min-w-32"
           ariaLabel={textos.atendente}
@@ -227,26 +238,12 @@ export function BarraDeFiltros({
           placeholder={textos.tag}
           onChange={(valores) => atualizarRapido("tags", valores)}
         />
+        {atalhos && botaoAvancados}
         <div className="ml-auto shrink-0">{contador}</div>
       </div>
 
-      <div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          aria-expanded={avancadosAbertos}
-          onClick={() => setAvancadosAbertos((abertos) => !abertos)}
-        >
-          {textos.avancados}
-          <ChevronDown
-            className={
-              avancadosAbertos
-                ? "rotate-180 transition-transform"
-                : "transition-transform"
-            }
-          />
-        </Button>
+      <div data-slot="agenda-filtros-avancados">
+        {!atalhos && botaoAvancados}
         {avancadosAbertos && (
           <div className="mt-2 border-t border-border pt-3">
             <FormularioDeNovoFiltro

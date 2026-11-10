@@ -1141,6 +1141,16 @@
     }
   },
   "mensagensRapidas": {
+    "v2": {
+      "listas": "Listas",
+      "todas": "Todas",
+      "buscar": "Buscar por atalho ou texto",
+      "total": "{total} mensagens",
+      "copiar": "Copiar texto",
+      "copiado": "Texto copiado",
+      "erroCopia": "Não foi possível copiar o texto",
+      "caracteres": "{total} caracteres"
+    },
     "titulo": "Mensagens rápidas",
     "descricao": "Atalhos pessoais para respostas usadas com frequência.",
     "nova": "Nova mensagem rápida",
@@ -2052,6 +2062,14 @@
     }
   },
   "agenda": {
+    "v2": {
+      "todos": "Todos",
+      "meus": "Meus contatos",
+      "todasEtapas": "Todas as etapas",
+      "lista": "Lista",
+      "kanban": "Kanban",
+      "semEtapa": "Sem etapa"
+    },
     "titulo": "Agenda de contatos",
     "descricao": "Clique no contato para consultar a ficha; use Abrir atendimento para ir ao chat.",
     "vazia": "Nenhum contato encontrado com os filtros atuais.",

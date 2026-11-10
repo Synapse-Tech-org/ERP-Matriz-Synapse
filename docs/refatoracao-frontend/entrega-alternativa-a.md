@@ -1,5 +1,9 @@
 > Continuação: a Etapa 2 do Dashboard está registrada em [dashboard/entrega.md](dashboard/entrega.md). Este documento preserva os resultados da primeira entrega.
 
+## Agenda e Mensagens Rápidas V2
+
+As chaves `agenda_layout_v2` e `mensagens_rapidas_layout_v2` habilitam as telas de forma independente por instância. O visual usa a moldura, a tipografia e os tokens do CRM. Agenda mantém o filtro e a paginação do servidor e oferece uma visualização Kanban da página atual. A movimentação por arraste e a contagem global por etapa ficam pendentes. Mensagens Rápidas agrupa por autor e busca nas mensagens que a API autorizou. O protótipo apresenta uma lista geral compartilhada, que ainda carece de contrato no CRM.
+
 # Alternativa A — primeira entrega de Atendimentos
 
 ## 1. Estado e revisão

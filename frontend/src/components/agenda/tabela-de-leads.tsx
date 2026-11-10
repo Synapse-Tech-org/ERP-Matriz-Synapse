@@ -34,6 +34,7 @@ interface Props {
   /** Ausente quando o usuário não pode abrir atendimento (Gestão): a coluna fica sem o botão. */
   onAbrirAtendimento?: (lead: LeadDaAgenda) => void;
   abrindoLeadId?: string | null;
+  layoutV2?: boolean;
 }
 
 export function TabelaDeLeads({
@@ -44,6 +45,7 @@ export function TabelaDeLeads({
   onAbrirFicha,
   onAbrirAtendimento,
   abrindoLeadId = null,
+  layoutV2 = false,
 }: Props) {
   const etapaPorId = new Map(etapas.map((etapa) => [etapa.id, etapa]));
   const nomePorAtendenteId = new Map(
@@ -51,7 +53,7 @@ export function TabelaDeLeads({
   );
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+    <div data-slot="agenda-tabela" className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
       <table className="w-full text-sm">
         <thead className="bg-muted/30">
           <tr>
@@ -94,7 +96,9 @@ export function TabelaDeLeads({
               <tr
                 key={lead.id}
                 className="cursor-pointer border-t border-border hover:bg-muted/50"
-                onClick={() => onAbrirFicha(lead)}
+                onClick={layoutV2 ? undefined : () => onAbrirFicha(lead)}
+                onDoubleClick={layoutV2 && onAbrirAtendimento && abrindoLeadId == null
+                  ? () => onAbrirAtendimento(lead) : undefined}
               >
                 <td className="px-5 py-3">
                   <div className="flex min-w-0 items-center gap-2.5">
@@ -102,12 +106,13 @@ export function TabelaDeLeads({
                       id={lead.id}
                       nome={lead.nome}
                       fotoUrl={lead.fotoUrl}
-                      className="flex size-10 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-primary-foreground"
+                      className={`flex size-10 shrink-0 items-center justify-center text-xs font-bold text-primary-foreground ${layoutV2 ? "rounded-full" : "rounded-lg"}`}
                     />
                     <div className="min-w-0">
-                      <p className="truncate font-bold text-foreground">
+                      {layoutV2 ? <button type="button" className="block max-w-full truncate text-left font-semibold text-foreground"
+                        onClick={() => onAbrirFicha(lead)}>{lead.nome}</button> : <p className="truncate font-bold text-foreground">
                         {lead.nome}
-                      </p>
+                      </p>}
                       {lead.empresa && (
                         <p className="truncate text-xs text-muted-foreground">
                           {lead.empresa}
@@ -205,6 +210,7 @@ export function TabelaDeLeads({
                         evento.stopPropagation();
                         onAbrirAtendimento(lead);
                       }}
+                      onDoubleClick={(evento) => evento.stopPropagation()}
                     >
                       <MessageSquare className="mr-1.5 size-(--tamanho-icone-interface)" aria-hidden />
                       {abrindo ? textos.abrindoAtendimento : textos.abrirAtendimento}

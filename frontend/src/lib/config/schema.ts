@@ -1127,6 +1127,16 @@ export const TextosSchema = z.object({
     formulario:z.object({tituloCriar:z.string(),tituloEditar:z.string(),lead:z.string(),selecionarLead:z.string(),dataEnvio:z.string(),selecionarData:z.string(),hora:z.string(),minuto:z.string(),conteudo:z.string(),salvar:z.string(),cancelar:z.string(),erro:z.string()}),
   }),
   mensagensRapidas: z.object({
+    v2: z.object({
+      listas: z.string().default("Listas"),
+      todas: z.string().default("Todas"),
+      buscar: z.string().default("Buscar por atalho ou texto"),
+      total: z.string().default("{total} mensagens"),
+      copiar: z.string().default("Copiar texto"),
+      copiado: z.string().default("Texto copiado"),
+      erroCopia: z.string().default("Não foi possível copiar o texto"),
+      caracteres: z.string().default("{total} caracteres"),
+    }).prefault({}),
     titulo: z.string(),
     descricao: z.string(),
     nova: z.string(),
@@ -1402,6 +1412,14 @@ export const TextosSchema = z.object({
     tempo: z.object({ minutos: z.string(), horasMinutos: z.string() }),
   }),
   agenda: z.object({
+    v2: z.object({
+      todos: z.string().default("Todos"),
+      meus: z.string().default("Meus contatos"),
+      todasEtapas: z.string().default("Todas as etapas"),
+      lista: z.string().default("Lista"),
+      kanban: z.string().default("Kanban"),
+      semEtapa: z.string().default("Sem etapa"),
+    }).prefault({}),
     titulo: z.string(),
     descricao: z.string(),
     vazia: z.string(),
