@@ -173,6 +173,7 @@ export const GestaoTextosSchema = z.object({
       "semPersonalizadas": z.string().default("Todos seguem o perfil"),
       "comPersonalizadas": z.string().default("Usuários com ajustes individuais"),
       "membros": z.string().default("Membros da equipe"),
+      "rodizioIa": z.string().default("Rodízio da IA"),
       "membrosResumo": z.string().default("{total} integrantes · abra uma pessoa para ver função e permissões"),
       "buscaEquipe": z.string().default("Buscar por nome ou e-mail"),
       "todos": z.string().default("Todos"),

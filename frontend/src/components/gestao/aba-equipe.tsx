@@ -250,7 +250,7 @@ export function AbaEquipe({
               <th scope="col" className="hidden px-3 py-3.5 text-left md:table-cell">{textos.equipe.colunas.funcao}</th>
               {setoresLigados && <th scope="col" className="hidden px-3 py-3.5 text-left lg:table-cell">{textosSetores.colunaSetor}</th>}
               <th scope="col" className="hidden px-3 py-3.5 text-left sm:table-cell">{textos.equipe.colunas.presenca}</th>
-              <th scope="col" className="hidden px-3 py-3.5 text-left lg:table-cell">{textos.equipe.colunas.ia}</th>
+              <th scope="col" className="hidden px-3 py-3.5 text-left lg:table-cell">{layoutV2 ? textos.v2.rodizioIa : textos.equipe.colunas.ia}</th>
               {atorFixo && <th scope="col" className="hidden px-3 py-3.5 text-left xl:table-cell">{textos.equipe.colunas.avaliacao}</th>}
               <th scope="col" className="hidden px-3 py-3.5 text-left md:table-cell">{textos.equipe.colunas.permissoes}</th>
               <th scope="col" className="px-5 py-3.5 text-right">{textos.equipe.colunas.acoes}</th>
