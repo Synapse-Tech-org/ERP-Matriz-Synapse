@@ -38,7 +38,7 @@ export function FormularioLembrete({ aberto, visualV2 = false, podeAtribuirRespo
   const cache = useQueryClient();
   const [responsavel, setResponsavel] = useState("");
   const responsavelAtual = existente?.atendenteId ?? meuUsuario?.id ?? "";
-  const nomeResponsavelAtual = existente?.atendenteNome ?? meuUsuario?.nome ?? textos.v2.voce;
+  const nomeResponsavelAtual = existente?.atendenteNome ?? meuUsuario?.nome ?? (visualV2 ? textos.v2.voce : "");
   const opcoesDeResponsavel = responsaveis
     .filter((pessoa) => pessoa.ativo && !pessoa.usuarioTeste && pessoa.id !== responsavelAtual)
     .map((pessoa) => ({ valor: pessoa.id, rotulo: pessoa.nome }));
