@@ -43,7 +43,9 @@ class RelatorioAtendimentosController {
     }
 
     @GetMapping
-    @Operation(summary = "Consultar histórico paginado de atendimentos e indicadores do período")
+    @Operation(
+            summary = "Consultar histórico paginado de atendimentos e indicadores do período",
+            description = "Retorna os atendimentos visíveis e os indicadores do recorte por período, cliente, status, etapa ou responsável.")
     RelatorioAtendimentos consultar(@ModelAttribute Filtros filtros,
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamanho) {
@@ -51,7 +53,9 @@ class RelatorioAtendimentosController {
     }
 
     @GetMapping("/exportacao")
-    @Operation(summary = "Exportar CSV do mesmo recorte de atendimentos, até 5.000 linhas")
+    @Operation(
+            summary = "Exportar CSV do mesmo recorte de atendimentos, até 5.000 linhas",
+            description = "Exporta os registros autorizados que correspondem aos filtros da lista. Retorna 422 se o recorte ultrapassar 5.000 registros.")
     ResponseEntity<byte[]> exportar(@ModelAttribute Filtros filtros) {
         var linhas = exportar.executar(filtros.entrada(), LIMITE_EXPORTACAO + 1);
         if (linhas.size() > LIMITE_EXPORTACAO) {
