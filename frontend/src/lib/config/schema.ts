@@ -6,6 +6,7 @@ import { SetoresTextosSchema } from "./schema-setores";
 import { GestaoTextosSchema } from "./schema-gestao";
 import { ErrosTextosSchema } from "./schema-erros";
 import { PainelOperacionalTextosSchema } from "./schema-painel-operacional";
+import { RelatoriosTextosSchema } from "./schema-relatorios";
 import { CancelamentosTextosSchema, TEXTOS_CANCELAMENTOS } from "./schema-cancelamentos";
 
 /**
@@ -1614,6 +1615,7 @@ export const TextosSchema = z.object({
   }),
   gestao: GestaoTextosSchema,
   cancelamentos: CancelamentosTextosSchema,
+  relatorios: RelatoriosTextosSchema,
   campanhas: CampanhasTextosSchema,
   setores: SetoresTextosSchema,
   usuariosTeste: z.object({

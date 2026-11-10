@@ -38,6 +38,7 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
   const noDashboard = pathname === "/dashboard";
   const visualV2 = (noDashboard && dashboardV2)
     || (pathname === "/atendimentos" && atendimentosV2)
+    || (pathname === "/relatorios" && funcionalidades.data?.includes("relatorios"))
     || (pathname === "/agenda" && funcionalidades.data?.includes("agenda_layout_v2"))
     || (pathname === "/mensagens-rapidas" && funcionalidades.data?.includes("mensagens_rapidas_layout_v2"))
     || (ROTAS_RECURSOS_V2.has(pathname) && funcionalidades.data?.includes("recursos_layout_v2"))

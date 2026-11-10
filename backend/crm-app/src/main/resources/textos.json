@@ -2471,6 +2471,66 @@
     "nomeEmUso": "Já existe um setor com este nome.",
     "setorInativo": "Este setor está inativo e não aceita novos integrantes."
   },
+  "relatorios": {
+    "titulo": "Relatórios",
+    "subtitulo": "Histórico de atendimentos com a jornada de funil de cada contato. Clique nos gráficos para filtrar a lista.",
+    "periodo": "Período",
+    "inicio": "Início",
+    "fim": "Término",
+    "exportar": "Exportar CSV",
+    "exportando": "Exportando…",
+    "exportacaoErro": "Não foi possível exportar o relatório.",
+    "exportacaoLimite": "O CSV aceita até 5.000 registros. Reduza o período ou refine os filtros.",
+    "arquivo": "atendimentos.csv",
+    "erro": "Não foi possível carregar os atendimentos. Confira o período e tente novamente.",
+    "carregando": "Carregando atendimentos…",
+    "periodoInvalido": "Selecione as duas datas do período na ordem correta.",
+    "vazio": "Nenhum atendimento neste recorte.",
+    "atendimentos": "Atendimentos",
+    "finalizados": "Finalizados",
+    "tma": "Tempo médio (TMA)",
+    "csat": "CSAT médio",
+    "csatNota": "CSAT",
+    "avaliacoes": "Avaliações de 0 a 10 ({total})",
+    "resultado": "Atendimentos no recorte ({total})",
+    "duracao": "Duração",
+    "etapa": "Etapa",
+    "status": "Status",
+    "responsavel": "Atendente",
+    "cliente": "Cliente",
+    "semValor": "—",
+    "semEtapa": "Sem etapa",
+    "semResponsavel": "Sem atendente",
+    "etapaAtual": "Etapa atual do funil",
+    "porAtendente": "Por atendente",
+    "todasEtapas": "Todas as etapas",
+    "todosAtendentes": "Todos os atendentes",
+    "todosStatus": "Todos",
+    "busca": "Cliente, empresa ou protocolo",
+    "anterior": "Anterior",
+    "proxima": "Próxima",
+    "pagina": "Página {atual} de {total}",
+    "jornada": "Jornada no funil",
+    "semJornada": "Nenhuma mudança de etapa registrada nesta página.",
+    "erroJornada": "Não foi possível carregar a jornada.",
+    "maisEventos": "Ver eventos anteriores",
+    "fechar": "Fechar",
+    "limpar": "Limpar filtros",
+    "periodos": {
+      "HOJE": "Hoje",
+      "SETE_DIAS": "7 dias",
+      "TRINTA_DIAS": "30 dias",
+      "MES": "Este mês",
+      "TRIMESTRE": "3 meses",
+      "ANO": "Este ano",
+      "PERSONALIZADO": "Personalizado"
+    },
+    "statusRotulos": {
+      "EM_IA": "Em IA",
+      "EM_ATENDIMENTO": "Em andamento",
+      "FINALIZADO": "Finalizado"
+    }
+  },
   "cancelamentos": {
     "titulo": "Cancelamentos",
     "descricao": "Consulte os agendamentos cancelados.",
@@ -2815,6 +2875,10 @@
         "rotulo": "Campanhas",
         "descricao": "Envios em massa e acompanhamento das campanhas"
       },
+      "relatorios": {
+        "rotulo": "Relatórios",
+        "descricao": "Histórico e exportação de atendimentos"
+      },
       "cancelamentos": {
         "rotulo": "Cancelamentos",
         "descricao": "Consulta de agendamentos cancelados, sem alterar atendimentos"
@@ -2826,6 +2890,8 @@
     },
     "capacidades": {
       "cancelamentos.ver": "Consultar cancelamentos de agendamentos",
+      "relatorios.ver": "Consultar histórico de atendimentos",
+      "relatorios.exportar": "Exportar CSV de atendimentos",
       "clientes.acessar": "Acesso a clientes",
       "atendimentos.ver": "Ver conversas",
       "atendimentos.painel_operacional": "Visualizar painel operacional de Atendimentos",

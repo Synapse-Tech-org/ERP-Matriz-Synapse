@@ -15,9 +15,11 @@ A versão V2 está em revisão no PR #350. A tabela distingue funcionamento com 
 | Mensagens Programadas e Lembretes | Moldura V2 e filtros por status com a API existente. | Completar a linha do tempo e o filtro por responsável dos agendamentos; revisar busca, filtros e agrupamento dos lembretes. |
 | Gestão, Campanhas, Automação, Administração, Configurações e Feedbacks | Moldura V2 sobre os fluxos atuais. | Refatorar o conteúdo de cada aba, comparar suas telas e mapear as ações novas. |
 | Notificações e telas auxiliares | Há central de avisos e fluxos atuais, como Chat Interno, Cancelamentos e Trocar Senha. | Comparar cada fluxo com a referência disponível e preservar os comportamentos que não estão demonstrados nela. |
-| Banco de Arquivos, Horários e Relatórios | Rotas existentes sem a implementação funcional do mockup. | Banco de Arquivos: listar, enviar e organizar arquivos com permissão. Horários: persistir e editar a configuração de horários. Relatórios: consulta paginada de atendimentos, histórico e exportação com o mesmo escopo de acesso. |
+| Relatórios | Histórico paginado de atendimentos com filtros, indicadores de volume, duração e CSAT, jornada de mudanças de etapa e CSV autorizado. Dados consultados no CRM. | Conferir paridade com a referência e ligar as métricas de espera quando houver registros suficientes do ciclo. |
 
-As chaves de ativação são independentes por instância: `atendimentos_layout_v2`, `dashboard_layout_v2`, `agenda_layout_v2`, `mensagens_rapidas_layout_v2`, `recursos_layout_v2` e `gestao_layout_v2`. Antes de concluir cada aba, comparar a tela e seus estados com o mockup atualizado em desktop e celular, incluindo tons, brilho e contraste, e verificar cada nova ação com dados persistidos e permissões reais. A presença da moldura V2 não conclui essa revisão.
+Banco de Arquivos e Horários saíram do escopo a pedido do responsável.
+
+As chaves de ativação são independentes por instância: `atendimentos_layout_v2`, `dashboard_layout_v2`, `agenda_layout_v2`, `mensagens_rapidas_layout_v2`, `recursos_layout_v2`, `gestao_layout_v2` e `relatorios`. Antes de concluir cada aba, comparar a tela e seus estados com o mockup atualizado em desktop e celular, incluindo tons, brilho e contraste, e verificar cada nova ação com dados persistidos e permissões reais. A presença da moldura V2 não conclui essa revisão.
 
 # Alternativa A — primeira entrega de Atendimentos
 

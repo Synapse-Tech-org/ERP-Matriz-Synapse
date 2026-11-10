@@ -4,7 +4,7 @@ import { CentralDeAvisos } from "@/components/notificacoes/central-de-avisos";
 import { IconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
 import { useTextos } from "@/lib/config/textos-provider";
 
-export function CabecalhoListaV2({ titulo }: { titulo: string }) {
+export function CabecalhoListaV2({ titulo, grupo }: { titulo: string; grupo?: string }) {
   const { menu } = useTextos();
 
   return (
@@ -14,7 +14,7 @@ export function CabecalhoListaV2({ titulo }: { titulo: string }) {
           <IconeFrontendV2 nome="home-5-line" />
         </Link>
         <span aria-hidden>/</span>
-        <span>{menu.grupoPrincipal}</span>
+        <span>{grupo ?? menu.grupoPrincipal}</span>
         <span aria-hidden>/</span>
         <span aria-current="page">{titulo}</span>
       </nav>

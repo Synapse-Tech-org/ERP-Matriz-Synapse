@@ -52,6 +52,10 @@ const MODULOS_PADRAO: Record<string, { rotulo: string; descricao: string }> = {
     "rotulo": "Campanhas",
     "descricao": "Envios em massa e acompanhamento das campanhas"
   },
+  "relatorios": {
+    "rotulo": "Relatórios",
+    "descricao": "Histórico e exportação de atendimentos"
+  },
   "cancelamentos": {
     "rotulo": "Cancelamentos",
     "descricao": "Consulta de agendamentos cancelados, sem alterar atendimentos"
@@ -64,6 +68,8 @@ const MODULOS_PADRAO: Record<string, { rotulo: string; descricao: string }> = {
 
 const CAPACIDADES_PADRAO: Record<string, string> = {
   "cancelamentos.ver": "Consultar cancelamentos de agendamentos",
+  "relatorios.ver": "Consultar histórico de atendimentos",
+  "relatorios.exportar": "Exportar CSV de atendimentos",
   "clientes.acessar": "Acesso a clientes",
   "atendimentos.ver": "Ver conversas",
   "atendimentos.painel_operacional": "Visualizar painel operacional de Atendimentos",
