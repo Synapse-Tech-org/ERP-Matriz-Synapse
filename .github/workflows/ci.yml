@@ -134,6 +134,7 @@ jobs:
           npm run build
           npm run test:runtime
           npm run test:stack
+          node --test homologacao/credencial-automacao.test.mjs
 
       - name: Build e fumaca da imagem sem publicar ou implantar
         run: |

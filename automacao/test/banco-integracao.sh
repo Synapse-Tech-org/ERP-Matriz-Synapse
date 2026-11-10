@@ -2,6 +2,10 @@
 # Teste local isolado: nao usa infraestrutura ou segredos da homologacao.
 set -euo pipefail
 raiz=$(cd "$(dirname "$0")/.." && pwd)
+if [ ! -f "$raiz/dist/src/operacao/migracoes.js" ] || [ ! -d "$raiz/node_modules/pg" ]; then
+  echo 'Executar npm ci e npm run build na pasta automacao antes deste teste' >&2
+  exit 1
+fi
 container="automacao-banco-teste-$$"
 trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
 docker run -d --name "$container" --network none \
@@ -47,6 +51,20 @@ provisionar
 consulta automacao_fixture "INSERT INTO workflow_entity VALUES ('preservar','Nao apagar')" >/dev/null
 provisionar
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM workflow_entity')" = 1 ]
+
+# Node usa o mesmo namespace de rede do PostgreSQL isolado, sem expor portas.
+# Somente codigo/dependencias sao montados; nenhum .env entra no container.
+docker run --rm --network "container:$container" \
+  -e AUTOMACAO_TESTE_ISOLADO=true \
+  -v "$raiz/dist:/app/dist:ro" \
+  -v "$raiz/node_modules:/app/node_modules:ro" \
+  -v "$raiz/package.json:/app/package.json:ro" \
+  -v "$raiz/banco/migrations:/app/banco/migrations:ro" \
+  -v "$raiz/test/faq-integracao.mjs:/app/test/faq-integracao.mjs:ro" \
+  -w /app node:22-alpine node test/faq-integracao.mjs
+provisionar
+[ "$(consulta automacao_fixture 'SELECT count(*) FROM public.faq')" = 1 ]
+
 consulta postgres 'CREATE DATABASE destino_ocupado OWNER automacao_fixture_app' >/dev/null
 consulta destino_ocupado 'CREATE TABLE nao_apagar (id integer)' >/dev/null
 if provisionar destino_ocupado; then echo 'ERRO: aceitou destino ocupado' >&2; exit 1; fi

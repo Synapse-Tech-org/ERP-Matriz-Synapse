@@ -34,16 +34,18 @@ const identidade: ProvedorIdentidade = {
 };
 
 test("migracoes registram checksum, nao reaplicam e recusam historico alterado", async () => {
-  let checksum: string | undefined;
+  const checksums = new Map<number, string>();
   let aplicacoes = 0;
   let rollbacks = 0;
   let liberacoes = 0;
   const client = {
     async query(sql: string, valores?: unknown[]) {
-      if (sql.startsWith("SELECT checksum"))
+      if (sql.startsWith("SELECT checksum")) {
+        const checksum = checksums.get(Number(valores![0]));
         return { rows: checksum ? [{ checksum }] : [] };
+      }
       if (sql.startsWith("INSERT INTO automacao_infra.migracao")) {
-        checksum = String(valores![2]);
+        checksums.set(Number(valores![0]), String(valores![2]));
         aplicacoes++;
       }
       if (sql === "ROLLBACK") rollbacks++;
@@ -60,8 +62,9 @@ test("migracoes registram checksum, nao reaplicam e recusam historico alterado",
   } as unknown as Pool;
   await aplicarMigracoes(pool);
   await aplicarMigracoes(pool);
-  assert.equal(aplicacoes, 1);
-  checksum = "checksum-adulterado";
+  assert.equal(aplicacoes, 2);
+  assert.deepEqual([...checksums.keys()], [1, 2]);
+  checksums.set(1, "checksum-adulterado");
   await assert.rejects(
     aplicarMigracoes(pool),
     /MIGRATION_APLICADA_FOI_ALTERADA/,

@@ -20,6 +20,7 @@ de fila ou reprocessamento. pg-boss instalado nao significa fila em execucao.
 | `banco/provisionar.sh` e `.sql` | Criacao condicional de usuario e banco |
 | `banco/clonar-estrutura.sh` | Clone da estrutura do n8n, sem dados |
 | `banco/migrations/` | Adaptacoes versionadas da automacao |
+| `banco/FAQ-MIGRACAO.md` | V2 da FAQ e credencial do banco da automacao |
 | `src/operacao/` | Consultas, migracoes, identidade e sessoes |
 | `painel/` | Interface propria, sem alterar frontend do CRM |
 | `DECISOES-FOLLOWUP-UNIFICADO.md` | Decisoes do futuro follow-up |
