@@ -4,6 +4,7 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  workflow_dispatch:
 
 # Um push novo na mesma branch cancela o build anterior: o feedback que importa
 # e o do ultimo commit, e a fila de runners e curta.
@@ -165,9 +166,14 @@ jobs:
       - name: Fumaca de boot dos quatro papeis e handshake WebSocket
         run: docker/verificacao/testar-websocket-empacotado.sh
 
+  # So a main publica `latest` e o SHA puro (o que a producao usa). Branch de teste/codex ou disparo manual publica so
+  # `br-<sha curto>`, imutavel e nunca `latest`; so a instancia de teste aponta SYNAPSE_IMAGE_TAG para uma tag `br-`.
   imagens:
     name: Imagem ${{ matrix.nome }} (GHCR)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'push' && (github.ref == 'refs/heads/main'
+      || startsWith(github.ref, 'refs/heads/teste/') || startsWith(github.ref, 'refs/heads/codex/')))
     needs: [backend, frontend, infra]
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -180,10 +186,10 @@ jobs:
         include:
           - nome: backend
             dockerfile: backend/Dockerfile
-            imagem: ghcr.io/synapse-auto/erp-matriz-synapse-backend
+            imagem: ghcr.io/synapse-tech-org/erp-matriz-synapse-backend
           - nome: frontend
             dockerfile: frontend/Dockerfile
-            imagem: ghcr.io/synapse-auto/erp-matriz-synapse-frontend
+            imagem: ghcr.io/synapse-tech-org/erp-matriz-synapse-frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -203,8 +209,9 @@ jobs:
         with:
           images: ${{ matrix.imagem }}
           tags: |
-            type=sha,format=short,prefix=
-            type=raw,value=latest
+            type=sha,format=short,prefix=,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+            type=sha,format=short,prefix=br-,enable=${{ !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
 
       - name: Buildar e publicar
         uses: docker/build-push-action@v6

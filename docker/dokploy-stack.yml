@@ -163,7 +163,7 @@ services:
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-midia.loadbalancer.healthcheck.timeout=3s'
 
   backend:
-    image: ghcr.io/synapse-auto/erp-matriz-synapse-backend:${SYNAPSE_IMAGE_TAG:?obrigatoria}
+    image: ghcr.io/synapse-tech-org/erp-matriz-synapse-backend:${SYNAPSE_IMAGE_TAG:?obrigatoria}
     environment:
       DARWIN_HABILITADO: ${DARWIN_HABILITADO:-false}
       DARWIN_URL: ${DARWIN_URL:-https://developers.darwin.med.br}
@@ -495,7 +495,7 @@ services:
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-automacao.loadbalancer.healthcheck.timeout=5s'
 
   frontend:
-    image: ghcr.io/synapse-auto/erp-matriz-synapse-frontend:${SYNAPSE_IMAGE_TAG:?obrigatoria}
+    image: ghcr.io/synapse-tech-org/erp-matriz-synapse-frontend:${SYNAPSE_IMAGE_TAG:?obrigatoria}
     environment:
       NODE_ENV: production
       SYNAPSE_BACKEND_URL: http://synapse-backend-internal:8080
