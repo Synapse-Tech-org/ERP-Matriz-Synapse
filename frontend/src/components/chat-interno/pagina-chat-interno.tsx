@@ -17,7 +17,6 @@ import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import {
   listarContatosChat,
   listarConversasChat,
-  listarMensagensChat,
   obterMensagemChat,
   abrirConversaDireta,
   criarGrupoChat,
@@ -41,6 +40,7 @@ import { DialogoCriarGrupo } from "./dialogo-criar-grupo";
 import { DialogoEncaminharAoCliente } from "./dialogo-encaminhar-ao-cliente";
 import { PainelLateralGrupo } from "./painel-lateral-grupo";
 import { sincronizarFotosDosGruposNaInbox } from "@/lib/chat-interno/foto-grupo-cache";
+import { useMensagensDoChat } from "@/lib/chat-interno/use-mensagens-do-chat";
 
 export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicialId?: string | null }) {
   const catalogo = useTextos();
@@ -62,11 +62,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
   const [encaminharClienteAlvo, setEncaminharClienteAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const podeResponder = useCapacidades().pode("atendimentos.responder");
   const [edicaoAlvo, setEdicaoAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
-  const mensagens = useQuery({
-    queryKey: ["chat-interno", "mensagens", conversaId],
-    queryFn: () => listarMensagensChat(conversaId!),
-    enabled: Boolean(conversaId),
-  });
+  const mensagens = useMensagensDoChat(conversaId);
   const atualizar = useCallback(() => {
     void cache.invalidateQueries({ queryKey: ["chat-interno"] });
   }, [cache]);
@@ -252,7 +248,10 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
                   ) : (
                   <ListaMensagensChatInterno
                       conversaId={conversaId}
-                      mensagens={mensagens.data?.mensagens ?? []}
+                      mensagens={mensagens.mensagens}
+                      temMais={mensagens.temMais}
+                      carregandoMais={mensagens.carregandoMais}
+                      onCarregarMais={mensagens.carregarMais}
                       usuarioAtual={usuarioAtual}
                       textos={textos}
                       onDefinirReacao={definirReacaoDaMensagem}

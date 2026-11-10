@@ -329,6 +329,10 @@ export const TextosSchema = z.object({
     semConversas: z.string(),
     selecioneConversa: z.string(),
     semMensagens: z.string(),
+    // Histórico paginado: com `.default` para um front novo funcionar contra um backend que ainda
+    // não tem as chaves (deploy desalinhado), como nas demais chaves adicionadas depois.
+    mensagensAnteriores: z.string().default("Carregar mensagens anteriores"),
+    carregandoMensagensAnteriores: z.string().default("Carregando mensagens anteriores…"),
     placeholder: z.string(),
     enviar: z.string(),
     carregando: z.string(),
