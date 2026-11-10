@@ -24,6 +24,7 @@ function paraLocal(iso?: string) { if (!iso) return ""; const d = new Date(iso);
 
 export function FormularioMensagemProgramada({ aberto, visualV2 = false, leadId, leadNome, conteudoInicial, existente, titulo, onFechar, onSalvo }: Props) {
   const { formulario: textos, v2 } = useTextos().mensagensProgramadas; const cache = useQueryClient();
+  const [abertoEm] = useState(() => Date.now());
   const [leadSelecionado, setLeadSelecionado] = useState(leadId ?? existente?.leadId ?? "");
   const [buscaLead, setBuscaLead] = useState("");
   const [conteudo, setConteudo] = useState(existente?.conteudo ?? conteudoInicial ?? "");
@@ -37,8 +38,10 @@ export function FormularioMensagemProgramada({ aberto, visualV2 = false, leadId,
     ? editarMensagemProgramada(existente.id, { conteudo: conteudo.trim(), dataEnvio: new Date(dataEnvio).toISOString() })
     : criarMensagemProgramada({ leadId: leadId ?? leadSelecionado, conteudo: conteudo.trim(), dataEnvio: new Date(dataEnvio).toISOString() }),
     onSuccess: async () => { await cache.invalidateQueries({ queryKey: ["mensagens-programadas"] }); onSalvo?.(); onFechar(); } });
+  const preenchido = Boolean((leadId ?? leadSelecionado) && conteudo.trim() && dataHoraCompleta(dataEnvio));
+  const dataFutura = new Date(dataEnvio).getTime() > abertoEm;
   return <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}><DialogContent className={visualV2 ? visual.formulario + " " + visual.formularioProgramada : undefined}><DialogHeader><DialogTitle>{titulo ?? (existente ? textos.tituloEditar : textos.tituloCriar)}</DialogTitle>{visualV2 && <DialogDescription>{v2.subtituloFormulario}</DialogDescription>}</DialogHeader>
-    <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); if ((leadId ?? leadSelecionado) && conteudo.trim() && dataHoraCompleta(dataEnvio)) salvar.mutate(); }}>
+    <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); if (preenchido) salvar.mutate(); }}>
       {visualV2 && !leadId && !existente ? <fieldset className="space-y-2">
         <legend>{textos.lead}</legend>
         <div className={visual.selecaoLeads}>
@@ -62,10 +65,10 @@ export function FormularioMensagemProgramada({ aberto, visualV2 = false, leadId,
           obrigatorio valor={leadSelecionado} placeholder={textos.selecionarLead}
           opcoes={leads.map(({ leadId: id, leadNome: nome }) => ({ valor: id, rotulo: nome }))} onChange={setLeadSelecionado} />}
       </label>}
-      {!visualV2 && <label className="block space-y-1 text-sm"><span>{visualV2 ? v2.quando : textos.dataEnvio}</span>{visualV2 && <AtalhosDeHorario agendamento rotulos={v2} valor={dataEnvio} onChange={setDataEnvio} />}<SeletorDataHora valor={dataEnvio} placeholderData={textos.selecionarData} rotuloHora={textos.hora} rotuloMinuto={textos.minuto} obrigatorio onChange={setDataEnvio} /></label>}
+      {!visualV2 && <label className="block space-y-1 text-sm"><span>{textos.dataEnvio}</span><SeletorDataHora valor={dataEnvio} placeholderData={textos.selecionarData} rotuloHora={textos.hora} rotuloMinuto={textos.minuto} obrigatorio onChange={setDataEnvio} /></label>}
       <label className="block space-y-1 text-sm"><span>{textos.conteudo}</span><Textarea required rows={visualV2 ? 4 : undefined} placeholder={visualV2 ? v2.exemploMensagem : undefined} value={conteudo} onChange={(e) => setConteudo(e.target.value)} /></label>
       {visualV2 && <label className="block space-y-1 text-sm"><span>{visualV2 ? v2.quando : textos.dataEnvio}</span>{visualV2 && <AtalhosDeHorario agendamento rotulos={v2} valor={dataEnvio} onChange={setDataEnvio} />}<SeletorDataHora valor={dataEnvio} placeholderData={textos.selecionarData} rotuloHora={textos.hora} rotuloMinuto={textos.minuto} obrigatorio onChange={setDataEnvio} /></label>}
       {salvar.isError && <p role="alert" className="text-sm text-destructive">{textos.erro}</p>}
-      <DialogFooter><Button type="button" variant="outline" onClick={onFechar}>{textos.cancelar}</Button><Button type="submit" disabled={salvar.isPending || (visualV2 && (!(leadId ?? leadSelecionado) || !conteudo.trim() || !dataHoraCompleta(dataEnvio) || new Date(dataEnvio).getTime() <= Date.now()))}>{textos.salvar}</Button></DialogFooter>
+      <DialogFooter><Button type="button" variant="outline" onClick={onFechar}>{textos.cancelar}</Button><Button type="submit" disabled={salvar.isPending || (visualV2 && (!preenchido || !dataFutura))}>{textos.salvar}</Button></DialogFooter>
     </form></DialogContent></Dialog>;
 }
