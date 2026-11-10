@@ -261,3 +261,30 @@
 .leadsFormulario small, .leadsFormulario p { color: var(--agenda-texto-suave); font-size: 12px; }
 .leadsFormulario p { padding: 8px; }
 .leadsFormulario input[type="radio"] { min-height: auto; accent-color: #1f5fd6; }
+
+.camposVinculo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.camposVinculo small { display: block; color: var(--agenda-texto-suave); font-size: 12px; font-weight: 400; }
+.avisoExclusao {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  bottom: 30px;
+  display: flex;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 14px;
+  transform: translateX(-50%);
+  border-radius: 14px;
+  color: #fff;
+  background: #0e1220;
+  box-shadow: 0 8px 28px rgb(11 19 36 / 28%);
+  font-size: 13.5px;
+}
+.avisoExclusao button { min-height: 32px; padding: 0 12px; border-radius: 10px; background: rgb(255 255 255 / 12%); font-weight: 600; }
+.avisoExclusao button:hover { background: rgb(255 255 255 / 20%); }
+@media (max-width: 520px) {
+  .camposVinculo { grid-template-columns: minmax(0, 1fr); }
+  .avisoExclusao { bottom: 76px; }
+}

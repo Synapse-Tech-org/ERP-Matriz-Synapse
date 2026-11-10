@@ -88,6 +88,60 @@ class LembretesIT extends PostgresIT {
     }
 
     @Test
+    void atribuicaoExigeGestaoEResponsavelAtivo() {
+        var dados = Map.of("leadId", leadAna, "responsavelId", bruno, "texto", "Responsável escolhido",
+                "dataHora", "2026-08-05T13:00:00Z");
+        assertThat(chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.POST, "/api/v1/lembretes", dados).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        var desconhecido = Map.of("responsavelId", UUID.randomUUID(), "texto", "Responsável inexistente",
+                "dataHora", "2026-08-05T13:00:00Z");
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.POST, "/api/v1/lembretes", desconhecido).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        var criado = chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.POST, "/api/v1/lembretes", dados);
+        assertThat(criado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(criado.getBody()).contains(bruno.toString());
+        String id = criado.getBody().split("\"id\":\"")[1].split("\"")[0];
+        var alteracao = Map.of("responsavelId", ana, "texto", "Responsável alterado",
+                "dataHora", "2026-08-05T13:00:00Z", "status", "PENDENTE");
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.PUT, "/api/v1/lembretes/" + id, alteracao).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.PUT, "/api/v1/lembretes/" + id, alteracao).getBody())
+                .contains(ana.toString());
+    }
+
+    @Test
+    void exclusaoReversivelSomeDaListaEExigeAutorEChave() {
+        String rota = "/api/v1/lembretes/" + lembreteBruno;
+        String chave = UUID.randomUUID().toString();
+        String exclusao = rota + "?chaveExclusao=" + chave;
+        String restauracao = rota + "/restaurar?chaveExclusao=";
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.DELETE, exclusao, null).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.DELETE, exclusao, null).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.GET,
+                "/api/v1/lembretes?leadId=" + leadBruno + "&incluirResumo=true", null).getBody())
+                .doesNotContain(lembreteBruno.toString()).contains("\"pendentes\":0");
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.POST, restauracao + chave, null).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.POST,
+                restauracao + UUID.randomUUID(), null).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.POST, restauracao + chave, null).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.GET,
+                "/api/v1/lembretes?leadId=" + leadBruno, null).getBody()).contains(lembreteBruno.toString());
+
+        String novaChave = UUID.randomUUID().toString();
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.DELETE,
+                rota + "?chaveExclusao=" + novaChave, null).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.POST, restauracao + chave, null).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        jdbc.update("UPDATE lembrete SET excluido_em = statement_timestamp() - interval '31 seconds' WHERE id = ?", lembreteBruno);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.POST, restauracao + novaChave, null).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     @DisplayName("RN-CRM-04: atendente NAO lista, altera, remove nem cria no lead do colega")
     void negativoPrivacidadeDoAtendente() {
         String listaAna = chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET,

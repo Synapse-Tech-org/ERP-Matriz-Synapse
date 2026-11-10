@@ -37,7 +37,7 @@ class LembreteRepositorioJdbc implements LembreteRepositorio {
                   FROM lembrete l
                   LEFT JOIN lead ON lead.id = l.lead_id
                   JOIN usuario u ON u.id = l.atendente_id
-                 WHERE TRUE
+                 WHERE l.excluido_em IS NULL
                 """);
         List<Object> parametros = new ArrayList<>();
         aplicarFiltros(sql, parametros, filtro, true);
@@ -60,7 +60,7 @@ class LembreteRepositorioJdbc implements LembreteRepositorio {
                        count(*) FILTER (WHERE l.origem_automatica) AS automaticos
                   FROM lembrete l
                   LEFT JOIN lead ON lead.id = l.lead_id
-                 WHERE l.status = 'PENDENTE'
+                 WHERE l.status = 'PENDENTE' AND l.excluido_em IS NULL
                 """);
         List<Object> parametros = new ArrayList<>(List.of(
                 Timestamp.from(agora), Timestamp.from(fimHoje), Timestamp.from(agora), Timestamp.from(fimSemana)));
@@ -105,6 +105,15 @@ class LembreteRepositorioJdbc implements LembreteRepositorio {
     }
 
     @Override
+    public boolean reservarResponsavelAtivo(UUID responsavelId) {
+        TransacaoObrigatoria.exigir("validar responsável pelo lembrete");
+        return !jdbc.queryForList("""
+                SELECT id FROM usuario
+                 WHERE id = ? AND ativo AND NOT usuario_teste FOR SHARE
+                """, UUID.class, responsavelId).isEmpty();
+    }
+
+    @Override
     public Lembrete criar(UUID leadId, UUID atendenteId, String texto, java.time.Instant dataHora) {
         TransacaoObrigatoria.exigir("criar lembrete");
         UUID id = UUID.randomUUID();
@@ -116,19 +125,40 @@ class LembreteRepositorioJdbc implements LembreteRepositorio {
     }
 
     @Override
-    public Optional<Lembrete> atualizar(UUID id, String texto, java.time.Instant dataHora, StatusLembrete status) {
+    public Optional<Lembrete> atualizar(UUID id, String texto, java.time.Instant dataHora, StatusLembrete status, UUID responsavelId) {
         TransacaoObrigatoria.exigir("atualizar lembrete");
         int alterados = jdbc.update("""
-                UPDATE lembrete SET texto = ?, data_hora = ?, status = CAST(? AS status_lembrete)
-                 WHERE id = ?
-                """, texto, Timestamp.from(dataHora), status.name(), id);
+                UPDATE lembrete SET texto = ?, data_hora = ?, status = CAST(? AS status_lembrete),
+                                    atendente_id = COALESCE(?, atendente_id)
+                 WHERE id = ? AND excluido_em IS NULL
+                """, texto, Timestamp.from(dataHora), status.name(), responsavelId, id);
         return alterados == 0 ? Optional.empty() : porId(id);
     }
 
     @Override
     public boolean remover(UUID id) {
         TransacaoObrigatoria.exigir("remover lembrete");
-        return jdbc.update("DELETE FROM lembrete WHERE id = ?", id) == 1;
+        return jdbc.update("DELETE FROM lembrete WHERE id = ? AND excluido_em IS NULL", id) == 1;
+    }
+
+    @Override
+    public boolean excluirComDesfazer(UUID id, UUID autor, UUID chaveExclusao) {
+        TransacaoObrigatoria.exigir("excluir lembrete com possibilidade de desfazer");
+        return jdbc.update("""
+                UPDATE lembrete SET excluido_em = COALESCE(excluido_em, statement_timestamp()),
+                                    excluido_por = ?, chave_exclusao = ?
+                 WHERE id = ? AND (excluido_em IS NULL OR (excluido_por = ? AND chave_exclusao = ?))
+                """, autor, chaveExclusao, id, autor, chaveExclusao) == 1;
+    }
+
+    @Override
+    public boolean restaurarExclusao(UUID id, UUID autor, UUID chaveExclusao) {
+        TransacaoObrigatoria.exigir("restaurar exclusão de lembrete");
+        return jdbc.update("""
+                UPDATE lembrete SET excluido_em = NULL, excluido_por = NULL, chave_exclusao = NULL
+                 WHERE id = ? AND excluido_por = ? AND chave_exclusao = ?
+                   AND excluido_em >= statement_timestamp() - interval '30 seconds'
+                """, id, autor, chaveExclusao) == 1;
     }
 
     private Optional<Lembrete> porId(UUID id) {
@@ -137,7 +167,7 @@ class LembreteRepositorioJdbc implements LembreteRepositorio {
                        u.nome AS atendente_nome, l.texto, l.data_hora,
                        l.origem_automatica, l.status::text
                   FROM lembrete l LEFT JOIN lead ON lead.id = l.lead_id
-                  JOIN usuario u ON u.id = l.atendente_id WHERE l.id = ?
+                  JOIN usuario u ON u.id = l.atendente_id WHERE l.id = ? AND l.excluido_em IS NULL
                 """, LembreteRepositorioJdbc::mapear, id).stream().findFirst();
     }
 

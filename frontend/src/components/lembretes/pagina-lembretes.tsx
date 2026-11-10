@@ -22,9 +22,9 @@ import { Seletor } from "@/components/ui/seletor";
 import { SeletorData } from "@/components/ui/seletor-data";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
-import { useEquipe } from "@/lib/equipe/use-equipe";
+import { useEquipe, useMeuUsuario } from "@/lib/equipe/use-equipe";
 import { chaveDoDiaLocal, horaLocal, horariosDeAdiamento, periodoLocal } from "@/lib/suporte/agenda-de-datas";
-import { atualizarLembrete, editarLembrete, listarLembretes, removerLembrete } from "@/lib/suporte/api";
+import { atualizarLembrete, editarLembrete, listarLembretes, removerLembrete, removerLembreteComDesfazer, restaurarLembrete } from "@/lib/suporte/api";
 import type { Lembrete, StatusLembrete } from "@/lib/suporte/types";
 
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
@@ -41,14 +41,17 @@ export function PaginaLembretes() {
   const podeAbrirConversa = capacidades.pode("atendimentos.ver");
   const podeCriar = capacidades.pode("lembretes.criar");
   const podeEditarExcluir = capacidades.pode("lembretes.editar_excluir");
-  const podeFiltrarEquipe = layoutV2 && gestor && capacidades.pode("equipe.ver");
+  const podeAtribuirResponsavel = layoutV2 && gestor && capacidades.pode("equipe.ver");
+  const podeFiltrarEquipe = podeAtribuirResponsavel;
   const equipe = useEquipe(podeFiltrarEquipe);
+  const meuUsuario = useMeuUsuario(layoutV2).data;
   const cache = useQueryClient();
   const [aberto, setAberto] = useState(false);
   const [inicio, setInicio] = useState("");
   const [fim, setFim] = useState("");
   const [status, setStatus] = useState<StatusLembrete | "">("");
   const [pagina, setPagina] = useState(0);
+  const [exclusao, setExclusao] = useState<{ id: string; chave: string } | null>(null);
   const [edicao, setEdicao] = useState<Lembrete | null>(null);
   const [busca, setBusca] = useState("");
   const [buscaAplicada, setBuscaAplicada] = useState("");
@@ -99,9 +102,30 @@ export function PaginaLembretes() {
     onSuccess: () => cache.invalidateQueries({ queryKey: ["lembretes"] }),
   });
   const remover = useMutation({
-    mutationFn: removerLembrete,
-    onSuccess: () => cache.invalidateQueries({ queryKey: ["lembretes"] }),
+    mutationFn: async (id: string) => {
+      const chave = layoutV2 ? crypto.randomUUID() : undefined;
+      if (chave) await removerLembreteComDesfazer(id, chave);
+      else await removerLembrete(id);
+      return chave ? { id, chave } : null;
+    },
+    onSuccess: (registro) => {
+      setExclusao(registro);
+      return cache.invalidateQueries({ queryKey: ["lembretes"] });
+    },
   });
+  const restaurar = useMutation({
+    mutationFn: ({ id, chave }: { id: string; chave: string }) => restaurarLembrete(id, chave),
+    onSuccess: () => {
+      setExclusao(null);
+      return cache.invalidateQueries({ queryKey: ["lembretes"] });
+    },
+  });
+
+  useEffect(() => {
+    if (!exclusao) return;
+    const timer = window.setTimeout(() => setExclusao(null), 4_000);
+    return () => window.clearTimeout(timer);
+  }, [exclusao]);
 
   function mudarFiltro(atualizar: () => void) {
     atualizar();
@@ -174,7 +198,7 @@ export function PaginaLembretes() {
         </label>}
       </div>
 
-      {(atualizar.isError || adiar.isError || remover.isError) &&
+      {(atualizar.isError || adiar.isError || remover.isError || restaurar.isError) &&
         <p role="alert" className="text-sm text-destructive">{textos.formulario.erroOperacao}</p>}
       {!periodoValido ? <p role="status">{textos.v2?.periodoInvalido ?? textos.vazio}</p> : consulta.isLoading ? (
         <p>{textos.carregando}</p>
@@ -195,7 +219,7 @@ export function PaginaLembretes() {
           podeAbrirConversa={podeAbrirConversa}
           textos={textos}
           agora={layoutV2 ? agora : undefined}
-          ocupado={atualizar.isPending || adiar.isPending || remover.isPending}
+          ocupado={atualizar.isPending || adiar.isPending || remover.isPending || restaurar.isPending}
           onConcluir={podeEditarExcluir ? (item) => atualizar.mutate({
             item, novo: item.status === "CONCLUIDO" ? "PENDENTE" : "CONCLUIDO",
           }) : undefined}
@@ -238,8 +262,14 @@ export function PaginaLembretes() {
         </section>
       </aside>}
       </div>
-      <FormularioLembrete visualV2={layoutV2} aberto={aberto && podeCriar} onFechar={() => setAberto(false)} />
-      {edicao && podeEditarExcluir && <FormularioLembrete key={edicao.id} visualV2={layoutV2} aberto existente={edicao}
+      {layoutV2 && exclusao && <div className={visual.avisoExclusao}>
+        <Check aria-hidden className="size-4" />
+        <span role="status">{textos.v2.excluido}</span>
+        {podeEditarExcluir && <button type="button" disabled={restaurar.isPending}
+          onClick={() => restaurar.mutate(exclusao)}>{textos.v2.desfazer}</button>}
+      </div>}
+      <FormularioLembrete key={layoutV2 && aberto ? "novo-aberto" : "novo"} visualV2={layoutV2} podeAtribuirResponsavel={podeAtribuirResponsavel} meuUsuario={meuUsuario} responsaveis={equipe.data} aberto={aberto && podeCriar} onFechar={() => setAberto(false)} />
+      {edicao && podeEditarExcluir && <FormularioLembrete key={edicao.id} visualV2={layoutV2} podeAtribuirResponsavel={podeAtribuirResponsavel} aberto existente={edicao}
         onFechar={() => setEdicao(null)} />}
     </div>
   );

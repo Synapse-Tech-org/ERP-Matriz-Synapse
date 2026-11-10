@@ -6,6 +6,7 @@ import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 const atualizarMutate = vi.fn();
 const editarMutate = vi.fn();
 const removerMutate = vi.fn();
+const restaurarMutate = vi.fn();
 const listarLembretesMock = vi.fn();
 
 const LEMBRETES = {
@@ -42,7 +43,10 @@ vi.mock("@/lib/config/use-funcionalidades", () => ({
   useFuncionalidadesHabilitadas: () => ({ data: v2.ativo ? ["recursos_layout_v2"] : [] }),
 }));
 vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () => null }));
-vi.mock("@/lib/equipe/use-equipe", () => ({ useEquipe: () => ({ data: [{ id: "u1", nome: "Ana Beatriz" }] }) }));
+vi.mock("@/lib/equipe/use-equipe", () => ({
+  useEquipe: () => ({ data: [{ id: "u1", nome: "Ana Beatriz", ativo: true }] }),
+  useMeuUsuario: () => ({ data: { id: "u1", nome: "Ana Beatriz" } }),
+}));
 afterEach(() => { v2.ativo = false; });
 
 vi.mock("@/lib/auth/auth-store", () => ({
@@ -52,7 +56,7 @@ vi.mock("@/lib/auth/auth-store", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     lembretes: {
-      v2: {"buscar":"Buscar lembrete ou lead","todosAtendentes":"Todos os atendentes","soAutomaticos":"Somente automáticos","hoje":"Hoje","amanha":"Amanhã","proximos":"Próximos dias","concluidos":"Concluídos","adiar":"Adiar","adiarPara":"Adiar para","adiarHora":"1 hora","segunda":"Segunda","reabrir":"Reabrir","editar":"Editar","periodoInvalido":"A data final deve ser igual ou posterior à inicial."},
+      v2: {"desfazer":"Desfazer","excluido":"Lembrete excluído","buscar":"Buscar lembrete ou lead","todosAtendentes":"Todos os atendentes","soAutomaticos":"Somente automáticos","hoje":"Hoje","amanha":"Amanhã","proximos":"Próximos dias","concluidos":"Concluídos","adiar":"Adiar","adiarPara":"Adiar para","adiarHora":"1 hora","segunda":"Segunda","reabrir":"Reabrir","editar":"Editar","periodoInvalido":"A data final deve ser igual ou posterior à inicial."},
       titulo: "Lembretes",
       descricao: "Compromissos pessoais ligados aos seus leads.",
       novo: "Novo lembrete",
@@ -103,6 +107,14 @@ vi.mock("@/lib/suporte/api", () => ({
   },
   removerLembrete: (...args: unknown[]) => {
     removerMutate(...args);
+    return Promise.resolve();
+  },
+  removerLembreteComDesfazer: (...args: unknown[]) => {
+    removerMutate(...args);
+    return Promise.resolve();
+  },
+  restaurarLembrete: (...args: unknown[]) => {
+    restaurarMutate(...args);
     return Promise.resolve();
   },
   criarLembrete: vi.fn(),
@@ -176,7 +188,19 @@ describe("pagina de lembretes", () => {
       screen.getByRole("button", { name: "Remover Retomar atendimento transferido" }),
     );
 
-    await waitFor(() => expect(removerMutate).toHaveBeenCalledWith("r1", expect.anything()));
+    await waitFor(() => expect(removerMutate).toHaveBeenCalledWith("r1"));
+  });
+
+  it("desfaz a mesma exclusão que o servidor confirmou no V2", async () => {
+    v2.ativo = true;
+    renderComQuery();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Remover Retomar atendimento transferido" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Desfazer" }));
+
+    await waitFor(() => expect(restaurarMutate).toHaveBeenCalledWith("r1", expect.any(String)));
+    expect(removerMutate).toHaveBeenCalledWith("r1", restaurarMutate.mock.calls[0][1]);
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Desfazer" })).not.toBeInTheDocument());
   });
 
   it("sem criar e editar/excluir, mostra os lembretes sem concluir, remover nem criar", async () => {

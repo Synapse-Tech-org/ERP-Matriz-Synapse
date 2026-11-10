@@ -21,6 +21,7 @@ export interface PaginaLembretes {
 
 export interface DadosLembrete {
   leadId: string | null;
+  responsavelId?: string;
   texto: string;
   dataHora: string;
 }

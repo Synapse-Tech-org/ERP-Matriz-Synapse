@@ -46,7 +46,7 @@ export function atualizarLembrete(
 
 export function editarLembrete(
   id: string,
-  dados: { texto: string; dataHora: string; status: StatusLembrete },
+  dados: { texto: string; dataHora: string; status: StatusLembrete; responsavelId?: string },
 ): Promise<Lembrete> {
   return apiFetch<Lembrete>(`/api/v1/lembretes/${id}`, {
     method: "PUT",
@@ -55,7 +55,15 @@ export function editarLembrete(
 }
 
 export function removerLembrete(id: string): Promise<void> {
-  return apiFetch<void>(`/api/v1/lembretes/${id}`, { method: "DELETE" });
+  return apiFetch<void>("/api/v1/lembretes/" + id, { method: "DELETE" });
+}
+
+export function removerLembreteComDesfazer(id: string, chaveExclusao: string): Promise<void> {
+  return apiFetch<void>("/api/v1/lembretes/" + id + "?chaveExclusao=" + encodeURIComponent(chaveExclusao), { method: "DELETE" });
+}
+
+export function restaurarLembrete(id: string, chaveExclusao: string): Promise<void> {
+  return apiFetch<void>("/api/v1/lembretes/" + id + "/restaurar?chaveExclusao=" + encodeURIComponent(chaveExclusao), { method: "POST" });
 }
 
 export function listarMensagensProgramadas(f: { inicio?: string; fim?: string; status?: StatusMensagemProgramada; leadId?: string; atendenteId?: string; incluirResumo?: boolean; pagina: number }): Promise<PaginaMensagensProgramadas> {

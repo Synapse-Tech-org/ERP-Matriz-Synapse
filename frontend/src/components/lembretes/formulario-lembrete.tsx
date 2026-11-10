@@ -12,12 +12,15 @@ import { dataHoraCompleta, SeletorDataHora } from "@/components/ui/seletor-data-
 import { Seletor } from "@/components/ui/seletor";
 import { Textarea } from "@/components/ui/textarea";
 import { useAtendimentosParaEscolha } from "@/lib/atendimento/use-atendimentos";
+import type { MeuUsuario, UsuarioEquipe } from "@/lib/equipe/types";
 import { useTextos } from "@/lib/config/textos-provider";
 import { criarLembrete, editarLembrete } from "@/lib/suporte/api";
-import type { Lembrete } from "@/lib/suporte/types";
+import type { DadosLembrete, Lembrete } from "@/lib/suporte/types";
 
 interface Props {
-  aberto: boolean; visualV2?: boolean;
+  aberto: boolean; visualV2?: boolean; podeAtribuirResponsavel?: boolean;
+  meuUsuario?: Pick<MeuUsuario, "id" | "nome">;
+  responsaveis?: readonly UsuarioEquipe[];
   leadId?: string;
   leadNome?: string;
   existente?: Lembrete;
@@ -30,9 +33,16 @@ function paraLocal(iso: string): string {
   return local.toISOString().slice(0, 16);
 }
 
-export function FormularioLembrete({ aberto, visualV2 = false, leadId, leadNome, existente, onFechar }: Props) {
+export function FormularioLembrete({ aberto, visualV2 = false, podeAtribuirResponsavel = false, meuUsuario, responsaveis = [], leadId, leadNome, existente, onFechar }: Props) {
   const textos = useTextos().lembretes;
   const cache = useQueryClient();
+  const [responsavel, setResponsavel] = useState("");
+  const responsavelAtual = existente?.atendenteId ?? meuUsuario?.id ?? "";
+  const nomeResponsavelAtual = existente?.atendenteNome ?? meuUsuario?.nome ?? textos.v2.voce;
+  const opcoesDeResponsavel = responsaveis
+    .filter((pessoa) => pessoa.ativo && !pessoa.usuarioTeste && pessoa.id !== responsavelAtual)
+    .map((pessoa) => ({ valor: pessoa.id, rotulo: pessoa.nome }));
+  if (responsavelAtual) opcoesDeResponsavel.unshift({ valor: responsavelAtual, rotulo: nomeResponsavelAtual });
   const [leadSelecionado, setLeadSelecionado] = useState(leadId ?? existente?.leadId ?? "");
   const [texto, setTexto] = useState(existente?.texto ?? "");
   const [dataHora, setDataHora] = useState(
@@ -44,17 +54,19 @@ export function FormularioLembrete({ aberto, visualV2 = false, leadId, leadNome,
     return [...unicos.entries()];
   }, [atendimentos.data]);
   const criar = useMutation({
-    mutationFn: (dados: { leadId: string | null; texto: string; dataHora: string }) =>
+    mutationFn: (dados: DadosLembrete) =>
       existente
         ? editarLembrete(existente.id, {
             texto: dados.texto,
             dataHora: dados.dataHora,
             status: existente.status,
+            responsavelId: dados.responsavelId,
           })
         : criarLembrete(dados),
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: ["lembretes"] });
       setTexto("");
+      setResponsavel("");
       setDataHora("");
       if (!leadId && !existente) setLeadSelecionado("");
       onFechar();
@@ -65,13 +77,16 @@ export function FormularioLembrete({ aberto, visualV2 = false, leadId, leadNome,
   function salvar(evento: React.FormEvent) {
     evento.preventDefault();
     if ((!visualV2 && !existente && !leadEfetivo) || !texto.trim() || !dataHoraCompleta(dataHora)) return;
-    criar.mutate({ leadId: leadEfetivo || null, texto: texto.trim(), dataHora: new Date(dataHora).toISOString() });
+    criar.mutate({
+      leadId: leadEfetivo || null, texto: texto.trim(), dataHora: new Date(dataHora).toISOString(),
+      responsavelId: podeAtribuirResponsavel && responsavel && responsavel !== responsavelAtual ? responsavel : undefined,
+    });
   }
 
   return (
     <Dialog open={aberto} onOpenChange={(novo) => !novo && onFechar()}>
       <DialogContent className={visualV2 ? visual.formulario : undefined}>
-        <DialogHeader><DialogTitle>{existente ? textos.formulario.tituloEditar : textos.formulario.titulo}</DialogTitle>
+        <DialogHeader><DialogTitle>{existente ? textos.formulario.tituloEditar : visualV2 ? textos.novo : textos.formulario.titulo}</DialogTitle>
           {visualV2 && <DialogDescription>{textos.v2.subtituloFormulario}</DialogDescription>}
         </DialogHeader>
         <form className="space-y-3" onSubmit={salvar}>
@@ -79,8 +94,10 @@ export function FormularioLembrete({ aberto, visualV2 = false, leadId, leadNome,
             <span>{textos.v2.oQueLembrar}</span>
             <Input placeholder={textos.v2.exemploLembrete} value={texto} onChange={(e) => setTexto(e.target.value)} required />
           </label>}
+          <div className={visualV2 ? visual.camposVinculo : undefined}>
           <label className="block space-y-1 text-sm">
-            <span>{textos.formulario.lead}</span>
+            <span>{visualV2 ? textos.v2.leadVinculado : textos.formulario.lead}</span>
+            {visualV2 && <small>{textos.v2.opcional}</small>}
             {leadId || existente ? (
               <Input value={leadNome ?? existente?.leadNome ?? leadId ?? ""} disabled />
             ) : (
@@ -93,6 +110,15 @@ export function FormularioLembrete({ aberto, visualV2 = false, leadId, leadNome,
               />
             )}
           </label>
+          {visualV2 && <label className="block space-y-1 text-sm">
+            <span>{textos.v2.responsavel}</span>
+            <small>{textos.v2.responsavelAjuda}</small>
+            {podeAtribuirResponsavel ? <Seletor ariaLabel={textos.v2.responsavel}
+              valor={responsavel || responsavelAtual} placeholder={nomeResponsavelAtual}
+              opcoes={opcoesDeResponsavel} onChange={setResponsavel} />
+              : <Input value={nomeResponsavelAtual} readOnly aria-label={textos.v2.responsavel} />}
+          </label>}
+          </div>
           <label className="block space-y-1 text-sm">
             <span>{visualV2 ? textos.v2.quando : textos.formulario.dataHora}</span>
             {visualV2 && <AtalhosDeHorario rotulos={textos.v2} valor={dataHora} onChange={setDataHora} />}

@@ -48,8 +48,8 @@ export function useDesempenhoEquipe(habilitado = true) {
 }
 
 /** GET /api/v1/me (E17) — nome, papel e presença de quem está autenticado. */
-export function useMeuUsuario() {
-  return useQuery({ queryKey: ["me"], queryFn: obterMeuUsuario });
+export function useMeuUsuario(habilitado = true) {
+  return useQuery({ queryKey: ["me"], queryFn: obterMeuUsuario, enabled: habilitado });
 }
 
 export function useAtualizarMeuUsuario() {
