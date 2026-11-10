@@ -281,6 +281,9 @@ function TabelaDeLembretes({
           {grupo.rotulo}<small aria-hidden className={visual.quantidade}>{grupo.itens.length}</small></>;
         return <div key={grupo.id} className={agora === undefined ? "overflow-x-auto rounded-lg border border-border bg-card" : visual.cartao}>
       <table className={"w-full text-sm " + (agora === undefined ? "" : visual.lembretesTabela)}>
+        {agora !== undefined && <colgroup>
+          <col /><col /><col /><col />{mostrarAtendente && <col />}<col />
+        </colgroup>}
         {agora === undefined && <thead className="bg-muted/60">
           <tr>
             <th className="w-10 px-4 py-3" />

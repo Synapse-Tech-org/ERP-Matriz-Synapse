@@ -194,11 +194,13 @@
 .grupoControle svg { margin-inline-start: auto; color: var(--agenda-texto-suave); }
 .grupoControle[aria-expanded="true"] svg { transform: rotate(180deg); }
 .lembretesTabela { table-layout: fixed; }
-.lembretesTabela td:first-child { width: 56px; padding-inline: 20px 8px; }
-.lembretesTabela td:nth-child(3) { width: 20%; }
-.lembretesTabela td:nth-child(4) { width: 150px; }
-.lembretesTabela td:nth-child(5) { width: 18%; }
-.lembretesTabela td:last-child { width: 88px; padding-inline: 6px 14px; }
+.lembretesTabela col:first-child { width: 56px; }
+.lembretesTabela col:nth-child(3) { width: 20%; }
+.lembretesTabela col:nth-child(4) { width: 150px; }
+.lembretesTabela col:nth-last-child(2) { width: 14%; }
+.lembretesTabela col:last-child { width: 88px; }
+.lembretesTabela td:first-child { padding-inline: 20px 8px; }
+.lembretesTabela td:last-child { padding-inline: 6px 14px; }
 .assunto { display: flex; align-items: center; min-width: 0; gap: 8px; }
 .textoLembrete { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; font-weight: 500; }
 .lembretesTabela [data-concluido="true"] .textoLembrete { color: #9ca3b0; text-decoration: line-through; }
@@ -220,13 +222,14 @@
 
 .programadasTabela { table-layout: fixed; }
 .programadasTabela tr > td { height: 68px; }
-.programadasTabela td:first-child { width: 112px; padding-inline-start: 20px; }
+.programadasTabela col:first-child { width: 112px; }
+.programadasTabela td:first-child { padding-inline-start: 20px; }
 .programadasTabela td:first-child time { font-size: 16px; letter-spacing: -.02em; }
 .programadasTabela td:first-child div { font-family: var(--fonte-frontend-v2), sans-serif; }
-.programadasTabela td:nth-child(2) { width: 20%; }
-.programadasTabela td:nth-last-child(3) { width: 15%; }
-.programadasTabela td:nth-last-child(2) { width: 128px; }
-.programadasTabela td:last-child { width: 192px; }
+.programadasTabela col:nth-child(2) { width: 20%; }
+.programadasTabela col:nth-last-child(3) { width: 15%; }
+.programadasTabela col:nth-last-child(2) { width: 128px; }
+.programadasTabela col:last-child { width: 192px; }
 .programadasTabela [data-status="CANCELADA"] :is(time, .conteudoProgramada) { color: #9ca3b0; }
 .programadasTabela [data-status="CANCELADA"] time { text-decoration: line-through; }
 .conteudoProgramada { padding: 8px 16px; color: var(--agenda-texto-secundario); }

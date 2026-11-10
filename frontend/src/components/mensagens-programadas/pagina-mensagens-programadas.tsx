@@ -302,6 +302,9 @@ function TabelaDeMensagensProgramadas({
     <div className={agrupar ? visual.lista : undefined}>
       {[...dias].map(([dia, mensagens]) => <div key={dia} className={agrupar ? visual.cartao : "overflow-x-auto rounded-lg border border-border bg-card"}>
       <table className={"w-full text-sm " + (agrupar ? visual.programadasTabela : "")}>
+        {agrupar && <colgroup>
+          <col /><col /><col />{mostrarAtendente && <col />}<col /><col />
+        </colgroup>}
         {!agrupar && <thead className="bg-muted/60">
           <tr>
             <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
