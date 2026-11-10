@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
 const atualizarMutate = vi.fn();
+const editarMutate = vi.fn();
 const removerMutate = vi.fn();
 const listarLembretesMock = vi.fn();
 
@@ -36,6 +37,14 @@ const LEMBRETES = {
   temMais: false,
 };
 
+const v2 = vi.hoisted(() => ({ ativo: false }));
+vi.mock("@/lib/config/use-funcionalidades", () => ({
+  useFuncionalidadesHabilitadas: () => ({ data: v2.ativo ? ["recursos_layout_v2"] : [] }),
+}));
+vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () => null }));
+vi.mock("@/lib/equipe/use-equipe", () => ({ useEquipe: () => ({ data: [{ id: "u1", nome: "Ana Beatriz" }] }) }));
+afterEach(() => { v2.ativo = false; });
+
 vi.mock("@/lib/auth/auth-store", () => ({
   useAuthStore: (selector: (s: { papel: string }) => unknown) => selector({ papel: "GESTOR" }),
 }));
@@ -43,6 +52,7 @@ vi.mock("@/lib/auth/auth-store", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     lembretes: {
+      v2: {"buscar":"Buscar lembrete ou lead","todosAtendentes":"Todos os atendentes","soAutomaticos":"Somente automáticos","hoje":"Hoje e atrasados","amanha":"Amanhã","proximos":"Próximos dias","concluidos":"Concluídos","adiar":"Adiar 1 hora","reabrir":"Reabrir","editar":"Editar","periodoInvalido":"A data final deve ser igual ou posterior à inicial."},
       titulo: "Lembretes",
       descricao: "Compromissos pessoais ligados aos seus leads.",
       novo: "Novo lembrete",
@@ -87,6 +97,10 @@ vi.mock("@/lib/suporte/api", () => ({
     atualizarMutate(...args);
     return Promise.resolve();
   },
+  editarLembrete: (...args: unknown[]) => {
+    editarMutate(...args);
+    return Promise.resolve();
+  },
   removerLembrete: (...args: unknown[]) => {
     removerMutate(...args);
     return Promise.resolve();
@@ -110,6 +124,25 @@ function renderComQuery() {
 }
 
 describe("pagina de lembretes", () => {
+  it("no V2 pesquisa no servidor, agrupa, adia e reabre", async () => {
+    v2.ativo = true;
+    renderComQuery();
+    expect(await screen.findByRole("rowheader", { name: "Hoje e atrasados" })).toBeInTheDocument();
+    expect(screen.getByRole("rowheader", { name: "Concluídos" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Somente automáticos" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Buscar lembrete ou lead" }), { target: { value: "retomar" } });
+    await waitFor(() => expect(listarLembretesMock).toHaveBeenCalledWith(expect.objectContaining({
+      busca: "retomar", origemAutomatica: true, pagina: 0,
+    })));
+    fireEvent.click(await screen.findByRole("button", { name: "Adiar 1 hora" }));
+    await waitFor(() => expect(editarMutate).toHaveBeenCalledWith("r1", expect.objectContaining({
+      status: "PENDENTE", dataHora: expect.any(String),
+    })));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Reabrir" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Reabrir" }));
+    await waitFor(() => expect(atualizarMutate).toHaveBeenCalledWith(expect.objectContaining({ id: "r2" }), "PENDENTE"));
+  });
+
   it("lista os lembretes como cards, com lead, status e badge de automático", async () => {
     renderComQuery();
 

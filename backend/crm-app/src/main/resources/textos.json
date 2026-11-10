@@ -1043,6 +1043,19 @@
     }
   },
   "lembretes": {
+    "v2": {
+      "buscar": "Buscar lembrete ou lead",
+      "todosAtendentes": "Todos os atendentes",
+      "soAutomaticos": "Somente automáticos",
+      "hoje": "Hoje e atrasados",
+      "amanha": "Amanhã",
+      "proximos": "Próximos dias",
+      "concluidos": "Concluídos",
+      "adiar": "Adiar 1 hora",
+      "reabrir": "Reabrir",
+      "editar": "Editar",
+      "periodoInvalido": "A data final deve ser igual ou posterior à inicial."
+    },
     "titulo": "Lembretes",
     "descricao": "Compromissos pessoais ligados aos seus leads.",
     "novo": "Novo lembrete",
@@ -1092,6 +1105,11 @@
     }
   },
   "mensagensProgramadas": {
+    "v2": {
+      "todosAtendentes": "Todos os atendentes",
+      "proximoEnvio": "Próximo envio",
+      "periodoInvalido": "A data final deve ser igual ou posterior à inicial."
+    },
     "titulo": "Mensagens programadas",
     "descricao": "Mensagens que a Automação enviará no horário escolhido.",
     "nova": "Programar mensagem",

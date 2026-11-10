@@ -1096,6 +1096,19 @@ export const TextosSchema = z.object({
     }),
   }),
   lembretes: z.object({
+    v2: z.object({
+      buscar: z.string().default("Buscar lembrete ou lead"),
+      todosAtendentes: z.string().default("Todos os atendentes"),
+      soAutomaticos: z.string().default("Somente automáticos"),
+      hoje: z.string().default("Hoje e atrasados"),
+      amanha: z.string().default("Amanhã"),
+      proximos: z.string().default("Próximos dias"),
+      concluidos: z.string().default("Concluídos"),
+      adiar: z.string().default("Adiar 1 hora"),
+      reabrir: z.string().default("Reabrir"),
+      editar: z.string().default("Editar"),
+      periodoInvalido: z.string().default("A data final deve ser igual ou posterior à inicial."),
+    }).prefault({}),
     titulo: z.string(), descricao: z.string(), novo: z.string(), carregando: z.string(),
     vazio: z.string(), erro: z.string(), automatico: z.string(), concluir: z.string(), remover: z.string(),
     status: z.object({ pendente: z.string(), concluido: z.string() }),
@@ -1113,6 +1126,11 @@ export const TextosSchema = z.object({
     formulario: z.object({ titulo: z.string(), tituloEditar: z.string(), lead: z.string(), selecionarLead: z.string(), dataHora: z.string(), selecionarData: z.string(), hora: z.string(), minuto: z.string(), texto: z.string(), salvar: z.string(), cancelar: z.string(), erro: z.string(), erroOperacao: z.string() }),
   }),
   mensagensProgramadas: z.object({
+    v2: z.object({
+      todosAtendentes: z.string().default("Todos os atendentes"),
+      proximoEnvio: z.string().default("Próximo envio"),
+      periodoInvalido: z.string().default("A data final deve ser igual ou posterior à inicial."),
+    }).prefault({}),
     titulo:z.string(),descricao:z.string(),nova:z.string(),carregando:z.string(),vazio:z.string(),erro:z.string(),editar:z.string(),cancelar:z.string(),remover:z.string(),confirmarRemocao:z.string(),
     status:z.object({agendada:z.string(),enviada:z.string(),cancelada:z.string()}),
     filtros:z.object({inicio:z.string(),fim:z.string(),status:z.string(),todos:z.string()}),

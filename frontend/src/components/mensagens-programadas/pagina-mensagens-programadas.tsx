@@ -6,10 +6,10 @@ import listaV2 from "@/components/shell/lista-v2.module.css";
 import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { X } from "lucide-react";
+import { Clock3, X } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ import { Seletor } from "@/components/ui/seletor";
 import { SeletorData } from "@/components/ui/seletor-data";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useEquipe } from "@/lib/equipe/use-equipe";
+import { chaveDoDiaLocal, periodoLocal } from "@/lib/suporte/agenda-de-datas";
 import { cancelarMensagemProgramada, listarMensagensProgramadas } from "@/lib/suporte/api";
 import type { MensagemProgramada, StatusMensagemProgramada } from "@/lib/suporte/types";
 
@@ -41,24 +43,56 @@ export function PaginaMensagensProgramadas() {
   const capacidades = useCapacidades();
   const podeCriar = capacidades.pode("mensagens_programadas.criar");
   const podeEditarCancelar = capacidades.pode("mensagens_programadas.editar_cancelar");
+  const podeFiltrarEquipe = layoutV2 && gestor && capacidades.pode("equipe.ver");
+  const equipe = useEquipe(podeFiltrarEquipe);
   const cache = useQueryClient();
   const [novo, setNovo] = useState(false);
   const [edicao, setEdicao] = useState<MensagemProgramada | null>(null);
   const [inicio, setInicio] = useState("");
   const [fim, setFim] = useState("");
-  const [status, setStatus] = useState<StatusMensagemProgramada | "">("");
+  const [statusSelecionado, setStatus] = useState<StatusMensagemProgramada | "" | null>(null);
+  const status = statusSelecionado ?? (layoutV2 ? "AGENDADA" : "");
+  const [atendente, setAtendente] = useState("");
   const [pagina, setPagina] = useState(0);
 
+  const periodoValido = !inicio || !fim || inicio <= fim;
+  const atendenteId = podeFiltrarEquipe ? atendente || undefined : undefined;
   const consulta = useQuery({
-    queryKey: ["mensagens-programadas", inicio, fim, status, pagina],
+    queryKey: ["mensagens-programadas", inicio, fim, status, pagina, atendenteId],
+    enabled: periodoValido,
     queryFn: () =>
       listarMensagensProgramadas({
-        inicio: inicio ? new Date(`${inicio}T00:00:00`).toISOString() : undefined,
-        fim: fim ? new Date(`${fim}T23:59:59`).toISOString() : undefined,
+        ...periodoLocal(inicio, fim),
+        atendenteId,
         status: status || undefined,
         pagina,
       }),
   });
+  const proximo = useQuery({
+    queryKey: ["mensagens-programadas", "proximo", inicio, fim, atendenteId],
+    enabled: layoutV2 && periodoValido,
+    queryFn: async () => {
+      const periodo = periodoLocal(inicio, fim);
+      const agora = new Date().toISOString();
+      if (periodo.fim && periodo.fim < agora) return null;
+      const agendadas = await listarMensagensProgramadas({
+        ...periodo, inicio: periodo.inicio && periodo.inicio > agora ? periodo.inicio : agora,
+        status: "AGENDADA", atendenteId, pagina: 0,
+      });
+      return agendadas.mensagens[0] ?? null;
+    },
+  });
+  const dataProximoEnvio = proximo.data?.dataEnvio;
+  useEffect(() => {
+    if (!layoutV2 || !dataProximoEnvio) return;
+    const espera = Math.max(0, Date.parse(dataProximoEnvio) - Date.now()) + 1_000;
+    if (espera > 2_147_483_647) return;
+    const timer = window.setTimeout(() => {
+      void cache.invalidateQueries({ queryKey: ["mensagens-programadas", "proximo"] });
+    }, espera);
+    return () => window.clearTimeout(timer);
+  }, [cache, dataProximoEnvio, layoutV2]);
+
   const cancelar = useMutation({
     mutationFn: cancelarMensagemProgramada,
     onSuccess: () => cache.invalidateQueries({ queryKey: ["mensagens-programadas"] }),
@@ -88,7 +122,11 @@ export function PaginaMensagensProgramadas() {
           { valor: "ENVIADA", rotulo: t.status.enviada },
           { valor: "CANCELADA", rotulo: t.status.cancelada },
         ]} />}
-      <div data-slot="recursos-painel" className="flex flex-wrap gap-3 rounded-lg border p-3">
+      <div data-slot="recursos-painel" className="flex flex-wrap items-end gap-3 rounded-lg border p-3">
+        {podeFiltrarEquipe && Boolean(equipe.data?.length) && <Seletor
+          ariaLabel={t.colunas.atendente} placeholder={t.v2.todosAtendentes} className="w-auto max-w-full"
+          valor={atendente} opcoes={(equipe.data ?? []).map(({ id, nome }) => ({ valor: id, rotulo: nome }))}
+          onChange={(valor) => mudarFiltro(() => setAtendente(valor))} />}
         <label className="text-sm">
           {t.filtros.inicio}
           <SeletorData
@@ -123,7 +161,13 @@ export function PaginaMensagensProgramadas() {
         </label>}
       </div>
 
-      {consulta.isLoading ? (
+      {layoutV2 && periodoValido && proximo.data && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+        <Clock3 aria-hidden className="size-4 text-primary" />
+        <span className="text-muted-foreground">{t.v2.proximoEnvio}</span>
+        <time dateTime={proximo.data.dataEnvio} className="font-semibold">{new Date(proximo.data.dataEnvio).toLocaleString("pt-BR")}</time>
+        <span className="break-words font-medium">{proximo.data.leadNome}</span>
+      </div>}
+      {!periodoValido ? <p role="status">{t.v2?.periodoInvalido ?? t.vazio}</p> : consulta.isLoading ? (
         <p>{t.carregando}</p>
       ) : consulta.isError ? (
         <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => consulta.refetch()} />
@@ -133,6 +177,8 @@ export function PaginaMensagensProgramadas() {
         <TabelaDeMensagensProgramadas
           itens={consulta.data.mensagens}
           mostrarAtendente={gestor}
+          agrupar={layoutV2}
+          cancelando={cancelar.isPending}
           textos={t}
           onEditar={podeEditarCancelar ? setEdicao : undefined}
           onCancelar={podeEditarCancelar ? (id) => cancelar.mutate(id) : undefined}
@@ -177,13 +223,24 @@ function TabelaDeMensagensProgramadas({
   textos,
   onEditar,
   onCancelar,
+  agrupar,
+  cancelando,
 }: {
   itens: MensagemProgramada[];
   mostrarAtendente: boolean;
   textos: TextosMensagensProgramadas;
   onEditar?: (mensagem: MensagemProgramada) => void;
   onCancelar?: (id: string) => void;
+  agrupar: boolean;
+  cancelando: boolean;
 }) {
+  const dias = new Map<string, MensagemProgramada[]>();
+  for (const mensagem of itens) {
+    const dia = agrupar ? chaveDoDiaLocal(mensagem.dataEnvio) : "";
+    const grupo = dias.get(dia);
+    if (grupo) grupo.push(mensagem);
+    else dias.set(dia, [mensagem]);
+  }
   return (
     <div data-slot="recursos-painel" className="overflow-x-auto rounded-lg border border-border bg-card">
       <table className="w-full text-sm">
@@ -211,8 +268,13 @@ function TabelaDeMensagensProgramadas({
             </th>
           </tr>
         </thead>
-        <tbody>
-          {itens.map((mensagem) => {
+        {[...dias].map(([dia, mensagens]) => <tbody key={dia}>
+          {dia && <tr className="border-t bg-muted/40">
+            <th scope="rowgroup" colSpan={mostrarAtendente ? 6 : 5} className="px-4 py-2 text-left text-xs font-semibold">
+              <time dateTime={dia}>{new Date(mensagens[0].dataEnvio).toLocaleDateString("pt-BR", { dateStyle: "full" })}</time>
+            </th>
+          </tr>}
+          {mensagens.map((mensagem) => {
             const editavel = mensagem.status === "AGENDADA";
             return (
               <tr
@@ -260,7 +322,7 @@ function TabelaDeMensagensProgramadas({
                 <td className="px-4 py-3 text-right">
                   {editavel && onEditar && onCancelar && (
                     <div className="flex justify-end gap-1">
-                      <Button size="sm" variant="outline" onClick={() => onEditar(mensagem)}>
+                      <Button size="sm" variant="outline" disabled={cancelando} onClick={() => onEditar(mensagem)}>
                         {textos.editar}
                       </Button>
                       <Button
@@ -268,6 +330,7 @@ function TabelaDeMensagensProgramadas({
                         variant="ghost"
                         className="size-8 text-destructive hover:text-destructive"
                         aria-label={`${textos.cancelar} ${mensagem.leadNome}`}
+                        disabled={cancelando}
                         onClick={() => onCancelar(mensagem.id)}
                       >
                         <X className="size-(--tamanho-icone-interface)" />
@@ -278,7 +341,7 @@ function TabelaDeMensagensProgramadas({
               </tr>
             );
           })}
-        </tbody>
+        </tbody>)}
       </table>
     </div>
   );

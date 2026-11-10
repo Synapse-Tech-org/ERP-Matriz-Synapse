@@ -36,7 +36,7 @@ export function FormularioLembrete({ aberto, leadId, leadNome, existente, onFech
   const [dataHora, setDataHora] = useState(
     existente ? paraLocal(existente.dataHora) : "",
   );
-  const atendimentos = useAtendimentosParaEscolha(aberto && !leadId);
+  const atendimentos = useAtendimentosParaEscolha(aberto && !leadId && !existente);
   const leads = useMemo(() => {
     const unicos = new Map((atendimentos.data ?? []).map((item) => [item.leadId, item.leadNome]));
     return [...unicos.entries()];
@@ -62,7 +62,7 @@ export function FormularioLembrete({ aberto, leadId, leadNome, existente, onFech
   const leadEfetivo = leadId ?? leadSelecionado;
   function salvar(evento: React.FormEvent) {
     evento.preventDefault();
-    if (!leadEfetivo || !texto.trim() || !dataHoraCompleta(dataHora)) return;
+    if ((!existente && !leadEfetivo) || !texto.trim() || !dataHoraCompleta(dataHora)) return;
     criar.mutate({ leadId: leadEfetivo, texto: texto.trim(), dataHora: new Date(dataHora).toISOString() });
   }
 
@@ -74,7 +74,7 @@ export function FormularioLembrete({ aberto, leadId, leadNome, existente, onFech
           <label className="block space-y-1 text-sm">
             <span>{textos.formulario.lead}</span>
             {leadId || existente ? (
-              <Input value={leadNome ?? existente?.leadNome ?? leadId} disabled />
+              <Input value={leadNome ?? existente?.leadNome ?? leadId ?? ""} disabled />
             ) : (
               <Seletor
                 obrigatorio

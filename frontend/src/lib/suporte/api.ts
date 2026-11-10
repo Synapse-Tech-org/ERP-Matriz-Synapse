@@ -9,6 +9,9 @@ export function listarLembretes(filtros: {
   fim?: string;
   status?: StatusLembrete;
   leadId?: string;
+  atendenteId?: string;
+  busca?: string;
+  origemAutomatica?: boolean;
   pagina: number;
 }): Promise<PaginaLembretes> {
   const query = new URLSearchParams({ pagina: String(filtros.pagina) });
@@ -16,6 +19,9 @@ export function listarLembretes(filtros: {
   if (filtros.fim) query.set("fim", filtros.fim);
   if (filtros.status) query.set("status", filtros.status);
   if (filtros.leadId) query.set("leadId", filtros.leadId);
+  if (filtros.atendenteId) query.set("atendenteId", filtros.atendenteId);
+  if (filtros.busca) query.set("busca", filtros.busca);
+  if (filtros.origemAutomatica !== undefined) query.set("origemAutomatica", String(filtros.origemAutomatica));
   return apiFetch<PaginaLembretes>(`/api/v1/lembretes?${query}`);
 }
 
@@ -50,9 +56,10 @@ export function removerLembrete(id: string): Promise<void> {
   return apiFetch<void>(`/api/v1/lembretes/${id}`, { method: "DELETE" });
 }
 
-export function listarMensagensProgramadas(f: { inicio?: string; fim?: string; status?: StatusMensagemProgramada; leadId?: string; pagina: number }): Promise<PaginaMensagensProgramadas> {
+export function listarMensagensProgramadas(f: { inicio?: string; fim?: string; status?: StatusMensagemProgramada; leadId?: string; atendenteId?: string; pagina: number }): Promise<PaginaMensagensProgramadas> {
   const q = new URLSearchParams({ pagina: String(f.pagina) });
   if (f.inicio) q.set("inicio", f.inicio); if (f.fim) q.set("fim", f.fim); if (f.status) q.set("status", f.status); if (f.leadId) q.set("leadId", f.leadId);
+  if (f.atendenteId) q.set("atendenteId", f.atendenteId);
   return apiFetch<PaginaMensagensProgramadas>(`/api/v1/mensagens-programadas?${q}`);
 }
 export function criarMensagemProgramada(d: DadosMensagemProgramada): Promise<MensagemProgramada> {

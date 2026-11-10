@@ -105,6 +105,20 @@ class LembretesIT extends PostgresIT {
         assertThat(lista).contains(lembreteBruno.toString()).contains("Bruno Atendente");
     }
 
+    @Test
+    void buscaEOrigemFiltramNaOrigemSemExporLembreteDeOutroAtendente() {
+        jdbc.update("UPDATE lembrete SET origem_automatica = TRUE WHERE id = ?", lembreteBruno);
+        String rota = "/api/v1/lembretes?leadId=" + leadBruno + "&atendenteId=" + bruno;
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET,
+                rota + "&busca=pRiVaDo&origemAutomatica=true", null).getBody()).contains(lembreteBruno.toString());
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET,
+                rota + "&busca=pRiVaDo&origemAutomatica=false", null).getBody()).doesNotContain(lembreteBruno.toString());
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET,
+                rota + "&busca=E13", null).getBody()).contains(lembreteBruno.toString());
+        assertThat(chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET,
+                rota + "&busca=privado&origemAutomatica=true", null).getBody()).doesNotContain(lembreteBruno.toString());
+    }
+
     private ResponseEntity<String> chamar(String email, String senha, HttpMethod metodo, String url, Object corpo) {
         String token = ApoioAutenticacao.login(http, email, senha).accessToken();
         HttpHeaders headers = new HttpHeaders();

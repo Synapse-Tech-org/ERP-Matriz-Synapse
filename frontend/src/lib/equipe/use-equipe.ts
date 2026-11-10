@@ -29,8 +29,8 @@ const CHAVE_DESEMPENHO = ["equipe", "desempenho"] as const;
  * testes de tela no mesmo padrão do resto do projeto — cada fonte de dado tem um hook, nunca
  * `useQuery` cru espalhado pelos componentes.
  */
-export function useEquipe() {
-  return useQuery({ queryKey: CHAVE_EQUIPE, queryFn: listarEquipe });
+export function useEquipe(habilitado = true) {
+  return useQuery({ queryKey: CHAVE_EQUIPE, queryFn: listarEquipe, enabled: habilitado });
 }
 
 /** Mini-dashboard e ranking por avaliação (E17b §Bloco 4). */

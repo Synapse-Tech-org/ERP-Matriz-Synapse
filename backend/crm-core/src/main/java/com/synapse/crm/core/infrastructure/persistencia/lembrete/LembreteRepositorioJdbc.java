@@ -55,6 +55,20 @@ class LembreteRepositorioJdbc implements LembreteRepositorio {
             sql.append(" AND l.lead_id = ?");
             parametros.add(filtro.leadId());
         }
+        if (filtro.atendenteId() != null) {
+            sql.append(" AND l.atendente_id = ?");
+            parametros.add(filtro.atendenteId());
+        }
+        if (filtro.origemAutomatica() != null) {
+            sql.append(" AND l.origem_automatica = ?");
+            parametros.add(filtro.origemAutomatica());
+        }
+        if (filtro.busca() != null && !filtro.busca().isBlank()) {
+            String termo = "%" + filtro.busca().strip().replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+            sql.append(" AND (l.texto ILIKE ? ESCAPE '!' OR lead.nome ILIKE ? ESCAPE '!')");
+            parametros.add(termo);
+            parametros.add(termo);
+        }
         sql.append(" ORDER BY l.data_hora, l.id LIMIT ? OFFSET ?");
         parametros.add(filtro.tamanho() + 1);
         parametros.add(Math.multiplyExact(filtro.pagina(), filtro.tamanho()));

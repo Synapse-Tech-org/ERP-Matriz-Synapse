@@ -65,6 +65,17 @@ class MensagensProgramadasIT extends PostgresIT {
         assertThat(chamar(EMAIL_ANA,SENHA_ATENDENTE,HttpMethod.POST,"/api/v1/mensagens-programadas",Map.of("leadId",leadBruno,"conteudo","Invadir","dataEnvio",futuro.toString())).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(jdbc.queryForObject("SELECT status::text FROM mensagem_programada WHERE id=?",String.class,mensagemBruno)).isEqualTo("AGENDADA");
     }
+    @Test
+    void filtroDeAtendenteRespeitaPermissaoDaLista() {
+        String rota = "/api/v1/mensagens-programadas?leadId=" + leadBruno + "&atendenteId=";
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET, rota + bruno, null).getBody())
+                .contains(mensagemBruno.toString());
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET, rota + ana, null).getBody())
+                .doesNotContain(mensagemBruno.toString());
+        assertThat(chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET, rota + bruno, null).getBody())
+                .doesNotContain(mensagemBruno.toString());
+    }
+
     @Test @DisplayName("gestor ve mensagens de todos com coluna do atendente") void gestor(){String corpo=chamar(EMAIL_GESTOR,SENHA_GESTOR,HttpMethod.GET,"/api/v1/mensagens-programadas",null).getBody();assertThat(corpo).contains(mensagemBruno.toString()).contains("Bruno Atendente");}
     @Test @DisplayName("programada vencida entra uma vez na outbox e chega ao canal") void vencidaProcessadaUmaVez(){
         canal.limpar();

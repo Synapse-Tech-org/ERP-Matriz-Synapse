@@ -7,6 +7,7 @@ import java.util.UUID;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -62,7 +63,7 @@ class LembreteController {
 
     @Operation(
             summary = "Listar lembretes",
-            description = "Filtra lembretes por período e status. A página é baseada em zero e o tamanho vem da configuração da instância.",
+            description = "Filtra lembretes por período, status, responsável, origem e busca. A página é baseada em zero e o tamanho vem da configuração da instância.",
             responses = @ApiResponse(responseCode = "200", description = "Página de lembretes."))
     @GetMapping
     PaginaResposta listar(
@@ -73,10 +74,14 @@ class LembreteController {
             @Parameter(description = "Status do lembrete.") @RequestParam(required = false) StatusLembrete status,
             @Parameter(description = "Lembretes de um lead só — usada pela seção do painel de atendimento (E17).")
                     @RequestParam(required = false) UUID leadId,
+            @RequestParam(required = false) UUID atendenteId,
+            @RequestParam(required = false) @Size(max = 150) String busca,
+            @RequestParam(required = false) Boolean origemAutomatica,
             @Parameter(description = "Índice da página, começando em zero.", example = "0")
                     @RequestParam(defaultValue = "0") int pagina) {
         return PaginaResposta.de(
-                listar.executar(new FiltroLembretes(inicio, fim, status, leadId, pagina, tamanhoPagina)));
+                listar.executar(new FiltroLembretes(inicio, fim, status, leadId, atendenteId, busca,
+                        origemAutomatica, pagina, tamanhoPagina)));
     }
 
     @Operation(
