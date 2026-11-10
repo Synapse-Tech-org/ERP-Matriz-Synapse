@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
+vi.mock("@/lib/config/use-funcionalidades", () => ({
+  useFuncionalidadesHabilitadas: () => ({ data: [] }),
+}));
+
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     estados: { erroGenerico: "Erro.", tentarNovamente: "Tentar novamente" },
