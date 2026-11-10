@@ -30,13 +30,17 @@ de fila ou reprocessamento. pg-boss instalado nao significa fila em execucao.
    e Compose Path `docker/dokploy-stack.yml`. Nao criar outro item no Dokploy.
 2. Obter aprovacao antes de push: Autodeploy pode transforma-lo em deploy.
 3. Publicar e conferir a imagem da automacao no GHCR. Esta Stack nao executa
-   build; a branch no Dokploy nao substitui `AUTOMACAO_IMAGE_TAG`.
+   build; trocar a branch nao seleciona automaticamente a imagem nova.
 4. Configurar as envs no MESMO servico, usando `.env.banco.example` como guia.
    Credenciais de PostgreSQL/n8n ja existentes continuam onde estao.
 5. Revisar Preview Compose, imagens e backup antes de cada deploy autorizado.
 
-`AUTOMACAO_IMAGE_TAG`, quando preenchido, seleciona apenas a imagem da automacao.
+`AUTOMACAO_IMAGE_DIGEST`, opcional, seleciona o conteudo exato da imagem da
+automacao, com valor `@sha256:` seguido dos 64 caracteres do digest publicado.
 Ausente/vazio usa `SYNAPSE_IMAGE_TAG`, preservando a versao conjunta como padrao.
+O nome renderizado pode conter tag e digest; nesse caso o digest seleciona o
+conteudo. A antiga variavel `AUTOMACAO_IMAGE_TAG` nao e mais usada: o fallback
+aninhado nao funciona corretamente em Docker Stack.
 Nao modificar a tag conjunta do CRM para testar uma imagem da automacao.
 O CI existente publica imagens em `main` ou execucao manual autorizada com
 `publicar_imagens=true`; push na branch de teste, sozinho, so valida.
@@ -104,7 +108,8 @@ publica existente `https://crm-teste.187.77.47.30.sslip.io` (sem `/login`).
 
 `AUTOMACAO_PAINEL_DOMINIO`: endereco publico NOVO para abrir o painel, sem
 `https://` nem caminho. `AUTOMACAO_ROUTER_PREFIX`: identificador unico da rota
-no proxy Traefik; nao e uma URL nem algo que o usuario precisa acessar.
+no proxy Traefik; ganha sufixo com `TRAEFIK_ROUTER_PREFIX` da instancia para evitar
+colisoes entre filhos. Nao e URL nem algo que o usuario precisa acessar.
 `AUTOMACAO_MEMORY_LIMIT`: teto de memoria do servico inteiro, inicialmente
 768 MiB. Provisionador temporario tem teto de 256 MiB. Este Compose nao impoe
 limite de CPU.
@@ -183,6 +188,12 @@ representativo e verifica clone sem dados, repeticao, rollback do restore,
 concorrencia, indices/tipos e recusa de destinos protegidos/ocupados. O CI foi
 configurado para executar esse teste isolado antes de publicar imagens.
 
-Nesta maquina nao ha Docker/psql. Provisionamento precisa passar pelo teste real
+`npm run test:stack` usa o CLI Docker para renderizar a Stack REAL, sem daemon ou
+deploy, e verifica imagens e labels resolvidas, defaults e isolamento. Para usar
+um cliente fora do PATH, informar `DOCKER_CLI` com seu caminho. Isso nao substitui
+o teste de PostgreSQL: nao inicia containers nem conecta a VPS.
+
+Nesta maquina foi usado um cliente Docker temporario, sem daemon ou psql.
+Provisionamento precisa passar pelo teste real
 e pela validacao de rede, permissoes e versao na homologacao. Testes HTTP/build
 nao substituem isso. Nenhum deploy foi feito.

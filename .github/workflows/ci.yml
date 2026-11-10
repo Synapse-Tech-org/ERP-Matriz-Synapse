@@ -133,6 +133,7 @@ jobs:
           npm run typecheck
           npm run build
           npm run test:runtime
+          npm run test:stack
 
       - name: Build e fumaca da imagem sem publicar ou implantar
         run: |
@@ -198,12 +199,12 @@ jobs:
           AUTOMACAO_PROVISIONAR_REPLICAS=1 \
           AUTOMACAO_PAINEL_HABILITADO=true \
           AUTOMACAO_PAINEL_DOMINIO=painel.example.test \
-          AUTOMACAO_IMAGE_TAG=hml-automacao-ci \
+          AUTOMACAO_IMAGE_DIGEST=@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
           AUTOMACAO_DB_NAME=automacao_ci \
           AUTOMACAO_DB_USER=automacao_ci_app \
           AUTOMACAO_DB_PASSWORD=dummy-automacao-ci \
           docker compose -f docker/dokploy-stack.yml config --format json \
-            | python3 docker/verificacao/validar_automacao.py --homologacao --tag-automacao hml-automacao-ci
+            | python3 docker/verificacao/validar_automacao.py --homologacao --digest-automacao @sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 
       - name: Provar que internal v1 nao tem rota publica
         run: |

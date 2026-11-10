@@ -10,7 +10,7 @@ def labels_de(servico):
     return dict(item.split("=", 1) for item in labels) if isinstance(labels, list) else labels
 
 
-def validar(compose, homologacao=False, tag_automacao=None):
+def validar(compose, homologacao=False, digest_automacao=None):
     servicos = compose["services"]
     automacao = servicos["automacao"]
     ambiente = automacao["environment"]
@@ -52,8 +52,11 @@ def validar(compose, homologacao=False, tag_automacao=None):
     assert "cpus" not in deploy["resources"]["limits"], "sem limite CPU nesta entrega"
     assert int(deploy["resources"]["limits"]["memory"]) == 768 * 1024 * 1024
     assert automacao["healthcheck"]["test"] == ["CMD", "node", "healthcheck.mjs"]
-    tag = tag_automacao or servicos["backend"]["image"].rsplit(":", 1)[1]
-    assert automacao["image"].endswith(":" + tag), "override de imagem deve ser explicito"
+    tag = servicos["backend"]["image"].rsplit(":", 1)[1]
+    if digest_automacao:
+        assert re.fullmatch(r"@sha256:[0-9a-f]{64}", digest_automacao), "digest invalido"
+    assert automacao["image"].endswith(":" + tag + (digest_automacao or "")), "override de imagem deve ser explicito"
+    assert not re.search(r"[\s${}]", automacao["image"]), "imagem contem interpolacao nao resolvida"
     assert servicos["backend"]["environment"]["AUTOMACAO_URL"] == "http://synapse-n8n-internal:5678"
     assert "n8n" in servicos, "nao substituir o n8n dos fluxos ainda nao migrados"
     assert not {"POSTGRES_PASSWORD", "POSTGRES_USER", "N8N_DB_PASSWORD", "N8N_DB_USER"} & set(ambiente)
@@ -81,7 +84,7 @@ def validar(compose, homologacao=False, tag_automacao=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--homologacao", action="store_true")
-    parser.add_argument("--tag-automacao")
+    parser.add_argument("--digest-automacao")
     args = parser.parse_args()
-    validar(json.load(sys.stdin), args.homologacao, args.tag_automacao)
+    validar(json.load(sys.stdin), args.homologacao, args.digest_automacao)
     print("automacao: defaults protegidos, rota restrita, preparador isolado e n8n preservado")

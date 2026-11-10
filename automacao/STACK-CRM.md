@@ -2,7 +2,8 @@
 
 Estado: implementacao LOCAL na branch `feat/automacao-local-base`, sem push,
 publicacao de imagem ou deploy nesta etapa. O teste real de PostgreSQL continua
-pendente nesta maquina, que nao tem Docker. Nao confundir configuracao preparada
+pendente nesta maquina, que nao tem daemon Docker. O CLI temporario permite
+validar a renderizacao da Stack, nao executar containers. Nao confundir configuracao preparada
 com implantacao validada.
 
 ## O que muda, exatamente
@@ -39,13 +40,20 @@ Para homologar sem mudar o CRM:
 1. Apos aprovacoes, publicar a revisao da branch de teste e aguardar os testes.
 2. Confirmar que a execucao manual de publicacao esta disponivel e autorizada.
 3. Conferir que a imagem da automacao existe e o Dokploy consegue baixa-la.
-4. Usar sua tag SHA em `AUTOMACAO_IMAGE_TAG`. Nao usar um SHA que apenas apareceu
-   no historico de deploy: isso nao comprova que haja uma imagem correspondente.
+4. Usar o digest dessa imagem em `AUTOMACAO_IMAGE_DIGEST`, com prefixo
+   `@sha256:` e 64 caracteres hexadecimais. Copiar o digest real da publicacao,
+   nao um hash de commit nem um valor inventado.
 5. Manter `SYNAPSE_IMAGE_TAG`, `N8N_IMAGE_TAG` e demais selecoes existentes.
 
 Esse override e uma selecao de artefato para homologacao, nao um novo processo
 independente de release. Sem override, continua a tag conjunta. O pipeline pode
 publicar as tres imagens, mas isso nao manda atualizar backend/frontend.
+
+O fallback aninhado de `AUTOMACAO_IMAGE_TAG` foi retirado apos a falha no deploy
+63dee0a. Docker Stack pode deixar `${...}` ou `}` no nome da imagem mesmo quando
+`stack config` retorna zero. Nao reintroduzir variaveis aninhadas. O teste
+`npm run test:stack` inspeciona a saida real do CLI e cobre esse incidente.
+`AUTOMACAO_IMAGE_TAG` nao e mais usada; mante-la nas envs nao seleciona imagem.
 
 O CI usa o namespace de imagens ja existente `ghcr.io/synapse-auto/`.
 Confirmar permissoes de publicacao/leitura; nao trocar registries do CRM por conta
@@ -82,7 +90,7 @@ AUTOMACAO_HABILITADA=false
 AUTOMACAO_FOLLOWUP_HABILITADO=false
 ```
 
-Configurar tambem `AUTOMACAO_IMAGE_TAG` com imagem confirmada, conforme acima.
+Configurar tambem `AUTOMACAO_IMAGE_DIGEST` com imagem confirmada, conforme acima.
 Nao copiar senhas para o Git. `AUTOMACAO_REDE_CRM` nao e necessario nesta Stack.
 
 A tarefa `automacao-banco` aguarda PostgreSQL, cria banco/usuario se ausentes,

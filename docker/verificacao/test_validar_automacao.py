@@ -94,14 +94,15 @@ class SegurancaDaAutomacaoTest(unittest.TestCase):
         a["deploy"]["labels"]["traefik.enable"] = "true"
         chave = "traefik.http.routers.ci-painel.rule"
         a["deploy"]["labels"][chave] = a["deploy"]["labels"][chave].replace("automacao-desligada.invalid", "painel.example.test")
-        a["image"] = "ghcr.io/synapse-auto/erp-matriz-synapse-automacao:hml"
+        digest = "@sha256:" + "a" * 64
+        a["image"] += digest
         a["environment"].update(AUTOMACAO_DB_NAME="automacao_ci", AUTOMACAO_DB_USER="automacao_app", AUTOMACAO_DB_PASSWORD="dummy-ci")
         compose["services"]["automacao-banco"]["deploy"]["replicas"] = 1
-        validar(compose, homologacao=True, tag_automacao="hml")
+        validar(compose, homologacao=True, digest_automacao=digest)
         self.assertTrue(compose["services"]["backend"]["image"].endswith(":abcdef1"))
         a["environment"]["AUTOMACAO_DB_PASSWORD"] = ""
         with self.assertRaises(AssertionError):
-            validar(compose, homologacao=True, tag_automacao="hml")
+            validar(compose, homologacao=True, digest_automacao=digest)
 
     def test_rejeita_colisao_de_dominio_ou_roteador(self):
         for chave, regra in [

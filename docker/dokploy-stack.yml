@@ -419,7 +419,7 @@ services:
   # Base TypeScript opcional. Nao substitui o n8n nem muda os destinos do CRM.
   # O override de imagem permite homologar sem trocar as imagens do CRM.
   automacao:
-    image: ghcr.io/synapse-auto/erp-matriz-synapse-automacao:${AUTOMACAO_IMAGE_TAG:-${SYNAPSE_IMAGE_TAG:?obrigatoria}}
+    image: ghcr.io/synapse-auto/erp-matriz-synapse-automacao:${SYNAPSE_IMAGE_TAG:?obrigatoria}${AUTOMACAO_IMAGE_DIGEST:-}
     environment:
       NODE_ENV: production
       AUTOMACAO_HOST: 0.0.0.0
@@ -479,12 +479,12 @@ services:
         # Publicacao do painel e independente da execucao de follow-up.
         - "traefik.enable=${AUTOMACAO_PAINEL_HABILITADO:-false}"
         - "traefik.swarm.network=dokploy-network"
-        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}.rule=Host(`${AUTOMACAO_PAINEL_DOMINIO:-automacao-desligada.invalid}`) && (PathPrefix(`/painel/`) || Path(`/painel`) || Path(`/`))'
-        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}.entrypoints=websecure'
-        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}.tls=true'
-        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}.tls.certresolver=letsencrypt'
-        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}.service=${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}'
-        - 'traefik.http.services.${AUTOMACAO_ROUTER_PREFIX:-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-painel}.loadbalancer.server.port=3100'
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}.rule=Host(`${AUTOMACAO_PAINEL_DOMINIO:-automacao-desligada.invalid}`) && (PathPrefix(`/painel/`) || Path(`/painel`) || Path(`/`))'
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}.entrypoints=websecure'
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}.tls=true'
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}.tls.certresolver=letsencrypt'
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}.service=${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}'
+        - 'traefik.http.services.${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}.loadbalancer.server.port=3100'
 
   # Tarefa unica: nao modifica o servico postgres nem seu init/volume.
   # Ausente = zero tarefas. Falha deve ser inspecionada, sem loop automatico.
