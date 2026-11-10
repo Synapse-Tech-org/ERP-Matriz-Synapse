@@ -46,7 +46,7 @@ provisionar
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM credentials_entity')" = 0 ]
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM execution_entity')" = 0 ]
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM public.faq')" = 0 ]
-[ "$(consulta automacao_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 2 ]
+[ "$(consulta automacao_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 9 ]
 [ "$(consulta n8n_fixture 'SELECT count(*) FROM credentials_entity')" = 1 ]
 [ "$(consulta automacao_fixture "SELECT count(*) FROM pg_type WHERE typname='fixture_enum'")" = 1 ]
 [ "$(consulta automacao_fixture "SELECT to_regclass('public.fixture_status_idx') IS NOT NULL")" = t ]
@@ -63,12 +63,13 @@ docker run --rm --network "container:$container" \
   -v "$raiz/package.json:/app/package.json:ro" \
   -v "$raiz/banco/migrations:/app/banco/migrations:ro" \
   -v "$raiz/test/faq-integracao.mjs:/app/test/faq-integracao.mjs:ro" \
+  -v "$raiz/test/auxiliares-integracao.mjs:/app/test/auxiliares-integracao.mjs:ro" \
   -w /app node:22-alpine node test/faq-integracao.mjs
 provisionar
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM public.faq')" = 1 ]
 
-# Simula exatamente a homologacao atual: clone antigo com marcador, sem V1/V2.
-# O preparador atualizado deve migrar sem reclonar nem perder registros.
+# Simula o banco de homologacao com V1/V2 e FAQ ja cadastrada.
+# O preparador atualizado deve aplicar V3-V9 sem reclonar nem perder registros.
 consulta postgres 'CREATE DATABASE legado_fixture OWNER automacao_fixture_app' >/dev/null
 consulta legado_fixture "SET ROLE automacao_fixture_app;
 CREATE SCHEMA automacao_infra;
@@ -76,9 +77,21 @@ CREATE TABLE automacao_infra.provisionamento (id smallint PRIMARY KEY, versao in
 INSERT INTO automacao_infra.provisionamento VALUES (1,1,'n8n_fixture');
 CREATE TABLE preservar (id integer PRIMARY KEY);
 INSERT INTO preservar VALUES (1)" >/dev/null
+checksum_v1=$(sha256sum "$raiz/banco/migrations/V1__registrar_base_de_execucoes.sql"); checksum_v1=${checksum_v1%% *}
+checksum_v2=$(sha256sum "$raiz/banco/migrations/V2__criar_faq_institucional.sql"); checksum_v2=${checksum_v2%% *}
+docker exec "$container" psql -X -v ON_ERROR_STOP=1 -U postgres -d legado_fixture \
+  -c 'SET ROLE automacao_fixture_app' \
+  -f /opt/automacao/migrations/V1__registrar_base_de_execucoes.sql \
+  -f /opt/automacao/migrations/V2__criar_faq_institucional.sql \
+  -c "CREATE TABLE automacao_infra.migracao (versao integer PRIMARY KEY, arquivo text NOT NULL, checksum text NOT NULL, aplicado_em timestamptz NOT NULL DEFAULT now());
+INSERT INTO automacao_infra.migracao (versao,arquivo,checksum) VALUES
+(1,'V1__registrar_base_de_execucoes.sql','$checksum_v1'),
+(2,'V2__criar_faq_institucional.sql','$checksum_v2');
+INSERT INTO public.faq (nome,pergunta,resposta) VALUES ('legado','Preservar?','Sim')" >/dev/null
 provisionar legado_fixture
-[ "$(consulta legado_fixture 'SELECT count(*) FROM public.faq')" = 0 ]
-[ "$(consulta legado_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 2 ]
+[ "$(consulta legado_fixture 'SELECT count(*) FROM public.faq')" = 1 ]
+[ "$(consulta legado_fixture 'SELECT count(*) FROM public.n8n_chat_histories')" = 0 ]
+[ "$(consulta legado_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 9 ]
 [ "$(consulta legado_fixture 'SELECT count(*) FROM preservar')" = 1 ]
 consulta legado_fixture "UPDATE automacao_infra.migracao SET checksum='adulterado' WHERE versao=1" >/dev/null
 if provisionar legado_fixture; then echo 'ERRO: aceitou checksum alterado' >&2; exit 1; fi

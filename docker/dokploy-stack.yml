@@ -518,6 +518,20 @@ services:
         target: /opt/automacao/migrations/V1__registrar_base_de_execucoes.sql
       - source: automacao-migracao-v2
         target: /opt/automacao/migrations/V2__criar_faq_institucional.sql
+      - source: automacao-migracao-v3
+        target: /opt/automacao/migrations/V3__criar_memoria_de_conversa.sql
+      - source: automacao-migracao-v4
+        target: /opt/automacao/migrations/V4__criar_controle_de_followups.sql
+      - source: automacao-migracao-v5
+        target: /opt/automacao/migrations/V5__criar_recusas_de_followup.sql
+      - source: automacao-migracao-v6
+        target: /opt/automacao/migrations/V6__criar_controle_de_solicitacoes.sql
+      - source: automacao-migracao-v7
+        target: /opt/automacao/migrations/V7__criar_controle_de_envios.sql
+      - source: automacao-migracao-v8
+        target: /opt/automacao/migrations/V8__criar_controle_de_segmentacoes.sql
+      - source: automacao-migracao-v9
+        target: /opt/automacao/migrations/V9__criar_cursores_de_segmentacao.sql
     networks:
       - synapse-internal
     deploy:
@@ -701,3 +715,17 @@ configs:
     file: ../automacao/banco/migrations/V1__registrar_base_de_execucoes.sql
   automacao-migracao-v2:
     file: ../automacao/banco/migrations/V2__criar_faq_institucional.sql
+  automacao-migracao-v3:
+    file: ../automacao/banco/migrations/V3__criar_memoria_de_conversa.sql
+  automacao-migracao-v4:
+    file: ../automacao/banco/migrations/V4__criar_controle_de_followups.sql
+  automacao-migracao-v5:
+    file: ../automacao/banco/migrations/V5__criar_recusas_de_followup.sql
+  automacao-migracao-v6:
+    file: ../automacao/banco/migrations/V6__criar_controle_de_solicitacoes.sql
+  automacao-migracao-v7:
+    file: ../automacao/banco/migrations/V7__criar_controle_de_envios.sql
+  automacao-migracao-v8:
+    file: ../automacao/banco/migrations/V8__criar_controle_de_segmentacoes.sql
+  automacao-migracao-v9:
+    file: ../automacao/banco/migrations/V9__criar_cursores_de_segmentacao.sql

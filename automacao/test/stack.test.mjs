@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, mkdtempSync, rmdirSync } from "node:fs";
+import { readFileSync, readdirSync, mkdtempSync, rmdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -114,6 +114,13 @@ test("preparador recebe SQL e migracoes por arquivo sem depender da imagem TypeS
     assert.equal(destinos.get("/opt/automacao/provisionar.sql"), "automacao-provisionar-sql-v2");
     assert.equal(destinos.get("/opt/automacao/aplicar-migracoes.sh"), "automacao-migrar-sh-v1");
     assert.equal(destinos.get("/opt/automacao/migrations/V2__criar_faq_institucional.sql"), "automacao-migracao-v2");
+    const arquivos = readdirSync(join(raiz, "automacao/banco/migrations")).filter(f => /^V\d+__.*\.sql$/.test(f));
+    assert.equal(arquivos.length, 9);
+    for (const arquivo of arquivos) {
+        const source = destinos.get("/opt/automacao/migrations/" + arquivo);
+        assert.ok(source, "Migration nao montada: " + arquivo);
+        assert.equal(stack.configs[source].file.replaceAll("\\", "/").endsWith("/automacao/banco/migrations/" + arquivo), true);
+    }
     const sql = readFileSync(join(raiz, "automacao/banco/provisionar.sql"), "utf8");
     assert.ok(sql.indexOf("clonar-estrutura.sh") < sql.indexOf("aplicar-migracoes.sh"));
     assert.equal(stack.services.automacao.deploy.replicas, 0);

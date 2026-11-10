@@ -77,7 +77,7 @@ def validar(compose, homologacao=False, digest_automacao=None):
     assert set(preparador["networks"]) == {"synapse-internal"}
     assert not preparador.get("ports") and not preparador.get("volumes")
     assert "depends_on" not in automacao, "Swarm nao deve depender de depends_on"
-    assert len(preparador["configs"]) == 7
+    assert len(preparador["configs"]) == 14
     destinos = {item["target"] for item in preparador["configs"]}
     assert "/opt/automacao/aplicar-migracoes.sh" in destinos
     assert "/opt/automacao/migrations/V2__criar_faq_institucional.sql" in destinos
