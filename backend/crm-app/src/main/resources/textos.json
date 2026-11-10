@@ -1143,6 +1143,8 @@
   "mensagensRapidas": {
     "v2": {
       "listas": "Listas",
+      "gerais": "Mensagens gerais",
+      "publicarGeral": "Compartilhar com toda a equipe",
       "todas": "Todas",
       "buscar": "Buscar por atalho ou texto",
       "total": "{total} mensagens",
@@ -1172,6 +1174,11 @@
     }
   },
   "templatesWhatsApp": {
+    "v2": {
+      "estado": "Status",
+      "todos": "Todos",
+      "todasCategorias": "Todas as categorias"
+    },
     "titulo": "Templates do WhatsApp",
     "descricao": "Crie modelos na Meta para usar quando a janela de 24h estiver fechada. A aprovação é da Meta e pode levar algumas horas.",
     "novo": "Novo template",
@@ -2068,7 +2075,10 @@
       "todasEtapas": "Todas as etapas",
       "lista": "Lista",
       "kanban": "Kanban",
-      "semEtapa": "Sem etapa"
+      "semEtapa": "Sem etapa",
+      "mover": "Mover para outra etapa",
+      "moverPara": "Mover {nome} para outra etapa",
+      "erroMover": "Não foi possível mudar a etapa do contato."
     },
     "titulo": "Agenda de contatos",
     "descricao": "Clique no contato para consultar a ficha; use Abrir atendimento para ir ao chat.",
@@ -2166,6 +2176,12 @@
     }
   },
   "tags": {
+    "v2": {
+      "ordenar": "Ordenar tags",
+      "maisUsadas": "Mais usadas",
+      "alfabetica": "A–Z",
+      "verContatos": "Ver contatos"
+    },
     "titulo": "Tags",
     "descricao": "Etiquetas para classificar e segmentar leads.",
     "busca": "Buscar tag…",

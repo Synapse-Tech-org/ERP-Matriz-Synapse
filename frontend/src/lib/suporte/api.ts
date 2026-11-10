@@ -64,7 +64,12 @@ export function editarMensagemProgramada(id: string, d: Omit<DadosMensagemProgra
 export function cancelarMensagemProgramada(id: string): Promise<MensagemProgramada> {
   return apiFetch<MensagemProgramada>(`/api/v1/mensagens-programadas/${id}/cancelar`, { method: "POST" });
 }
-export function listarMensagensRapidas(minhas=false):Promise<MensagemRapida[]>{return apiFetch<MensagemRapida[]>(`/api/v1/mensagens-rapidas${minhas?"?minhas=true":""}`)}
+export function listarMensagensRapidas(minhas = false, incluirGerais = false): Promise<MensagemRapida[]> {
+  const parametros = new URLSearchParams();
+  if (minhas) parametros.set("minhas", "true");
+  if (incluirGerais) parametros.set("incluirGerais", "true");
+  return apiFetch<MensagemRapida[]>(`/api/v1/mensagens-rapidas${parametros.size ? `?${parametros}` : ""}`);
+}
 export function criarMensagemRapida(d:DadosMensagemRapida):Promise<MensagemRapida>{return apiFetch<MensagemRapida>("/api/v1/mensagens-rapidas",{method:"POST",body:JSON.stringify(d)})}
 export function editarMensagemRapida(id:string,d:DadosMensagemRapida):Promise<MensagemRapida>{return apiFetch<MensagemRapida>(`/api/v1/mensagens-rapidas/${id}`,{method:"PUT",body:JSON.stringify(d)})}
 export function removerMensagemRapida(id:string):Promise<void>{return apiFetch<void>(`/api/v1/mensagens-rapidas/${id}`,{method:"DELETE"})}

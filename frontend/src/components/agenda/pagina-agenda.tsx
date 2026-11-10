@@ -19,6 +19,7 @@ import {
   useCamposFiltraveis,
   useCatalogosDeFiltro,
   useContagemDeLeads,
+  useContagemPorEtapaDaAgenda,
   criterioDosFiltrosAtivos,
   useLeadsDaAgenda,
   SEM_RESPONSAVEL,
@@ -41,6 +42,7 @@ import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { gerenciaImportacaoDeLeads } from "@/lib/navegacao/visibilidade-do-menu";
 
 import { BarraDeFiltros } from "./barra-de-filtros";
+import { KanbanAgenda } from "./kanban-agenda";
 import { ListaDeLeadsMobile } from "./lista-de-leads-mobile";
 import { TabelaDeLeads } from "./tabela-de-leads";
 import { useBuscaLeadsParaEntrada } from "@/lib/agenda/use-busca-entrada";
@@ -58,7 +60,7 @@ import estilos from "./agenda-v2.module.css";
  * <p>Kanban fica de fora de propósito. Importação e exportação CSV ficam disponíveis apenas para
  * gestão e usam endpoints próprios, sempre com o mesmo recorte de visibilidade da Agenda.
  */
-export function PaginaAgenda() {
+export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
   const textosGerais = useTextos();
   const t = textosGerais.agenda;
   const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("agenda_layout_v2") ?? false;
@@ -72,12 +74,14 @@ export function PaginaAgenda() {
   const usuarioId = useAuthStore((estado) => estado.usuarioId);
   const podeGerenciar = gerenciaImportacaoDeLeads(papel);
   const capacidades = useCapacidades();
+  const podeEditarContato = capacidades.pode("contatos.editar");
   const podeAbrirAtendimento = capacidades.pode("atendimentos.abrir_para_contato");
   const podeColaborar = capacidades.pode("atendimentos.colaborar");
 
   const [filtrosAtivos, setFiltrosAtivos] = useState<FiltroAtivo[]>([]);
   const [filtrosRapidos, setFiltrosRapidos] = useState<FiltrosRapidosAgenda>({
     ...FILTROS_RAPIDOS_VAZIOS,
+    tags: tagInicial ? [tagInicial] : [],
   });
   const [pagina, setPagina] = useState(0);
   const [leadNoPainel, setLeadNoPainel] = useState<LeadDaAgenda | null>(null);
@@ -160,7 +164,10 @@ export function PaginaAgenda() {
     filtrosRapidos,
     filtrosAtivos,
     tagsDisponiveis,
+    !layoutV2,
   );
+  const contagemV2 = useContagemPorEtapaDaAgenda(filtrosRapidos, filtrosAtivos, tagsDisponiveis, layoutV2);
+  const contagemPorEtapa = contagemV2.data?.etapas && new Map(contagemV2.data.etapas.map(({ etapaId, total }) => [etapaId, total]));
 
   function adicionarFiltro(filtro: FiltroAtivo) {
     setFiltrosAtivos((atuais) => [...atuais, filtro]);
@@ -205,7 +212,7 @@ export function PaginaAgenda() {
   }
 
   const leads = paginaDeLeads.data?.leads ?? [];
-  const totalExibido = contagem.data ?? leads.length;
+  const totalExibido = (layoutV2 ? contagemV2.data?.total : contagem.data) ?? leads.length;
   const textoContador = t.contador
     .replace("{exibindo}", String(leads.length))
     .replace("{total}", String(totalExibido));
@@ -349,6 +356,7 @@ export function PaginaAgenda() {
             <button type="button" aria-pressed={filtrosRapidos.etapas.length === 0}
               onClick={() => atualizarFiltrosRapidos({ ...filtrosRapidos, etapas: [] })}>
               {t.v2.todasEtapas}
+              {contagemV2.data && <span>{contagemV2.data.total}</span>}
             </button>
             {etapas.data.map((etapa) => (
               <button type="button" key={etapa.id} aria-pressed={filtrosRapidos.etapas.includes(etapa.id)}
@@ -360,6 +368,7 @@ export function PaginaAgenda() {
                     : [...filtrosRapidos.etapas, etapa.id],
                 })}>
                 {etapa.nome}
+                {contagemPorEtapa && <span>{contagemPorEtapa.get(etapa.id) ?? 0}</span>}
               </button>
             ))}
           </div>
@@ -377,27 +386,9 @@ export function PaginaAgenda() {
         ) : leads.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t.vazia}</p>
         ) : layoutV2 && kanban ? (
-          <div className={estilos.kanban}>
-            {[
-              ...(etapas.data ?? []),
-              { id: null, nome: t.v2.semEtapa, corVisual: null },
-            ].filter(({ id }) => id === null || !filtrosRapidos.etapas.length || filtrosRapidos.etapas.includes(id))
-              .map((etapa) => {
-                const contatos = leads.filter((lead) => etapa.id === null
-                  ? !etapas.data?.some(({ id }) => id === lead.etapaAtendimentoId)
-                  : lead.etapaAtendimentoId === etapa.id);
-                if (etapa.id === null && !contatos.length) return null;
-                return (
-                  <section key={etapa.id} style={{ "--tom-etapa": etapa.corVisual ?? "var(--v2-azul)" } as React.CSSProperties}>
-                    <h2>{etapa.nome} <span>{contatos.length}</span></h2>
-                    {contatos.length ? (
-                      <ListaDeLeadsMobile leads={contatos} etapas={etapas.data ?? []} equipe={equipe.data ?? []}
-                        textos={t} onAbrirFicha={abrirFicha} />
-                    ) : <p>{t.vazia}</p>}
-                  </section>
-                );
-              })}
-          </div>
+          <KanbanAgenda leads={leads} etapas={etapas.data ?? []} etapasVisiveis={filtrosRapidos.etapas}
+            contagemPorEtapa={contagemPorEtapa} podeEditar={podeEditarContato}
+            textos={t} onAbrirFicha={abrirFicha} />
         ) : telaEstreita ? (
           <ListaDeLeadsMobile
             leads={leads}

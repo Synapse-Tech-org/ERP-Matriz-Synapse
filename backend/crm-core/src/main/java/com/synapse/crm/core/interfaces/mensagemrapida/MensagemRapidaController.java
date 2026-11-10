@@ -64,8 +64,10 @@ class MensagemRapidaController {
     @GetMapping
     List<Resposta> listar(
             @Parameter(description = "Quando true, retorna somente atalhos do usuário atual.", example = "false")
-                    @RequestParam(defaultValue = "false") boolean minhas) {
-        return listar.executar(minhas).stream().map(Resposta::de).toList();
+                    @RequestParam(defaultValue = "false") boolean minhas,
+            @Parameter(description = "Inclui os atalhos gerais mesmo quando o recorte é pessoal.")
+                    @RequestParam(defaultValue = "false") boolean incluirGerais) {
+        return listar.executar(minhas, incluirGerais).stream().map(Resposta::de).toList();
     }
 
     @Operation(
@@ -79,7 +81,7 @@ class MensagemRapidaController {
     @ResponseStatus(HttpStatus.CREATED)
     Resposta criar(@Valid @RequestBody Requisicao requisicao) {
         return Resposta.de(criar.executar(
-                requisicao.palavraChave(), requisicao.conteudo()));
+                requisicao.palavraChave(), requisicao.conteudo(), Boolean.TRUE.equals(requisicao.geral())));
     }
 
     @Operation(
@@ -95,7 +97,7 @@ class MensagemRapidaController {
             @Parameter(description = "Identificador da mensagem rápida.", required = true) @PathVariable UUID id,
             @Valid @RequestBody Requisicao requisicao) {
         return atualizar
-                .executar(id, requisicao.palavraChave(), requisicao.conteudo())
+                .executar(id, requisicao.palavraChave(), requisicao.conteudo(), requisicao.geral())
                 .map(Resposta::de)
                 .orElseThrow(MensagemRapidaController::naoEncontrada);
     }
@@ -131,7 +133,9 @@ class MensagemRapidaController {
             @Schema(description = "Atalho sem espaços; aceita letras, números, _ e -.", example = "boas_vindas", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotBlank @Size(max = 60) @Pattern(regexp = "[\\p{L}\\p{N}_-]+") String palavraChave,
             @Schema(description = "Texto inserido no composer.", example = "Olá! Como posso ajudar?", requiredMode = Schema.RequiredMode.REQUIRED)
-                    @NotBlank String conteudo) {}
+                    @NotBlank String conteudo,
+            @Schema(description = "Quando true, publica o atalho geral para a equipe. Requer acesso de gestão.")
+                    Boolean geral) {}
 
     record Resposta(
             UUID id,
@@ -139,7 +143,8 @@ class MensagemRapidaController {
             String atendenteNome,
             String palavraChave,
             String conteudo,
-            String tipoMidia) {
+            String tipoMidia,
+            boolean geral) {
         static Resposta de(MensagemRapida mensagem) {
             return new Resposta(
                     mensagem.id(),
@@ -147,7 +152,8 @@ class MensagemRapidaController {
                     mensagem.atendenteNome(),
                     mensagem.palavraChave(),
                     mensagem.conteudo(),
-                    mensagem.tipoMidia());
+                    mensagem.tipoMidia(),
+                    mensagem.geral());
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.synapse.crm.core.application.lead;
 
+import java.util.List;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,5 +32,11 @@ public class ContarLeadsFiltradosUseCase {
     @Transactional(readOnly = true)
     public long executar(FiltroDeLeads filtro) {
         return leads.contar(filtro);
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
+    public List<LeadRepositorio.ContagemPorEtapa> porEtapa(FiltroDeLeads filtro) {
+        return leads.contarPorEtapa(filtro);
     }
 }

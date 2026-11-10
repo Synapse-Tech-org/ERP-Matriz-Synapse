@@ -18,6 +18,7 @@ vi.mock("@/lib/auth/auth-store", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     mensagensRapidas: {
+      v2: { gerais: "Mensagens gerais" },
       titulo: "Mensagens Rápidas",
       descricao: "Atalhos pessoais para respostas usadas com frequência.",
       nova: "Nova mensagem rápida",

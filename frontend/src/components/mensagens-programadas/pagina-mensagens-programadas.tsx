@@ -1,5 +1,11 @@
 "use client";
 
+import { OpcoesListaV2 } from "@/components/shell/opcoes-lista-v2";
+import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
+import listaV2 from "@/components/shell/lista-v2.module.css";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
+
+
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -28,6 +34,7 @@ const TOM_DO_STATUS: Record<StatusMensagemProgramada, TomDePill> = {
 };
 
 export function PaginaMensagensProgramadas() {
+  const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("recursos_layout_v2") ?? false;
   const t = useTextos().mensagensProgramadas;
   // Só apresentação: coluna de atendente para quem enxerga as mensagens da equipe.
   const gestor = ["SUBGESTOR", "GESTOR", "ADMINISTRADOR"].includes(useAuthStore((s) => s.papel) ?? "");
@@ -63,7 +70,8 @@ export function PaginaMensagensProgramadas() {
   }
 
   return (
-    <div className="space-y-5 p-6">
+    <div data-layout={layoutV2 ? "v2" : "legado"} className={layoutV2 ? `${listaV2.pagina} ${listaV2.modulo}` : "space-y-5 p-6"}>
+      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} />}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">{t.titulo}</h1>
@@ -72,7 +80,15 @@ export function PaginaMensagensProgramadas() {
         {podeCriar && <Button onClick={() => setNovo(true)}>{t.nova}</Button>}
       </header>
 
-      <div className="flex flex-wrap gap-3 rounded-lg border p-3">
+      {layoutV2 && <OpcoesListaV2<StatusMensagemProgramada | ""> rotulo={t.filtros.status} valor={status}
+        onChange={(valor) => mudarFiltro(() => setStatus(valor))}
+        opcoes={[
+          { valor: "", rotulo: t.filtros.todos },
+          { valor: "AGENDADA", rotulo: t.status.agendada },
+          { valor: "ENVIADA", rotulo: t.status.enviada },
+          { valor: "CANCELADA", rotulo: t.status.cancelada },
+        ]} />}
+      <div data-slot="recursos-painel" className="flex flex-wrap gap-3 rounded-lg border p-3">
         <label className="text-sm">
           {t.filtros.inicio}
           <SeletorData
@@ -89,7 +105,7 @@ export function PaginaMensagensProgramadas() {
             onChange={(valor) => mudarFiltro(() => setFim(valor))}
           />
         </label>
-        <label className="text-sm">
+        {!layoutV2 && <label className="text-sm">
           {t.filtros.status}
           <Seletor
             className="ml-2"
@@ -104,7 +120,7 @@ export function PaginaMensagensProgramadas() {
               mudarFiltro(() => setStatus(valor as StatusMensagemProgramada | ""))
             }
           />
-        </label>
+        </label>}
       </div>
 
       {consulta.isLoading ? (
@@ -169,7 +185,7 @@ function TabelaDeMensagensProgramadas({
   onCancelar?: (id: string) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
+    <div data-slot="recursos-painel" className="overflow-x-auto rounded-lg border border-border bg-card">
       <table className="w-full text-sm">
         <thead className="bg-muted/60">
           <tr>

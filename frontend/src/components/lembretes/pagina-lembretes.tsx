@@ -1,5 +1,11 @@
 "use client";
 
+import { OpcoesListaV2 } from "@/components/shell/opcoes-lista-v2";
+import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
+import listaV2 from "@/components/shell/lista-v2.module.css";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
+
+
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -21,6 +27,7 @@ import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { FormularioLembrete } from "./formulario-lembrete";
 
 export function PaginaLembretes() {
+  const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("recursos_layout_v2") ?? false;
   const textos = useTextos().lembretes;
   const papel = useAuthStore((s) => s.papel);
   // Só apresentação: coluna de atendente para quem enxerga os lembretes da equipe.
@@ -61,7 +68,8 @@ export function PaginaLembretes() {
   }
 
   return (
-    <div className="space-y-5 p-6">
+    <div data-layout={layoutV2 ? "v2" : "legado"} className={layoutV2 ? `${listaV2.pagina} ${listaV2.modulo}` : "space-y-5 p-6"}>
+      {layoutV2 && <CabecalhoListaV2 titulo={textos.titulo} />}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">{textos.titulo}</h1>
@@ -70,7 +78,14 @@ export function PaginaLembretes() {
         {podeCriar && <Button onClick={() => setAberto(true)}>{textos.novo}</Button>}
       </header>
 
-      <div className="flex flex-wrap gap-3 rounded-lg border p-3">
+      {layoutV2 && <OpcoesListaV2<StatusLembrete | ""> rotulo={textos.filtros.status} valor={status}
+        onChange={(valor) => mudarFiltro(() => setStatus(valor))}
+        opcoes={[
+          { valor: "", rotulo: textos.filtros.todos },
+          { valor: "PENDENTE", rotulo: textos.status.pendente },
+          { valor: "CONCLUIDO", rotulo: textos.status.concluido },
+        ]} />}
+      <div data-slot="recursos-painel" className="flex flex-wrap gap-3 rounded-lg border p-3">
         <label className="text-sm">
           {textos.filtros.inicio}
           <SeletorData
@@ -87,7 +102,7 @@ export function PaginaLembretes() {
             onChange={(valor) => mudarFiltro(() => setFim(valor))}
           />
         </label>
-        <label className="text-sm">
+        {!layoutV2 && <label className="text-sm">
           {textos.filtros.status}
           <Seletor
             className="ml-2"
@@ -99,7 +114,7 @@ export function PaginaLembretes() {
             ]}
             onChange={(valor) => mudarFiltro(() => setStatus(valor as StatusLembrete | ""))}
           />
-        </label>
+        </label>}
       </div>
 
       {consulta.isLoading ? (
@@ -155,7 +170,7 @@ function TabelaDeLembretes({
   onRemover?: (id: string) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
+    <div data-slot="recursos-painel" className="overflow-x-auto rounded-lg border border-border bg-card">
       <table className="w-full text-sm">
         <thead className="bg-muted/60">
           <tr>

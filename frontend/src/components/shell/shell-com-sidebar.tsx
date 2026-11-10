@@ -16,6 +16,10 @@ import estilosV2 from "./shell-v2.module.css";
 
 import { estiloDaLarguraDoSlot, useExpansaoDaSidebar } from "./expansao-da-sidebar";
 
+const ROTAS_RECURSOS_V2 = new Set(["/templates-whatsapp", "/tags", "/mensagens-programadas", "/lembretes"]);
+
+const ROTAS_GESTAO_V2 = new Set(["/gestao", "/campanhas", "/automacao", "/configuracoes", "/administracao", "/feedbacks"]);
+
 export function ShellComSidebar({ children }: { children: React.ReactNode }) {
   return (
     <ProvedorConversaEmTelaCheia>
@@ -35,7 +39,9 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
   const visualV2 = (noDashboard && dashboardV2)
     || (pathname === "/atendimentos" && atendimentosV2)
     || (pathname === "/agenda" && funcionalidades.data?.includes("agenda_layout_v2"))
-    || (pathname === "/mensagens-rapidas" && funcionalidades.data?.includes("mensagens_rapidas_layout_v2"));
+    || (pathname === "/mensagens-rapidas" && funcionalidades.data?.includes("mensagens_rapidas_layout_v2"))
+    || (ROTAS_RECURSOS_V2.has(pathname) && funcionalidades.data?.includes("recursos_layout_v2"))
+    || (ROTAS_GESTAO_V2.has(pathname) && funcionalidades.data?.includes("gestao_layout_v2"));
   const fixada = noDashboard ? dashboardFixada ?? !dashboardV2 : expansao.fixada;
   const expandida = noDashboard ? fixada || expansao.expandida : expansao.expandida;
   const alternarFixacao = noDashboard

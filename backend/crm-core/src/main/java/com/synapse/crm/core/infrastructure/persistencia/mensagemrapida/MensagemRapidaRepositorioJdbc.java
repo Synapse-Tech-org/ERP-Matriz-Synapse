@@ -19,7 +19,7 @@ import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
 @Repository
 class MensagemRapidaRepositorioJdbc implements MensagemRapidaRepositorio {
     private static final String BASE =
-            "SELECT m.id,m.atendente_id,u.nome atendente_nome,m.palavra_chave,m.conteudo,m.tipo_midia"
+            "SELECT m.id,m.atendente_id,u.nome atendente_nome,m.palavra_chave,m.conteudo,m.tipo_midia,m.geral"
                     + " FROM mensagem_rapida m JOIN usuario u ON u.id=m.atendente_id";
 
     private final JdbcTemplate jdbc;
@@ -29,29 +29,31 @@ class MensagemRapidaRepositorioJdbc implements MensagemRapidaRepositorio {
     }
 
     @Override
-    public List<MensagemRapida> listar(EscopoMensagensRapidas escopo) {
+    public List<MensagemRapida> listar(EscopoMensagensRapidas escopo, boolean incluirGerais) {
         TransacaoObrigatoria.exigir("listar mensagens rapidas");
         return escopo.todas()
                 ? jdbc.query(
-                        BASE + " ORDER BY u.nome,m.palavra_chave",
+                        BASE + " ORDER BY m.geral DESC,u.nome,m.palavra_chave",
                         MensagemRapidaRepositorioJdbc::mapear)
                 : jdbc.query(
-                        BASE + " WHERE m.atendente_id=? ORDER BY m.palavra_chave",
+                        BASE + " WHERE (m.atendente_id=? AND NOT m.geral) OR (m.geral AND ?) ORDER BY m.palavra_chave,m.geral",
                         MensagemRapidaRepositorioJdbc::mapear,
-                        escopo.usuarioId());
+                        escopo.usuarioId(),
+                        incluirGerais);
     }
 
     @Override
-    public MensagemRapida criar(UUID atendente, String chave, String conteudo) {
+    public MensagemRapida criar(UUID atendente, String chave, String conteudo, boolean geral) {
         TransacaoObrigatoria.exigir("criar mensagem rapida");
         UUID id = UUID.randomUUID();
         try {
             jdbc.update(
-                    "INSERT INTO mensagem_rapida(id,atendente_id,palavra_chave,conteudo) VALUES(?,?,?,?)",
+                    "INSERT INTO mensagem_rapida(id,atendente_id,palavra_chave,conteudo,geral) VALUES(?,?,?,?,?)",
                     id,
                     atendente,
                     chave,
-                    conteudo);
+                    conteudo,
+                    geral);
         } catch (DuplicateKeyException erro) {
             throw new PalavraChaveEmUsoException();
         }
@@ -60,17 +62,18 @@ class MensagemRapidaRepositorioJdbc implements MensagemRapidaRepositorio {
 
     @Override
     public Optional<MensagemRapida> atualizar(
-            UUID id, EscopoMensagensRapidas escopo, String chave, String conteudo) {
+            UUID id, EscopoMensagensRapidas escopo, String chave, String conteudo, Boolean geral) {
         TransacaoObrigatoria.exigir("atualizar mensagem rapida");
         try {
             int alteradas = escopo.todas()
                     ? jdbc.update(
-                            "UPDATE mensagem_rapida SET palavra_chave=?,conteudo=? WHERE id=?",
+                            "UPDATE mensagem_rapida SET palavra_chave=?,conteudo=?,geral=COALESCE(?,geral) WHERE id=?",
                             chave,
                             conteudo,
+                            geral,
                             id)
                     : jdbc.update(
-                            "UPDATE mensagem_rapida SET palavra_chave=?,conteudo=? WHERE id=? AND atendente_id=?",
+                            "UPDATE mensagem_rapida SET palavra_chave=?,conteudo=? WHERE id=? AND atendente_id=? AND NOT geral",
                             chave,
                             conteudo,
                             id,
@@ -87,7 +90,7 @@ class MensagemRapidaRepositorioJdbc implements MensagemRapidaRepositorio {
         int removidas = escopo.todas()
                 ? jdbc.update("DELETE FROM mensagem_rapida WHERE id=?", id)
                 : jdbc.update(
-                        "DELETE FROM mensagem_rapida WHERE id=? AND atendente_id=?",
+                        "DELETE FROM mensagem_rapida WHERE id=? AND atendente_id=? AND NOT geral",
                         id,
                         escopo.usuarioId());
         return removidas == 1;
@@ -107,6 +110,7 @@ class MensagemRapidaRepositorioJdbc implements MensagemRapidaRepositorio {
                 linha.getString("atendente_nome"),
                 linha.getString("palavra_chave"),
                 linha.getString("conteudo"),
-                linha.getString("tipo_midia"));
+                linha.getString("tipo_midia"),
+                linha.getBoolean("geral"));
     }
 }

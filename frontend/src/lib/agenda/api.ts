@@ -38,6 +38,13 @@ export async function contarLeads(criterio: CriterioRequisicao): Promise<number>
   return resposta.total;
 }
 
+export function contarLeadsPorEtapa(criterio: CriterioRequisicao) {
+  return apiFetch<{ total: number; etapas: { etapaId: string | null; total: number }[] }>(
+    "/api/v1/leads/filtrar/contagem?porEtapa=true",
+    { method: "POST", body: JSON.stringify({ criterio }) },
+  );
+}
+
 export function buscarLeadsParaEntrada(termo: string): Promise<LeadParaEntrada[]> {
   return apiFetch<LeadParaEntrada[]>(`/api/v1/leads/busca-entrada?termo=${encodeURIComponent(termo)}`);
 }

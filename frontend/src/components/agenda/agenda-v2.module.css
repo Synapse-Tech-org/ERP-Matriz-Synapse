@@ -91,6 +91,12 @@
   border-color: var(--tom-etapa);
 }
 
+.etapas button > span {
+  margin-inline-start: 10px;
+  color: var(--chat-texto-forte);
+  font-weight: 600;
+}
+
 .etapas button:focus-visible,
 .escopos button:focus-visible {
   outline: 2px solid var(--ring);
@@ -188,6 +194,16 @@
 }
 
 .kanban section > p { padding: 8px; color: var(--muted-foreground); font-size: 12px; }
+
+.cartaoKanban {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+}
+
+.cartaoKanban[draggable="true"] { cursor: grab; }
 
 @media (max-width: 639px) {
   .pagina :global([data-slot="agenda-filtros-rapidos"]) > div:first-child { min-width: min(100%, 260px); }

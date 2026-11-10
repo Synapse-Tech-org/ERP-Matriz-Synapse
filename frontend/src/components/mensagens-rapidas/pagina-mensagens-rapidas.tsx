@@ -57,7 +57,7 @@ export function PaginaMensagensRapidas() {
     onSuccess: () => cache.invalidateQueries({ queryKey: ["mensagens-rapidas"] }),
   });
 
-  const grupos = agruparPorAtendente(consulta.data ?? []);
+  const grupos = agruparPorAtendente(consulta.data ?? [], t.v2.gerais);
   const termo = busca.trim().replace(/^\//, "").toLocaleLowerCase("pt-BR");
   const gruposExibidos = layoutV2 ? grupos
     .filter((grupo) => lista === null || grupo.atendenteId === lista)
@@ -97,8 +97,10 @@ export function PaginaMensagensRapidas() {
             </button>
             {grupos.map((grupo) => (
               <button type="button" key={grupo.atendenteId} aria-pressed={lista === grupo.atendenteId} onClick={() => setLista(grupo.atendenteId)}>
-                <AvatarIniciais id={grupo.atendenteId} nome={grupo.atendenteNome}
-                  className="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" />
+                {grupo.atendenteId === "gerais" ? <Zap aria-hidden className="size-4 text-primary" /> : (
+                  <AvatarIniciais id={grupo.atendenteId} nome={grupo.atendenteNome}
+                    className="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" />
+                )}
                 <span>{grupo.atendenteNome}</span><small>{grupo.itens.length}</small>
               </button>
             ))}
@@ -126,7 +128,7 @@ export function PaginaMensagensRapidas() {
         <div className="space-y-6">
           {gruposExibidos.map((grupo) => (
             <div key={grupo.atendenteId}>
-              {(gestor || layoutV2) && (
+              {(gestor || layoutV2 || grupo.atendenteId === "gerais") && (
                 <div className="mb-3 flex items-center gap-2.5">
                   <AvatarIniciais
                     id={grupo.atendenteId}
@@ -146,8 +148,8 @@ export function PaginaMensagensRapidas() {
                     mensagem={mensagem}
                     textos={t}
                     layoutV2={layoutV2}
-                    onEditar={podeEditarExcluir ? () => setEdicao(mensagem) : undefined}
-                    onRemover={podeEditarExcluir ? () => remover.mutate(mensagem.id) : undefined}
+                    onEditar={podeEditarExcluir && (!mensagem.geral || gestor) ? () => setEdicao(mensagem) : undefined}
+                    onRemover={podeEditarExcluir && (!mensagem.geral || gestor) ? () => remover.mutate(mensagem.id) : undefined}
                   />
                 ))}
               </div>
@@ -158,8 +160,8 @@ export function PaginaMensagensRapidas() {
         </div>
       </div>
 
-      <Formulario aberto={aberto && podeCriar} onFechar={() => setAberto(false)} />
-      {edicao && podeEditarExcluir && <Formulario aberto existente={edicao} onFechar={() => setEdicao(null)} />}
+      <Formulario aberto={aberto && podeCriar} podePublicar={layoutV2 && gestor} onFechar={() => setAberto(false)} />
+      {edicao && podeEditarExcluir && <Formulario aberto existente={edicao} podePublicar={layoutV2 && gestor} onFechar={() => setEdicao(null)} />}
     </div>
   );
 }
@@ -168,16 +170,18 @@ type TextosMensagensRapidas = ReturnType<typeof useTextos>["mensagensRapidas"];
 
 function agruparPorAtendente(
   itens: MensagemRapida[],
+  rotuloGerais: string,
 ): { atendenteId: string; atendenteNome: string; itens: MensagemRapida[] }[] {
   const porId = new Map<string, { atendenteId: string; atendenteNome: string; itens: MensagemRapida[] }>();
   for (const item of itens) {
-    const grupo = porId.get(item.atendenteId);
+    const id = item.geral ? "gerais" : item.atendenteId;
+    const grupo = porId.get(id);
     if (grupo) {
       grupo.itens.push(item);
     } else {
-      porId.set(item.atendenteId, {
-        atendenteId: item.atendenteId,
-        atendenteNome: item.atendenteNome,
+      porId.set(id, {
+        atendenteId: id,
+        atendenteNome: item.geral ? rotuloGerais : item.atendenteNome,
         itens: [item],
       });
     }
@@ -248,21 +252,24 @@ function CardDeMensagemRapida({
 function Formulario({
   aberto,
   existente,
+  podePublicar,
   onFechar,
 }: {
   aberto: boolean;
   existente?: MensagemRapida;
+  podePublicar: boolean;
   onFechar: () => void;
 }) {
-  const t = useTextos().mensagensRapidas.formulario;
+  const { formulario: t, v2 } = useTextos().mensagensRapidas;
   const cache = useQueryClient();
   const [chave, setChave] = useState(existente?.palavraChave ?? "");
   const [conteudo, setConteudo] = useState(existente?.conteudo ?? "");
+  const [geral, setGeral] = useState(existente?.geral ?? false);
   const salvar = useMutation({
-    mutationFn: () =>
-      existente
-        ? editarMensagemRapida(existente.id, { palavraChave: chave, conteudo })
-        : criarMensagemRapida({ palavraChave: chave, conteudo }),
+    mutationFn: () => {
+      const dados = { palavraChave: chave, conteudo, geral: podePublicar ? geral : undefined };
+      return existente ? editarMensagemRapida(existente.id, dados) : criarMensagemRapida(dados);
+    },
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: ["mensagens-rapidas"] });
       onFechar();
@@ -298,12 +305,18 @@ function Formulario({
             <span>{t.conteudo}</span>
             <Textarea required value={conteudo} onChange={(e) => setConteudo(e.target.value)} />
           </label>
+          {podePublicar && (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={geral} onChange={(evento) => setGeral(evento.target.checked)} />
+              {v2.publicarGeral}
+            </label>
+          )}
           {salvar.isError && <p className="text-destructive">{t.erro}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onFechar}>
               {t.cancelar}
             </Button>
-            <Button type="submit">{t.salvar}</Button>
+            <Button type="submit" disabled={salvar.isPending}>{t.salvar}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

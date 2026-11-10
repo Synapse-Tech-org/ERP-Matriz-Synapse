@@ -1,8 +1,23 @@
 > Continuação: a Etapa 2 do Dashboard está registrada em [dashboard/entrega.md](dashboard/entrega.md). Este documento preserva os resultados da primeira entrega.
 
-## Agenda e Mensagens Rápidas V2
+## Estado das abas do CRM
 
-As chaves `agenda_layout_v2` e `mensagens_rapidas_layout_v2` habilitam as telas de forma independente por instância. O visual usa a moldura, a tipografia e os tokens do CRM. Agenda mantém o filtro e a paginação do servidor e oferece uma visualização Kanban da página atual. A movimentação por arraste e a contagem global por etapa ficam pendentes. Mensagens Rápidas agrupa por autor e busca nas mensagens que a API autorizou. O protótipo apresenta uma lista geral compartilhada, que ainda carece de contrato no CRM.
+A versão V2 está em revisão no PR #350. A tabela distingue funcionamento com dados do CRM de ajustes de moldura e de recursos ainda sem integração.
+
+| Abas | Implementado no PR | Falta para concluir |
+|---|---|---|
+| Atendimentos | V2 reaproveita a conversa, os detalhes e o envio existentes. | Conferir subfluxos e estados vazios, de carregamento e de erro contra o mockup atualizado. |
+| Dashboard | Visões V2 e integração dos indicadores já disponíveis. | Fechar os indicadores e os contratos descritos em [Pendências do Dashboard](dashboard/contratos-pendentes.md). |
+| Agenda | Tabela, filtros de servidor e Kanban; movimentação por arraste ou seletor, persistida pela API com permissão de edição; total e contagem por etapa respeitam o filtro e o acesso. | Conferir ficha, variações da lista e paridade visual com o mockup. |
+| Mensagens Rápidas | Busca, grupos por autor, cópia e lista geral persistida. A gestão pode publicar e editar atalhos gerais; no chat, o atalho pessoal tem prioridade se a palavra-chave coincidir. | Conferir o formulário e as variantes de mídia contra o mockup. |
+| Templates de WhatsApp | Grade V2 e filtros por status e categoria sobre os dados da API. | O agrupamento por responsável precisa de dados de autoria no contrato dos templates. |
+| Tags | Lista V2, ordenação por uso ou nome, e link que abre a Agenda filtrada pela tag. | Conferir a apresentação do editor e os estados da lista. |
+| Mensagens Programadas e Lembretes | Moldura V2 e filtros por status com a API existente. | Completar a linha do tempo e o filtro por responsável dos agendamentos; revisar busca, filtros e agrupamento dos lembretes. |
+| Gestão, Campanhas, Automação, Administração, Configurações e Feedbacks | Moldura V2 sobre os fluxos atuais. | Refatorar o conteúdo de cada aba, comparar suas telas e mapear as ações novas. |
+| Notificações e telas auxiliares | Há central de avisos e fluxos atuais, como Chat Interno, Cancelamentos e Trocar Senha. | Comparar cada fluxo com a referência disponível e preservar os comportamentos que não estão demonstrados nela. |
+| Banco de Arquivos, Horários e Relatórios | Rotas existentes sem a implementação funcional do mockup. | Banco de Arquivos: listar, enviar e organizar arquivos com permissão. Horários: persistir e editar a configuração de horários. Relatórios: consulta paginada de atendimentos, histórico e exportação com o mesmo escopo de acesso. |
+
+As chaves de ativação são independentes por instância: `atendimentos_layout_v2`, `dashboard_layout_v2`, `agenda_layout_v2`, `mensagens_rapidas_layout_v2`, `recursos_layout_v2` e `gestao_layout_v2`. Antes de concluir cada aba, comparar a tela e seus estados com o mockup atualizado em desktop e celular, incluindo tons, brilho e contraste, e verificar cada nova ação com dados persistidos e permissões reais. A presença da moldura V2 não conclui essa revisão.
 
 # Alternativa A — primeira entrega de Atendimentos
 

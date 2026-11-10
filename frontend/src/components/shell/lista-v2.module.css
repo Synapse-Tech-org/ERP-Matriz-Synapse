@@ -89,6 +89,87 @@
   box-shadow: var(--sombra-primaria);
 }
 
+.modulo {
+  overflow: auto;
+}
+
+.modulo > * {
+  flex-shrink: 0;
+}
+
+.opcoes {
+  display: flex;
+  max-width: 100%;
+  width: fit-content;
+  gap: 3px;
+  padding: 3px;
+  overflow: auto;
+  border-radius: 12px;
+  background: var(--muted);
+}
+
+.opcoes button {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.opcoes button[aria-pressed="true"] {
+  color: var(--chat-texto-forte);
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+}
+
+.opcoes button:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+
+.modulo :global([data-slot="recursos-painel"]) {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+}
+
+.modulo :global([data-slot="recursos-grade"]) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 345px), 1fr));
+  gap: 12px;
+}
+
+.modulo :global([data-slot="recursos-grade"]) > * { min-width: 0; margin-top: 0; }
+
+.gestao :is(header, [data-slot="card"]) {
+  border-radius: 16px;
+}
+
+.gestao header h1 {
+  color: var(--chat-texto-forte);
+  font-size: clamp(23px, 2vw, 30px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.gestao :global([data-slot="tabs-list"]) {
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--muted);
+}
+
+.gestao :global([data-slot="tabs-trigger"]) {
+  border-radius: 9px;
+}
+
+.gestao :global([data-slot="tabs-trigger"][data-active]) {
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+}
+
 @media (max-width: 639px) {
   .pagina {
     height: 100%;

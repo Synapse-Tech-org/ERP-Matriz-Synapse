@@ -1129,6 +1129,8 @@ export const TextosSchema = z.object({
   mensagensRapidas: z.object({
     v2: z.object({
       listas: z.string().default("Listas"),
+      gerais: z.string().default("Mensagens gerais"),
+      publicarGeral: z.string().default("Compartilhar com toda a equipe"),
       todas: z.string().default("Todas"),
       buscar: z.string().default("Buscar por atalho ou texto"),
       total: z.string().default("{total} mensagens"),
@@ -1158,6 +1160,11 @@ export const TextosSchema = z.object({
     }),
   }),
   templatesWhatsApp: z.object({
+    v2: z.object({
+      estado: z.string().default("Status"),
+      todos: z.string().default("Todos"),
+      todasCategorias: z.string().default("Todas as categorias"),
+    }).prefault({}),
     titulo: z.string(),
     descricao: z.string(),
     novo: z.string(),
@@ -1419,6 +1426,9 @@ export const TextosSchema = z.object({
       lista: z.string().default("Lista"),
       kanban: z.string().default("Kanban"),
       semEtapa: z.string().default("Sem etapa"),
+      mover: z.string().default("Mover para outra etapa"),
+      moverPara: z.string().default("Mover {nome} para outra etapa"),
+      erroMover: z.string().default("Não foi possível mudar a etapa do contato."),
     }).prefault({}),
     titulo: z.string(),
     descricao: z.string(),
@@ -1524,6 +1534,12 @@ export const TextosSchema = z.object({
     paginacao: z.object({ anterior: z.string(), proxima: z.string() }),
   }),
   tags: z.object({
+    v2: z.object({
+      ordenar: z.string().default("Ordenar tags"),
+      maisUsadas: z.string().default("Mais usadas"),
+      alfabetica: z.string().default("A–Z"),
+      verContatos: z.string().default("Ver contatos"),
+    }).prefault({}),
     titulo: z.string(),
     descricao: z.string(),
     busca: z.string(),

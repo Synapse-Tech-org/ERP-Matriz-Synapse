@@ -186,6 +186,7 @@ vi.mock("@/lib/agenda/use-agenda", () => ({
   useCatalogosDeFiltro: () => useCatalogosDeFiltro(),
   useLeadsDaAgenda: (...args: unknown[]) => useLeadsDaAgenda(...args),
   useContagemDeLeads: (...args: unknown[]) => useContagemDeLeads(...args),
+  useContagemPorEtapaDaAgenda: () => ({ data: undefined }),
   criterioDosFiltrosAtivos: vi.fn(() => ({ tipo: "SIMPLES", campo: "criadoEm", operador: "PREENCHIDO" })),
   SEM_RESPONSAVEL: "__sem_responsavel__",
 }));
