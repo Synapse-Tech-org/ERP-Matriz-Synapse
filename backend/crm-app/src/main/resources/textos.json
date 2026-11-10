@@ -1784,6 +1784,8 @@
     "semConversas": "Você ainda não participa de nenhuma conversa.",
     "selecioneConversa": "Selecione uma conversa para começar.",
     "semMensagens": "Nenhuma mensagem ainda.",
+    "mensagensAnteriores": "Carregar mensagens anteriores",
+    "carregandoMensagensAnteriores": "Carregando mensagens anteriores…",
     "placeholder": "Escreva uma mensagem...",
     "enviar": "Enviar",
     "carregando": "Carregando conversas...",

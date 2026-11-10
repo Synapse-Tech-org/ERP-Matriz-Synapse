@@ -215,6 +215,9 @@ export function ListaMensagensChatInterno({
   onExcluir,
   onEditar,
   onBuscarMensagem,
+  temMais = false,
+  carregandoMais = false,
+  onCarregarMais,
 }: {
   mensagens: ChatMensagem[];
   conversaId?: string;
@@ -229,6 +232,10 @@ export function ListaMensagensChatInterno({
   onExcluir?: (mensagem: ChatMensagem) => Promise<void>;
   onEditar?: (mensagem: ChatMensagem) => void;
   onBuscarMensagem?: (mensagemId: string) => Promise<ChatMensagem | null>;
+  /** O servidor ainda tem mensagens mais antigas que as exibidas. */
+  temMais?: boolean;
+  carregandoMais?: boolean;
+  onCarregarMais?: () => void;
 }) {
   const catalogoAtendimentos = useTextos().atendimentos;
   const acoes = catalogoAtendimentos.mensagem.acoes;
@@ -287,6 +294,29 @@ export function ListaMensagensChatInterno({
     historicoRef.current.scrollTop = historicoRef.current.scrollHeight;
   }, [ultimoId]);
 
+  // Mensagens que entram ACIMA empurram o que o usuário lê para baixo. Guarda a altura e a rolagem de
+  // antes do pedido e, quando a primeira mensagem da lista muda, devolve a leitura ao mesmo ponto.
+  const ancoraDeRolagemRef = useRef<{ altura: number; topo: number } | null>(null);
+  const primeiroId = mensagensComExtras[0]?.id;
+  useLayoutEffect(() => {
+    const ancora = ancoraDeRolagemRef.current;
+    const historico = historicoRef.current;
+    if (!ancora || !historico) return;
+    ancoraDeRolagemRef.current = null;
+    historico.scrollTop = ancora.topo + (historico.scrollHeight - ancora.altura);
+  }, [primeiroId]);
+  useEffect(() => {
+    if (!carregandoMais) ancoraDeRolagemRef.current = null;
+  }, [carregandoMais]);
+
+  function carregarAnteriores() {
+    const historico = historicoRef.current;
+    if (historico) {
+      ancoraDeRolagemRef.current = { altura: historico.scrollHeight, topo: historico.scrollTop };
+    }
+    onCarregarMais?.();
+  }
+
   if (!mensagens.length) return <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.semMensagens}</p>;
   return (
     <div
@@ -294,6 +324,13 @@ export function ListaMensagensChatInterno({
       className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-muted/20 p-5"
       data-slot="historico-chat-interno"
     >
+      {temMais && onCarregarMais && (
+        <div className="flex justify-center">
+          <Button type="button" variant="outline" size="sm" disabled={carregandoMais} onClick={carregarAnteriores}>
+            {carregandoMais ? textos.carregandoMensagensAnteriores : textos.mensagensAnteriores}
+          </Button>
+        </div>
+      )}
       {mensagensComExtras.map((mensagem, indice) => {
         const mostrarData = indice === 0 || diaDaMensagem(mensagem.enviadoEm) !== diaDaMensagem(mensagensComExtras[indice - 1].enviadoEm);
         const separador = mostrarData ? (

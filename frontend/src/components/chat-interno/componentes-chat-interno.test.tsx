@@ -649,3 +649,76 @@ describe("componentes de apresentação do chat interno", () => {
     expect(cancelar).toHaveBeenCalledOnce();
   });
 });
+
+describe("histórico paginado do chat interno", () => {
+  const textosDoHistorico = {
+    ...textos,
+    mensagensAnteriores: "Carregar mensagens anteriores",
+    carregandoMensagensAnteriores: "Carregando mensagens anteriores…",
+  } as typeof textos;
+
+  const recentes: ChatMensagem[] = [
+    { id: "m3", conversaId: "c1", remetenteId: "u2", remetenteNome: "Bruno", conteudo: "terceira", enviadoEm: "2026-10-27T10:03:00Z" },
+    { id: "m4", conversaId: "c1", remetenteId: "u2", remetenteNome: "Bruno", conteudo: "quarta", enviadoEm: "2026-10-27T10:04:00Z" },
+  ];
+  const antigas: ChatMensagem[] = [
+    { id: "m1", conversaId: "c1", remetenteId: "u2", remetenteNome: "Bruno", conteudo: "primeira", enviadoEm: "2026-10-27T10:01:00Z" },
+    { id: "m2", conversaId: "c1", remetenteId: "u2", remetenteNome: "Bruno", conteudo: "segunda", enviadoEm: "2026-10-27T10:02:00Z" },
+  ];
+
+  function lista(lista: ChatMensagem[], extras: Partial<React.ComponentProps<typeof ListaMensagensChatInterno>> = {}) {
+    return (
+      <TextosProvider textos={mockTextosCompletos}>
+        <ListaMensagensChatInterno
+          mensagens={lista}
+          usuarioAtual="u1"
+          textos={textosDoHistorico}
+          onDefinirReacao={vi.fn()}
+          onRemoverReacao={vi.fn()}
+          {...extras}
+        />
+      </TextosProvider>
+    );
+  }
+
+  it("com mais histórico no servidor, oferece carregar as mensagens anteriores", () => {
+    const carregarMais = vi.fn();
+    render(lista(recentes, { temMais: true, onCarregarMais: carregarMais }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Carregar mensagens anteriores" }));
+
+    expect(carregarMais).toHaveBeenCalledOnce();
+  });
+
+  it("sem mais histórico, não mostra o botão", () => {
+    render(lista(recentes, { temMais: false, onCarregarMais: vi.fn() }));
+
+    expect(screen.queryByRole("button", { name: /mensagens anteriores/i })).not.toBeInTheDocument();
+  });
+
+  it("enquanto busca, informa o carregamento e não deixa clicar de novo", () => {
+    const carregarMais = vi.fn();
+    render(lista(recentes, { temMais: true, carregandoMais: true, onCarregarMais: carregarMais }));
+
+    const botao = screen.getByRole("button", { name: "Carregando mensagens anteriores…" });
+    expect(botao).toBeDisabled();
+    fireEvent.click(botao);
+    expect(carregarMais).not.toHaveBeenCalled();
+  });
+
+  it("ao entrar mensagens acima, mantém na tela a mesma mensagem que o usuário estava lendo", () => {
+    let altura = 1000;
+    const { container, rerender } = render(lista(recentes, { temMais: true, onCarregarMais: vi.fn() }));
+    const historico = container.querySelector<HTMLElement>('[data-slot="historico-chat-interno"]')!;
+    Object.defineProperty(historico, "scrollHeight", { configurable: true, get: () => altura });
+    Object.defineProperty(historico, "scrollTop", { configurable: true, writable: true, value: 200 });
+
+    fireEvent.click(screen.getByRole("button", { name: "Carregar mensagens anteriores" }));
+    altura = 1600;
+    rerender(lista([...antigas, ...recentes], { temMais: false, onCarregarMais: vi.fn() }));
+
+    // O conteúdo novo ocupou 600px acima: a rolagem desce o mesmo tanto, e a leitura não pula.
+    expect(historico.scrollTop).toBe(800);
+    expect(screen.getByText("primeira")).toBeInTheDocument();
+  });
+});
