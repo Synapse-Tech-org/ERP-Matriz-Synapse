@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Activity, ArrowRight, Ban, ChevronRight, KeyRound, Pencil, ShieldCheck, Search, Star, UserCheck, UserRoundCog, Users } from "lucide-react";
+import { Activity, ArrowRight, Ban, ChevronRight, KeyRound, Pencil, ShieldCheck, Search, Star, UserCheck, UserRoundCog, Users, X } from "lucide-react";
 
 import { MiniDashboard, SenhaProvisoriaDialog } from "@/components/equipe/pagina-equipe";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -40,6 +41,7 @@ import { cn } from "@/lib/utils";
 
 import { ICONE_DO_PAPEL, perfilFixoDoAtor, pode, preencher, useConfirmacaoDeDescarte, type TextosGestao } from "./apoio";
 import visual from "./gestao-v2.module.css";
+import { VisaoGeralIntegranteV2 } from "./visao-geral-integrante-v2";
 import { AbaExcecoes } from "./aba-excecoes";
 import { DialogoUsuario } from "./dialogo-usuario";
 import { PainelDeSetores, SetorDoIntegrante } from "./painel-de-setores";
@@ -144,36 +146,48 @@ export function AbaEquipe({
     confirmarDetalhe.executar(() => { setDetalheSujo(false); setDetalheId(null); });
   }
 
+  function trocarAbaDetalhe(aba: "geral" | "permissoes") {
+    if (aba === abaDetalhe) return;
+    confirmarDetalhe.executar(() => { setDetalheSujo(false); setAbaDetalhe(aba); });
+  }
+
+  function acaoNoDetalhe(acao: () => void) {
+    confirmarDetalhe.executar(() => { setDetalheSujo(false); setDetalheId(null); acao(); });
+  }
+
   function acoesDaPessoa(u: UsuarioEquipe) {
     const podeGerenciar = gerenciavel(u);
     return (
       <div className={layoutV2 ? visual.acoesPessoa : "ml-auto flex max-w-[4.75rem] flex-wrap justify-end gap-1.5 sm:max-w-none sm:flex-nowrap"}>
-                      {visiveisNasExcecoes.has(u.id) && (
-                        <AcaoDaLinha rotulo={preencher(textos.equipe.acoes.permissoes, { nome: u.nome })} onClick={() => { setDetalheId(null); if (onAbrirExcecoes) onAbrirExcecoes(u.id); else onAbrirPerfil(u.papel); }}>
+                      {(!layoutV2 || !onAbrirExcecoes) && visiveisNasExcecoes.has(u.id) && (
+                        <AcaoDaLinha rotulo={preencher(textos.equipe.acoes.permissoes, { nome: u.nome })} onClick={() => acaoNoDetalhe(() => { if (onAbrirExcecoes) onAbrirExcecoes(u.id); else onAbrirPerfil(u.papel); })}>
                           <ShieldCheck className="size-4" />
                         </AcaoDaLinha>
                       )}
                       {podeGerenciar && pode(minhas, "equipe.editar") && (
-                        <AcaoDaLinha rotulo={preencher(textos.equipe.acoes.editar, { nome: u.nome })} onClick={() => { setDetalheId(null); setEdicao(u); }}>
+                        <AcaoDaLinha rotulo={preencher(textos.equipe.acoes.editar, { nome: u.nome })} texto={layoutV2 ? textos.v2.editar : undefined} onClick={() => {
+                          if (layoutV2) confirmarDetalhe.executar(() => { setDetalheSujo(false); setAbaDetalhe("geral"); setEdicao(u); });
+                          else acaoNoDetalhe(() => setEdicao(u));
+                        }}>
                           <Pencil className="size-4" />
                         </AcaoDaLinha>
                       )}
-                      {adm&&u.id!==minhas.usuarioId&&pode(minhas,"equipe.editar")&&<AcaoDaLinha rotulo={`${usuariosTeste.alterar}: ${u.nome}`} onClick={()=>{setDetalheId(null);setClassificacaoSalva(false);setClassificar(u);}}><UserRoundCog className="size-4"/></AcaoDaLinha>}
+                      {adm&&u.id!==minhas.usuarioId&&pode(minhas,"equipe.editar")&&<AcaoDaLinha rotulo={`${usuariosTeste.alterar}: ${u.nome}`} onClick={() => acaoNoDetalhe(() => { setClassificacaoSalva(false); setClassificar(u); })}><UserRoundCog className="size-4"/></AcaoDaLinha>}
                       {podeGerenciar && pode(minhas, "equipe.senha_provisoria") && (
                         <AcaoDaLinha
                           rotulo={preencher(textos.equipe.acoes.senha, { nome: u.nome })}
-                          onClick={() => {
-                            setDetalheId(null);
+                          texto={layoutV2 ? textos.v2.senhaProvisoria : undefined}
+                          onClick={() => acaoNoDetalhe(() => {
                             setSenhaPara(u);
                             setSenha(null);
                             gerarSenha.mutate(u.id, { onSuccess: (r) => setSenha(r.senha) });
-                          }}
+                          })}
                         >
                           <KeyRound className="size-4" />
                         </AcaoDaLinha>
                       )}
                       {podeGerenciar && u.ativo && pode(minhas, "equipe.desativar") && (
-                        <AcaoDaLinha perigo rotulo={preencher(textos.equipe.acoes.desativar, { nome: u.nome })} onClick={() => { setDetalheId(null); setParaDesativar(u); }}>
+                        <AcaoDaLinha perigo rotulo={preencher(textos.equipe.acoes.desativar, { nome: u.nome })} texto={layoutV2 ? textos.v2.desativar : undefined} onClick={() => acaoNoDetalhe(() => setParaDesativar(u))}>
                           <Ban className="size-4" />
                         </AcaoDaLinha>
                       )}
@@ -380,32 +394,51 @@ export function AbaEquipe({
       )}
 
       {layoutV2 && detalhe && <Dialog open onOpenChange={(aberto) => !aberto && fecharPessoa()}>
-        <DialogContent className={visual.detalhePessoa}>
-          <DialogHeader>
-            <AvatarIniciais id={detalhe.id} nome={detalhe.nome} fotoUrl={detalhe.fotoUrl} className="grid size-12 place-items-center rounded-full font-semibold text-white" />
-            <DialogTitle>{detalhe.nome}</DialogTitle>
-            <DialogDescription>{detalhe.email}</DialogDescription>
+        <DialogContent className={visual.detalhePessoa} overlayClassName={visual.fundoDetalhe} showCloseButton={false}>
+          <DialogHeader className={visual.topoDetalhe}>
+            <div className={visual.identidadePessoa}>
+              <span className={visual.avatarPessoa} data-presenca={detalhe.statusPresenca}>
+                <AvatarIniciais id={detalhe.id} nome={detalhe.nome} fotoUrl={detalhe.fotoUrl} className="grid size-12 place-items-center rounded-full font-semibold text-white" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <DialogTitle>{detalhe.nome}</DialogTitle>
+                  <PillDeStatus tom={TOM_DO_PAPEL[detalhe.papel]}>{textos.papeis[detalhe.papel]}</PillDeStatus>
+                  {!detalhe.ativo && <PillDeStatus tom="neutro">{textos.equipe.desativado}</PillDeStatus>}
+                </div>
+                <DialogDescription>{detalhe.email}</DialogDescription>
+              </div>
+              <DialogClose aria-label={textos.v2.fechar} className={visual.fechar}><X aria-hidden className="size-[18px]" /></DialogClose>
+            </div>
+            <div className={visual.barraDetalhe}>
+              {onAbrirExcecoes && visiveisNasExcecoes.has(detalhe.id) && <div className={visual.filtrosPapel}>
+                <button type="button" aria-pressed={abaDetalhe === "geral"} onClick={() => trocarAbaDetalhe("geral")}>{textos.v2.visaoGeral}</button>
+                <button type="button" aria-pressed={abaDetalhe === "permissoes"} onClick={() => trocarAbaDetalhe("permissoes")}>{textos.abas.permissoes}</button>
+              </div>}
+              {acoesDaPessoa(detalhe)}
+            </div>
           </DialogHeader>
-          {onAbrirExcecoes && visiveisNasExcecoes.has(detalhe.id) && <div className={visual.filtrosPapel}>
-            <button type="button" aria-pressed={abaDetalhe === "geral"} onClick={() => confirmarDetalhe.executar(() => { setDetalheSujo(false); setAbaDetalhe("geral"); })}>{textos.v2.visaoGeral}</button>
-            <button type="button" aria-pressed={abaDetalhe === "permissoes"} onClick={() => setAbaDetalhe("permissoes")}>{textos.abas.permissoes}</button>
-          </div>}
-          {abaDetalhe === "permissoes" && onAbrirExcecoes && visiveisNasExcecoes.has(detalhe.id) ? <AbaExcecoes
-            embutida textos={textos} minhas={minhas} usuarioInicial={detalhe.id} onSujoChange={setDetalheSujo} /> : <>
-          <dl>
-            <div><dt>{textos.equipe.colunas.funcao}</dt><dd>{textos.papeis[detalhe.papel]}</dd></div>
-            <div><dt>{textos.equipe.colunas.presenca}</dt><dd>{textos.equipe.presenca[detalhe.statusPresenca]}</dd></div>
-            <div><dt>{textos.equipe.colunas.permissoes}</dt><dd>{(excecoesPorId.get(detalhe.id) ?? 0) > 0 ? textos.v2.personalizadas : detalhe.papel === "GESTOR" ? textos.equipe.permissoes.acessoTotal : textos.equipe.permissoes.padrao}</dd></div>
-          </dl>
-          {acoesDaPessoa(detalhe)}
-          </>}
+          <div className={visual.corpoDetalhe}>
+            {abaDetalhe === "permissoes" && onAbrirExcecoes && visiveisNasExcecoes.has(detalhe.id) ? <AbaExcecoes
+              embutida textos={textos} minhas={minhas} usuarioInicial={detalhe.id} onSujoChange={setDetalheSujo} />
+              : <VisaoGeralIntegranteV2 key={detalhe.id + (edicao ? "-edicao" : "")} usuario={detalhe} textos={textos}
+                funcoes={funcoesPermitidas} podeAlterarFuncao={gerenciavel(detalhe) && pode(minhas, "equipe.editar") && pode(minhas, "equipe.alterar_papel")}
+                avaliacao={avaliacaoPorId.get(detalhe.id)} atendimentos={desempenho.data?.porAtendente.find((u) => u.atendenteId === detalhe.id)?.atendimentos}
+                quantidadeExcecoes={excecoesPorId.get(detalhe.id) ?? 0}
+                podeAlterarIa={detalhe.ativo && !detalhe.usuarioTeste && pode(minhas, "equipe.disponibilidade_ia") && !disponibilidade.isPending}
+                onIa={(disponivelParaIa) => disponibilidade.mutate({ id: detalhe.id, disponivelParaIa })}
+                onPermissoes={onAbrirExcecoes && visiveisNasExcecoes.has(detalhe.id) ? () => trocarAbaDetalhe("permissoes") : undefined}
+                onSujoChange={setDetalheSujo} />}
+          </div>
         </DialogContent>
+        {edicao && <DialogoUsuario layoutV2 textos={textos} existente={edicao} funcoesPermitidas={funcoesPermitidas}
+          podeAlterarFuncao={false} onFechar={() => setEdicao(null)} />}
         {confirmarDetalhe.dialogo}
       </Dialog>}
       {novoAberto && (
-        <DialogoUsuario textos={textos} funcoesPermitidas={funcoesPermitidas} podeAlterarFuncao podeClassificarTeste={adm} onFechar={onFecharNovo} />
+        <DialogoUsuario layoutV2={layoutV2} textos={textos} funcoesPermitidas={funcoesPermitidas} podeAlterarFuncao podeClassificarTeste={adm} onFechar={onFecharNovo} />
       )}
-      {edicao && (
+      {!layoutV2 && edicao && (
         <DialogoUsuario
           textos={textos}
           existente={edicao}
@@ -481,25 +514,27 @@ function ResumoDoPerfil({ perfil, textos, onAbrir }: { perfil: Perfil; textos: T
 function AcaoDaLinha({
   rotulo,
   perigo,
+  texto,
   onClick,
   children,
 }: {
   rotulo: string;
   perigo?: boolean;
+  texto?: string;
   onClick: () => void;
   children: React.ReactNode;
 }) {
   return (
     <Button
       type="button"
-      size="icon"
+      size={texto ? "sm" : "icon"}
       variant="outline"
       aria-label={rotulo}
       title={rotulo}
       onClick={onClick}
-      className={cn("size-8 rounded-lg text-muted-foreground", perigo && "hover:text-destructive")}
+      className={cn(texto ? visual.botaoDetalhe : "size-8 rounded-lg text-muted-foreground", perigo && "hover:text-destructive")}
     >
-      {children}
+      {children}{texto}
     </Button>
   );
 }
