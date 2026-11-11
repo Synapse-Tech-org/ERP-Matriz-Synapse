@@ -46,7 +46,7 @@ provisionar
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM credentials_entity')" = 0 ]
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM execution_entity')" = 0 ]
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM public.faq')" = 0 ]
-[ "$(consulta automacao_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 9 ]
+[ "$(consulta automacao_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 10 ]
 [ "$(consulta n8n_fixture 'SELECT count(*) FROM credentials_entity')" = 1 ]
 [ "$(consulta automacao_fixture "SELECT count(*) FROM pg_type WHERE typname='fixture_enum'")" = 1 ]
 [ "$(consulta automacao_fixture "SELECT to_regclass('public.fixture_status_idx') IS NOT NULL")" = t ]
@@ -67,6 +67,16 @@ docker run --rm --network "container:$container" \
   -w /app node:22-alpine node test/faq-integracao.mjs
 provisionar
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM public.faq')" = 1 ]
+
+# Follow-up usa dados sinteticos e portas externas falsas, nunca numeros reais.
+docker run --rm --network "container:$container" \
+  -e AUTOMACAO_TESTE_ISOLADO=true \
+  -v "$raiz/dist:/app/dist:ro" \
+  -v "$raiz/node_modules:/app/node_modules:ro" \
+  -v "$raiz/package.json:/app/package.json:ro" \
+  -v "$raiz/banco/migrations:/app/banco/migrations:ro" \
+  -v "$raiz/test/followup-integracao.mjs:/app/test/followup-integracao.mjs:ro" \
+  -w /app node:22-alpine node test/followup-integracao.mjs
 
 # Simula o banco de homologacao com V1/V2 e FAQ ja cadastrada.
 # O preparador atualizado deve aplicar V3-V9 sem reclonar nem perder registros.
@@ -91,7 +101,7 @@ INSERT INTO public.faq (nome,pergunta,resposta) VALUES ('legado','Preservar?','S
 provisionar legado_fixture
 [ "$(consulta legado_fixture 'SELECT count(*) FROM public.faq')" = 1 ]
 [ "$(consulta legado_fixture 'SELECT count(*) FROM public.n8n_chat_histories')" = 0 ]
-[ "$(consulta legado_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 9 ]
+[ "$(consulta legado_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 10 ]
 [ "$(consulta legado_fixture 'SELECT count(*) FROM preservar')" = 1 ]
 consulta legado_fixture "UPDATE automacao_infra.migracao SET checksum='adulterado' WHERE versao=1" >/dev/null
 if provisionar legado_fixture; then echo 'ERRO: aceitou checksum alterado' >&2; exit 1; fi

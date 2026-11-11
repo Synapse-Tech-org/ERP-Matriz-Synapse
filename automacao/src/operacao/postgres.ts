@@ -94,6 +94,14 @@ export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
   private pronto(): void {
     if (this.atual !== "PRONTO") throw new Error("BANCO_AUTOMACAO_NAO_PRONTO");
   }
+  private execucoes(): string {
+    const s = this.selecao();
+    // Preserva a leitura do clone n8n. As rodadas TS possuem formato proprio,
+    // sem simular serializacao interna de nodes ou depender da versao do n8n.
+    return `SELECT ${s.campos} FROM ${this.schema}.execution_entity e${s.join}
+      UNION ALL SELECT 'fu_'||id::text,'followup-typescript','Follow-up TypeScript',status,
+        iniciado_em,finalizado_em,'schedule' FROM automacao_infra.followup_rodada`;
+  }
   async resumo(): Promise<{
     total: number;
     sucesso: number;
@@ -107,7 +115,7 @@ export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
       falhas: string;
       emExecucao: string;
     }>(
-      `SELECT count(*) AS total,count(*) FILTER (WHERE status='success') AS sucesso,count(*) FILTER (WHERE status IN ('error','crashed')) AS falhas,count(*) FILTER (WHERE status IN ('new','running','waiting')) AS "emExecucao" FROM ${this.schema}.execution_entity`,
+      `SELECT count(*) AS total,count(*) FILTER (WHERE status='success') AS sucesso,count(*) FILTER (WHERE status IN ('error','crashed')) AS falhas,count(*) FILTER (WHERE status IN ('new','running','waiting')) AS "emExecucao" FROM (${this.execucoes()}) e`,
     );
     const x = r.rows[0];
     if (!x) throw new Error("RESUMO_INDISPONIVEL");
@@ -120,16 +128,15 @@ export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
   }
   async listar(filtro: FiltroExecucoes): Promise<PaginaExecucoes> {
     this.pronto();
-    const s = this.selecao();
     const values: (string | number)[] = [];
     const where = filtro.status ? " WHERE e.status=$1" : "";
     if (filtro.status) values.push(filtro.status);
     const count = await this.pool.query<{ total: string }>(
-      `SELECT count(*) AS total FROM ${this.schema}.execution_entity e${where}`,
+      `SELECT count(*) AS total FROM (${this.execucoes()}) e${where}`,
       values,
     );
     const r = await this.pool.query<ExecucaoResumo>(
-      `SELECT ${s.campos} FROM ${this.schema}.execution_entity e${s.join}${where} ORDER BY e."startedAt" DESC NULLS LAST,e.id DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+      `SELECT e.* FROM (${this.execucoes()}) e${where} ORDER BY e."iniciadoEm" DESC NULLS LAST,e.id DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
       [...values, filtro.tamanho, filtro.pagina * filtro.tamanho],
     );
     return {
@@ -141,6 +148,7 @@ export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
   }
   async detalhar(id: string): Promise<DetalheExecucao | null> {
     this.pronto();
+    if (/^fu_[a-f0-9-]{36}$/i.test(id)) return this.detalharFollowup(id);
     const s = this.selecao();
     const r = await this.pool.query<ExecucaoResumo>(
       `SELECT ${s.campos} FROM ${this.schema}.execution_entity e${s.join} WHERE e.id::text=$1`,
@@ -168,5 +176,50 @@ export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
   }
   async fechar(): Promise<void> {
     await this.pool.end();
+  }
+  private async detalharFollowup(id: string): Promise<DetalheExecucao | null> {
+    const r = await this.pool.query(
+      `SELECT id,status,iniciado_em,finalizado_em,padroes_utilizados,motivo
+      FROM automacao_infra.followup_rodada WHERE id=$1`,
+      [id.slice(3)],
+    );
+    const rodada = r.rows[0];
+    if (!rodada) return null;
+    const passos = await this.pool.query(
+      `SELECT resultado,count(*)::int AS quantidade,sum(duracao_ms)::int AS duracao
+      FROM automacao_infra.followup_etapa WHERE rodada_id=$1 GROUP BY resultado ORDER BY resultado`,
+      [id.slice(3)],
+    );
+    const etapas: DetalheExecucao["etapas"] = passos.rows.map((p) => ({
+      nome: `${p.resultado} (${p.quantidade})`,
+      duracaoMs: p.duracao,
+      tentativas: 1,
+      status: /FALHA|INCERTO|PENDENTE/.test(p.resultado) ? "erro" : "sucesso",
+    }));
+    if (rodada.motivo)
+      etapas.push({
+        nome: rodada.motivo,
+        status: "erro",
+        duracaoMs: 0,
+        tentativas: 1,
+      });
+    for (const chave of rodada.padroes_utilizados)
+      etapas.push({
+        nome: "PADRAO_UTILIZADO: " + chave,
+        status: "sucesso",
+        duracaoMs: 0,
+        tentativas: 1,
+      });
+    return {
+      id,
+      fluxoId: "followup-typescript",
+      fluxoNome: "Follow-up TypeScript",
+      status: rodada.status,
+      iniciadoEm: rodada.iniciado_em.toISOString(),
+      finalizadoEm: rodada.finalizado_em?.toISOString() || null,
+      modo: "schedule",
+      etapas,
+      detalhesDisponiveis: true,
+    };
   }
 }

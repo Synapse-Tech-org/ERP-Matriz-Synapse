@@ -435,7 +435,38 @@ services:
       AUTOMACAO_DB_PASSWORD: ${AUTOMACAO_DB_PASSWORD:-}
       AUTOMACAO_DB_SCHEMA: ${AUTOMACAO_DB_SCHEMA:-public}
       AUTOMACAO_DB_POOL_MAX: ${AUTOMACAO_DB_POOL_MAX:-3}
-      # Apenas nomes, para recusar bancos de negocio como destino. Sem suas senhas.
+      SYNAPSE_TOKEN_INTERNO: ${SYNAPSE_TOKEN_INTERNO:-}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER:-}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      WHATSAPP_PROVEDOR: ${WHATSAPP_PROVEDOR:-}
+      WHATSAPP_NUMERO: ${WHATSAPP_NUMERO:-}
+      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
+      WHATSAPP_URL_BASE: ${WHATSAPP_URL_BASE:-https://graph.facebook.com/v21.0}
+      WHATSAPP_RESTRICAO_NUMEROS_HABILITADA: ${WHATSAPP_RESTRICAO_NUMEROS_HABILITADA:-true}
+      WHATSAPP_NUMEROS_PERMITIDOS: ${WHATSAPP_NUMEROS_PERMITIDOS:-}
+      EVOLUTION_HABILITADO: ${EVOLUTION_HABILITADO:-false}
+      EVOLUTION_URL_BASE: ${EVOLUTION_URL_BASE:-}
+      EVOLUTION_INSTANCIA: ${EVOLUTION_INSTANCIA:-}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
+      Z_API_HABILITADO: ${Z_API_HABILITADO:-false}
+      Z_API_URL_BASE: ${Z_API_URL_BASE:-https://api.z-api.io}
+      Z_API_INSTANCIA_ID: ${Z_API_INSTANCIA_ID:-}
+      Z_API_TOKEN: ${Z_API_TOKEN:-}
+      Z_API_CLIENT_TOKEN: ${Z_API_CLIENT_TOKEN:-}
+      Z_API_ENVIAR_CLIENT_TOKEN: ${Z_API_ENVIAR_CLIENT_TOKEN:-true}
+      AUTOMACAO_FOLLOWUP_INTERVALO_MINUTOS: ${AUTOMACAO_FOLLOWUP_INTERVALO_MINUTOS:-2}
+      AUTOMACAO_FOLLOWUP_TAMANHO_PAGINA: ${AUTOMACAO_FOLLOWUP_TAMANHO_PAGINA:-100}
+      AUTOMACAO_FOLLOWUP_RETENCAO_DIAS: ${AUTOMACAO_FOLLOWUP_RETENCAO_DIAS:-90}
+      AUTOMACAO_FOLLOWUP_HTTP_TIMEOUT_MS: ${AUTOMACAO_FOLLOWUP_HTTP_TIMEOUT_MS:-15000}
+      AUTOMACAO_FOLLOWUP_BOTAO_SIM_ID: ${AUTOMACAO_FOLLOWUP_BOTAO_SIM_ID:-}
+      AUTOMACAO_FOLLOWUP_BOTAO_NAO_ID: ${AUTOMACAO_FOLLOWUP_BOTAO_NAO_ID:-}
+      AUTOMACAO_FOLLOWUP_TESTE_LOCAL_HABILITADO: ${AUTOMACAO_FOLLOWUP_TESTE_LOCAL_HABILITADO:-false}
+      AUTOMACAO_FOLLOWUP_TESTE_LEAD_ID: ${AUTOMACAO_FOLLOWUP_TESTE_LEAD_ID:-}
+      AUTOMACAO_FOLLOWUP_TESTE_MINUTOS: ${AUTOMACAO_FOLLOWUP_TESTE_MINUTOS:-10}
+      AUTOMACAO_FOLLOWUP_TESTE_TEXTO: ${AUTOMACAO_FOLLOWUP_TESTE_TEXTO:-}
+      # Destino tecnico continua separado; consulta de atendimentos usa o banco CRM acima.
       POSTGRES_DB: ${POSTGRES_DB:?obrigatoria}
       N8N_DB_NAME: ${N8N_DB_NAME:?obrigatoria}
       TZ: ${SYNAPSE_TIMEZONE:?obrigatoria}
@@ -446,7 +477,7 @@ services:
       dokploy-network:
     expose:
       - "3100"
-    stop_grace_period: 30s
+    stop_grace_period: 90s
     healthcheck:
       test: ["CMD", "node", "healthcheck.mjs"]
       interval: 15s
@@ -532,6 +563,8 @@ services:
         target: /opt/automacao/migrations/V8__criar_controle_de_segmentacoes.sql
       - source: automacao-migracao-v9
         target: /opt/automacao/migrations/V9__criar_cursores_de_segmentacao.sql
+      - source: automacao-migracao-v10
+        target: /opt/automacao/migrations/V10__executor_followup.sql
     networks:
       - synapse-internal
     deploy:
@@ -729,3 +762,5 @@ configs:
     file: ../automacao/banco/migrations/V8__criar_controle_de_segmentacoes.sql
   automacao-migracao-v9:
     file: ../automacao/banco/migrations/V9__criar_cursores_de_segmentacao.sql
+  automacao-migracao-v10:
+    file: ../automacao/banco/migrations/V10__executor_followup.sql

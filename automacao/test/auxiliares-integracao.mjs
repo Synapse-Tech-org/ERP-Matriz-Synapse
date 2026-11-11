@@ -13,7 +13,8 @@ export async function verificarAuxiliares(pool) {
   };
   for (const [tabela, colunas] of Object.entries(tabelas)) {
     const r = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=$1 ORDER BY ordinal_position", [tabela]);
-    assert.deepEqual(r.rows.map(c=>c.column_name), colunas, tabela);
+    const extensao = tabela === 'follow_ups_temporary' ? ['executor','chave_envio','execucao_id','botoes','motivo_operacional'] : [];
+    assert.deepEqual(r.rows.map(c=>c.column_name), [...colunas, ...extensao], tabela);
     assert.equal(Number((await pool.query(`SELECT count(*) AS total FROM public.${tabela}`)).rows[0].total), 0, tabela);
   }
   const memoria = await pool.query("INSERT INTO public.n8n_chat_histories (session_id,message,created_at) VALUES ($1,$2,NULL) RETURNING id,message", ['sessao-fixture',{type:'human',data:{content:'fixture'}}]);

@@ -22,6 +22,15 @@ export function criarAplicacao(
   }));
 
   app.get("/health/readiness", async (_req, reply) => {
+    if (
+      configuracao.followUpHabilitado &&
+      operacao.executorDisponivel &&
+      !operacao.executorDisponivel()
+    ) {
+      return reply
+        .code(503)
+        .send({ status: "DOWN", codigo: "EXECUTOR_FOLLOWUP_NAO_PRONTO" });
+    }
     if (operacao.repositorio && operacao.repositorio.estado() !== "PRONTO") {
       return reply
         .code(503)

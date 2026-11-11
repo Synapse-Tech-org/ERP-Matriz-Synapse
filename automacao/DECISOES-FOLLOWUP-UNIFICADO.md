@@ -1,7 +1,8 @@
 # Decisoes do follow-up unificado
 
-Consolidacao da conversa em 09/11/2026. Este documento distingue decisoes,
-propostas e pendencias; nao afirma que os recursos estejam implementados.
+Consolidacao iniciada em 09/11/2026, atualizada em 10/11/2026. Decisoes posteriores
+do usuario prevalecem sobre propostas anteriores. Implementacao e operacao:
+[FOLLOWUP-TYPESCRIPT.md](FOLLOWUP-TYPESCRIPT.md).
 
 ## 1. Objetivo e limites
 
@@ -43,10 +44,10 @@ As tres pranchetas do usuario orientam a sequencia do follow-up unificado.
 - Textos e prazos das regras de follow-up vem do CRM.
 - Limite de novos envios por rodada vem do CRM, NAO de env. Ausencia do campo
   usa fallback de 10; falha na consulta ao CRM nao significa campo ausente.
-- Confirmacao de recusa: texto do CRM; quando ausente/vazio, usar como fallback
-  a mensagem existente da Femina, sem marca de cliente:
-  `Tudo bem. Encerramos este atendimento por enquanto. Quando precisar, estamos a disposicao.`
-- Registrar no historico quando o fallback de mensagem for utilizado.
+- Defaults de valores consumidos do CRM ficam centralizados em
+  `src/followup/padroes.ts`; registrar quais foram usados em cada rodada.
+- Texto de confirmacao de recusa continua responsabilidade do n8n existente;
+  a proposta de envia-lo pelo TypeScript foi retirada do escopo pelo usuario.
 - Manter alternativa de regra local de teste quando o CRM retornar sem regras,
   restrita ao lead de teste e parametrizada por env, sem IDs de producao fixos.
   Essa alternativa nao pode contornar os toggles gerais nem outras negativas
@@ -78,16 +79,16 @@ As tres pranchetas do usuario orientam a sequencia do follow-up unificado.
 
 ## 5. Respostas do cliente e recusas
 
-- `Sim`: preservar o processamento normal da conversa. O tratamento de follow-up
-  nao forca transferencia para humano nem substitui o orquestrador existente.
-- `Nao`: persistir recusa, enviar confirmacao conforme secao 3 e finalizar pela API.
-- A recusa bloqueia novos follow-ups ate autorizacao explicita. Nova conversa ou
-  mensagem comum NAO remove o bloqueio.
-- Essa regra substitui a limpeza automatica do bloqueio encontrada na Femina.
-- Desbloqueio manual deve registrar evidencia de autorizacao, operador, data e motivo.
-- Nao fechar outro atendimento por causa de uma resposta a um follow-up antigo.
-- Mecanismo exato de consumo dessas respostas no TypeScript ainda precisa ser
-  fechado; o CRM recebe WhatsApp. Nao presumir migracao de todo webhook/chatbot.
+- Decisao posterior explicita: `Sim` e `Nao` continuam no n8n, exatamente no
+  tratamento existente. Nao migrar webhook, chatbot, confirmacao de recusa ou
+  fechamento decorrente da resposta nesta entrega.
+- TypeScript le `follow_up_opt_outs` compartilhada com esses fluxos e nao limpa
+  recusas. A politica atual do consumidor n8n nao e alterada por esta migracao.
+- Somente o encerramento por FALTA de resposta pertence ao executor agendado;
+  esse encerramento usa API, comprovante e revalidacao do atendimento.
+- IDs dos botoes devem coincidir com os reconhecidos pelo n8n de cada filho.
+- Nao ha webhook TypeScript de resposta nem dependencia de envelope Evolution
+  na entrada deste fluxo agendado.
 
 ## 6. Envio, comprovantes e falhas
 
@@ -124,16 +125,15 @@ As tres pranchetas do usuario orientam a sequencia do follow-up unificado.
 
 ## 8. Painel e permissoes
 
-- Deve haver painel operacional; aproveitar a pagina Automacao/Follow-up existente
-  no CRM, seu login e suas permissoes, sem login paralelo.
-- Mostrar enviados, ignorados com motivo, registro CRM pendente, falhas e incertos.
-- Permitir recuperar registro comprovado sem reenviar a mensagem.
-- Gestor e administrador podem executar acoes sensiveis: resolver envios incertos
-  e liberar bloqueios mediante autorizacao registrada.
-- Subgestor nao ganha essas acoes sensiveis. Visualizacao segue permissoes existentes,
-  inclusive acesso a clientes, sem ampliar visibilidade implicitamente.
-- Auditoria de operador, data, justificativa e evidencia nas acoes manuais.
-- Contratos das acoes e layout detalhado ainda nao implementados.
+- Decisao posterior: painel TypeScript independente em `/painel/`, usando login
+  e permissoes existentes do CRM, sem alterar Java ou frontend do CRM.
+- Exibe rodadas, quantidades e motivos agrupados, incluindo registros pendentes,
+  falhas e incertos. Nao expoe payloads, mensagens ou credenciais.
+- Recuperacao de registro comprovado e automatica, sem segundo envio.
+- Conciliacao manual de incertos e liberacao de recusas pelo painel continuam
+  pendentes. Nao foram criados botoes sem implementacao nem permissoes novas.
+- O painel exige os papeis/permissoes documentados no README; nao libera
+  historico global a um usuario com acesso apenas aos seus atendimentos.
 
 ## 9. Banco: decisoes e pendencias separadas
 
@@ -141,23 +141,24 @@ Decisao anterior mantida: investigar o banco interno do n8n e copiar SOMENTE A
 ESTRUTURA para banco separado e vazio, adaptando-a para a automacao. Nao copiar
 credenciais, execucoes ou dados de clientes do banco interno, nem modificar a origem.
 
-- O inventario direto do PostgreSQL instalado ainda NAO aconteceu. A tentativa
-  local anterior nao resolveu o host interno `postgres`; nao houve consultas.
+- A investigacao e o provisionamento avancaram depois da primeira consolidacao:
+  foram adicionadas V1-V9 e os logs fornecidos pelo usuario mostram a aplicacao.
+  Referencias: `banco/TABELAS-AUXILIARES.md` e inventario de homologacao local.
 - Arquivos/migrations ajudam a investigar, mas nao comprovam a estrutura implantada.
 - `follow_ups_temporary` e os registros de recusa sao controles de negocio dos
   fluxos, nao as tabelas internas de execucao do produto n8n.
 - CRM ja tem mensagens, regras, configuracoes, reservas, idempotencia e outbox.
   Reutilizar contratos sem duplicar filas com a mesma responsabilidade.
-- Copiar schema n8n nao implementa runtime, historico ou retomada em TypeScript.
-  Repositorios, adaptacoes e migrations ainda precisam ser escritos e testados.
-- Proposta: inventario/schema-only dentro da rede interna, provisionamento inicial
-  unico, migrations versionadas com trava e bloqueio do processamento em falha.
-  Nao fazer clone/dump em cada startup. Execucao requer autorizacao.
-- Proposta para futura producao: preservar recusas e controles de envios existentes
-  na transicao; nao iniciar envios reais com deduplicacao e recusas zeradas.
-  Essa migracao minima de negocio e diferente do clone vazio do schema n8n.
-- Desenho fisico, provisionamento, permissoes, conexoes e estrategia de transicao
-  ainda dependem do inventario. Nao apresentar como implementados/aprovados em detalhe.
+- Provisionamento inicial schema-only, marcador e migracoes com trava ja estao
+  implementados. Redeploy nao reclona nem apaga dados. V10 estende os controles
+  compartilhados e adiciona historico/cursor de rodada e resultados por atendimento.
+- A fila pg-boss usa `automacao_fila` no banco da automacao. O historico TS usa
+  `automacao_infra.followup_rodada` e `followup_etapa`. O painel le esse historico
+  junto do clone n8n, sem inventar seu formato interno de nodes.
+- Dados de negocio continuam nas tabelas existentes do CRM. Recusas e controles
+  continuam nas tabelas auxiliares compartilhadas; nao recriar cadastros de leads.
+- Antes de producao, verificar que TS e consumidor n8n apontam para os mesmos
+  controles. Uma base vazia de homologacao nao substitui os controles de producao.
 
 ## 10. Prioridade posterior: n8n de homologacao
 
@@ -188,12 +189,14 @@ e CRM de homologacao. E uma etapa de homologacao, nao abandono do TypeScript.
   de instancia `instancia_numero_teste`, igual ao nome configurado no arquivo de env.
   Usar esse nome nas rotas, nao presumir que o identificador informado seja o nome.
 
-## 11. Estado da implementacao nesta consolidacao
+## 11. Estado da implementacao em 10/11/2026
 
-- Base TypeScript/Fastify, toggles e preparacao Docker/Compose existem localmente.
-- Worker, banco funcional, follow-up TypeScript e painel operacional nao estao prontos.
-- Este documento foi criado para persistir as decisoes antes das proximas alteracoes.
-- Nao foi feito push, deploy, ativacao ou envio como parte desta consolidacao.
-- Ao implementar, incluir testes de duplicacao, concorrencia, reinicio, recusa,
-  resposta durante avaliacao, falha CRM apos aceite, timeout incerto, limites,
-  autorizacao do painel e isolamento entre filhos; documentar resultados reais.
+- Executor agendado, consulta SQL, regras CRM, adaptadores de envio, deduplicacao,
+  retomada, registro CRM, encerramento e historico do painel implementados.
+- Dois candidatos simultaneos por rodada, coordenados por um worker pg-boss;
+  nao sao dois processos independentes nem um novo servico Docker.
+- Esta entrega nao altera envs, nao ativa envios e nao modifica fluxos n8n.
+  Publicacao na branch de teste e possivel autodeploy foram autorizados.
+- Validacao real de envio/entrega/resposta em homologacao ainda requer teste
+  autorizado, configuracao e selecao da imagem correta. Build nao prova entrega.
+- O guia de implementacao registra testes reproduziveis, defaults e limites.

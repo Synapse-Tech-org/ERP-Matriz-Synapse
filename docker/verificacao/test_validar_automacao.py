@@ -55,6 +55,7 @@ def compose_base():
                     ("migracao-v7", "migrations/V7__criar_controle_de_envios.sql"),
                     ("migracao-v8", "migrations/V8__criar_controle_de_segmentacoes.sql"),
                     ("migracao-v9", "migrations/V9__criar_cursores_de_segmentacao.sql"),
+                    ("migracao-v10", "migrations/V10__executor_followup.sql"),
                 )],
                 "deploy": {"replicas": 0, "restart_policy": {"condition": "none"}, "labels": {"traefik.enable": "false"}},
             },
@@ -89,7 +90,7 @@ class SegurancaDaAutomacaoTest(unittest.TestCase):
             ("preparador_ativo", lambda a, s: s["automacao-banco"]["deploy"].update(replicas=1)),
             ("preparador_em_loop", lambda a, s: s["automacao-banco"]["deploy"]["restart_policy"].update(condition="on-failure")),
             ("preparador_publico", lambda a, s: s["automacao-banco"]["deploy"]["labels"].update({"traefik.enable": "true"})),
-            ("senha_admin_no_painel", lambda a, s: a["environment"].update(POSTGRES_PASSWORD="indevido")),
+            ("usuario_n8n_no_executor", lambda a, s: a["environment"].update(N8N_DB_USER="indevido")),
             ("depends_on_swarm", lambda a, s: a.update(depends_on=["automacao-banco"])),
             ("credencial_nova_obrigatoria", lambda a, s: a["environment"].update(AUTOMACAO_DB_NAME="novo")),
         ]

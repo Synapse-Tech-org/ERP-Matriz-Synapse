@@ -18,10 +18,11 @@ const digest = "@sha256:" + "a".repeat(64);
 
 function ambienteSintetico(adicional = {}) {
     const env = { ...process.env, DOCKER_CONFIG: configTemporaria };
-    for (const [, nome, operador] of fonte.matchAll(
-        /\$\{([A-Z0-9_]+)([^}]*)\}/g,
-    )) {
-        delete env[nome];
+    const expressoes = [...fonte.matchAll(/\$\{([A-Z0-9_]+)([^}]*)\}/g)];
+    // A mesma env pode ser obrigatoria no CRM e opcional na automacao desligada.
+    // Remover todas primeiro evita que a ultima ocorrencia apague o fixture.
+    for (const [, nome] of expressoes) delete env[nome];
+    for (const [, nome, operador] of expressoes) {
         if (operador.startsWith(":?")) env[nome] = "fixture-ci";
     }
     Object.assign(env, {
@@ -115,7 +116,7 @@ test("preparador recebe SQL e migracoes por arquivo sem depender da imagem TypeS
     assert.equal(destinos.get("/opt/automacao/aplicar-migracoes.sh"), "automacao-migrar-sh-v1");
     assert.equal(destinos.get("/opt/automacao/migrations/V2__criar_faq_institucional.sql"), "automacao-migracao-v2");
     const arquivos = readdirSync(join(raiz, "automacao/banco/migrations")).filter(f => /^V\d+__.*\.sql$/.test(f));
-    assert.equal(arquivos.length, 9);
+    assert.equal(arquivos.length, 10);
     for (const arquivo of arquivos) {
         const source = destinos.get("/opt/automacao/migrations/" + arquivo);
         assert.ok(source, "Migration nao montada: " + arquivo);

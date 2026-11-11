@@ -6,6 +6,7 @@ import type { FiltroExecucoes, RepositorioExecucoes } from "./contratos.js";
 export interface DependenciasOperacao {
   readonly repositorio?: RepositorioExecucoes | undefined;
   readonly token?: string | undefined;
+  readonly executorDisponivel?: () => boolean;
 }
 
 export function registrarOperacao(
@@ -46,7 +47,7 @@ export function registrarConsultasOperacao(
         estado,
         automacaoHabilitada: config.automacaoHabilitada,
         followUpHabilitado: config.followUpHabilitado,
-        executorDisponivel: false,
+        executorDisponivel: deps.executorDisponivel?.() === true,
         resumo: estado === "PRONTO" ? await deps.repositorio!.resumo() : null,
       };
     } catch {

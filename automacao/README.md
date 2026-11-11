@@ -5,8 +5,9 @@ separado, Fastify e painel TypeScript dentro do MESMO pacote `crm-teste` do
 Dokploy, sem alterar Java ou frontend do CRM. A configuracao principal e
 `docker/dokploy-stack.yml`. Preparar arquivos nao publica imagem nem faz deploy.
 
-**Follow-up ainda nao foi implementado.** Nao ha agendamento, envio, consumidor
-de fila ou reprocessamento. pg-boss instalado nao significa fila em execucao.
+**Follow-up implementado, desligado por padrao.** O executor agendado substitui
+somente o follow-up; respostas continuam no n8n. Guia, variaveis, contratos e
+limites: [FOLLOWUP-TYPESCRIPT.md](FOLLOWUP-TYPESCRIPT.md).
 
 ## Arquivos
 
@@ -25,7 +26,10 @@ de fila ou reprocessamento. pg-boss instalado nao significa fila em execucao.
 | `PUBLICACAO-IMAGEM-HML.md` | Publicacao isolada da imagem e checklist do painel |
 | `src/operacao/` | Consultas, migracoes, identidade e sessoes |
 | `painel/` | Interface propria, sem alterar frontend do CRM |
-| `DECISOES-FOLLOWUP-UNIFICADO.md` | Decisoes do futuro follow-up |
+| `DECISOES-FOLLOWUP-UNIFICADO.md` | Decisoes e limites do follow-up |
+| `FOLLOWUP-TYPESCRIPT.md` | Executor, envs, testes e ativacao autorizada |
+| `followup.env.example` | Novas envs opcionais SEM segredos reais |
+| `src/followup/` | Dominio, casos de uso, contratos e adaptadores |
 
 ## Dokploy: procedimento para um deploy futuro autorizado
 
@@ -45,8 +49,9 @@ O nome renderizado pode conter tag e digest; nesse caso o digest seleciona o
 conteudo. A antiga variavel `AUTOMACAO_IMAGE_TAG` nao e mais usada: o fallback
 aninhado nao funciona corretamente em Docker Stack.
 Nao modificar a tag conjunta do CRM para testar uma imagem da automacao.
-O CI existente publica imagens em `main` ou execucao manual autorizada com
-`publicar_imagens=true`; push na branch de teste, sozinho, so valida.
+O CI geral publica imagens em `main` ou execucao manual autorizada com
+`publicar_imagens=true`. Na branch `feat/automacao-local-base`, o job isolado
+publica SOMENTE a imagem da automacao apos os testes de automacao e infra.
 Publicar uma imagem tambem nao executa deploy no Dokploy.
 
 ### Inicializacao automatica
@@ -82,8 +87,9 @@ concluida pode aparecer com zero containers rodando; conferir exit code e logs.
   desfaz restore e marcador; banco/usuario vazios podem permanecer.
 - Usuario existente com privilegios administrativos ou banco com outro dono
   sao recusados. Senha de usuario existente nao e trocada automaticamente.
-- O clone nao e um n8n executavel. Nao apontar n8n para o clone adaptado. O
-  escritor de execucoes sera implementado na aplicacao TypeScript depois.
+- O clone nao e um n8n executavel. Nao apontar o runtime n8n para o clone adaptado.
+  Historico TS fica nas extensoes `automacao_infra.followup_rodada`/`followup_etapa`;
+  o painel combina esse historico com execucoes clonadas, sem simular nodes n8n.
 - Cliente PostgreSQL 15, como a referencia da stack. Confirmar versao real:
   cliente antigo nao consegue fazer dump de servidor mais novo.
 - Extensoes/objetos que exigem privilegios adicionais fazem o clone falhar.
@@ -92,14 +98,18 @@ concluida pode aparecer com zero containers rodando; conferir exit code e logs.
 ### Variaveis no servico existente
 
 `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`: banco CRM e credencial
-administrativa existente capaz de criar banco/usuario. Somente provisionador.
+existente. O provisionador usa a capacidade de criar banco/usuario. O executor
+habilitado reutiliza a conexao para consultar atendimentos em transacao read-only;
+nao grava negocio diretamente. Nao foram restringidas permissoes da credencial.
 
 `N8N_DB_NAME`, `N8N_DB_USER`, `N8N_DB_PASSWORD`: origem com acesso para dump
 completo. Somente provisionador. O servidor HTTP nao recebe essas credenciais.
 
 `AUTOMACAO_DB_NAME`, `AUTOMACAO_DB_USER`, `AUTOMACAO_DB_PASSWORD`: destino novo.
 Nomes minusculos, numeros e underscore, sem iniciar por numero.
-`AUTOMACAO_DB_POOL_MAX`: padrao 3, limite 10 conexoes da aplicacao.
+`AUTOMACAO_DB_POOL_MAX`: padrao 3, maximo configuravel 10 POR pool. Painel e
+executor possuem pools separados; executor requer no minimo 3. CRM usa outro
+pool de 2. Com defaults e follow-up ligado, ate 8 conexoes no processo.
 
 `AUTOMACAO_CRM_URL`: endereco que o servidor da automacao usa para consultar
 login e permissoes no CRM. Nao e o endereco do painel. O default
@@ -107,7 +117,9 @@ login e permissoes no CRM. Nao e o endereco do painel. O default
 funciona na rede privada ja compartilhada pela Stack. `AUTOMACAO_REDE_CRM`
 nao e necessario nessa opcao; so e usado pelo Compose separado alternativo.
 Tambem pode ser configurado com a URL
-publica existente `https://crm-teste.187.77.47.30.sslip.io` (sem `/login`).
+publica existente `https://crm-teste.187.77.47.30.sslip.io` (sem `/login`) SOMENTE
+para uso do painel. Com follow-up ligado, usar o endereco privado: os contratos
+`/internal/v1` nao sao publicados pelo Traefik.
 
 `AUTOMACAO_PAINEL_DOMINIO`: endereco publico NOVO para abrir o painel, sem
 `https://` nem caminho. `AUTOMACAO_ROUTER_PREFIX`: identificador unico da rota
@@ -152,8 +164,9 @@ Inputs/outputs, headers e erros brutos nao sao expostos. Detalhes limitados a
 payload de 1 MiB e 500 etapas. Consultas publicas somente em `/painel/api` com
 sessao; `/internal/v1/operacao` exige token e nao e exposto pelo Traefik.
 
-O clone fica vazio e o executor vem depois: **nenhuma execucao de follow-up
-aparecera agora**. Sem controles ficticios de executar/reprocessar. O adaptador
+Com o executor desligado nao sao criadas rodadas novas. Depois de ativacao
+autorizada, rodadas TS aparecem com resultados e motivos. Sem controles
+ficticios de executar/reprocessar. O adaptador
 espera `execution_entity` com `id`, `status`, `startedAt`, `stoppedAt`; variantes
 incompativeis sao recusadas explicitamente.
 
@@ -161,8 +174,9 @@ incompativeis sao recusadas explicitamente.
 
 `AUTOMACAO_HABILITADA=false` e `AUTOMACAO_FOLLOWUP_HABILITADO=false` por padrao.
 Follow-up exige ambas `true`; ausente/vazio desliga, invalido impede boot.
-Nesta etapa nao ha executor, mesmo com ambas `true`. Painel/saude continuam
-acessiveis. Essas variaveis nao desligam o n8n existente.
+Com ambas `true`, o executor inicia apos validacao de configuracao, banco e fila.
+Painel/saude permanecem acessiveis com processamento desligado. Essas variaveis
+nao desligam o n8n existente. Ler o checklist de virada no guia antes de ativar.
 `AUTOMACAO_REPLICAS=0`, `AUTOMACAO_PROVISIONAR_REPLICAS=0` e
 `AUTOMACAO_PAINEL_HABILITADO=false` sao os defaults da Stack. Novas envs da
 automacao nao sao obrigatorias nos filhos desligados.

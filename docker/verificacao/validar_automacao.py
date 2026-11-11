@@ -59,7 +59,8 @@ def validar(compose, homologacao=False, digest_automacao=None):
     assert not re.search(r"[\s${}]", automacao["image"]), "imagem contem interpolacao nao resolvida"
     assert servicos["backend"]["environment"]["AUTOMACAO_URL"] == "http://synapse-n8n-internal:5678"
     assert "n8n" in servicos, "nao substituir o n8n dos fluxos ainda nao migrados"
-    assert not {"POSTGRES_PASSWORD", "POSTGRES_USER", "N8N_DB_PASSWORD", "N8N_DB_USER"} & set(ambiente)
+    # O executor consulta o CRM com a conexao existente, mas nunca usa o banco interno n8n.
+    assert not {"N8N_DB_PASSWORD", "N8N_DB_USER"} & set(ambiente)
     assert ambiente["AUTOMACAO_DB_HOST"] == "postgres"
     assert str(ambiente["AUTOMACAO_DB_POOL_MAX"]) == "3"
     assert ambiente["AUTOMACAO_CRM_URL"] == "http://synapse-backend-internal:8080"
@@ -77,10 +78,11 @@ def validar(compose, homologacao=False, digest_automacao=None):
     assert set(preparador["networks"]) == {"synapse-internal"}
     assert not preparador.get("ports") and not preparador.get("volumes")
     assert "depends_on" not in automacao, "Swarm nao deve depender de depends_on"
-    assert len(preparador["configs"]) == 14
+    assert len(preparador["configs"]) == 15
     destinos = {item["target"] for item in preparador["configs"]}
     assert "/opt/automacao/aplicar-migracoes.sh" in destinos
     assert "/opt/automacao/migrations/V2__criar_faq_institucional.sql" in destinos
+    assert "/opt/automacao/migrations/V10__executor_followup.sql" in destinos
     assert preparador["command"] == ["sh", "/opt/automacao/provisionar.sh"]
 
 

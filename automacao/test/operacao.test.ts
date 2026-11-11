@@ -62,8 +62,8 @@ test("migracoes registram checksum, nao reaplicam e recusam historico alterado",
   } as unknown as Pool;
   await aplicarMigracoes(pool);
   await aplicarMigracoes(pool);
-  assert.equal(aplicacoes, 9);
-  assert.deepEqual([...checksums.keys()], [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.equal(aplicacoes, 10);
+  assert.deepEqual([...checksums.keys()], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   checksums.set(1, "checksum-adulterado");
   await assert.rejects(
     aplicarMigracoes(pool),

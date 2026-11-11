@@ -11,7 +11,7 @@ const pool = new Pool({host:'127.0.0.1', port:5432, database:'automacao_fixture'
 try {
   await aplicarMigracoes(pool);
   const historico = await pool.query('SELECT versao FROM automacao_infra.migracao ORDER BY versao');
-  assert.deepEqual(historico.rows.map(r => r.versao), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.deepEqual(historico.rows.map(r => r.versao), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   const colunas = await pool.query("SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='faq' ORDER BY ordinal_position");
   assert.deepEqual(colunas.rows, [
     {column_name:'id',data_type:'integer',is_nullable:'NO'},
@@ -28,5 +28,5 @@ try {
   const verificarPreservacao = await verificarAuxiliares(pool);
   await aplicarMigracoes(pool);
   await verificarPreservacao();
-  console.log('OK: V1-V9, oito tabelas sem seed, colunas, defaults, unicidade e repeticao preservando dados');
+  console.log('OK: V1-V10, auxiliares sem seed, colunas, defaults, unicidade e repeticao preservando dados');
 } finally { await pool.end(); }
