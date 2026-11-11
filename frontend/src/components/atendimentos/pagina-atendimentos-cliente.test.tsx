@@ -946,6 +946,27 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("composer")).toBeInTheDocument();
   });
 
+  it("abre o histórico exato da rota mesmo quando o lead tem outro atendimento ativo", async () => {
+    const finalizado: CartaoAtendimento = {
+      ...cartaoInicial,
+      atendimentoId: "atendimento-finalizado",
+      atendimentoAtivoId: "atendimento-ativo",
+      status: "FINALIZADO",
+    };
+    obterCartao.mockImplementation(async (id: string) => id === finalizado.atendimentoId
+      ? finalizado
+      : { ...cartaoInicial, atendimentoId: id });
+
+    renderPagina(finalizado.atendimentoId);
+
+    await waitFor(() => expect(screen.getByText("Atendimento finalizado.")).toBeInTheDocument());
+    expect(callbacks.mensagens).toEqual({
+      historico: finalizado.atendimentoId,
+      assinatura: finalizado.atendimentoId,
+    });
+    expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
+  });
+
   it("abre quando o cartão chega depois da resposta e não troca a seleção em refetch atrasado", async () => {
     let resolver: (cartao: CartaoAtendimento) => void;
     obterCartao.mockImplementationOnce(

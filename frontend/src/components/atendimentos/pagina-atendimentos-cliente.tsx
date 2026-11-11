@@ -315,7 +315,9 @@ export function PaginaAtendimentosCliente({
         return;
       }
       if (!acessoClientes) return;
-      const idParaAbrir = cartao.atendimentoAtivoId ?? cartao.atendimentoId;
+      const idParaAbrir = origem === "rota"
+        ? cartao.atendimentoId
+        : cartao.atendimentoAtivoId ?? cartao.atendimentoId;
       if (origem === "lista" && acessoPainel.permitido) {
         window.history.pushState(null, "", `/atendimentos?atendimentoId=${encodeURIComponent(idParaAbrir)}`);
       }

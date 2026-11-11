@@ -50,7 +50,7 @@ export const TEXTOS_RELATORIOS = {
   "legendaTma": "Entre início e término",
   "filtrosAtivos": "Filtros",
   "removerFiltro": "Remover filtro {filtro}",
-  "abrirAtendimento": "Abrir atendimento",
+  "abrirAtendimento": "Abrir conversa",
   "totalStatus": "{total} no período",
   "volumeCsat": "Atendimentos · CSAT",
   "periodos": {

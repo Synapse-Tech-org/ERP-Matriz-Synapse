@@ -10,7 +10,7 @@ import { OpcoesListaV2 } from "@/components/shell/opcoes-lista-v2";
 import moldura from "@/components/shell/lista-v2.module.css";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Input } from "@/components/ui/input";
 import { Seletor } from "@/components/ui/seletor";
@@ -195,9 +195,9 @@ export function PaginaRelatorioAtendimentos() {
                 <th scope="col">{t.status}</th><th scope="col">{t.inicio}</th><th scope="col">{t.duracao}</th><th scope="col">{t.csatNota}</th>
               </tr></thead>
               <tbody>{dados.linhas.map((linha) => (
-                <tr key={linha.id}>
+                <tr key={linha.id} onClick={() => setSelecionada(linha)}>
                   <th scope="row">
-                    <button type="button" className={estilos.cliente} onClick={() => setSelecionada(linha)}>
+                    <button type="button" className={estilos.cliente}>
                       <AvatarIniciais id={linha.leadId} nome={linha.cliente} className={estilos.avatar} />
                       <span><strong>{linha.cliente}</strong><small>{linha.empresa ?? linha.id}</small></span>
                     </button>
@@ -217,7 +217,7 @@ export function PaginaRelatorioAtendimentos() {
           <Button variant="outline" disabled={pagina + 1 >= quantidadePaginas || consulta.isFetching} onClick={() => setPagina((p) => p + 1)}>{t.proxima}</Button>
         </nav>}
       </section>
-      {selecionada && <Detalhes linha={selecionada} textos={t} formatoData={formatoData} podeAbrir={capacidades.pode("atendimentos.ver")} fechar={() => setSelecionada(null)} />}
+      {selecionada && <Detalhes linha={selecionada} textos={t} formatoData={formatoData} podeAbrir={capacidades.pode("atendimentos.ver") && capacidades.pode("clientes.acessar")} fechar={() => setSelecionada(null)} />}
     </section>
   );
 }
@@ -284,6 +284,9 @@ function Detalhes({ linha, textos: t, formatoData, podeAbrir, fechar }: {
           <DialogTitle>{linha.cliente}</DialogTitle>
           <DialogDescription className="break-words">{linha.empresa ? linha.empresa + " · " + linha.id : linha.id}</DialogDescription>
         </div>
+        <Button type="button" variant="ghost" size="icon" aria-label={t.fechar} className="ml-auto shrink-0 self-start" onClick={fechar}>
+          <X aria-hidden />
+        </Button>
       </div>
       {podeAbrir && <Link href={"/atendimentos?atendimentoId=" + encodeURIComponent(linha.id)}
         className={buttonVariants({ variant: "outline", className: "justify-self-start" })}>{t.abrirAtendimento}<ArrowUpRight aria-hidden /></Link>}
@@ -307,7 +310,6 @@ function Detalhes({ linha, textos: t, formatoData, podeAbrir, fechar }: {
         {jornada.hasNextPage && <Button variant="outline" disabled={jornada.isFetchingNextPage}
           onClick={() => void jornada.fetchNextPage()}>{t.maisEventos}</Button>}
       </section>
-      <DialogFooter><Button variant="outline" onClick={fechar}>{t.fechar}</Button></DialogFooter>
     </DialogContent>
   </Dialog>;
 }
