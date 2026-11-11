@@ -97,6 +97,20 @@ class LeadRepositorioJpa implements LeadRepositorio {
         return jpa.count(visivel(filtro));
     }
 
+    @Override
+    public List<ContagemPorEtapa> contarPorEtapa(FiltroDeLeads filtro) {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        var consulta = cb.createTupleQuery();
+        var raiz = consulta.from(LeadEntity.class);
+        var etapa = raiz.<UUID>get(LeadEntity.Campos.ETAPA);
+        consulta.multiselect(etapa, cb.count(raiz))
+                .where(visivel(filtro).toPredicate(raiz, consulta, cb))
+                .groupBy(etapa);
+        return em.createQuery(consulta).getResultList().stream()
+                .map(linha -> new ContagemPorEtapa(linha.get(0, UUID.class), linha.get(1, Long.class)))
+                .toList();
+    }
+
     private List<LeadResumo> projetarResumos(Specification<LeadEntity> especificacao) {
         return montarConsulta(especificacao).getResultList();
     }

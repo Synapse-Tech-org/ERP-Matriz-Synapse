@@ -29,8 +29,8 @@ const CHAVE_DESEMPENHO = ["equipe", "desempenho"] as const;
  * testes de tela no mesmo padrão do resto do projeto — cada fonte de dado tem um hook, nunca
  * `useQuery` cru espalhado pelos componentes.
  */
-export function useEquipe() {
-  return useQuery({ queryKey: CHAVE_EQUIPE, queryFn: listarEquipe });
+export function useEquipe(habilitado = true) {
+  return useQuery({ queryKey: CHAVE_EQUIPE, queryFn: listarEquipe, enabled: habilitado });
 }
 
 /** Mini-dashboard e ranking por avaliação (E17b §Bloco 4). */
@@ -48,8 +48,8 @@ export function useDesempenhoEquipe(habilitado = true) {
 }
 
 /** GET /api/v1/me (E17) — nome, papel e presença de quem está autenticado. */
-export function useMeuUsuario() {
-  return useQuery({ queryKey: ["me"], queryFn: obterMeuUsuario });
+export function useMeuUsuario(habilitado = true) {
+  return useQuery({ queryKey: ["me"], queryFn: obterMeuUsuario, enabled: habilitado });
 }
 
 export function useAtualizarMeuUsuario() {

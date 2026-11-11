@@ -1,9 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
 const cancelarMutate = vi.fn();
+const enviarAgoraMock = vi.fn();
+const listarMock = vi.fn();
 
 const MENSAGENS = {
   mensagens: [
@@ -32,6 +34,14 @@ const MENSAGENS = {
   temMais: false,
 };
 
+const v2 = vi.hoisted(() => ({ ativo: false }));
+vi.mock("@/lib/config/use-funcionalidades", () => ({
+  useFuncionalidadesHabilitadas: () => ({ data: v2.ativo ? ["recursos_layout_v2"] : [] }),
+}));
+vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () => null }));
+vi.mock("@/lib/equipe/use-equipe", () => ({ useEquipe: () => ({ data: [{ id: "u1", nome: "Ana Beatriz" }] }) }));
+afterEach(() => { v2.ativo = false; });
+
 vi.mock("@/lib/auth/auth-store", () => ({
   useAuthStore: (selector: (s: { papel: string }) => unknown) => selector({ papel: "GESTOR" }),
 }));
@@ -39,6 +49,25 @@ vi.mock("@/lib/auth/auth-store", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     mensagensProgramadas: {
+      v2: {
+        titulo: "Mensagens Programadas",
+        agendadas: "Agendadas",
+        enviadas: "Enviadas",
+        canceladas: "Canceladas",
+        todas: "Todas",
+        descricao: "A Automação envia cada mensagem no horário escolhido.",
+        enviarAgora: "Enviar agora",
+        envioSolicitado: "Envio solicitado",
+        verNoChat: "Ver no chat",
+        buscaContatos: "Buscar contatos…",
+        todosAtendentes: "Todos os atendentes",
+        proximoEnvio: "Próximo envio",
+        limparPeriodo: "Limpar período",
+        formatoData: "dd/mm/aaaa",
+        mensagemNoDia: "{total} mensagem",
+        mensagensNoDia: "{total} mensagens",
+        periodoInvalido: "A data final deve ser igual ou posterior à inicial.",
+      },
       titulo: "Mensagens programadas",
       descricao: "Mensagens que a Automação enviará no horário escolhido.",
       nova: "Programar mensagem",
@@ -74,7 +103,17 @@ vi.mock("@/lib/config/textos-provider", () => ({
 }));
 
 vi.mock("@/lib/suporte/api", () => ({
-  listarMensagensProgramadas: () => Promise.resolve(MENSAGENS),
+  listarMensagensProgramadas: (filtro: { inicio?: string }) => {
+    listarMock(filtro);
+    if (v2.ativo && filtro.inicio) return Promise.resolve({ ...MENSAGENS, mensagens: [{
+      ...MENSAGENS.mensagens[0], leadNome: "Próximo contato", dataEnvio: new Date(Date.now() + 86_400_000).toISOString(),
+    }] });
+    return Promise.resolve(MENSAGENS);
+  },
+  enviarMensagemProgramadaAgora: (...args: unknown[]) => {
+    enviarAgoraMock(...args);
+    return Promise.resolve();
+  },
   cancelarMensagemProgramada: (...args: unknown[]) => {
     cancelarMutate(...args);
     return Promise.resolve();
@@ -99,6 +138,20 @@ function renderComQuery() {
 }
 
 describe("pagina de mensagens programadas", () => {
+  it("no V2 consulta o próximo envio em separado e agrupa por dia", async () => {
+    v2.ativo = true;
+    renderComQuery();
+    expect(await screen.findByText("Próximo contato")).toBeInTheDocument();
+    expect(listarMock).toHaveBeenCalledWith(expect.objectContaining({
+      inicio: expect.any(String), status: "AGENDADA", pagina: 0,
+    }));
+    expect(await screen.findAllByRole("rowheader")).toHaveLength(2);
+    expect(screen.getAllByText("1 mensagem")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "Enviar agora" }));
+    await waitFor(() => expect(enviarAgoraMock).toHaveBeenCalledWith("p1", expect.anything()));
+    expect(await screen.findByRole("status")).toHaveTextContent("Envio solicitado");
+  });
+
   it("lista as mensagens como cards, com lead, status e atendente", async () => {
     renderComQuery();
 

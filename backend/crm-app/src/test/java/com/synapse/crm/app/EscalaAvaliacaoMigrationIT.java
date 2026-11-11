@@ -86,8 +86,10 @@ class EscalaAvaliacaoMigrationIT {
                 """
                 SELECT c.conname
                   FROM pg_constraint c
+                  JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
                  WHERE c.conrelid = 'avaliacao'::regclass
                    AND c.contype = 'c'
+                   AND a.attname = 'nota'
                 """,
                 String.class);
         assertThat(nomeCheckDepois).isEqualTo("avaliacao_nota_entre_0_e_10");

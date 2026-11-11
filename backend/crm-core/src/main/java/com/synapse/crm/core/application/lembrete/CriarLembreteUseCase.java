@@ -24,10 +24,12 @@ public class CriarLembreteUseCase {
         this.usuario = usuario;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR','OPERADOR') and @capacidades.permite('lembretes.criar')")
+    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR','OPERADOR') and @capacidades.permite('lembretes.criar') and (#responsavelId == null or (hasAnyRole('SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('equipe.ver')))")
     @Transactional
-    public Optional<Lembrete> executar(UUID leadId, String texto, Instant dataHora) {
-        return leads.porId(leadId)
-                .map(lead -> lembretes.criar(lead.id(), usuario.atual().id(), texto.trim(), dataHora));
+    public Optional<Lembrete> executar(UUID leadId, String texto, Instant dataHora, UUID responsavelId) {
+        if (leadId != null && leads.porId(leadId).isEmpty()) return Optional.empty();
+        if (responsavelId != null && !lembretes.reservarResponsavelAtivo(responsavelId)) return Optional.empty();
+        UUID atendenteId = responsavelId == null ? usuario.atual().id() : responsavelId;
+        return Optional.of(lembretes.criar(leadId, atendenteId, texto.trim(), dataHora));
     }
 }

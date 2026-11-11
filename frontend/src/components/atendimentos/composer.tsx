@@ -171,8 +171,12 @@ export function Composer({
   const podeVerTemplates = capacidades.pode("templates.ver");
   const podeAgendar = capacidades.pode("mensagens_programadas.criar");
   const rapidas = useQuery({
-    queryKey: ["mensagens-rapidas", "minhas"],
-    queryFn: () => listarMensagensRapidas(true),
+    queryKey: ["mensagens-rapidas", "minhas", "gerais"],
+    queryFn: async () => {
+      const mensagens = await listarMensagensRapidas(true, true);
+      const pessoais = new Set(mensagens.filter(({ geral }) => !geral).map(({ palavraChave }) => palavraChave.toLowerCase()));
+      return mensagens.filter(({ geral, palavraChave }) => !geral || !pessoais.has(palavraChave.toLowerCase()));
+    },
     enabled: podeUsarRapidas,
   });
   const lead = useLead(conversa.leadId);

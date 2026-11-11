@@ -156,6 +156,10 @@ public enum Capacidade {
     // --- Gestao da equipe -------------------------------------------------------------------
     CANCELAMENTOS_VER("cancelamentos.ver", Modulo.CANCELAMENTOS, NivelDeAcesso.VER, Tipo.ACAO,
             false, todos(), EnumSet.of(ATENDENTE, OPERADOR), false),
+    RELATORIOS_VER("relatorios.ver", Modulo.RELATORIOS, NivelDeAcesso.VER, Tipo.ACAO,
+            false, gestao(), nenhum(), false),
+    RELATORIOS_EXPORTAR("relatorios.exportar", Modulo.RELATORIOS, NivelDeAcesso.GERENCIAR, Tipo.ACAO,
+            true, gestao(), nenhum(), false, "relatorios.ver"),
     EQUIPE_VER("equipe.ver", Modulo.EQUIPE, NivelDeAcesso.VER, Tipo.ACAO, false, gestao(), nenhum(), false),
     EQUIPE_DISPONIBILIDADE_IA("equipe.disponibilidade_ia", Modulo.EQUIPE, NivelDeAcesso.EDITAR, Tipo.ACAO,
             false, gestao(), nenhum(), false, "equipe.ver"),
@@ -261,7 +265,7 @@ public enum Capacidade {
         if (this == CLIENTES_ACESSAR) return false;
         return switch (modulo) {
             case ATENDIMENTOS, CONTATOS, RESUMO_IA, DASHBOARD, MENSAGENS_PROGRAMADAS, LEMBRETES,
-                    CAMPANHAS, CANCELAMENTOS -> true;
+                    CAMPANHAS, CANCELAMENTOS, RELATORIOS -> true;
             default -> this == TAGS_APLICAR;
         };
     }

@@ -3,12 +3,15 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { Download, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Columns3, Download, List, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { PainelLateralLead } from "@/components/leads/painel-lateral-lead";
+import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
+import listaV2 from "@/components/shell/lista-v2.module.css";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import { useEquipe } from "@/lib/equipe/use-equipe";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useCanais, useEtapas } from "@/lib/lead/use-painel-lead";
@@ -16,8 +19,10 @@ import {
   useCamposFiltraveis,
   useCatalogosDeFiltro,
   useContagemDeLeads,
+  useContagemPorEtapaDaAgenda,
   criterioDosFiltrosAtivos,
   useLeadsDaAgenda,
+  SEM_RESPONSAVEL,
 } from "@/lib/agenda/use-agenda";
 import {
   FILTROS_RAPIDOS_VAZIOS,
@@ -37,6 +42,7 @@ import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { gerenciaImportacaoDeLeads } from "@/lib/navegacao/visibilidade-do-menu";
 
 import { BarraDeFiltros } from "./barra-de-filtros";
+import { KanbanAgenda } from "./kanban-agenda";
 import { ListaDeLeadsMobile } from "./lista-de-leads-mobile";
 import { TabelaDeLeads } from "./tabela-de-leads";
 import { useBuscaLeadsParaEntrada } from "@/lib/agenda/use-busca-entrada";
@@ -44,6 +50,7 @@ import { apiFetch } from "@/lib/api/http-client";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn } from "@/lib/utils";
 import { DialogoImportacaoLeads } from "./dialogo-importacao-leads";
+import estilos from "./agenda-v2.module.css";
 
 /**
  * Agenda como tabela sobre o filtro modular (E16 §Bloco 1) — substitui a lista de cards que
@@ -53,9 +60,10 @@ import { DialogoImportacaoLeads } from "./dialogo-importacao-leads";
  * <p>Kanban fica de fora de propósito. Importação e exportação CSV ficam disponíveis apenas para
  * gestão e usam endpoints próprios, sempre com o mesmo recorte de visibilidade da Agenda.
  */
-export function PaginaAgenda() {
+export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
   const textosGerais = useTextos();
   const t = textosGerais.agenda;
+  const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("agenda_layout_v2") ?? false;
   const entrada = t.entrada ?? {
     placeholder: t.filtros.titulo,
     pedir: t.filtros.adicionar,
@@ -66,18 +74,21 @@ export function PaginaAgenda() {
   const usuarioId = useAuthStore((estado) => estado.usuarioId);
   const podeGerenciar = gerenciaImportacaoDeLeads(papel);
   const capacidades = useCapacidades();
+  const podeEditarContato = capacidades.pode("contatos.editar");
   const podeAbrirAtendimento = capacidades.pode("atendimentos.abrir_para_contato");
   const podeColaborar = capacidades.pode("atendimentos.colaborar");
 
   const [filtrosAtivos, setFiltrosAtivos] = useState<FiltroAtivo[]>([]);
   const [filtrosRapidos, setFiltrosRapidos] = useState<FiltrosRapidosAgenda>({
     ...FILTROS_RAPIDOS_VAZIOS,
+    tags: tagInicial ? [tagInicial] : [],
   });
   const [pagina, setPagina] = useState(0);
   const [leadNoPainel, setLeadNoPainel] = useState<LeadDaAgenda | null>(null);
   const [buscaEntrada, setBuscaEntrada] = useState("");
   const [filtrosMobileAbertos, setFiltrosMobileAbertos] = useState(false);
   const [importacaoAberta, setImportacaoAberta] = useState(false);
+  const [kanban, setKanban] = useState(false);
   const telaEstreita = useTelaEstreita();
   const buscaColega = useBuscaLeadsParaEntrada(buscaEntrada);
   const [pedidoEmAndamento, setPedidoEmAndamento] = useState<string | null>(null);
@@ -153,7 +164,10 @@ export function PaginaAgenda() {
     filtrosRapidos,
     filtrosAtivos,
     tagsDisponiveis,
+    !layoutV2,
   );
+  const contagemV2 = useContagemPorEtapaDaAgenda(filtrosRapidos, filtrosAtivos, tagsDisponiveis, layoutV2);
+  const contagemPorEtapa = contagemV2.data?.etapas && new Map(contagemV2.data.etapas.map(({ etapaId, total }) => [etapaId, total]));
 
   function adicionarFiltro(filtro: FiltroAtivo) {
     setFiltrosAtivos((atuais) => [...atuais, filtro]);
@@ -198,7 +212,7 @@ export function PaginaAgenda() {
   }
 
   const leads = paginaDeLeads.data?.leads ?? [];
-  const totalExibido = contagem.data ?? leads.length;
+  const totalExibido = (layoutV2 ? contagemV2.data?.total : contagem.data) ?? leads.length;
   const textoContador = t.contador
     .replace("{exibindo}", String(leads.length))
     .replace("{total}", String(totalExibido));
@@ -210,7 +224,9 @@ export function PaginaAgenda() {
       : null;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background p-6 max-sm:p-4">
+    <div data-layout={layoutV2 ? "v2" : "legado"}
+      className={layoutV2 ? cn(listaV2.pagina, estilos.pagina) : "flex h-full flex-col overflow-hidden bg-background p-6 max-sm:p-4"}>
+      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} />}
       <header className={cn(
         "flex-none",
         telaEstreita
@@ -261,6 +277,16 @@ export function PaginaAgenda() {
               {t.filtros.titulo}
             </Button>
           )}
+          {layoutV2 && (
+            <div className={estilos.escopos}>
+              <button type="button" aria-pressed={!kanban} onClick={() => setKanban(false)}>
+                <List aria-hidden className="size-4" />{t.v2.lista}
+              </button>
+              <button type="button" aria-pressed={kanban} onClick={() => setKanban(true)}>
+                <Columns3 aria-hidden className="size-4" />{t.v2.kanban}
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -289,6 +315,20 @@ export function PaginaAgenda() {
             textos={t.filtros}
             textosStatus={t.status}
             textoSemResponsavel={t.semResponsavel}
+            atalhos={layoutV2 && (
+              <div className={estilos.escopos}>
+                {[
+                  { id: null, rotulo: t.v2.todos },
+                  ...(usuarioId ? [{ id: usuarioId, rotulo: t.v2.meus }] : []),
+                  { id: SEM_RESPONSAVEL, rotulo: t.semResponsavel },
+                ].map(({ id, rotulo }) => {
+                  const valores = filtrosRapidos.atendentes;
+                  const ativo = id ? valores.length === 1 && valores[0] === id : valores.length === 0;
+                  return <button type="button" key={rotulo} aria-pressed={ativo}
+                    onClick={() => atualizarFiltrosRapidos({ ...filtrosRapidos, atendentes: id ? [id] : [] })}>{rotulo}</button>;
+                })}
+              </div>
+            )}
             contador={
               <p className="text-sm whitespace-nowrap text-muted-foreground">
                 {textoContador}
@@ -311,9 +351,31 @@ export function PaginaAgenda() {
             <p className="mt-2 text-sm text-muted-foreground">{textoContador}</p>
           </div>
         )}
+        {layoutV2 && !!etapas.data?.length && (
+          <div className={estilos.etapas} role="group" aria-label={t.filtros.etapa}>
+            <button type="button" aria-pressed={filtrosRapidos.etapas.length === 0}
+              onClick={() => atualizarFiltrosRapidos({ ...filtrosRapidos, etapas: [] })}>
+              {t.v2.todasEtapas}
+              {contagemV2.data && <span>{contagemV2.data.total}</span>}
+            </button>
+            {etapas.data.map((etapa) => (
+              <button type="button" key={etapa.id} aria-pressed={filtrosRapidos.etapas.includes(etapa.id)}
+                style={{ "--tom-etapa": etapa.corVisual ?? "var(--v2-azul)" } as React.CSSProperties}
+                onClick={() => atualizarFiltrosRapidos({
+                  ...filtrosRapidos,
+                  etapas: filtrosRapidos.etapas.includes(etapa.id)
+                    ? filtrosRapidos.etapas.filter((id) => id !== etapa.id)
+                    : [...filtrosRapidos.etapas, etapa.id],
+                })}>
+                {etapa.nome}
+                {contagemPorEtapa && <span>{contagemPorEtapa.get(etapa.id) ?? 0}</span>}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className={cn("min-h-0 flex-1 overflow-y-auto", layoutV2 && estilos.resultados)}>
         {paginaDeLeads.isLoading ? (
           <p className="text-sm text-muted-foreground">{t.carregando}</p>
         ) : paginaDeLeads.isError ? (
@@ -323,6 +385,10 @@ export function PaginaAgenda() {
           />
         ) : leads.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t.vazia}</p>
+        ) : layoutV2 && kanban ? (
+          <KanbanAgenda leads={leads} etapas={etapas.data ?? []} etapasVisiveis={filtrosRapidos.etapas}
+            contagemPorEtapa={contagemPorEtapa} podeEditar={podeEditarContato}
+            textos={t} onAbrirFicha={abrirFicha} />
         ) : telaEstreita ? (
           <ListaDeLeadsMobile
             leads={leads}
@@ -333,6 +399,7 @@ export function PaginaAgenda() {
           />
         ) : (
           <TabelaDeLeads
+            layoutV2={layoutV2}
             leads={leads}
             etapas={etapas.data ?? []}
             equipe={equipe.data ?? []}
@@ -344,22 +411,26 @@ export function PaginaAgenda() {
         )}
       </div>
 
-      <div className="mt-3 flex flex-none justify-end gap-2">
+      <div className={cn("mt-3 flex flex-none justify-end gap-2", layoutV2 && estilos.paginacao)}>
+        {layoutV2 && <span>{textoContador}</span>}
         <Button
           type="button"
           variant="outline"
           disabled={pagina === 0}
+          aria-label={layoutV2 ? t.paginacao.anterior : undefined}
           onClick={() => setPagina((atual) => atual - 1)}
         >
-          {t.paginacao.anterior}
+          {layoutV2 ? <ChevronLeft aria-hidden /> : t.paginacao.anterior}
         </Button>
+        {layoutV2 && <span className={estilos.numeroPagina}>{pagina + 1}</span>}
         <Button
           type="button"
           variant="outline"
           disabled={!paginaDeLeads.data?.temMais}
+          aria-label={layoutV2 ? t.paginacao.proxima : undefined}
           onClick={() => setPagina((atual) => atual + 1)}
         >
-          {t.paginacao.proxima}
+          {layoutV2 ? <ChevronRight aria-hidden /> : t.paginacao.proxima}
         </Button>
       </div>
 

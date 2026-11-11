@@ -104,7 +104,7 @@ class DashboardVisaoGeralIT extends PostgresIT {
         UUID atendimentoAnterior1 = criarAtendimento(anteriores[0], ana, julho, 40);
         criarAtendimento(anteriores[1], ana, julho.plusSeconds(3600), 60);
 
-        criarAvaliacao(atendimentoAtual1, ana, 4, agosto.plusSeconds(900));
+        criarAvaliacao(atendimentoAtual1, ana, 4, agosto.plusSeconds(900), 9);
         criarAvaliacao(atendimentoAtual2, ana, 5, agosto.plusSeconds(4500));
         criarAvaliacao(atendimentoAnterior1, ana, 2, julho.plusSeconds(3600));
 
@@ -127,6 +127,8 @@ class DashboardVisaoGeralIT extends PostgresIT {
                 .isEqualTo("PERCENTUAL");
         assertThat(resposta.at("/tempoMedioAtendimento/segundos").asLong()).isEqualTo(1500);
         assertThat(resposta.at("/avaliacaoMedia/media").decimalValue()).isEqualByComparingTo("4.50");
+        assertThat(resposta.at("/nps/valor").decimalValue()).isEqualByComparingTo("100");
+        assertThat(resposta.at("/nps/respostas").asLong()).isEqualTo(1);
         assertThat(resposta.at("/avaliacaoMedia/escalaMaxima").asInt()).isEqualTo(10);
         assertThat(resposta.at("/avaliacaoMedia/distribuicao/otimo").asLong()).isZero();
         assertThat(resposta.at("/avaliacaoMedia/distribuicao/bom").asLong()).isZero();
@@ -181,6 +183,30 @@ class DashboardVisaoGeralIT extends PostgresIT {
         assertThat(anaNaEquipe.path("vendas").asLong()).isEqualTo(1);
         assertThat(anaNaEquipe.path("nota").decimalValue()).isEqualByComparingTo("4.50");
         assertThat(anaNaEquipe.path("avaliacoes").asLong()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("leads parados exclui finalizados e interações humanas recentes, sem contar automação")
+    void leadsParados_usaEstadoAtualEInteracaoHumana() throws Exception {
+        String base = "/api/v1/dashboard/visao-geral?ano=2039&meses=";
+        long antes = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, base + "11").path("leadsParados").asLong();
+        Instant agora = Instant.now();
+        UUID ana = idDoUsuario(EMAIL_ANA);
+        UUID etapa = jdbc.queryForObject(
+                "SELECT id FROM etapa_atendimento WHERE resultado='EM_ANDAMENTO' ORDER BY ordem LIMIT 1",
+                UUID.class);
+        UUID[] leads = criarLeads(4, "parados", agora.minus(Duration.ofDays(100)), etapa, ana);
+
+        jdbc.update("UPDATE lead SET status_basico='FINALIZADO' WHERE id=?", leads[1]);
+        UUID atendimento = criarAtendimento(leads[2], ana, agora.minusSeconds(3600), 30);
+        criarMensagem(atendimento, agora.minusSeconds(2700));
+        jdbc.update("""
+                INSERT INTO evento_timeline (id, lead_id, tipo, descricao, origem, criado_em)
+                VALUES (?, ?, 'ETAPA_ALTERADA', 'teste dashboard', 'AUTOMACAO', ?)
+                """, UUID.randomUUID(), leads[3], timestamp(agora));
+
+        long depois = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, base + "12").path("leadsParados").asLong();
+        assertThat(depois - antes).isEqualTo(2);
     }
 
     @Test
@@ -551,13 +577,19 @@ class DashboardVisaoGeralIT extends PostgresIT {
 
     private void criarAvaliacao(
             UUID atendimentoId, UUID atendenteId, int nota, Instant criadoEm) {
+        criarAvaliacao(atendimentoId, atendenteId, nota, criadoEm, null);
+    }
+
+    private void criarAvaliacao(
+            UUID atendimentoId, UUID atendenteId, int nota, Instant criadoEm, Integer notaRecomendacao) {
         jdbc.update(
-                "INSERT INTO avaliacao (id, atendimento_id, atendente_id, nota, criado_em) VALUES (?,?,?,?,?)",
+                "INSERT INTO avaliacao (id, atendimento_id, atendente_id, nota, criado_em, nota_recomendacao) VALUES (?,?,?,?,?,?)",
                 UUID.randomUUID(),
                 atendimentoId,
                 atendenteId,
                 nota,
-                timestamp(criadoEm));
+                timestamp(criadoEm),
+                notaRecomendacao);
     }
 
     private void registrarGanho(

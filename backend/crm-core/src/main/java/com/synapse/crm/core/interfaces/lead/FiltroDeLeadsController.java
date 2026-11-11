@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -25,12 +26,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.synapse.crm.core.application.campocustomizado.CampoCustomizadoRepositorio;
 import com.synapse.crm.core.application.lead.CatalogosDeFiltroDeLead;
 import com.synapse.crm.core.application.lead.ContarLeadsFiltradosUseCase;
 import com.synapse.crm.core.application.lead.FiltrarLeadsUseCase;
+import com.synapse.crm.core.application.lead.LeadRepositorio.ContagemPorEtapa;
 import com.synapse.crm.core.application.lead.ListarCatalogosDeFiltroDeLeadUseCase;
 import com.synapse.crm.core.application.lead.PaginaDeLeads;
 import com.synapse.crm.core.application.tag.ListarTagsDosLeadsUseCase;
@@ -164,9 +167,15 @@ class FiltroDeLeadsController {
                 @ApiResponse(responseCode = "400", description = "Campo, operador, valor ou estrutura da árvore inválido.")
             })
     @PostMapping("/contagem")
-    Contagem contar(@Valid @RequestBody FiltroRequisicao requisicao) {
-        return new Contagem(ContextoDeAgenda.buscarComo(
-                () -> contar.executar(requisicao.paraDominio(camposCustomizados))));
+    Contagem contar(
+            @Valid @RequestBody FiltroRequisicao requisicao,
+            @RequestParam(defaultValue = "false") boolean porEtapa) {
+        var filtro = requisicao.paraDominio(camposCustomizados);
+        if (!porEtapa) {
+            return new Contagem(ContextoDeAgenda.buscarComo(() -> contar.executar(filtro)), null);
+        }
+        var grupos = ContextoDeAgenda.buscarComo(() -> contar.porEtapa(filtro));
+        return new Contagem(grupos.stream().mapToLong(ContagemPorEtapa::total).sum(), grupos);
     }
 
     /**
@@ -316,7 +325,7 @@ class FiltroDeLeadsController {
     }
 
     /** Resposta da contagem. Objeto, e nao numero cru, para caber metadado depois. */
-    record Contagem(long total) {}
+    record Contagem(long total, @JsonInclude(JsonInclude.Include.NON_NULL) List<ContagemPorEtapa> etapas) {}
 
     record CatalogosResposta(List<String> cidades, List<TagResposta> tags) {}
 

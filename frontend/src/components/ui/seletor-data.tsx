@@ -15,6 +15,7 @@ interface SeletorDataProps {
   className?: string;
   id?: string;
   obrigatorio?: boolean;
+  ariaLabel?: string;
 }
 
 function paraDataLocal(valor: string): Date | undefined {
@@ -38,6 +39,7 @@ export function SeletorData({
   className,
   id,
   obrigatorio,
+  ariaLabel,
 }: SeletorDataProps) {
   const selecionada = paraDataLocal(valor);
 
@@ -50,6 +52,7 @@ export function SeletorData({
             type="button"
             variant="outline"
             aria-required={obrigatorio}
+            aria-label={ariaLabel}
             className={cn(
               "w-full justify-between font-normal",
               !selecionada && "text-muted-foreground",

@@ -111,7 +111,53 @@ describe("TextosSchema", () => {
 
     const textos = TextosSchema.parse(catalogo);
 
-    expect(textos).toEqual(catalogo);
+    expect(textos).toEqual({
+      ...catalogo,
+      menu: {
+        ...(catalogo.menu as Record<string, unknown>),
+        grupoPrincipal: "Principal",
+        grupoRecursos: "Recursos",
+      },
+      dashboard: {
+        ...(catalogo.dashboard as Record<string, unknown>),
+        v2: {
+          seloNovo: "Novo",
+          aoVivo: "Ao vivo",
+          primeiraResposta: "1ª resposta humana",
+          nps: "NPS",
+          npsApoio: "{total} respostas de recomendação",
+          transferencias: "Transf. IA → humano",
+          leadsParados: "Leads parados +2 meses",
+          leadsParadosApoio: "Etapas abertas sem interação há mais de dois meses",
+          aguardandoResposta: "Aguardando 1ª resposta",
+          esquecidos: "Esquecidos +1 hora",
+          indisponivel: "Métrica indisponível",
+          valorIndisponivel: "—",
+          colunaLeads: "Leads",
+          colunaParado: "Parado",
+          colunaPrimeiraResposta: "1ª resposta",
+          verEquipe: "Ver equipe",
+          centralAvisos: {
+            titulo: "Notificações",
+            vazio: "Nenhuma notificação nesta sessão.",
+            todas: "Todas",
+            naoLidas: "Não lidas",
+            atendimentos: "Atendimentos",
+            chatInterno: "Chat interno",
+            marcarLidas: "Marcar lidas",
+            preferencias: "Preferências de notificação",
+          },
+          busca: {
+            rotulo: "Buscar contatos, equipe e painéis",
+            descricao: "Busque contatos por nome, telefone ou CPF, ou digite o nome de um atendente ou painel.",
+            acao: "Buscar",
+            vazio: "Nenhum contato encontrado.",
+            mais: "Refine a busca para encontrar outros contatos.",
+            atalho: "Ctrl K",
+          },
+        },
+      },
+    });
     expect(textos.automacao.abas.followUp).toBe("Follow-up");
     expect(textos.automacao.recursosIa.resumo).toBe("Resumo automático por IA");
     expect(textos.automacao.regras.novo).toBe("Nova regra");
@@ -159,7 +205,7 @@ describe("TextosSchema", () => {
 });
 
 describe("TemaSchema", () => {
-  it("preserva o tema completo servido pelo backend e só acrescenta os dois tokens derivados da D1 da Disbrel", () => {
+  it("preserva os tokens do backend e completa os defaults da V2 e da Disbrel", () => {
     const tema = carregarJson("../backend/crm-app/src/main/resources/tema.json");
 
     // O tema padrão não traz sidebarTextoForte nem mensagemFalhaTexto; o frontend os deriva reproduzindo o
@@ -168,6 +214,11 @@ describe("TemaSchema", () => {
       ...tema,
       sidebarTextoForte: "#FFFFFF",
       mensagemFalhaTexto: tema.sidebarItemTextoPerigo,
+      paletaV2: {
+        azul: "#2563EB", verde: "#16A34A", turquesa: "#0D9488", violeta: "#9333EA",
+        indigo: "#4F46E5", dourado: "#CA8A04", laranja: "#D97706", vermelho: "#DC2626",
+        contrasteEscuro: "#0E1220", contrasteClaro: "#FFFFFF",
+      },
     });
   });
 

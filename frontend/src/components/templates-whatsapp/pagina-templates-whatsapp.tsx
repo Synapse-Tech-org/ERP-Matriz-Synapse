@@ -1,5 +1,11 @@
 "use client";
 
+import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
+import { OpcoesListaV2 } from "@/components/shell/opcoes-lista-v2";
+import listaV2 from "@/components/shell/lista-v2.module.css";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
+
+
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -59,12 +65,15 @@ const ORDEM_DAS_CATEGORIAS: CategoriaTemplateWhatsApp[] = [
 ];
 
 export function PaginaTemplatesWhatsApp() {
+  const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("recursos_layout_v2") ?? false;
   const t = useTextos().templatesWhatsApp;
   const capacidades = useCapacidades();
   const cache = useQueryClient();
   const [aberto, setAberto] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
+  const [status, setStatus] = useState<StatusTemplateWhatsApp | "">("");
+  const [categoria, setCategoria] = useState<CategoriaTemplateWhatsApp | "">("");
   const [editando, setEditando] = useState<TemplateWhatsApp | null>(null);
   const [excluindo, setExcluindo] = useState<TemplateWhatsApp | null>(null);
 
@@ -117,11 +126,15 @@ export function PaginaTemplatesWhatsApp() {
   const podeExcluir = capacidades.pode("templates.excluir");
 
   const todos = consulta.data ?? [];
-  const filtrados = filtrarTemplates(todos, busca, t.categorias, t.status);
+  const selecionados = layoutV2
+    ? todos.filter((item) => (!status || item.status === status) && (!categoria || item.categoria === categoria))
+    : todos;
+  const filtrados = filtrarTemplates(selecionados, busca, t.categorias, t.status);
   const grupos = agruparPorCategoria(filtrados);
 
   return (
-    <div className="space-y-5 p-6">
+    <div data-layout={layoutV2 ? "v2" : "legado"} className={layoutV2 ? `${listaV2.pagina} ${listaV2.modulo}` : "space-y-5 p-6"}>
+      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} />}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">{t.titulo}</h1>
@@ -153,7 +166,20 @@ export function PaginaTemplatesWhatsApp() {
         </div>
       </header>
 
-      <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3">
+      {layoutV2 && (
+        <div className="flex flex-wrap gap-3">
+          <OpcoesListaV2<StatusTemplateWhatsApp | ""> rotulo={t.v2.estado} valor={status} onChange={setStatus}
+            opcoes={[
+              { valor: "", rotulo: t.v2.todos, total: todos.length },
+              ...(Object.keys(TOM_DO_STATUS) as StatusTemplateWhatsApp[]).map((valor) => ({
+                valor, rotulo: t.status[valor], total: todos.filter((item) => item.status === valor).length,
+              })),
+            ]} />
+          <OpcoesListaV2<CategoriaTemplateWhatsApp | ""> rotulo={t.formulario.categoria} valor={categoria} onChange={setCategoria}
+            opcoes={[{ valor: "", rotulo: t.v2.todasCategorias }, ...ORDEM_DAS_CATEGORIAS.map((valor) => ({ valor, rotulo: t.categorias[valor] }))]} />
+        </div>
+      )}
+      <div data-slot="recursos-painel" className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3">
         <LayoutTemplate className="size-[calc(var(--tamanho-icone-interface)*1.25)] shrink-0 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">{t.dica}</p>
       </div>
@@ -184,9 +210,10 @@ export function PaginaTemplatesWhatsApp() {
                   {t.categorias[grupo.categoria]} · {grupo.itens.length}
                 </p>
               )}
-              <ul className="space-y-2">
+              <ul data-slot="recursos-grade" className={layoutV2 ? undefined : "space-y-2"}>
                 {grupo.itens.map((template) => (
                   <li
+                    data-slot="recursos-painel"
                     key={`${template.nome}:${template.idioma}`}
                     className="rounded-xl border border-border bg-card p-4 shadow-sm"
                   >

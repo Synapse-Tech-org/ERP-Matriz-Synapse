@@ -1,6 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/config/use-funcionalidades", () => ({
+  useFuncionalidadesHabilitadas: () => ({ data: [] }),
+}));
+
+vi.mock("@/lib/config/textos-provider", () => ({ useTextos: () => ({}) }));
+
 vi.mock("@/components/administracao/pagina-visao-geral", () => ({
   PaginaVisaoGeralAdministracao: () => <div data-testid="visao-geral-administracao" />,
 }));

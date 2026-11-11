@@ -24,7 +24,9 @@ public record VisaoGeralDashboard(
         RankingDeAvaliacoes rankingDeAvaliacoes,
         List<AtendenteDesempenho> equipeDesempenho,
         List<PontoMensal> seriesMensais,
-        ResultadosComerciais resultadosComerciais) {
+        ResultadosComerciais resultadosComerciais,
+        Nps nps,
+        long leadsParados) {
 
     public VisaoGeralDashboard {
         funil = List.copyOf(funil);
@@ -51,7 +53,9 @@ public record VisaoGeralDashboard(
                 rankingDeAvaliacoes,
                 equipeDesempenho,
                 seriesMensais,
-                resultadosComerciais);
+                resultadosComerciais,
+                nps,
+                leadsParados);
     }
 
     public record Periodo(int ano, List<Integer> meses, LocalDate inicio, LocalDate fim) {
@@ -91,6 +95,8 @@ public record VisaoGeralDashboard(
 
     /** Contagens reais nas faixas usadas pelo resumo visual; não confunde média com distribuição. */
     public record DistribuicaoDeAvaliacoes(long otimo, long bom, long ruim) {}
+
+    public record Nps(BigDecimal valor, long respostas, Comparativo comparativo) {}
 
     public record ResolucaoPorIa(
             BigDecimal percentual,
@@ -146,7 +152,8 @@ public record VisaoGeralDashboard(
             Long vendasFechadas,
             BigDecimal taxaConversao,
             BigDecimal avaliacaoMedia,
-            BigDecimal resolucaoPorIa) {}
+            BigDecimal resolucaoPorIa,
+            BigDecimal nps) {}
 
     /**
      * Linha da tabela "Equipe · desempenho". {@code nota}/{@code avaliacoes} vêm nulos/zerados

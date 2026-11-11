@@ -24,6 +24,7 @@ export interface LeadFicha {
 }
 
 export interface AtualizacaoLead {
+  etapaAtendimentoId?: string;
   notas?: string;
   dadosCustomizados?: Record<string, unknown>;
   /** Ausente preserva o telefone; o backend normaliza ao salvar. */

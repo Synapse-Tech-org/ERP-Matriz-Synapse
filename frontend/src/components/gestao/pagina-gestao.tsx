@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ShieldCheck, UserPlus, UserRoundCog, Users } from "lucide-react";
 
+import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import { Button } from "@/components/ui/button";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +15,7 @@ import { useEquipe } from "@/lib/equipe/use-equipe";
 import { FLAG_EXCECOES, type MinhasPermissoes, type Papel } from "@/lib/gestao/types";
 import { useMinhasPermissoes, usePerfis, usePermissoesDaEquipe } from "@/lib/gestao/use-gestao";
 
+import visual from "./gestao-v2.module.css";
 import { AbaEquipe } from "./aba-equipe";
 import { AbaExcecoes } from "./aba-excecoes";
 import { AbaPermissoes } from "./aba-permissoes";
@@ -67,6 +69,7 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
   const router = useRouter();
   const parametros = useSearchParams();
   const funcionalidades = useFuncionalidadesHabilitadas();
+  const layoutV2 = funcionalidades.data?.includes("gestao_layout_v2") === true;
   const excecoesHabilitadas = funcionalidades.data?.includes(FLAG_EXCECOES) === true;
   const aba = normalizarAba(parametros.get("aba"), excecoesHabilitadas);
   const perfilDaUrl = parametros.get("perfil") as Papel | null;
@@ -95,40 +98,22 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
   };
   const icones = { equipe: Users, permissoes: ShieldCheck, excecoes: UserRoundCog } as const;
 
-  return (
-    <div className="flex min-h-full flex-col">
-      <header className="border-b border-border bg-card px-4 pt-5 sm:px-8">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="flex flex-wrap items-center gap-3 text-xl font-bold text-foreground">
-              {textos.titulo}
-              <span className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-accent-foreground uppercase">
-                <ShieldCheck className="size-3.5" aria-hidden />
-                {selo(textos, minhas)}
-              </span>
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">{textos.descricoes[aba]}</p>
-          </div>
-          {aba === "equipe" && pode(minhas, "equipe.criar") && (
-            <Button className="h-11 rounded-xl px-5 shadow-md" onClick={() => setNovoAberto(true)}>
-              <UserPlus className="size-(--tamanho-icone-interface)" aria-hidden />
-              {textos.equipe.novo}
-            </Button>
-          )}
-        </div>
-        <Tabs value={aba} onValueChange={(valor) => navegar(normalizarAba(String(valor), excecoesHabilitadas))} className="mt-4">
-          <TabsList variant="line" aria-label={textos.abas.rotulo} className="h-auto max-w-full justify-start gap-4 overflow-x-auto p-0">
-            {ABAS.map((a) => {
+  const abas = (
+    <Tabs value={aba} onValueChange={(valor) => navegar(normalizarAba(String(valor), excecoesHabilitadas))} className={layoutV2 ? visual.abas : "mt-4"}>
+          <TabsList variant={layoutV2 ? "default" : "line"} aria-label={textos.abas.rotulo} className="h-auto max-w-full justify-start gap-4 overflow-x-auto p-0">
+            {ABAS.filter((item) => !layoutV2 || item !== "excecoes" || aba === "excecoes").map((a) => {
               const Icone = icones[a];
               const emBreve = a === "excecoes" && !excecoesHabilitadas;
               return (
                 <TabsTrigger key={a} value={a} disabled={emBreve} className="h-11 flex-none px-3 data-active:text-primary after:bg-primary">
                   <Icone className="size-4" aria-hidden />
-                  {textos.abas[a]}
+                  {layoutV2 && a === "permissoes" ? textos.v2.perfis : textos.abas[a]}
                   {emBreve ? (
                     <span className="rounded-md bg-muted px-1.5 py-px text-[10px] font-bold text-muted-foreground">
                       {textos.abas.emBreve}
                     </span>
+                  ) : layoutV2 && a === "permissoes" ? (
+                    <span className={visual.beta}>{textos.v2.beta}</span>
                   ) : contadores[a] != null && (
                     <span className="rounded-md bg-muted px-1.5 py-px text-[10px] font-bold text-muted-foreground tabular-nums">
                       {contadores[a]}
@@ -139,10 +124,38 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
             })}
           </TabsList>
         </Tabs>
+  );
+  const nomeDaAba = aba === "permissoes" ? textos.v2?.perfis : textos.abas[aba];
+
+  return (
+    <div className={layoutV2 ? visual.pagina : "flex min-h-full flex-col"}>
+      {layoutV2 && <CabecalhoListaV2 titulo={nomeDaAba} grupo={textos.titulo} busca={textos.v2.buscaGlobal} />}
+      <header className={layoutV2 ? visual.cabecalho : "border-b border-border bg-card px-4 pt-5 sm:px-8"}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="flex flex-wrap items-center gap-3 text-xl font-bold text-foreground">
+              {textos.titulo}
+              <span className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-accent-foreground uppercase">
+                <ShieldCheck className="size-3.5" aria-hidden />
+                {selo(textos, minhas)}
+              </span>
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">{layoutV2 && aba !== "excecoes" ? (aba === "equipe" ? textos.v2.equipeDescricao : textos.v2.perfisDescricao) : textos.descricoes[aba]}</p>
+          </div>
+          {layoutV2 && abas}
+          {aba === "equipe" && pode(minhas, "equipe.criar") && (
+            <Button className="h-11 rounded-xl px-5 shadow-md" onClick={() => setNovoAberto(true)}>
+              <UserPlus className="size-(--tamanho-icone-interface)" aria-hidden />
+              {textos.equipe.novo}
+            </Button>
+          )}
+        </div>
+        {!layoutV2 && abas}
       </header>
-      <main className="flex-1 px-4 py-6 sm:px-8">
+      <main data-aba={layoutV2 ? aba : undefined} className={layoutV2 ? visual.conteudo : "flex-1 px-4 py-6 sm:px-8"}>
         {aba === "equipe" && (
           <AbaEquipe
+            layoutV2={layoutV2}
             textos={textos}
             minhas={minhas}
             novoAberto={novoAberto}
@@ -153,6 +166,8 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
         )}
         {aba === "permissoes" && (
           <AbaPermissoes
+            layoutV2={layoutV2}
+            excecoesPorPerfil={permissoes.data}
             key={perfilDaUrl ?? "padrao"}
             textos={textos}
             minhas={minhas}

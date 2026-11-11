@@ -7,12 +7,13 @@ import type { VisaoGeralDashboard } from "@/lib/dashboard/types";
 
 type Ponto = NonNullable<VisaoGeralDashboard["seriesMensais"]>[number];
 export type CampoSerie = "atendimentos" | "novosLeads" | "tempoMedioSegundos" |
-  "vendasFechadas" | "taxaConversao" | "avaliacaoMedia" | "resolucaoPorIa";
+  "vendasFechadas" | "taxaConversao" | "avaliacaoMedia" | "resolucaoPorIa" | "nps";
 
 export function GraficoKpi({
   pontos,
   campo,
   compacto,
+  layoutV2 = false,
   titulo,
   meses,
   semDado,
@@ -21,6 +22,7 @@ export function GraficoKpi({
   pontos: Ponto[];
   campo: CampoSerie;
   compacto: boolean;
+  layoutV2?: boolean;
   titulo: string;
   meses: string[];
   semDado: string;
@@ -30,7 +32,7 @@ export function GraficoKpi({
   const dados = pontos.map((ponto) => ({
     mes: ponto.mes,
     rotulo: meses[Number(ponto.mes.slice(-2)) - 1] ?? ponto.mes,
-    valor: ponto.disponivel ? ponto[campo] : null,
+    valor: ponto.disponivel ? ponto[campo] ?? null : null,
   }));
   if (!dados.some((ponto) => ponto.valor !== null)) {
     return compacto ? null : (
@@ -43,6 +45,7 @@ export function GraficoKpi({
   return (
     <div
       className={compacto ? "h-9 w-20 shrink-0" : "h-30 w-full"}
+      data-slot="dashboard-serie-kpi"
       role="img"
       aria-label={titulo}
       data-testid={`serie-${campo}`}
@@ -61,7 +64,7 @@ export function GraficoKpi({
           {!compacto && <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />}
           {!compacto && <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10 }} tickFormatter={formatar} />}
           {!compacto && <Tooltip formatter={(valor) => formatar(Number(valor))} />}
-          <Bar dataKey="valor" fill={`url(#${gradiente})`} radius={[3, 3, 0, 0]} maxBarSize={32} minPointSize={compacto ? 0 : 2} isAnimationActive={false}>
+          <Bar dataKey="valor" fill={layoutV2 ? "var(--tom)" : `url(#${gradiente})`} radius={layoutV2 ? 3 : [3, 3, 0, 0]} maxBarSize={32} minPointSize={compacto ? 0 : 2} isAnimationActive={false}>
             {!compacto && (
               <LabelList
                 dataKey="valor"

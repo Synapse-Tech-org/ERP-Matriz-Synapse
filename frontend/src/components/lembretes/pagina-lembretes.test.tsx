@@ -1,10 +1,12 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
 const atualizarMutate = vi.fn();
+const editarMutate = vi.fn();
 const removerMutate = vi.fn();
+const restaurarMutate = vi.fn();
 const listarLembretesMock = vi.fn();
 
 const LEMBRETES = {
@@ -36,6 +38,17 @@ const LEMBRETES = {
   temMais: false,
 };
 
+const v2 = vi.hoisted(() => ({ ativo: false }));
+vi.mock("@/lib/config/use-funcionalidades", () => ({
+  useFuncionalidadesHabilitadas: () => ({ data: v2.ativo ? ["recursos_layout_v2"] : [] }),
+}));
+vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () => null }));
+vi.mock("@/lib/equipe/use-equipe", () => ({
+  useEquipe: () => ({ data: [{ id: "u1", nome: "Ana Beatriz", ativo: true }] }),
+  useMeuUsuario: () => ({ data: { id: "u1", nome: "Ana Beatriz" } }),
+}));
+afterEach(() => { v2.ativo = false; });
+
 vi.mock("@/lib/auth/auth-store", () => ({
   useAuthStore: (selector: (s: { papel: string }) => unknown) => selector({ papel: "GESTOR" }),
 }));
@@ -43,6 +56,7 @@ vi.mock("@/lib/auth/auth-store", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     lembretes: {
+      v2: {"desfazer":"Desfazer","excluido":"Lembrete excluído","buscar":"Buscar lembrete ou lead","todosAtendentes":"Todos os atendentes","soAutomaticos":"Somente automáticos","hoje":"Hoje","amanha":"Amanhã","proximos":"Próximos dias","concluidos":"Concluídos","adiar":"Adiar","adiarPara":"Adiar para","adiarHora":"1 hora","segunda":"Segunda","reabrir":"Reabrir","editar":"Editar","periodoInvalido":"A data final deve ser igual ou posterior à inicial."},
       titulo: "Lembretes",
       descricao: "Compromissos pessoais ligados aos seus leads.",
       novo: "Novo lembrete",
@@ -87,8 +101,20 @@ vi.mock("@/lib/suporte/api", () => ({
     atualizarMutate(...args);
     return Promise.resolve();
   },
+  editarLembrete: (...args: unknown[]) => {
+    editarMutate(...args);
+    return Promise.resolve();
+  },
   removerLembrete: (...args: unknown[]) => {
     removerMutate(...args);
+    return Promise.resolve();
+  },
+  removerLembreteComDesfazer: (...args: unknown[]) => {
+    removerMutate(...args);
+    return Promise.resolve();
+  },
+  restaurarLembrete: (...args: unknown[]) => {
+    restaurarMutate(...args);
     return Promise.resolve();
   },
   criarLembrete: vi.fn(),
@@ -110,6 +136,29 @@ function renderComQuery() {
 }
 
 describe("pagina de lembretes", () => {
+  it("no V2 pesquisa no servidor, agrupa, adia e reabre", async () => {
+    v2.ativo = true;
+    renderComQuery();
+    expect(await screen.findByRole("rowheader", { name: "Hoje" })).toBeInTheDocument();
+    expect(screen.getByRole("rowheader", { name: "Concluídos" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Somente automáticos" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Buscar lembrete ou lead" }), { target: { value: "retomar" } });
+    await waitFor(() => expect(listarLembretesMock).toHaveBeenCalledWith(expect.objectContaining({
+      busca: "retomar", origemAutomatica: true, pagina: 0,
+    })));
+    fireEvent.click(await screen.findByRole("button", { name: "Adiar" }));
+    expect(screen.getByRole("button", { name: "Amanhã" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Segunda" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "1 hora" }));
+    await waitFor(() => expect(editarMutate).toHaveBeenCalledWith("r1", expect.objectContaining({
+      status: "PENDENTE", dataHora: expect.any(String),
+    })));
+    fireEvent.click(screen.getByRole("button", { name: "Concluídos" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Reabrir" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Reabrir" }));
+    await waitFor(() => expect(atualizarMutate).toHaveBeenCalledWith(expect.objectContaining({ id: "r2" }), "PENDENTE"));
+  });
+
   it("lista os lembretes como cards, com lead, status e badge de automático", async () => {
     renderComQuery();
 
@@ -139,7 +188,19 @@ describe("pagina de lembretes", () => {
       screen.getByRole("button", { name: "Remover Retomar atendimento transferido" }),
     );
 
-    await waitFor(() => expect(removerMutate).toHaveBeenCalledWith("r1", expect.anything()));
+    await waitFor(() => expect(removerMutate).toHaveBeenCalledWith("r1"));
+  });
+
+  it("desfaz a mesma exclusão que o servidor confirmou no V2", async () => {
+    v2.ativo = true;
+    renderComQuery();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Remover Retomar atendimento transferido" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Desfazer" }));
+
+    await waitFor(() => expect(restaurarMutate).toHaveBeenCalledWith("r1", expect.any(String)));
+    expect(removerMutate).toHaveBeenCalledWith("r1", restaurarMutate.mock.calls[0][1]);
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Desfazer" })).not.toBeInTheDocument());
   });
 
   it("sem criar e editar/excluir, mostra os lembretes sem concluir, remover nem criar", async () => {

@@ -21,10 +21,12 @@ export function filtrarLeads(
   criterio: CriterioRequisicao,
   pagina: number,
   tamanho: number,
+  signal?: AbortSignal,
 ): Promise<PaginaDeLeads> {
   return apiFetch<PaginaDeLeads>("/api/v1/leads/filtrar", {
     method: "POST",
     body: JSON.stringify({ criterio, pagina, tamanho }),
+    signal,
   });
 }
 
@@ -34,6 +36,13 @@ export async function contarLeads(criterio: CriterioRequisicao): Promise<number>
     body: JSON.stringify({ criterio }),
   });
   return resposta.total;
+}
+
+export function contarLeadsPorEtapa(criterio: CriterioRequisicao) {
+  return apiFetch<{ total: number; etapas: { etapaId: string | null; total: number }[] }>(
+    "/api/v1/leads/filtrar/contagem?porEtapa=true",
+    { method: "POST", body: JSON.stringify({ criterio }) },
+  );
 }
 
 export function buscarLeadsParaEntrada(termo: string): Promise<LeadParaEntrada[]> {

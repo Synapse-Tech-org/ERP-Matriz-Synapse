@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
+vi.mock("@/lib/config/use-funcionalidades", () => ({
+  useFuncionalidadesHabilitadas: () => ({ data: [] }),
+}));
+
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     estados: { erroGenerico: "Erro.", tentarNovamente: "Tentar novamente" },
@@ -24,7 +28,7 @@ vi.mock("@/components/mensagens-rapidas/pagina-mensagens-rapidas", () => ({ Pagi
 vi.mock("@/components/mensagens-programadas/pagina-mensagens-programadas", () => ({ PaginaMensagensProgramadas: () => <p>pagina montada</p> }));
 vi.mock("@/components/lembretes/pagina-lembretes", () => ({ PaginaLembretes: () => <p>pagina montada</p> }));
 vi.mock("@/components/dashboard/pagina-dashboard", () => ({ PaginaDashboard: () => <p>pagina montada</p> }));
-vi.mock("@/components/automacao/pagina-automacao", () => ({ PaginaAutomacao: () => <p>pagina montada</p> }));
+vi.mock("@/components/automacao/pagina-automacao", () => ({ RotaAutomacao: () => <p>pagina montada</p> }));
 
 import Automacao from "@/app/(shell)/automacao/page";
 import Dashboard from "@/app/(shell)/dashboard/page";
