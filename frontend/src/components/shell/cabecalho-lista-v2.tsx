@@ -5,7 +5,7 @@ import { CentralDeAvisos } from "@/components/notificacoes/central-de-avisos";
 import { IconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
 import { useTextos } from "@/lib/config/textos-provider";
 
-export function CabecalhoListaV2({ titulo, grupo, busca }: { titulo: string; grupo?: string; busca?: string }) {
+export function CabecalhoListaV2({ titulo, grupo, busca, trilha }: { titulo: string; grupo?: string; busca?: string; trilha?: string[] }) {
   const { menu } = useTextos();
 
   return (
@@ -16,6 +16,7 @@ export function CabecalhoListaV2({ titulo, grupo, busca }: { titulo: string; gru
         </Link>
         <span aria-hidden>/</span>
         <span>{grupo ?? menu.grupoPrincipal}</span>
+        {trilha?.map((parte) => <span key={parte} className="flex items-center gap-2"><span aria-hidden>/</span>{parte}</span>)}
         <span aria-hidden>/</span>
         <span aria-current="page">{titulo}</span>
       </nav>

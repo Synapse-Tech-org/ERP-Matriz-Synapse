@@ -55,6 +55,11 @@ const glifos = {
   "bar-chart-box-line": "\uea98",
   "shield-check-line": "\uf100",
   "shield-check-fill": "\uf0ff",
+  "table-line": "\uf1de",
+  "user-shared-line": "\uf272",
+  "chat-settings-line": "\ueb6d",
+  "repeat-line": "\uf074",
+  "heart-3-line": "\uee0b",
 } as const;
 
 export type NomeIconeFrontendV2 = keyof typeof glifos;

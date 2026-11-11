@@ -12,7 +12,7 @@ import estilos from "./lista-v2.module.css";
 export function MolduraGestaoV2({
   secao, children,
 }: {
-  secao: "gestao" | "campanhas" | "automacao" | "configuracoes" | "administracao" | "feedbacks";
+  secao: "gestao" | "campanhas" | "configuracoes" | "administracao" | "feedbacks";
   children: ReactNode;
 }) {
   const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("gestao_layout_v2") ?? false;
@@ -23,7 +23,7 @@ export function MolduraGestaoV2({
   return (
     <section
       data-layout="v2"
-      className={`${estilos.pagina} ${estilos.modulo} ${secao === "gestao" ? visualGestao.moldura : estilos.gestao} ${secao === "automacao" ? estilos.automacao : ""}`}
+      className={`${estilos.pagina} ${estilos.modulo} ${secao === "gestao" ? visualGestao.moldura : estilos.gestao}`}
     >
       {secao !== "gestao" && <CabecalhoListaV2 titulo={titulo} />}
       {children}
