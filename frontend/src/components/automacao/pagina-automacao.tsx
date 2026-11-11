@@ -58,7 +58,12 @@ export function RotaAutomacao() {
 }
 
 function ResumoAutomacao({ textos }: { textos: Textos }) {
-  const podeVer = useCapacidades().pode("clientes.acessar");
+  const capacidades = useCapacidades();
+  const podeVer = capacidades.pode("clientes.acessar");
+  const parametros = useConfiguracaoAutomacao();
+  const atualizar = useAtualizarParametroAutomacao();
+  const habilitada = parametros.data?.find((p) => p.chave === "automacao.habilitada" && p.tipo === "BOOLEAN");
+  const podeAlterar = capacidades.pode("automacao.editar_parametros");
   const telemetria = useTelemetriaAutomacao(podeVer);
   const data = podeVer ? telemetria.data : undefined;
   const t = textos.automacao.telemetria;
@@ -68,9 +73,13 @@ function ResumoAutomacao({ textos }: { textos: Textos }) {
         <span className={estilos.robo}><IconeFrontendV2 nome="robot-2-fill" /></span>
         <div>
           <h2>Assistente de IA</h2>
-          {data && <p data-conectado={data.conexaoAutomacaoAtiva}>{data.conexaoAutomacaoAtiva ? t.conectado : t.desconectado}</p>}
+          {habilitada && <p data-conectado={habilitada.valor === "true"}>{habilitada.valor === "true" ? "Assistente ativo" : "Assistente pausado"}</p>}
         </div>
+        {habilitada && <Switch aria-label="Automação habilitada" checked={habilitada.valor === "true"}
+          disabled={!podeAlterar || atualizar.isPending}
+          onCheckedChange={(valor) => atualizar.mutate({ chave: habilitada.chave, valor: String(valor) })} />}
       </div>
+      {atualizar.isError && <ErroCampo texto={textos.automacao.erroSalvar} />}
       {data && (
         <>
           <dl>
@@ -79,6 +88,9 @@ function ResumoAutomacao({ textos }: { textos: Textos }) {
           </dl>
           <p className={estilos.conexao} data-conectado={data.crmOnline}>
             <span aria-hidden />{t.statusDoCrm} · {data.crmOnline ? t.online : t.offline}
+          </p>
+          <p className={estilos.conexao} data-conectado={data.conexaoAutomacaoAtiva}>
+            <span aria-hidden />{t.conexaoAutomacao} · {data.conexaoAutomacaoAtiva ? t.conectado : t.desconectado}
           </p>
         </>
       )}
@@ -132,17 +144,59 @@ function PainelDistribuicao({ textos }: { textos: Textos }) {
 function PainelMensagensDoSistema({ textos }: { textos: Textos }) {
   const parametros = useConfiguracaoAutomacao();
   const capacidades = useCapacidades();
-  const podeEditar = capacidades.pode("automacao.editar_parametros");
-  const mensagens = parametros.data?.filter((p) => p.chave === "automacao.saudacao") ?? [];
+  const saudacao = parametros.data?.find((p) => p.chave === "automacao.saudacao" && p.tipo === "TEXT");
+
   if (parametros.isLoading) return <p>{textos.automacao.carregando}</p>;
-  if (parametros.isError) return <ErroDeCarregamento mensagem={textos.automacao.erro} onTentarNovamente={() => parametros.refetch()} />;
-  if (!mensagens.length) return <EstadoVazio texto="Nenhuma mensagem do sistema está disponível para edição nesta instância." />;
+  if (parametros.isError) {
+    return <ErroDeCarregamento mensagem={textos.automacao.erro} onTentarNovamente={() => parametros.refetch()} />;
+  }
+  if (!saudacao) return <EstadoVazio texto="Nenhuma mensagem do sistema está disponível para edição nesta instância." />;
+
+  return <EditorDeSaudacao key={saudacao.valor} parametro={saudacao} textos={textos}
+    podeEditar={capacidades.pode("automacao.editar_parametros")} />;
+}
+
+function EditorDeSaudacao({ parametro, textos, podeEditar }: {
+  parametro: ParametroAutomacao;
+  textos: Textos;
+  podeEditar: boolean;
+}) {
+  const [mensagem, setMensagem] = useState(parametro.valor);
+  const atualizar = useAtualizarParametroAutomacao();
+  const alterada = mensagem !== parametro.valor;
+  const t = textos.automacao;
 
   return (
-    <fieldset disabled={!podeEditar} className={estilos.cartao}>
-      <legend className="sr-only">Mensagens do sistema</legend>
-      {mensagens.map((parametro) => <LinhaParametro key={parametro.chave} parametro={parametro} editavel={podeEditar} />)}
-    </fieldset>
+    <div className={estilos.sistema}>
+      <nav className={estilos.sistemaMenu} aria-label="Mensagens cadastradas">
+        <p>Início da conversa</p>
+        <span aria-current="page"><IconeFrontendV2 nome="chat-smile-2-line" />Boas-vindas</span>
+      </nav>
+      <form className={estilos.cartao} onSubmit={(evento) => {
+        evento.preventDefault();
+        if (podeEditar && alterada && mensagem.trim() && !atualizar.isPending) {
+          atualizar.mutate({ chave: parametro.chave, valor: mensagem });
+        }
+      }}>
+        <h2>Boas-vindas</h2>
+        <p>{parametro.descricao}</p>
+        <label className={estilos.sistemaRotulo} htmlFor="automacao-saudacao">Mensagem</label>
+        <Textarea id="automacao-saudacao" rows={6} value={mensagem}
+          onChange={(evento) => setMensagem(evento.target.value)} readOnly={!podeEditar || atualizar.isPending} required />
+        <div className={estilos.sistemaRodape}>
+          <span>{mensagem.length.toLocaleString("pt-BR")} caracteres</span>
+          {podeEditar && <>
+            <Button type="button" variant="outline" disabled={!alterada || atualizar.isPending}
+              onClick={() => { setMensagem(parametro.valor); atualizar.reset(); }}>Restaurar</Button>
+            <Button type="submit" disabled={!alterada || !mensagem.trim() || atualizar.isPending}>
+              {atualizar.isPending ? t.salvando : t.salvar}
+            </Button>
+          </>}
+        </div>
+        {atualizar.isError && <ErroCampo texto={t.erroSalvar} />}
+      </form>
+      <PreviewWhatsApp textos={textos} preview={{ texto: mensagem, legenda: "" }} />
+    </div>
   );
 }
 
@@ -210,6 +264,47 @@ function normalizarAba(valor: string | null, visualV2: boolean): AbaAutomacaoV2 
   return "geral";
 }
 
+function RegrasDeComportamento({ parametros, podeEditar }: {
+  parametros: ParametroAutomacao[];
+  podeEditar: boolean;
+}) {
+  const regras = [
+    { chave: "ia.transferir_apos_mensagens", quando: "A conversa atinge o limite de mensagens", acao: "Sugerir transferência para um atendente" },
+    { chave: "ia.distribuicao.perguntar_preferencia", quando: "Antes de transferir", acao: "Perguntar por preferência de atendente" },
+    { chave: "ia.distribuicao.atendente_vinculado", quando: "O contato já tem um atendente vinculado", acao: "Priorizar o atendente vinculado, se estiver disponível" },
+  ];
+  const disponiveis = regras.flatMap((regra) => {
+    const parametro = parametros.find((p) => p.chave === regra.chave);
+    return parametro ? [{ ...regra, parametro }] : [];
+  });
+
+  if (disponiveis.length === 0) return null;
+
+  return (
+    <section className={estilos.cartao} aria-labelledby="automacao-regras-comportamento">
+      <div className={estilos.cartaoTopo}>
+        <span className={estilos.iconeTriagem}><IconeFrontendV2 nome="arrow-left-right-line" /></span>
+        <div>
+          <h2 id="automacao-regras-comportamento">Regras de comportamento</h2>
+          <p>Como o assistente encaminha as conversas para a equipe.</p>
+        </div>
+      </div>
+      <fieldset disabled={!podeEditar} className={estilos.comportamento}>
+        <legend className="sr-only">Regras de comportamento</legend>
+        {disponiveis.map(({ chave, quando, acao, parametro }) => (
+          <div className={estilos.comportamentoLinha} key={chave}>
+            <span>{quando}</span>
+            <span aria-hidden>→</span>
+            <div><strong>{acao}</strong>
+              <LinhaParametro key={parametro.valor} parametro={parametro} editavel={podeEditar} textosOcultos />
+            </div>
+          </div>
+        ))}
+      </fieldset>
+    </section>
+  );
+}
+
 function GeralAutomacao({ textos, visualV2 = false }: { textos: Textos; visualV2?: boolean }) {
   const t = textos.automacao;
   const parametros = useConfiguracaoAutomacao();
@@ -221,6 +316,10 @@ function GeralAutomacao({ textos, visualV2 = false }: { textos: Textos; visualV2
   const atualizarParametro = useAtualizarParametroAutomacao();
   const podeEditarParametros = capacidades.pode("automacao.editar_parametros");
   const preenchimento = parametros.data?.find((p) => p.chave === "ia.preenchimento_automatico");
+  const parametrosAvancados = parametros.data?.filter((p) => !visualV2 || ![
+    "automacao.habilitada", "automacao.saudacao", "ia.distribuicao.por_botoes", "ia.preenchimento_automatico",
+    "ia.transferir_apos_mensagens", "ia.distribuicao.perguntar_preferencia", "ia.distribuicao.atendente_vinculado",
+  ].includes(p.chave));
 
   return (
     <div className="space-y-6">
@@ -243,6 +342,7 @@ function GeralAutomacao({ textos, visualV2 = false }: { textos: Textos; visualV2
         </section>
       </div>
 
+      {visualV2 && <RegrasDeComportamento parametros={parametros.data ?? []} podeEditar={podeEditarParametros} />}
       <details className="group rounded-xl border bg-card" data-slot="automacao-cartao">
         <summary className="flex cursor-pointer list-none items-center gap-3 p-5 [&::-webkit-details-marker]:hidden">
           <div className="min-w-0 flex-1">
@@ -256,9 +356,9 @@ function GeralAutomacao({ textos, visualV2 = false }: { textos: Textos; visualV2
         <div className="space-y-3 border-t p-5">
           {parametros.isLoading ? <p>{t.carregando}</p> : parametros.isError ? (
             <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => parametros.refetch()} />
-          ) : !parametros.data?.length ? <p className="py-5 text-center text-sm text-muted-foreground">{t.vazio}</p> : (
+          ) : !parametrosAvancados?.length ? <p className="py-5 text-center text-sm text-muted-foreground">{t.vazio}</p> : (
             <fieldset disabled={!podeEditarParametros} className="space-y-3">
-              {parametros.data.map((parametro) => <LinhaParametro key={parametro.chave} parametro={parametro} editavel={podeEditarParametros} />)}
+              {parametrosAvancados.map((parametro) => <LinhaParametro key={parametro.chave} parametro={parametro} editavel={podeEditarParametros} />)}
             </fieldset>
           )}
         </div>
@@ -766,7 +866,7 @@ function CardDeTelemetria({ icone, tom, rotulo, valor, status, rotuloAtivo, rotu
   );
 }
 
-function LinhaParametro({ parametro, editavel }: { parametro: ParametroAutomacao; editavel: boolean }) {
+function LinhaParametro({ parametro, editavel, textosOcultos = false }: { parametro: ParametroAutomacao; editavel: boolean; textosOcultos?: boolean }) {
   const t = useTextos().automacao;
   const atualizar = useAtualizarParametroAutomacao();
   const [valor, setValor] = useState(parametro.valor);
@@ -775,7 +875,7 @@ function LinhaParametro({ parametro, editavel }: { parametro: ParametroAutomacao
   const podeSalvar = alterado && !foraDaFaixa && !atualizar.isPending;
   const temFaixa = parametro.valorMin != null || parametro.valorMax != null;
   return (
-    <div className="rounded-lg border p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="text-sm font-medium">{parametro.descricao ?? parametro.chave}</p><p className="font-mono text-xs text-muted-foreground">{parametro.chave}</p></div>{parametro.tipo !== "BOOLEAN" && temFaixa && <p className="shrink-0 text-xs text-muted-foreground">{t.faixaLabel}: {parametro.valorMin ?? "—"}–{parametro.valorMax ?? "—"}{parametro.unidade ? ` ${parametro.unidade}` : ""}</p>}</div><div className="mt-3 flex flex-wrap items-center gap-3"><CampoValor parametro={parametro} valor={valor} onChange={setValor} />{foraDaFaixa && <ErroCampo texto={t.erroFaixa} />}{atualizar.isError && <ErroCampo texto={t.erroSalvar} />}{editavel && <Button size="sm" disabled={!podeSalvar} onClick={() => atualizar.mutate({ chave: parametro.chave, valor })} className="ml-auto">{atualizar.isPending ? t.salvando : t.salvar}</Button>}</div></div>
+    <div className={textosOcultos ? undefined : "rounded-lg border p-4"}><div className={textosOcultos ? "sr-only" : "flex flex-wrap items-start justify-between gap-3"}><div className="min-w-0"><p className="text-sm font-medium">{parametro.descricao ?? parametro.chave}</p><p className="font-mono text-xs text-muted-foreground">{parametro.chave}</p></div>{parametro.tipo !== "BOOLEAN" && temFaixa && <p className="shrink-0 text-xs text-muted-foreground">{t.faixaLabel}: {parametro.valorMin ?? "—"}–{parametro.valorMax ?? "—"}{parametro.unidade ? ` ${parametro.unidade}` : ""}</p>}</div><div className="mt-3 flex flex-wrap items-center gap-3"><CampoValor parametro={parametro} valor={valor} onChange={setValor} />{foraDaFaixa && <ErroCampo texto={t.erroFaixa} />}{atualizar.isError && <ErroCampo texto={t.erroSalvar} />}{editavel && <Button size="sm" disabled={!podeSalvar} onClick={() => atualizar.mutate({ chave: parametro.chave, valor })} className="ml-auto">{atualizar.isPending ? t.salvando : t.salvar}</Button>}</div></div>
   );
 }
 

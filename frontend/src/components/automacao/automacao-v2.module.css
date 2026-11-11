@@ -433,3 +433,106 @@
   border-color: #bfe8d3;
   background: #f3faf6;
 }
+
+.resumoTopo > div { flex: 1; min-width: 0; }
+.resumoTopo :global([role="switch"][data-checked]) { background: #12855a; }
+
+.sistema {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.sistemaMenu {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid #e8e9ec;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.sistemaMenu p {
+  padding: 4px 8px;
+  color: #5b6274;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.sistemaMenu [aria-current="page"] {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: #edf2fd;
+  color: #1f5fd6;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.sistemaRotulo {
+  display: block;
+  margin: 22px 0 8px;
+  color: #3a4354;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.sistema textarea {
+  min-height: 148px;
+  padding: 12px 14px;
+  border-color: #e6e7eb;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.sistemaRodape {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  color: #5b6274;
+  font-size: 12px;
+}
+
+.sistemaRodape > span { margin-right: auto; }
+
+.comportamento { margin-top: 14px; }
+
+.comportamentoLinha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1.2fr);
+  align-items: start;
+  gap: 12px;
+  padding: 12px;
+  border-top: 1px solid #f1f2f4;
+  color: #3a4354;
+  font-size: 13.5px;
+}
+
+.comportamentoLinha > span:nth-child(2) { color: #6b7385; }
+
+@media (min-width: 1400px) {
+  .sistema { grid-template-columns: 200px minmax(0, 1fr) minmax(290px, 400px); }
+}
+
+@media (max-width: 1399px) {
+  .sistema :global([data-slot="automacao-previa"]) {
+    display: block;
+    position: static;
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 639px) {
+  .sistema { grid-template-columns: minmax(0, 1fr); }
+  .sistema :global([data-slot="automacao-previa"]) { grid-column: 1; }
+  .comportamentoLinha { grid-template-columns: minmax(0, 1fr); gap: 6px; padding-inline: 0; }
+  .comportamentoLinha > span:nth-child(2) { display: none; }
+}
