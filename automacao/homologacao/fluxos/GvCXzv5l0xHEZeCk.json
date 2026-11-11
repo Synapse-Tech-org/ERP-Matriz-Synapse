@@ -1,0 +1,264 @@
+{
+  "name": "HML - EV-11 Renovar token JWT do CRM",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Variaveis renovacao JWT').first().json.crm_base_url.replace(/\\/$/, '') + '/api/v1/auth/login' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        784
+      ],
+      "id": "c80b9652-e002-493c-bf5f-a71ccb220d61",
+      "name": "Fazer login técnico no CRM",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "notesInFlow": true,
+      "credentials": {
+        "httpCustomAuth": {
+          "id": "T2nyJ1q2I2eLOVaZ",
+          "name": "HML Login CRM - PREENCHER"
+        }
+      },
+      "notes": "POST /api/v1/auth/login. Selecione a credencial Custom Auth ‘CRM Synapse - Login técnico’. Ela injeta o corpo { email, senha } de forma criptografada pelo n8n; nenhum dado de login fica neste arquivo. Essa rota é pública/autenticada por JWT e não substitui o contrato /internal/v1 usado pelos fluxos de automação."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Confere somente o formato da resposta do login antes de alterar a credencial compartilhada.\n// O token em si não é devolvido para logs, notas ou outros fluxos por este node.\n// O endpoint documentado entrega accessToken, refreshToken e expiraEmSegundos.\nconst sessao = $('Fazer login técnico no CRM').first().json;\nconst variaveis = $('Variaveis renovacao JWT').first().json;\n\nif (!sessao.accessToken || typeof sessao.accessToken !== 'string') {\n  throw new Error('O CRM não retornou accessToken no login técnico.');\n}\n\nconst expiraEmSegundos = Number(sessao.expiraEmSegundos ?? 0);\nif (!Number.isFinite(expiraEmSegundos) || expiraEmSegundos <= 0) {\n  throw new Error('O CRM não retornou expiraEmSegundos válido.');\n}\n\nconst proximaRenovacaoEmMinutos = Number(variaveis.proxima_renovacao_em_minutos);\nif (!Number.isFinite(proximaRenovacaoEmMinutos) || proximaRenovacaoEmMinutos <= 0) {\n  throw new Error('PROXIMA_RENOVACAO_EM_MINUTOS_NAO_CONFIGURADA');\n}\n\nreturn [{\n  json: {\n    renovado: true,\n    expira_em_segundos: expiraEmSegundos,\n    proxima_renovacao_em_minutos: proximaRenovacaoEmMinutos\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        784
+      ],
+      "id": "4f147b76-5884-403c-8ee2-23fca4a41546",
+      "name": "Validar resposta do login",
+      "notesInFlow": true,
+      "notes": "Proteção contra gravar uma resposta inválida na credencial Bearer. O retorno foi propositalmente reduzido a metadados: não expõe o access token em execuções salvas."
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Variaveis renovacao JWT').first().json.n8n_base_url.replace(/\\/$/, '') + '/api/v1/credentials/' + $('Variaveis renovacao JWT').first().json.crm_jwt_credential_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $('Variaveis renovacao JWT').first().json.crm_jwt_credential_name, type: 'httpBearerAuth', data: { token: $('Fazer login técnico no CRM').first().json.accessToken, allowedHttpRequestDomains: 'domains', allowedDomains: $('Variaveis renovacao JWT').first().json.crm_jwt_allowed_domains } }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        784
+      ],
+      "id": "2e3fbf6f-db0a-4043-a8de-f1bf3a03d0d9",
+      "name": "Atualizar credencial Bearer do CRM",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "notesInFlow": true,
+      "credentials": {
+        "n8nApi": {
+          "id": "414nOsHidXYc4gz5",
+          "name": "HML n8n API"
+        }
+      },
+      "notes": "Atualiza a credencial HTTP Bearer existente no n8n via API interna. O ID/nome/domínios permitidos vêm do node Variaveis renovacao JWT; o access token vem do login tecnico e nao fica fixo no JSON."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Resultado seguro para acompanhamento: não inclui access token, refresh token, senha ou API key.\nconst validacao = $('Validar resposta do login').first().json;\n\nreturn [{\n  json: {\n    sucesso: true,\n    mensagem: 'Credencial Bearer do CRM atualizada.',\n    expira_em_segundos: validacao.expira_em_segundos,\n    proxima_renovacao_em_minutos: validacao.proxima_renovacao_em_minutos\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        784
+      ],
+      "id": "20aeb085-75cd-46df-b77f-aa42f41544a4",
+      "name": "Confirmar renovação segura",
+      "notesInFlow": true,
+      "notes": "Registro final seguro da execução. Os segredos não são enviados para outros nodes nem exibidos intencionalmente."
+    },
+    {
+      "parameters": {
+        "content": "## JWT do CRM: configuracao unica\n\nEste fluxo renova a credencial Bearer dinamica do CRM.\n\nValores variaveis de ambiente ficam no node `Variaveis renovacao JWT`: URL do CRM, URL interna do n8n, ID/nome da credencial Bearer e intervalo esperado de renovacao.\n\nCredenciais sensiveis continuam no cofre nativo do n8n:\n1. `CRM Synapse - Login tecnico` como HTTP Request Custom Auth.\n2. `CRM Synapse JWT - dinamico` como HTTP Bearer Auth.\n3. `n8n API - gerenciar credenciais` para atualizar a credencial Bearer via API interna.\n\nNao ha JWT fixo no JSON. As rotas `/internal/v1` continuam usando `CRM Synapse Interno` / `X-Synapse-Token`.",
+        "height": 462,
+        "width": 1272,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        240
+      ],
+      "id": "8b29dcb6-dd42-4f6a-9b30-7ee26b494c4d",
+      "name": "Configuração manual e limites"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -192,
+        784
+      ],
+      "id": "fc965487-7669-4ae8-9f91-45462d7011ef",
+      "name": "Renovar JWT a cada 5 minutos",
+      "notesInFlow": true,
+      "notes": "Trigger nativo do n8n. O intervalo operacional documentado fica no node Variaveis renovacao JWT; ajuste o Schedule junto quando mudar esse valor."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ev11-config-crm-base-url",
+              "name": "crm_base_url",
+              "value": "https://crm-teste.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "ev11-config-n8n-base-url",
+              "name": "n8n_base_url",
+              "value": "https://n8n-teste.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "ev11-config-crm-jwt-credential-id",
+              "name": "crm_jwt_credential_id",
+              "value": "vVM51dBWEAWnTxtg",
+              "type": "string"
+            },
+            {
+              "id": "ev11-config-crm-jwt-credential-name",
+              "name": "crm_jwt_credential_name",
+              "value": "HML CRM JWT - PENDENTE LOGIN",
+              "type": "string"
+            },
+            {
+              "id": "ev11-config-crm-jwt-allowed-domains",
+              "name": "crm_jwt_allowed_domains",
+              "value": "crm-teste.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "ev11-config-proxima-renovacao-em-minutos",
+              "name": "proxima_renovacao_em_minutos",
+              "value": 5,
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "675b353e-b94a-4e4a-ad92-fe0d51336054",
+      "name": "Variaveis renovacao JWT",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        16,
+        784
+      ],
+      "notesInFlow": true,
+      "notes": "Centraliza variaveis de producao deste workflow."
+    },
+    {
+      "id": "d37d2e0a-9910-436f-bcd4-a1b1bee94559",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-11 Renovar token JWT do CRM\nCRM de teste / Evolution.\nVer pendencias gerais no manifesto local.\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "Fazer login técnico no CRM": {
+      "main": [
+        [
+          {
+            "node": "Validar resposta do login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar resposta do login": {
+      "main": [
+        [
+          {
+            "node": "Atualizar credencial Bearer do CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar credencial Bearer do CRM": {
+      "main": [
+        [
+          {
+            "node": "Confirmar renovação segura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Renovar JWT a cada 5 minutos": {
+      "main": [
+        [
+          {
+            "node": "Variaveis renovacao JWT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Variaveis renovacao JWT": {
+      "main": [
+        [
+          {
+            "node": "Fazer login técnico no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}

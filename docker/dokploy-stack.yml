@@ -416,6 +416,170 @@ services:
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.interval=10s'
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.timeout=3s'
 
+  # Base TypeScript opcional. Nao substitui o n8n nem muda os destinos do CRM.
+  # O override de imagem permite homologar sem trocar as imagens do CRM.
+  automacao:
+    image: ${AUTOMACAO_IMAGE_REPOSITORIO:-ghcr.io/synapse-auto/erp-matriz-synapse-automacao}:${SYNAPSE_IMAGE_TAG:?obrigatoria}${AUTOMACAO_IMAGE_DIGEST:-}
+    environment:
+      NODE_ENV: production
+      AUTOMACAO_HOST: 0.0.0.0
+      AUTOMACAO_PORT: "3100"
+      AUTOMACAO_HABILITADA: ${AUTOMACAO_HABILITADA:-false}
+      AUTOMACAO_FOLLOWUP_HABILITADO: ${AUTOMACAO_FOLLOWUP_HABILITADO:-false}
+      AUTOMACAO_CRM_URL: ${AUTOMACAO_CRM_URL:-http://synapse-backend-internal:8080}
+      AUTOMACAO_TOKEN: ${AUTOMACAO_TOKEN:-}
+      AUTOMACAO_DB_HOST: postgres
+      AUTOMACAO_DB_PORT: "5432"
+      AUTOMACAO_DB_NAME: ${AUTOMACAO_DB_NAME:-}
+      AUTOMACAO_DB_USER: ${AUTOMACAO_DB_USER:-}
+      AUTOMACAO_DB_PASSWORD: ${AUTOMACAO_DB_PASSWORD:-}
+      AUTOMACAO_DB_SCHEMA: ${AUTOMACAO_DB_SCHEMA:-public}
+      AUTOMACAO_DB_POOL_MAX: ${AUTOMACAO_DB_POOL_MAX:-3}
+      SYNAPSE_TOKEN_INTERNO: ${SYNAPSE_TOKEN_INTERNO:-}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER:-}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      WHATSAPP_PROVEDOR: ${WHATSAPP_PROVEDOR:-}
+      WHATSAPP_NUMERO: ${WHATSAPP_NUMERO:-}
+      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
+      WHATSAPP_URL_BASE: ${WHATSAPP_URL_BASE:-https://graph.facebook.com/v21.0}
+      WHATSAPP_RESTRICAO_NUMEROS_HABILITADA: ${WHATSAPP_RESTRICAO_NUMEROS_HABILITADA:-true}
+      WHATSAPP_NUMEROS_PERMITIDOS: ${WHATSAPP_NUMEROS_PERMITIDOS:-}
+      EVOLUTION_HABILITADO: ${EVOLUTION_HABILITADO:-false}
+      EVOLUTION_URL_BASE: ${EVOLUTION_URL_BASE:-}
+      EVOLUTION_INSTANCIA: ${EVOLUTION_INSTANCIA:-}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
+      Z_API_HABILITADO: ${Z_API_HABILITADO:-false}
+      Z_API_URL_BASE: ${Z_API_URL_BASE:-https://api.z-api.io}
+      Z_API_INSTANCIA_ID: ${Z_API_INSTANCIA_ID:-}
+      Z_API_TOKEN: ${Z_API_TOKEN:-}
+      Z_API_CLIENT_TOKEN: ${Z_API_CLIENT_TOKEN:-}
+      Z_API_ENVIAR_CLIENT_TOKEN: ${Z_API_ENVIAR_CLIENT_TOKEN:-true}
+      AUTOMACAO_FOLLOWUP_INTERVALO_MINUTOS: ${AUTOMACAO_FOLLOWUP_INTERVALO_MINUTOS:-2}
+      AUTOMACAO_FOLLOWUP_TAMANHO_PAGINA: ${AUTOMACAO_FOLLOWUP_TAMANHO_PAGINA:-100}
+      AUTOMACAO_FOLLOWUP_RETENCAO_DIAS: ${AUTOMACAO_FOLLOWUP_RETENCAO_DIAS:-90}
+      AUTOMACAO_FOLLOWUP_HTTP_TIMEOUT_MS: ${AUTOMACAO_FOLLOWUP_HTTP_TIMEOUT_MS:-15000}
+      AUTOMACAO_FOLLOWUP_BOTAO_SIM_ID: ${AUTOMACAO_FOLLOWUP_BOTAO_SIM_ID:-}
+      AUTOMACAO_FOLLOWUP_BOTAO_NAO_ID: ${AUTOMACAO_FOLLOWUP_BOTAO_NAO_ID:-}
+      AUTOMACAO_FOLLOWUP_TESTE_LOCAL_HABILITADO: ${AUTOMACAO_FOLLOWUP_TESTE_LOCAL_HABILITADO:-false}
+      AUTOMACAO_FOLLOWUP_TESTE_LEAD_ID: ${AUTOMACAO_FOLLOWUP_TESTE_LEAD_ID:-}
+      AUTOMACAO_FOLLOWUP_TESTE_MINUTOS: ${AUTOMACAO_FOLLOWUP_TESTE_MINUTOS:-10}
+      AUTOMACAO_FOLLOWUP_TESTE_TEXTO: ${AUTOMACAO_FOLLOWUP_TESTE_TEXTO:-}
+      # Destino tecnico continua separado; consulta de atendimentos usa o banco CRM acima.
+      POSTGRES_DB: ${POSTGRES_DB:?obrigatoria}
+      N8N_DB_NAME: ${N8N_DB_NAME:?obrigatoria}
+      TZ: ${SYNAPSE_TIMEZONE:?obrigatoria}
+    networks:
+      synapse-internal:
+        aliases:
+          - synapse-automacao-internal
+      dokploy-network:
+    expose:
+      - "3100"
+    stop_grace_period: 90s
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      # Ausente = nenhum processo novo nos filhos existentes.
+      replicas: ${AUTOMACAO_REPLICAS:-0}
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        monitor: 60s
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+        monitor: 60s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        # Orcamento unico do servico. Workers/painel futuros nao ganham cotas separadas.
+        limits:
+          memory: ${AUTOMACAO_MEMORY_LIMIT:-768M}
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        # Publicacao do painel e independente da execucao de follow-up.
+        - "traefik.enable=${AUTOMACAO_PAINEL_HABILITADO:-false}"
+        - "traefik.swarm.network=dokploy-network"
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}.rule=Host(`${AUTOMACAO_PAINEL_DOMINIO:-automacao-desligada.invalid}`) && (PathPrefix(`/painel/`) || Path(`/painel`) || Path(`/`))'
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}.entrypoints=websecure'
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}.tls=true'
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}.tls.certresolver=letsencrypt'
+        - 'traefik.http.routers.${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}.service=${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}'
+        - 'traefik.http.services.${AUTOMACAO_ROUTER_PREFIX:-painel}-${TRAEFIK_ROUTER_PREFIX:?obrigatoria}.loadbalancer.server.port=3100'
+
+  # Tarefa unica: nao modifica o servico postgres nem seu init/volume.
+  # Ausente = zero tarefas. Falha deve ser inspecionada, sem loop automatico.
+  automacao-banco:
+    image: postgres:15-alpine
+    command: ["sh", "/opt/automacao/provisionar.sh"]
+    environment:
+      AUTOMACAO_DB_HOST: postgres
+      AUTOMACAO_DB_PORT: "5432"
+      AUTOMACAO_DB_NAME: ${AUTOMACAO_DB_NAME:-}
+      AUTOMACAO_DB_USER: ${AUTOMACAO_DB_USER:-}
+      AUTOMACAO_DB_PASSWORD: ${AUTOMACAO_DB_PASSWORD:-}
+      POSTGRES_DB: ${POSTGRES_DB:?obrigatoria}
+      POSTGRES_USER: ${POSTGRES_USER:?obrigatoria}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?obrigatoria}
+      N8N_DB_NAME: ${N8N_DB_NAME:?obrigatoria}
+      N8N_DB_USER: ${N8N_DB_USER:?obrigatoria}
+      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:?obrigatoria}
+    configs:
+      - source: automacao-provisionar-sh-v1
+        target: /opt/automacao/provisionar.sh
+      - source: automacao-provisionar-sql-v2
+        target: /opt/automacao/provisionar.sql
+      - source: automacao-clonar-sh-v1
+        target: /opt/automacao/clonar-estrutura.sh
+      - source: automacao-marcador-sql-v1
+        target: /opt/automacao/marcador.sql
+      - source: automacao-migrar-sh-v1
+        target: /opt/automacao/aplicar-migracoes.sh
+      - source: automacao-migracao-v1
+        target: /opt/automacao/migrations/V1__registrar_base_de_execucoes.sql
+      - source: automacao-migracao-v2
+        target: /opt/automacao/migrations/V2__criar_faq_institucional.sql
+      - source: automacao-migracao-v3
+        target: /opt/automacao/migrations/V3__criar_memoria_de_conversa.sql
+      - source: automacao-migracao-v4
+        target: /opt/automacao/migrations/V4__criar_controle_de_followups.sql
+      - source: automacao-migracao-v5
+        target: /opt/automacao/migrations/V5__criar_recusas_de_followup.sql
+      - source: automacao-migracao-v6
+        target: /opt/automacao/migrations/V6__criar_controle_de_solicitacoes.sql
+      - source: automacao-migracao-v7
+        target: /opt/automacao/migrations/V7__criar_controle_de_envios.sql
+      - source: automacao-migracao-v8
+        target: /opt/automacao/migrations/V8__criar_controle_de_segmentacoes.sql
+      - source: automacao-migracao-v9
+        target: /opt/automacao/migrations/V9__criar_cursores_de_segmentacao.sql
+      - source: automacao-migracao-v10
+        target: /opt/automacao/migrations/V10__executor_followup.sql
+    networks:
+      - synapse-internal
+    deploy:
+      replicas: ${AUTOMACAO_PROVISIONAR_REPLICAS:-0}
+      restart_policy:
+        condition: none
+      resources:
+        limits:
+          memory: 256M
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "traefik.enable=false"
+
   n8n:
     image: docker.n8n.io/n8nio/n8n:${N8N_IMAGE_TAG:?obrigatoria}
     environment:
@@ -569,3 +733,34 @@ volumes:
 configs:
   postgres-init-n8n:
     file: ./postgres-init/10-create-n8n-database.sh
+  # Novos configs exclusivos; os configs do PostgreSQL existente nao mudam.
+  automacao-provisionar-sh-v1:
+    file: ../automacao/banco/provisionar.sh
+  automacao-provisionar-sql-v2:
+    file: ../automacao/banco/provisionar.sql
+  automacao-clonar-sh-v1:
+    file: ../automacao/banco/clonar-estrutura.sh
+  automacao-marcador-sql-v1:
+    file: ../automacao/banco/marcador.sql
+  automacao-migrar-sh-v1:
+    file: ../automacao/banco/aplicar-migracoes.sh
+  automacao-migracao-v1:
+    file: ../automacao/banco/migrations/V1__registrar_base_de_execucoes.sql
+  automacao-migracao-v2:
+    file: ../automacao/banco/migrations/V2__criar_faq_institucional.sql
+  automacao-migracao-v3:
+    file: ../automacao/banco/migrations/V3__criar_memoria_de_conversa.sql
+  automacao-migracao-v4:
+    file: ../automacao/banco/migrations/V4__criar_controle_de_followups.sql
+  automacao-migracao-v5:
+    file: ../automacao/banco/migrations/V5__criar_recusas_de_followup.sql
+  automacao-migracao-v6:
+    file: ../automacao/banco/migrations/V6__criar_controle_de_solicitacoes.sql
+  automacao-migracao-v7:
+    file: ../automacao/banco/migrations/V7__criar_controle_de_envios.sql
+  automacao-migracao-v8:
+    file: ../automacao/banco/migrations/V8__criar_controle_de_segmentacoes.sql
+  automacao-migracao-v9:
+    file: ../automacao/banco/migrations/V9__criar_cursores_de_segmentacao.sql
+  automacao-migracao-v10:
+    file: ../automacao/banco/migrations/V10__executor_followup.sql

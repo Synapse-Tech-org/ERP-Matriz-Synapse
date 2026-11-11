@@ -1,0 +1,75 @@
+{
+  "name": "HML - EV-09 Reservado — Sem escopo definido",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "evento",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -480,
+        -128
+      ],
+      "id": "13c8ef29-a6c4-45a6-be3c-2aa58d0375a5",
+      "name": "When Executed by Another Workflow",
+      "notesInFlow": true,
+      "notes": "Placeholder publicável. Telemetria não é uma função definida no Mapa Mental atual."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Este fluxo é apenas uma reserva de numeração.\n// Não consulta o CRM e não registra eventos.\nconst entrada = $('When Executed by Another Workflow').first().json;\nreturn [{ json: { codigo: 'EV09_SEM_ESCOPO_DEFINIDO', executado: false, evento_recebido: Boolean(entrada.evento) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        -128
+      ],
+      "id": "da0cf12c-7866-4f2a-a03d-aa0895c9f96b",
+      "name": "Retornar reserva de escopo",
+      "notesInFlow": true,
+      "notes": "Saída segura e explícita para chamadas acidentais."
+    },
+    {
+      "id": "a6e41a8c-2e73-4a9d-8da5-072e04f01d1d",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-09 Reservado — Sem escopo definido\nCRM de teste / Evolution.\nVer pendencias gerais no manifesto local.\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Retornar reserva de escopo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}

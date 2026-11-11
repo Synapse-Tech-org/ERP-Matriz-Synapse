@@ -1,0 +1,82 @@
+{
+  "name": "HML - EV-02 FAQ Institucional",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "pergunta"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -288,
+        32
+      ],
+      "id": "ddd1ed86-a00f-4882-8c3f-6d74518b2546",
+      "name": "When Executed by Another Workflow",
+      "notesInFlow": true,
+      "notes": "Recebe a duvida institucional atual. A base de conhecimento e consultada diretamente no Postgres."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COALESCE(\n    jsonb_agg(\n      jsonb_build_object(\n        'nome', nome,\n        'pergunta', pergunta,\n        'resposta', resposta\n      )\n      ORDER BY id\n    ),\n    '[]'::jsonb\n  ) AS respostas\nFROM public.faq;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -32,
+        32
+      ],
+      "id": "d4594c53-6d6a-4809-9f60-5bacd02a34b0",
+      "name": "Consultar FAQ no Postgres",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Retorna a FAQ cadastrada em um unico item, evitando que cada registro gere uma execucao separada. Nao ha informacao institucional fixa no workflow."
+    },
+    {
+      "id": "44f88ab4-4b8c-40e0-81a8-570996dfe9b1",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-02 FAQ Institucional\nCRM de teste / Evolution.\nVer pendencias gerais no manifesto local.\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Consultar FAQ no Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}

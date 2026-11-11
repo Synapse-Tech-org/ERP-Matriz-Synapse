@@ -5,6 +5,15 @@ on:
     branches: ["**"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      publicar_imagens:
+        description: Publicar imagens da stack no GHCR (nao executa deploy)
+        type: boolean
+        default: false
+      publicar_automacao_hml:
+        description: Publicar somente a automacao na branch de homologacao (nao executa deploy)
+        type: boolean
+        default: false
 
 # Um push novo na mesma branch cancela o build anterior: o feedback que importa
 # e o do ultimo commit, e a fila de runners e curta.
@@ -107,6 +116,39 @@ jobs:
           ln -s "$GITHUB_WORKSPACE/frontend/node_modules" "$contexto/node_modules"
           cd "$contexto" && npx tsc -p tsconfig.build.json --noEmit
 
+  automacao:
+    name: Automacao TypeScript (testes + container)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+
+      - name: Instalar e validar a automacao
+        working-directory: automacao
+        run: |
+          npm ci
+          npm test
+          npm run typecheck
+          npm run build
+          npm run test:runtime
+          npm run test:stack
+          node --test test/publicacao-hml.test.mjs
+          node --test homologacao/credencial-automacao.test.mjs
+
+      - name: Build e fumaca da imagem sem publicar ou implantar
+        run: |
+          docker build -f automacao/Dockerfile -t synapse-automacao-ci .
+          bash docker/verificacao/testar-automacao-container.sh
+
+      - name: Provar clone sem dados e repeticao sem perda em PostgreSQL isolado
+        run: bash automacao/test/banco-integracao.sh
+
   infra:
     name: Stack de producao
     runs-on: ubuntu-latest
@@ -154,6 +196,21 @@ jobs:
           docker stack config -c docker/dokploy-stack.yml -c docker/dokploy-z-api-homologacao.override.yml >/dev/null
           bash docker/verificacao/validar-politica-rollout.sh
           sh -n docker/postgres-init/10-create-n8n-database.sh
+          python3 -m unittest discover -s docker/verificacao -p test_validar_automacao.py
+          docker compose -f docker/dokploy-stack.yml config --format json | python3 docker/verificacao/validar_automacao.py
+
+      - name: Validar ativacao explicita de homologacao sem alterar tag do CRM
+        run: |
+          AUTOMACAO_REPLICAS=1 \
+          AUTOMACAO_PROVISIONAR_REPLICAS=1 \
+          AUTOMACAO_PAINEL_HABILITADO=true \
+          AUTOMACAO_PAINEL_DOMINIO=painel.example.test \
+          AUTOMACAO_IMAGE_DIGEST=@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+          AUTOMACAO_DB_NAME=automacao_ci \
+          AUTOMACAO_DB_USER=automacao_ci_app \
+          AUTOMACAO_DB_PASSWORD=dummy-automacao-ci \
+          docker compose -f docker/dokploy-stack.yml config --format json \
+            | python3 docker/verificacao/validar_automacao.py --homologacao --digest-automacao @sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 
       - name: Provar que internal v1 nao tem rota publica
         run: |
@@ -176,15 +233,85 @@ jobs:
       - name: Fumaca de boot dos quatro papeis e handshake WebSocket
         run: docker/verificacao/testar-websocket-empacotado.sh
 
+  imagem_automacao_hml:
+    name: Imagem da automacao de homologacao (GHCR)
+    if: github.ref == 'refs/heads/feat/automacao-local-base' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publicar_automacao_hml))
+    needs: [automacao, infra]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Definir imagem da automacao
+        id: referencia
+        shell: bash
+        run: |
+          repositorio="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/erp-matriz-synapse-automacao"
+          echo "repositorio=$repositorio" >> "$GITHUB_OUTPUT"
+          echo "tag=$repositorio:hml-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Autenticar no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publicar somente a imagem da automacao
+        id: publicar
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: automacao/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.referencia.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=automacao
+          cache-to: type=gha,mode=max,scope=automacao
+
+      - name: Registrar referencia exata para o Dokploy
+        env:
+          REPOSITORIO: ${{ steps.referencia.outputs.repositorio }}
+          DIGEST: ${{ steps.publicar.outputs.digest }}
+        shell: bash
+        run: |
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo 'Digest da imagem invalido' >&2; exit 1; }
+          printf 'AUTOMACAO_IMAGE_REPOSITORIO=%s\nAUTOMACAO_IMAGE_DIGEST=@%s\n' "$REPOSITORIO" "$DIGEST" > automacao-hml-imagem.env
+          {
+            echo '## Imagem da automacao publicada'
+            echo 'Aplicar estas referencias somente na homologacao. SYNAPSE_IMAGE_TAG nao muda.'
+            echo '```dotenv'
+            cat automacao-hml-imagem.env
+            echo '```'
+            echo 'Publicar imagem nao faz deploy nem comprova que o painel iniciou.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Guardar referencia sem segredos
+        uses: actions/upload-artifact@v4
+        with:
+          name: automacao-hml-imagem
+          path: automacao-hml-imagem.env
+          if-no-files-found: error
+          retention-days: 14
+
   # So a main publica `latest` e o SHA puro (o que a producao usa). Branch de teste/codex ou disparo manual publica so
   # `br-<sha curto>`, imutavel e nunca `latest`; so a instancia de teste aponta SYNAPSE_IMAGE_TAG para uma tag `br-`.
   imagens:
     name: Imagem ${{ matrix.nome }} (GHCR)
     if: >-
-      github.event_name == 'workflow_dispatch'
+      (github.event_name == 'workflow_dispatch' && inputs.publicar_imagens)
       || (github.event_name == 'push' && (github.ref == 'refs/heads/main'
       || startsWith(github.ref, 'refs/heads/teste/') || startsWith(github.ref, 'refs/heads/codex/')))
-    needs: [backend, frontend, infra]
+    needs: [backend, frontend, infra, automacao]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
@@ -198,6 +325,8 @@ jobs:
             dockerfile: backend/Dockerfile
           - nome: frontend
             dockerfile: frontend/Dockerfile
+          - nome: automacao
+            dockerfile: automacao/Dockerfile
     steps:
       - uses: actions/checkout@v4
 

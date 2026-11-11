@@ -1,0 +1,387 @@
+{
+  "name": "HML - EV-16 Buffer Mensagens copy",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "evento",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -352,
+        544
+      ],
+      "id": "ae25b25e-f4e1-42a8-8c24-0a55f21a23e9",
+      "name": "When Executed by Another Workflow",
+      "notesInFlow": true,
+      "notes": "Recebe do EV-00 o evento ja normalizado pelo EV-13."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ev16-config-prefixo-chave",
+              "name": "redis_key_prefixo_buffer",
+              "value": "hml:ev16:buffer:mensagens:",
+              "type": "string"
+            },
+            {
+              "id": "ev16-config-espera-segundos",
+              "name": "tempo_espera_segundos",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "ev16-config-separador",
+              "name": "separador_mensagens",
+              "value": "\n",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -128,
+        544
+      ],
+      "id": "0ed0e510-2e20-4f3c-8e9b-0ba2a021b386",
+      "name": "Variaveis buffer",
+      "notesInFlow": true,
+      "notes": "Centraliza tempo de espera e prefixo da chave Redis."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepara um item pequeno para a fila Redis.\n// A chave prioriza atendimento_id; se nao existir, usa o wa_id.\nconst entrada = $('When Executed by Another Workflow').first().json;\nconst config = $('Variaveis buffer').first().json;\nconst evento = entrada.evento ?? entrada.payload ?? entrada;\nconst atendimentoId = String(evento.atendimento_id ?? '').trim();\nconst waId = String(evento.wa_id ?? '').trim();\nconst mensagemId = String(evento.mensagem_id ?? '').trim();\nconst chaveBase = atendimentoId ? 'atendimento:' + atendimentoId : 'wa:' + waId;\nconst redisKey = String(config.redis_key_prefixo_buffer ?? '') + chaveBase;\n\nif (!waId) throw new Error('WA_ID_AUSENTE_PARA_BUFFER');\nif (!mensagemId) throw new Error('MENSAGEM_ID_AUSENTE_PARA_BUFFER');\n\nconst item = {\n  id: mensagemId,\n  recebido_em: evento.recebido_em ?? new Date().toISOString(),\n  texto: String(evento.texto ?? '').trim(),\n  evento,\n};\n\nreturn [{ json: {\n  redis_key: redisKey,\n  mensagem_id: mensagemId,\n  buffer_item_json: JSON.stringify(item),\n  evento\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        544
+      ],
+      "id": "7890b299-578e-4398-9224-7bb3171c85cb",
+      "name": "Preparar item do buffer",
+      "notesInFlow": true,
+      "notes": "Cria a chave Redis e serializa a mensagem atual com o evento completo."
+    },
+    {
+      "parameters": {
+        "operation": "push",
+        "list": "={{ $('Preparar item do buffer').first().json.redis_key }}",
+        "messageData": "={{ $('Preparar item do buffer').first().json.buffer_item_json }}",
+        "tail": true
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        320,
+        544
+      ],
+      "id": "e09a1f8d-930d-4d49-a65b-7e1d73318917",
+      "name": "Enfileirar mensagem no Redis",
+      "notesInFlow": true,
+      "credentials": {
+        "redis": {
+          "id": "N4u9OnuUpXg5ceKw",
+          "name": "HML Redis CRM"
+        }
+      },
+      "notes": "Adiciona a mensagem no fim da fila do atendimento/WhatsApp."
+    },
+    {
+      "parameters": {
+        "amount": "={{ $('Variaveis buffer').first().json.tempo_espera_segundos }}",
+        "path": "41b94473-041c-4e57-a0a3-87bf1ef2ecfc"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        544,
+        544
+      ],
+      "id": "19c820d5-7e57-45f9-be03-e58439ec02ea",
+      "name": "Esperar janela do buffer",
+      "webhookId": "41b94473-041c-4e57-a0a3-87bf1ef2ecfc",
+      "notesInFlow": true,
+      "notes": "Espera a janela configurada para dar tempo do cliente mandar mensagens em sequencia."
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "mensagens_buffer",
+        "key": "={{ $('Preparar item do buffer').first().json.redis_key }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        768,
+        544
+      ],
+      "id": "10fddd2a-37a6-4279-bf4a-df7a9415dd4d",
+      "name": "Buscar mensagens do buffer",
+      "notesInFlow": true,
+      "credentials": {
+        "redis": {
+          "id": "N4u9OnuUpXg5ceKw",
+          "name": "HML Redis CRM"
+        }
+      },
+      "notes": "Busca todas as mensagens acumuladas durante a janela."
+    },
+    {
+      "parameters": {
+        "jsCode": "// So a execucao da ultima mensagem pode seguir.\n// Execucoes antigas encerram sem chamar o orquestrador.\nconst atual = $('Preparar item do buffer').first().json;\nconst busca = $('Buscar mensagens do buffer').first().json;\nconst bruto = busca.mensagens_buffer ?? [];\nconst lista = Array.isArray(bruto) ? bruto : [bruto].filter(Boolean);\nconst mensagens = lista.map((valor) => {\n  try { return typeof valor === 'string' ? JSON.parse(valor) : valor; }\n  catch { return null; }\n}).filter(Boolean);\n\nconst ultima = mensagens[mensagens.length - 1] ?? null;\nconst souUltimaMensagem = Boolean(ultima && String(ultima.id) === String(atual.mensagem_id));\n\nreturn [{ json: {\n  processar: souUltimaMensagem,\n  motivo: souUltimaMensagem ? 'ULTIMA_MENSAGEM_DA_JANELA' : 'EXECUCAO_SUPERADA_POR_MENSAGEM_MAIS_NOVA',\n  redis_key: String(atual.redis_key ?? ''),\n  mensagem_id: String(atual.mensagem_id ?? ''),\n  mensagens_json: JSON.stringify(mensagens)\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        992,
+        544
+      ],
+      "id": "5b220271-e805-46b5-a5c8-956585f59ec3",
+      "name": "Avaliar ultima mensagem",
+      "notesInFlow": true,
+      "notes": "Define se esta execucao e a ultima da janela e pode continuar."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Avaliar ultima mensagem').first().json.processar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1216,
+        544
+      ],
+      "id": "ce4b3586-ac8b-4ad0-a176-33d85fb39aae",
+      "name": "Esta execucao deve responder?"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "={{ $('Avaliar ultima mensagem').first().json.redis_key }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        448
+      ],
+      "id": "9d74d88d-c1b8-4db3-b69b-590e32105eeb",
+      "name": "Apagar buffer processado",
+      "notesInFlow": true,
+      "credentials": {
+        "redis": {
+          "id": "N4u9OnuUpXg5ceKw",
+          "name": "HML Redis CRM"
+        }
+      },
+      "notes": "Apenas a ultima execucao limpa a fila antes de seguir."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Junta os textos da janela e preserva o evento mais recente como base.\nconst avaliacao = $('Avaliar ultima mensagem').first().json;\nconst config = $('Variaveis buffer').first().json;\nlet mensagens = [];\ntry { mensagens = JSON.parse(avaliacao.mensagens_json || '[]'); } catch { mensagens = []; }\n\nconst separador = String(config.separador_mensagens ?? '\\n');\nconst textos = mensagens\n  .map((mensagem) => String(mensagem.texto ?? mensagem.evento?.texto ?? '').trim())\n  .filter(Boolean);\nconst ultimo = mensagens[mensagens.length - 1] ?? {};\nconst payload = {\n  ...(ultimo.evento ?? {}),\n  texto: textos.join(separador).trim(),\n  buffer_mensagens: {\n    aplicado: true,\n    quantidade: mensagens.length,\n    mensagem_ids: mensagens.map((mensagem) => String(mensagem.id ?? '')).filter(Boolean),\n    redis_key: String(avaliacao.redis_key ?? '')\n  }\n};\n\nreturn [{ json: {\n  processar: true,\n  codigo: 'BUFFER_MENSAGENS_AGREGADO',\n  payload,\n  quantidade_mensagens: mensagens.length\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        448
+      ],
+      "id": "2e62c108-5464-4af9-b802-05a11109b22d",
+      "name": "Montar payload agregado",
+      "notesInFlow": true,
+      "notes": "Entrega ao EV-00 um unico payload com o texto agregado das mensagens da janela."
+    },
+    {
+      "parameters": {
+        "content": "## Buffer de mensagens\\n\\nEspera 10 segundos por atendimento/WhatsApp.\\n\\nSe chegar mensagem nova dentro da janela, a execucao antiga retorna `processar=false`.\\n\\nSomente a ultima execucao junta os textos, limpa o Redis e segue para o EV-01.",
+        "height": 360,
+        "width": 720,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        128
+      ],
+      "id": "59693ac4-ffc7-4f51-a8d1-3a4039acc5c6",
+      "name": "Como funciona o buffer"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        672
+      ],
+      "id": "58a3cfeb-e9db-4ac6-b9e6-3e6d0d90d2e7",
+      "name": "Encerrar buffer aguardando",
+      "notesInFlow": true,
+      "notes": "Encerra execucoes substituidas sem chamar o orquestrador."
+    },
+    {
+      "id": "0766f973-c185-446b-a7c5-051cdc97e8d1",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-16 Buffer Mensagens copy\nCRM de teste / Evolution.\nVer pendencias gerais no manifesto local.\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Variaveis buffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Variaveis buffer": {
+      "main": [
+        [
+          {
+            "node": "Preparar item do buffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar item do buffer": {
+      "main": [
+        [
+          {
+            "node": "Enfileirar mensagem no Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enfileirar mensagem no Redis": {
+      "main": [
+        [
+          {
+            "node": "Esperar janela do buffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar janela do buffer": {
+      "main": [
+        [
+          {
+            "node": "Buscar mensagens do buffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar mensagens do buffer": {
+      "main": [
+        [
+          {
+            "node": "Avaliar ultima mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avaliar ultima mensagem": {
+      "main": [
+        [
+          {
+            "node": "Esta execucao deve responder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esta execucao deve responder?": {
+      "main": [
+        [
+          {
+            "node": "Apagar buffer processado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Encerrar buffer aguardando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar buffer processado": {
+      "main": [
+        [
+          {
+            "node": "Montar payload agregado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}
