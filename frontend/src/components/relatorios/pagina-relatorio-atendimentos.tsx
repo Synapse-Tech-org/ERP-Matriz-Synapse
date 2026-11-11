@@ -1,13 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CheckCircle2, ClipboardList, Download, Hourglass, Star } from "lucide-react";
+import { CheckCircle2, ClipboardList, ArrowUpRight, Download, Hourglass, Search, Star, X } from "lucide-react";
 
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import { OpcoesListaV2 } from "@/components/shell/opcoes-lista-v2";
 import moldura from "@/components/shell/lista-v2.module.css";
-import { Button } from "@/components/ui/button";
+import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Input } from "@/components/ui/input";
@@ -32,11 +34,13 @@ const FILTROS_INICIAIS: FiltrosRelatorio = {
 };
 const STATUS = ["EM_IA", "EM_ATENDIMENTO", "FINALIZADO"] as const;
 const numeros = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
+const percentual = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 1 });
 const tempo = new Intl.NumberFormat("pt-BR", { style: "unit", unit: "minute", unitDisplay: "short", maximumFractionDigits: 1 });
 
 export function PaginaRelatorioAtendimentos() {
-  const { relatorios: t, menu } = useTextos();
-  const podeExportar = useCapacidades().pode("relatorios.exportar");
+  const { relatorios: t, menu, gestao } = useTextos();
+  const capacidades = useCapacidades();
+  const podeExportar = capacidades.pode("relatorios.exportar");
   const [filtros, setFiltros] = useState(FILTROS_INICIAIS);
   const [buscaDigitada, setBuscaDigitada] = useState("");
   const [pagina, setPagina] = useState(0);
@@ -87,9 +91,16 @@ export function PaginaRelatorioAtendimentos() {
     })),
   ];
 
+  const filtrosAtivos = [
+    { chave: "busca", valor: filtros.busca, rotulo: filtros.busca },
+    { chave: "etapa", valor: filtros.etapa, rotulo: dados?.porEtapa.find((item) => item.id === filtros.etapa)?.nome },
+    { chave: "atendente", valor: filtros.atendente, rotulo: dados?.porAtendente.find((item) => item.id === filtros.atendente)?.nome },
+    { chave: "status", valor: filtros.status, rotulo: filtros.status && t.statusRotulos[filtros.status] },
+  ] as const;
+
   return (
-    <section data-layout="v2" className={moldura.pagina + " " + moldura.modulo}>
-      <CabecalhoListaV2 titulo={t.titulo} grupo={menu.grupoGestao} />
+    <section data-layout="v2" className={moldura.pagina + " " + moldura.modulo + " " + estilos.pagina}>
+      <CabecalhoListaV2 titulo={t.titulo} grupo={menu.grupoGestao} busca={gestao.v2.buscaGlobal} />
       <header>
         <div className="space-y-1">
           <h1>{t.titulo}</h1>
@@ -121,21 +132,24 @@ export function PaginaRelatorioAtendimentos() {
       {periodoValido && consulta.isPending && <p role="status">{t.carregando}</p>}
       {resumo && dados && <>
         <div className={estilos.kpis}>
-          <Indicador icone={ClipboardList} titulo={t.atendimentos} valor={numeros.format(resumo.total)} />
-          <Indicador icone={CheckCircle2} titulo={t.finalizados} valor={numeros.format(resumo.finalizados)} />
-          <Indicador icone={Hourglass} titulo={t.tma} valor={formatarDuracao(resumo.duracaoMediaSegundos, t.semValor)} />
-          <Indicador icone={Star} titulo={t.csat} valor={resumo.csatMedio === null ? t.semValor : numeros.format(resumo.csatMedio)}
+          <Indicador icone={ClipboardList} tom="azul" titulo={t.atendimentos} valor={numeros.format(resumo.total)}
+            legenda={t.emAberto.replace("{total}", numeros.format(resumo.total - resumo.finalizados))} />
+          <Indicador icone={CheckCircle2} tom="verde" titulo={t.finalizados} valor={numeros.format(resumo.finalizados)}
+            legenda={resumo.total ? t.percentualFinalizado.replace("{percentual}", percentual.format(resumo.finalizados / resumo.total)) : undefined} />
+          <Indicador icone={Hourglass} tom="verde" titulo={t.tma} valor={formatarDuracao(resumo.duracaoMediaSegundos, t.semValor)}
+            legenda={t.legendaTma} />
+          <Indicador icone={Star} tom="atencao" titulo={t.csat} valor={resumo.csatMedio === null ? t.semValor : numeros.format(resumo.csatMedio)}
             legenda={t.avaliacoes.replace("{total}", numeros.format(resumo.avaliacoes))} />
         </div>
         <div className={estilos.graficos}>
           <Grafico titulo={t.status} grupos={dados.porStatus.map((grupo) => ({
             ...grupo, nome: t.statusRotulos[grupo.id as StatusRelatorio],
-          }))} ativo={filtros.status} semNome={t.semValor} vazio={t.vazio} distribuicao
+          }))} ativo={filtros.status} semNome={t.semValor} vazio={t.vazio} distribuicao legenda={t.totalStatus.replace("{total}", numeros.format(totalSemFiltro))}
             selecionar={(status) => alterar({ status: status as StatusRelatorio | "" })} />
           <Grafico titulo={t.etapaAtual} grupos={dados.porEtapa} ativo={filtros.etapa} semNome={t.semEtapa} vazio={t.vazio}
             selecionar={(etapa) => alterar({ etapa })} />
           <Grafico titulo={t.porAtendente} grupos={dados.porAtendente} ativo={filtros.atendente} semNome={t.semResponsavel}
-            vazio={t.vazio} csat={t.csat} selecionar={(atendente) => alterar({ atendente })} />
+            vazio={t.vazio} csat={t.csat} legenda={t.volumeCsat} selecionar={(atendente) => alterar({ atendente })} />
         </div>
       </>}
 
@@ -147,16 +161,32 @@ export function PaginaRelatorioAtendimentos() {
               {t.resultado.replace("{total}", numeros.format(resumo.total))}
             </p>}
           </div>
-          <Input className="w-full sm:w-60" placeholder={t.busca} aria-label={t.busca} maxLength={150}
-            value={buscaDigitada} onChange={(e) => setBuscaDigitada(e.target.value)} />
+          <div className={estilos.buscaTabela}>
+            <Search aria-hidden />
+            <Input placeholder={t.busca} aria-label={t.busca} maxLength={150}
+              value={buscaDigitada} onChange={(e) => setBuscaDigitada(e.target.value)} />
+          </div>
           <Seletor ariaLabel={t.etapa} valor={filtros.etapa} onChange={(etapa) => alterar({ etapa })}
             placeholder={t.todasEtapas} className="w-auto max-w-full" opcoes={opcoesDeGrupo(dados?.porEtapa)} />
           <Seletor ariaLabel={t.responsavel} valor={filtros.atendente} onChange={(atendente) => alterar({ atendente })}
             placeholder={t.todosAtendentes} className="w-auto max-w-full" opcoes={opcoesDeGrupo(dados?.porAtendente)} />
           <OpcoesListaV2 rotulo={t.status} valor={filtros.status} opcoes={opcoesStatus} onChange={(status) => alterar({ status })} />
-          {(filtros.etapa || filtros.atendente || filtros.status || buscaDigitada) && <Button variant="ghost"
-            onClick={() => { setBuscaDigitada(""); alterar({ etapa: "", atendente: "", status: "", busca: "" }); }}>{t.limpar}</Button>}
         </div>
+        {filtrosAtivos.some(({ valor }) => valor) && <div className={estilos.filtros}>
+          <span>{t.filtrosAtivos}</span>
+          {filtrosAtivos.filter(({ valor }) => valor).map(({ chave, rotulo }) => {
+            const nome = rotulo || t[chave === "atendente" ? "responsavel" : chave];
+            return <button key={chave} type="button" aria-label={t.removerFiltro.replace("{filtro}", nome)}
+              onClick={() => {
+                if (chave === "busca") setBuscaDigitada("");
+                alterar({ [chave]: "" });
+              }}>{nome}<X aria-hidden /></button>;
+          })}
+          <Button variant="ghost" size="sm" onClick={() => {
+            setBuscaDigitada("");
+            alterar({ etapa: "", atendente: "", status: "", busca: "" });
+          }}>{t.limpar}</Button>
+        </div>}
         {dados && (dados.linhas.length > 0 ? (
           <div className={estilos.tabela}>
             <table aria-label={t.atendimentos}>
@@ -167,11 +197,12 @@ export function PaginaRelatorioAtendimentos() {
               <tbody>{dados.linhas.map((linha) => (
                 <tr key={linha.id}>
                   <th scope="row">
-                    <button type="button" className="text-left font-semibold hover:underline"
-                      onClick={() => setSelecionada(linha)}>{linha.cliente}</button>
-                    <p className="text-xs text-muted-foreground">{linha.empresa ?? linha.id}</p>
+                    <button type="button" className={estilos.cliente} onClick={() => setSelecionada(linha)}>
+                      <AvatarIniciais id={linha.leadId} nome={linha.cliente} className={estilos.avatar} />
+                      <span><strong>{linha.cliente}</strong><small>{linha.empresa ?? linha.id}</small></span>
+                    </button>
                   </th>
-                  <td>{linha.atendente ?? t.semResponsavel}</td><td>{linha.etapa ?? t.semEtapa}</td>
+                  <td>{linha.atendente ?? t.semResponsavel}</td><td><span className={estilos.etapa}>{linha.etapa ?? t.semEtapa}</span></td>
                   <td><span className={estilos.status} data-status={linha.status}>{t.statusRotulos[linha.status]}</span></td>
                   <td>{formatoData(linha.iniciadoEm)}</td><td>{formatarDuracao(linha.duracaoSegundos, t.semValor)}</td>
                   <td>{linha.csat === null ? t.semValor : numeros.format(linha.csat)}</td>
@@ -186,7 +217,7 @@ export function PaginaRelatorioAtendimentos() {
           <Button variant="outline" disabled={pagina + 1 >= quantidadePaginas || consulta.isFetching} onClick={() => setPagina((p) => p + 1)}>{t.proxima}</Button>
         </nav>}
       </section>
-      {selecionada && <Detalhes linha={selecionada} textos={t} formatoData={formatoData} fechar={() => setSelecionada(null)} />}
+      {selecionada && <Detalhes linha={selecionada} textos={t} formatoData={formatoData} podeAbrir={capacidades.pode("atendimentos.ver")} fechar={() => setSelecionada(null)} />}
     </section>
   );
 }
@@ -199,32 +230,38 @@ function formatarDuracao(segundos: number | null, vazio: string) {
   return segundos === null ? vazio : tempo.format(segundos / 60);
 }
 
-function Indicador({ icone: Icone, titulo, valor, legenda }: {
-  icone: typeof ClipboardList; titulo: string; valor: string; legenda?: string;
+function Indicador({ icone: Icone, titulo, valor, legenda, tom }: {
+  icone: typeof ClipboardList; titulo: string; valor: string; legenda?: string; tom: "azul" | "verde" | "atencao";
 }) {
   return <section className={estilos.indicador}>
-    <h2><Icone aria-hidden className="size-5" />{titulo}</h2>
+    <h2><span data-tom={tom} className={estilos.iconeIndicador}><Icone aria-hidden /></span>{titulo}</h2>
     <strong>{valor}</strong>
     {legenda && <p className="text-xs text-muted-foreground">{legenda}</p>}
   </section>;
 }
 
-function Grafico({ titulo, grupos, ativo, semNome, vazio, csat, distribuicao, selecionar }: {
+function Grafico({ titulo, grupos, ativo, semNome, vazio, csat, distribuicao, legenda, selecionar }: {
   titulo: string; grupos: GrupoRelatorio[]; ativo: string; semNome: string;
-  vazio: string; csat?: string; distribuicao?: boolean; selecionar: (id: string) => void;
+  vazio: string; csat?: string; distribuicao?: boolean; legenda?: string; selecionar: (id: string) => void;
 }) {
   const maior = Math.max(1, ...grupos.map((grupo) => grupo.total));
-  return <section className={estilos.grafico}>
-    <h2>{titulo}</h2>
+  const totalGeral = grupos.reduce((soma, grupo) => soma + grupo.total, 0);
+  const tipo = distribuicao ? "status" : csat ? "atendente" : "etapa";
+  return <section className={estilos.grafico} data-tipo={tipo}>
+    <header><h2>{titulo}</h2>{legenda && <span>{legenda}</span>}</header>
     {distribuicao && grupos.length > 0 && <div aria-hidden className={estilos.distribuicao}>
       {grupos.map(({ id, total }) => <span key={id} data-status={id} style={{ flexGrow: total }} />)}
     </div>}
     {grupos.length ? <ul>{grupos.map(({ id, nome, total, csatMedio }) => {
       const conteudo = <>
+        {distribuicao && <span aria-hidden className={estilos.ponto} data-status={id} />}
+        {csat && (nome ? <AvatarIniciais id={id ?? nome} nome={nome} className={estilos.avatarGrafico} />
+          : <span aria-hidden className={estilos.avatarGrafico} />)}
         <span className="truncate">{nome ?? semNome}</span>
-        <span aria-hidden className={estilos.trilho}><span style={{ width: (total / maior * 100) + "%" }} /></span>
+        {tipo === "etapa" && <span aria-hidden className={estilos.trilho}><span style={{ width: (total / maior * 100) + "%" }} /></span>}
         <strong>{numeros.format(total)}</strong>
-        {csat && csatMedio !== null && <span title={csat} className="flex items-center gap-1"><Star aria-hidden className="size-3" />{numeros.format(csatMedio)}</span>}
+        {distribuicao && <span className={estilos.percentual}>{percentual.format(totalGeral ? total / totalGeral : 0)}</span>}
+        {csat && <span title={csat} className={estilos.nota}><Star aria-hidden />{csatMedio === null ? "—" : numeros.format(csatMedio)}</span>}
       </>;
       return <li key={id ?? "sem-grupo"}>{id
         ? <button type="button" className={estilos.barra} aria-pressed={ativo === id}
@@ -234,15 +271,22 @@ function Grafico({ titulo, grupos, ativo, semNome, vazio, csat, distribuicao, se
   </section>;
 }
 
-function Detalhes({ linha, textos: t, formatoData, fechar }: {
-  linha: LinhaRelatorio; textos: Textos["relatorios"]; formatoData: (v: string | null) => string; fechar: () => void;
+function Detalhes({ linha, textos: t, formatoData, podeAbrir, fechar }: {
+  linha: LinhaRelatorio; textos: Textos["relatorios"]; formatoData: (v: string | null) => string; podeAbrir: boolean; fechar: () => void;
 }) {
   const jornada = useTimelineDoLead(linha.leadId);
   const eventos = jornada.data?.pages.flatMap((p) => p.eventos).filter((evento) => evento.tipo === "ETAPA_ALTERADA") ?? [];
   return <Dialog open onOpenChange={(aberto) => { if (!aberto) fechar(); }}>
     <DialogContent className={estilos.detalhes} showCloseButton={false}>
-      <DialogTitle>{linha.cliente}</DialogTitle>
-      <DialogDescription>{linha.empresa ? linha.empresa + " · " + linha.id : linha.id}</DialogDescription>
+      <div className={estilos.topoDetalhes}>
+        <AvatarIniciais id={linha.leadId} nome={linha.cliente} className={estilos.avatar} />
+        <div className="min-w-0">
+          <DialogTitle>{linha.cliente}</DialogTitle>
+          <DialogDescription className="break-words">{linha.empresa ? linha.empresa + " · " + linha.id : linha.id}</DialogDescription>
+        </div>
+      </div>
+      {podeAbrir && <Link href={"/atendimentos?atendimentoId=" + encodeURIComponent(linha.id)}
+        className={buttonVariants({ variant: "outline", className: "justify-self-start" })}>{t.abrirAtendimento}<ArrowUpRight aria-hidden /></Link>}
       <dl className="grid grid-cols-2 gap-4 rounded-xl border p-4">
         {[
           [t.inicio, formatoData(linha.iniciadoEm)], [t.fim, formatoData(linha.finalizadoEm)],
@@ -256,7 +300,7 @@ function Detalhes({ linha, textos: t, formatoData, fechar }: {
         {jornada.isError && <ErroDeCarregamento mensagem={t.erroJornada} onTentarNovamente={() => jornada.refetch()} />}
         {jornada.isPending && <p role="status">{t.carregando}</p>}
         {!jornada.isError && !jornada.isPending && (eventos.length ? (
-          <ol className="space-y-2 border-l pl-3">{eventos.map((evento) => (
+          <ol className={estilos.jornada}>{eventos.map((evento) => (
             <li key={evento.id}><p>{evento.descricao}</p><time dateTime={evento.criadoEm} className="text-xs text-muted-foreground">{formatoData(evento.criadoEm)}</time></li>
           ))}</ol>
         ) : <p className="text-sm text-muted-foreground">{t.semJornada}</p>)}
