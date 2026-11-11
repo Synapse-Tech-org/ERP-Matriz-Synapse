@@ -229,9 +229,11 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
     @Override
     public PaginaMensagens listarMensagens(UUID conversaId, UUID usuarioId, Instant antesDe, int limite) {
         String cursor = antesDe == null ? "" : " AND m.enviado_em < ? ";
+        // Timestamp, nao Instant: o driver do Postgres nao infere o tipo SQL de um java.time.Instant cru e a
+        // consulta falhava com 500 em toda pagina depois da primeira (o historico de atendimentos ja faz assim).
         Object[] args = antesDe == null
                 ? new Object[] {conversaId, limite}
-                : new Object[] {conversaId, antesDe, limite};
+                : new Object[] {conversaId, Timestamp.from(antesDe), limite};
         List<MensagemResumo> mensagens = jdbc.query("""
                 SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,
                        CASE WHEN m.removida_em IS NULL THEN m.conteudo END AS conteudo,
