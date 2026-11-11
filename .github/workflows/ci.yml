@@ -230,6 +230,15 @@ jobs:
             grep -Fx "ghcr.io/$organizacao/erp-matriz-synapse-$componente:$SYNAPSE_IMAGE_TAG" <<< "$atual"
           done
 
+      # O apt do build da imagem falhou em 4 runs seguidos (13:52 a 14:33 de 11/11) com "Could not resolve" e, com a rede do
+      # host, "Temporary failure resolving" para archive/security.ubuntu.com, em job que passou no mesmo codigo as 13:27.
+      # Aponta o daemon do runner para resolvedores publicos so neste job; o Dockerfile e a imagem publicada nao mudam.
+      - name: DNS publico para o build da imagem de fumaca
+        run: |
+          echo '{"dns":["1.1.1.1","8.8.8.8"]}' | sudo tee /etc/docker/daemon.json >/dev/null
+          sudo systemctl restart docker
+          docker info --format 'docker {{.ServerVersion}} pronto'
+
       - name: Fumaca de boot dos quatro papeis e handshake WebSocket
         run: docker/verificacao/testar-websocket-empacotado.sh
 
