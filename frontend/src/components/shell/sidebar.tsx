@@ -274,7 +274,7 @@ export function Sidebar({
             data-slot="sidebar-logo"
             className="flex size-10 flex-none items-center justify-center rounded-lg"
             style={{
-              background: `linear-gradient(150deg, var(--marca-icone-gradiente-inicio), var(--marca-icone-gradiente-fim))`,
+              background: visualV2 ? undefined : `linear-gradient(150deg, var(--marca-icone-gradiente-inicio), var(--marca-icone-gradiente-fim))`,
             }}
           >
             <div className="size-[17px] rotate-45 rounded-[3px] bg-white" />
@@ -315,6 +315,7 @@ export function Sidebar({
       </div>
 
       <nav
+        data-slot="sidebar-navegacao"
         className={
           retraida
             ? "flex-1 overflow-x-hidden overflow-y-auto px-2"
@@ -404,6 +405,7 @@ export function Sidebar({
         <div className={retraida ? "flex flex-col items-center gap-1" : "flex items-center gap-1"}>
           <button
             type="button"
+            data-slot="sidebar-perfil"
             onClick={() => setPopupAberto((atual) => !atual)}
             aria-label={`${textos.rodape.presenca.rotulo}: ${rotuloDaPresenca(statusAtual)}`}
             title={`${textos.rodape.presenca.rotulo}: ${rotuloDaPresenca(statusAtual)}`}
@@ -413,9 +415,10 @@ export function Sidebar({
                 : "flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-sidebar-item-overlay-hover"
             }
           >
-          <span className="relative flex size-[38px] flex-none items-center justify-center">
-            {meuUsuario.data ? <AvatarIniciais id={meuUsuario.data.id ?? "me"} nome={meuUsuario.data.nome} fotoUrl={meuUsuario.data.fotoUrl} className="flex size-[38px] items-center justify-center rounded-[11px] text-sm font-bold text-white" /> : "?"}
+          <span data-slot="sidebar-avatar" className="relative flex size-[38px] flex-none items-center justify-center">
+            {meuUsuario.data ? <AvatarIniciais id={meuUsuario.data.id ?? "me"} nome={meuUsuario.data.nome} fotoUrl={meuUsuario.data.fotoUrl} className={cn("flex size-full items-center justify-center text-sm font-bold text-white", visualV2 ? "rounded-full" : "rounded-[11px]")} /> : "?"}
             <span
+              data-slot="sidebar-presenca"
               className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-sidebar"
               style={{ backgroundColor: COR_PRESENCA[statusAtual] }}
             />
@@ -569,6 +572,7 @@ function MenuGrupo({
                 )}
                 {item.chave === "atendimentos" && contagemPendentes !== undefined && (!visualV2 || contagemPendentes > 0) && (
                   <Badge
+                    data-slot="sidebar-pendencias"
                     className={
                       retraida
                         ? "absolute right-0 top-0 h-4 min-w-4 rounded-full px-1 text-[0.55rem]"

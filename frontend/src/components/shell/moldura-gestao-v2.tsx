@@ -21,7 +21,10 @@ export function MolduraGestaoV2({
 
   const titulo = secao === "configuracoes" ? textos.configuracoes.titulo : textos.menu.itens[secao];
   return (
-    <section data-layout="v2" className={`${estilos.pagina} ${estilos.modulo} ${secao === "gestao" ? visualGestao.moldura : estilos.gestao}`}>
+    <section
+      data-layout="v2"
+      className={`${estilos.pagina} ${estilos.modulo} ${secao === "gestao" ? visualGestao.moldura : estilos.gestao} ${secao === "automacao" ? estilos.automacao : ""}`}
+    >
       {secao !== "gestao" && <CabecalhoListaV2 titulo={titulo} />}
       {children}
     </section>

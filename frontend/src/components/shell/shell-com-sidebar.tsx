@@ -43,7 +43,6 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
     || (pathname === "/mensagens-rapidas" && funcionalidades.data?.includes("mensagens_rapidas_layout_v2"))
     || (ROTAS_RECURSOS_V2.has(pathname) && funcionalidades.data?.includes("recursos_layout_v2"))
     || (ROTAS_GESTAO_V2.has(pathname) && funcionalidades.data?.includes("gestao_layout_v2"));
-  const paletaAgenda = visualV2 && (pathname === "/lembretes" || pathname === "/mensagens-programadas" || pathname === "/gestao");
   const fixada = noDashboard ? dashboardFixada ?? !dashboardV2 : expansao.fixada;
   const expandida = noDashboard ? fixada || expansao.expandida : expansao.expandida;
   const alternarFixacao = noDashboard
@@ -55,7 +54,7 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className={cn("flex min-h-0 flex-1 overflow-hidden bg-[var(--fundo-canvas)]", visualV2 && [estilosV2.canvas, fonteFrontendV2.variable], paletaAgenda && estilosV2.paletaAgenda)}
+      className={cn("flex min-h-0 flex-1 overflow-hidden bg-[var(--fundo-canvas)]", visualV2 && [estilosV2.canvas, fonteFrontendV2.variable])}
       data-slot="page-canvas"
     >
       {!telaEstreita && (

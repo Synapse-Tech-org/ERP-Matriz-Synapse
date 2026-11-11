@@ -66,7 +66,7 @@ export function PaginaAutomacao() {
   return (
     <div className="min-h-full">
       <Tabs value={aba} onValueChange={(valor) => selecionarAba(valor as Aba)}>
-        <header className="border-b bg-card px-6 pt-6 lg:px-9">
+        <header data-slot="automacao-cabecalho" className="border-b bg-card px-6 pt-6 lg:px-9">
           <div className="mx-auto max-w-[82.5rem]">
             <h1 className="text-xl font-bold tracking-tight">{t.titulo}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{t.descricaoPorAba[aba]}</p>
@@ -81,9 +81,9 @@ export function PaginaAutomacao() {
         </header>
       </Tabs>
 
-      <main className="mx-auto max-w-[82.5rem] px-6 py-7 lg:px-9 lg:py-8">
+      <div data-slot="automacao-conteudo" className="mx-auto max-w-[82.5rem] px-6 py-7 lg:px-9 lg:py-8">
         {aba === "geral" ? <GeralAutomacao textos={textos} /> : aba === "followUp" ? <PainelFollowUp textos={textos} /> : <PainelFidelizacao textos={textos} />}
-      </main>
+      </div>
     </div>
   );
 }
