@@ -79,6 +79,7 @@ interface Props {
   /** "Exibindo N de M leads" (E17b §Bloco 3) — mesma linha da barra, como no protótipo. */
   contador: ReactNode;
   atalhos?: ReactNode;
+  acoesAvancadas?: ReactNode;
   onAdicionar: (filtro: FiltroAtivo) => void;
   onFiltrosRapidosChange: (filtros: FiltrosRapidosAgenda) => void;
   onRemover: (id: string) => void;
@@ -99,6 +100,7 @@ export function BarraDeFiltros({
   textoSemResponsavel,
   contador,
   atalhos,
+  acoesAvancadas,
   onAdicionar,
   onFiltrosRapidosChange,
   onRemover,
@@ -245,7 +247,7 @@ export function BarraDeFiltros({
       <div data-slot="agenda-filtros-avancados">
         {!atalhos && botaoAvancados}
         {avancadosAbertos && (
-          <div className="mt-2 border-t border-border pt-3">
+          <div className="mt-2 space-y-3 border-t border-border pt-3">
             <FormularioDeNovoFiltro
               campos={campos}
               carregandoCampos={carregandoCampos}
@@ -256,6 +258,7 @@ export function BarraDeFiltros({
               textosStatus={textosStatus}
               onAdicionar={onAdicionar}
             />
+            {acoesAvancadas}
           </div>
         )}
       </div>

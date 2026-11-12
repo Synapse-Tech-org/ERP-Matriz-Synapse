@@ -173,6 +173,9 @@
   },
   "rodape": {
     "trocarConta": "Trocar conta",
+    "adicionarConta": "Adicionar conta",
+    "carregandoContas": "Carregando contas…",
+    "erroTrocarConta": "Não foi possível trocar de conta. Entre novamente se a sessão tiver expirado.",
     "trocarSenha": "Trocar senha",
     "sair": "Sair",
     "presenca": {
@@ -213,6 +216,13 @@
     "posicaoBaixo": "Embaixo"
   },
   "configuracoes": {
+    "abaNotificacoes": "Notificações",
+    "abaInterface": "Interface",
+    "abaAjuda": "Ajuda",
+    "enterEnvia": "Enter envia mensagem",
+    "enterEnviaDescricao": "Com essa opção desligada, Enter quebra a linha. Use o botão de envio para mandar a mensagem.",
+    "feedbackTitulo": "Sugestões e problemas",
+    "feedbackAcao": "Enviar feedback",
     "titulo": "Configurações",
     "descricao": "Conta e sistema · a automação da IA é configurada na aba Automação",
     "abrir": "Abrir configurações",
@@ -2151,6 +2161,9 @@
     "v2": {
       "todos": "Todos",
       "meus": "Meus contatos",
+      "titulo": "Agenda de Contatos",
+      "descricao": "Clique para consultar a ficha · duplo clique abre o atendimento.",
+      "atender": "Atender",
       "todasEtapas": "Todas as etapas",
       "lista": "Lista",
       "kanban": "Kanban",

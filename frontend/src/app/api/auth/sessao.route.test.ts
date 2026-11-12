@@ -11,6 +11,7 @@ const { cookiesMock } = vi.hoisted(() => ({ cookiesMock: vi.fn() }));
 vi.mock("next/headers", () => ({ cookies: cookiesMock }));
 vi.mock("@/lib/api/server-api-url", () => ({ obterUrlApiServidor: () => "http://api-interna" }));
 
+import { GET as contas, POST as trocar } from "./contas/route";
 import { POST as login } from "./login/route";
 import { POST as logout } from "./logout/route";
 import { POST as refresh } from "./refresh/route";
@@ -142,5 +143,69 @@ describe("Route Handlers de sessão", () => {
 
     expect(deleteCookie).toHaveBeenCalledWith(NOME_COOKIE_REFRESH);
     expect(deleteCookie).toHaveBeenCalledWith(NOME_COOKIE_PERSISTENCIA_SESSAO);
+  });
+});
+
+describe("troca de contas do navegador", () => {
+  const ana = "a0000000-0000-4000-8000-000000000001";
+  const bia = "a0000000-0000-4000-8000-000000000002";
+  const jar = new Map<string, string>();
+
+  function tokens(id: string, token: string) {
+    return Response.json({
+      accessToken: "jwt." + Buffer.from(JSON.stringify({ sub: id, papel: "ATENDENTE" })).toString("base64url") + ".assinatura",
+      refreshToken: token,
+      expiraEmSegundos: 900,
+    });
+  }
+
+  function requisicaoTroca(id: string, origem = "same-origin") {
+    return new Request("http://crm.local/api/auth/contas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Sec-Fetch-Site": origem },
+      body: JSON.stringify({ id }),
+    }) as never;
+  }
+
+  beforeEach(async () => {
+    jar.clear();
+    cookiesMock.mockResolvedValue({
+      get: (name: string) => jar.has(name) ? { name, value: jar.get(name) } : undefined,
+      getAll: () => [...jar].map(([name, value]) => ({ name, value })),
+      set: (name: string, value: string) => jar.set(name, value),
+      delete: (name: string) => jar.delete(name),
+    });
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(tokens(ana, "sessao-ana"))
+      .mockResolvedValueOnce(Response.json({ nome: "Ana" }))
+      .mockResolvedValueOnce(tokens(bia, "sessao-bia"))
+      .mockResolvedValueOnce(Response.json({ nome: "Bia" })));
+    await login(requisicaoLogin(false) as never);
+    await login(requisicaoLogin(true) as never);
+  });
+
+  it("lista só metadados da conta anterior e troca após o backend validar e rotacionar o token", async () => {
+    expect(await (await contas()).json()).toEqual([{ id: ana, nome: "Ana", papel: "ATENDENTE" }]);
+    vi.mocked(fetch).mockResolvedValueOnce(tokens(ana, "sessao-ana-rotacionada"));
+    expect((await trocar(requisicaoTroca(ana))).status).toBe(204);
+    expect(fetch).toHaveBeenLastCalledWith("http://api-interna/api/v1/auth/refresh",
+      expect.objectContaining({ body: JSON.stringify({ refreshToken: "sessao-ana" }) }));
+    expect(await (await contas()).json()).toEqual([{ id: bia, nome: "Bia", papel: "ATENDENTE" }]);
+    vi.mocked(fetch).mockResolvedValueOnce(tokens(ana, "sessao-ana-rotacionada-de-novo"));
+    expect((await refresh()).status).toBe(200);
+    expect(fetch).toHaveBeenLastCalledWith("http://api-interna/api/v1/auth/refresh",
+      expect.objectContaining({ body: JSON.stringify({ refreshToken: "sessao-ana-rotacionada" }) }));
+  });
+
+  it("recusa troca de outra origem e remove sessão expirada sem afetar a conta ativa", async () => {
+    vi.mocked(fetch).mockClear();
+    expect((await trocar(requisicaoTroca(ana, "cross-site"))).status).toBe(403);
+    expect(fetch).not.toHaveBeenCalled();
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 401 }));
+    expect((await trocar(requisicaoTroca(ana))).status).toBe(401);
+    const lista = await contas();
+    expect(lista.status).toBe(200);
+    expect(await lista.json()).toEqual([]);
+    expect((await trocar(requisicaoTroca(ana))).status).toBe(404);
   });
 });

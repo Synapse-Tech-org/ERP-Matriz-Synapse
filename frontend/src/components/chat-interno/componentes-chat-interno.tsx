@@ -1,5 +1,7 @@
 "use client";
 
+import { enterEnviaMensagem } from "@/lib/atendimento/preferencia-de-envio";
+
 import { Fragment, useEffect, useLayoutEffect, useMemo, useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
 import { Mic, PanelRightOpen, Paperclip, Pencil, Send, Square, Trash2, Users, X } from "lucide-react";
 import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
@@ -645,7 +647,7 @@ export function ComposerChatInterno({
       onCancelarEdicao?.();
       return;
     }
-    if (evento.key === "Enter" && !evento.shiftKey) {
+    if (evento.key === "Enter" && !evento.shiftKey && !evento.nativeEvent.isComposing && enterEnviaMensagem()) {
       evento.preventDefault();
       void enviarConteudo();
     }

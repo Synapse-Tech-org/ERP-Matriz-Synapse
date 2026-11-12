@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,6 +39,8 @@ import { atualizarPresenca } from "@/lib/equipe/api";
 import type { StatusPresenca } from "@/lib/equipe/types";
 import { useMeuUsuario } from "@/lib/equipe/use-equipe";
 import { useMinhasPermissoes } from "@/lib/gestao/use-gestao";
+import { SeletorDeContas } from "./seletor-de-contas";
+import { avisarAlteracaoDeConta, comSessaoExclusiva } from "@/lib/auth/sessao-navegador";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
@@ -141,7 +143,8 @@ function useTemaConfig() {
 }
 
 async function encerrarSessao() {
-  await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+  await comSessaoExclusiva(() => fetch("/api/auth/logout", { method: "POST" })).catch(() => null);
+  avisarAlteracaoDeConta();
   useAuthStore.getState().limparSessao();
   window.location.href = "/login";
 }
@@ -193,6 +196,16 @@ export function Sidebar({
       ),
   });
   const [popupAberto, setPopupAberto] = useState(false);
+  const rodape = useRef<HTMLDivElement>(null);
+  const botaoPerfil = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!popupAberto) return;
+    function fecharFora(evento: PointerEvent) {
+      if (!rodape.current?.contains(evento.target as Node)) setPopupAberto(false);
+    }
+    document.addEventListener("pointerdown", fecharFora);
+    return () => document.removeEventListener("pointerdown", fecharFora);
+  }, [popupAberto]);
   // E31b: logoUrl agora aponta sempre para a rota (/api/v1/config/logo), nunca mais null — a
   // ausência do arquivo vira 404 no servidor, não um logoUrl vazio. O onError é o que faz o
   // fallback (quadrado com gradiente) continuar funcionando quando o filho não tem logo.
@@ -237,14 +250,18 @@ export function Sidebar({
         onMouseEnter={onPonteiroEntrar}
         onPointerEnter={onPonteiroEntrar}
         onMouseLeave={() => {
-          if (!popupAberto) onPonteiroSair?.();
+          if (!fixada) setPopupAberto(false);
+          onPonteiroSair?.();
         }}
-        onPointerLeave={() => {
-          if (!popupAberto) onPonteiroSair?.();
+        onPointerLeave={(evento) => {
+          if (evento.pointerType === "touch") return;
+          if (!fixada) setPopupAberto(false);
+          onPonteiroSair?.();
         }}
         onFocusCapture={onFocoDentro}
         onBlurCapture={(evento) => {
-          if (!evento.currentTarget.contains(evento.relatedTarget as Node | null) && !popupAberto) {
+          if (!evento.currentTarget.contains(evento.relatedTarget as Node | null)) {
+            setPopupAberto(false);
             onFocoFora?.();
           }
         }}
@@ -352,10 +369,17 @@ export function Sidebar({
         ))}
       </nav>
 
-      <div className={retraida ? "relative border-t border-[color-mix(in_srgb,var(--sidebar-texto-forte)_8%,transparent)] px-2 py-3" : "relative border-t border-[color-mix(in_srgb,var(--sidebar-texto-forte)_8%,transparent)] px-3 py-3.5"}>
+      <div ref={rodape} onKeyDown={(evento) => {
+        if (evento.key === "Escape" && popupAberto) {
+          setPopupAberto(false);
+          botaoPerfil.current?.focus();
+        }
+      }} className={retraida ? "relative border-t border-[color-mix(in_srgb,var(--sidebar-texto-forte)_8%,transparent)] px-2 py-3" : "relative border-t border-[color-mix(in_srgb,var(--sidebar-texto-forte)_8%,transparent)] px-3 py-3.5"}>
         {popupAberto && (
           <div
-            className="absolute inset-x-3 bottom-[74px] z-40 rounded-xl border border-[color-mix(in_srgb,var(--sidebar-texto-forte)_12%,transparent)] bg-fundo-sidebar-bloco p-1.5 shadow-lg"
+            id="sidebar-menu-perfil"
+            data-slot="sidebar-menu-perfil"
+            className="absolute inset-x-3 bottom-[74px] z-40 max-h-[55dvh] overflow-y-auto rounded-xl border border-[color-mix(in_srgb,var(--sidebar-texto-forte)_12%,transparent)] bg-fundo-sidebar-bloco p-1.5 shadow-lg"
           >
             <p className="px-2.5 pt-2 pb-1.5 text-[10px] font-bold tracking-[.12em] text-texto-sidebar-sub">
               {textos.rodape.presenca.rotulo}
@@ -383,6 +407,7 @@ export function Sidebar({
               );
             })}
             <div className="my-1.5 h-px bg-[color-mix(in_srgb,var(--sidebar-texto-forte)_10%,transparent)]" />
+            <SeletorDeContas />
             <Link
               href="/trocar-senha"
               onClick={() => setPopupAberto(false)}
@@ -405,8 +430,14 @@ export function Sidebar({
         <div className={retraida ? "flex flex-col items-center gap-1" : "flex items-center gap-1"}>
           <button
             type="button"
+            ref={botaoPerfil}
             data-slot="sidebar-perfil"
-            onClick={() => setPopupAberto((atual) => !atual)}
+            aria-controls={popupAberto ? "sidebar-menu-perfil" : undefined}
+            aria-expanded={popupAberto}
+            onClick={() => {
+              if (retraida && !popupAberto) onFocoDentro?.();
+              setPopupAberto((atual) => !atual);
+            }}
             aria-label={`${textos.rodape.presenca.rotulo}: ${rotuloDaPresenca(statusAtual)}`}
             title={`${textos.rodape.presenca.rotulo}: ${rotuloDaPresenca(statusAtual)}`}
             className={

@@ -164,9 +164,15 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
     filtrosRapidos,
     filtrosAtivos,
     tagsDisponiveis,
-    !layoutV2,
+    !layoutV2 || filtrosRapidos.etapas.length > 0,
   );
-  const contagemV2 = useContagemPorEtapaDaAgenda(filtrosRapidos, filtrosAtivos, tagsDisponiveis, layoutV2);
+  const contagemV2 = useContagemPorEtapaDaAgenda({ ...filtrosRapidos, etapas: [] }, filtrosAtivos, tagsDisponiveis, layoutV2);
+  const totalDoFunil = contagemV2.data?.total;
+  const todos = useContagemDeLeads({ ...filtrosRapidos, atendentes: [] }, filtrosAtivos, tagsDisponiveis, layoutV2);
+  const meus = useContagemDeLeads({ ...filtrosRapidos, atendentes: usuarioId ? [usuarioId] : [] },
+    filtrosAtivos, tagsDisponiveis, layoutV2 && Boolean(usuarioId));
+  const semResponsavel = useContagemDeLeads({ ...filtrosRapidos, atendentes: [SEM_RESPONSAVEL] },
+    filtrosAtivos, tagsDisponiveis, layoutV2);
   const contagemPorEtapa = contagemV2.data?.etapas && new Map(contagemV2.data.etapas.map(({ etapaId, total }) => [etapaId, total]));
 
   function adicionarFiltro(filtro: FiltroAtivo) {
@@ -212,7 +218,7 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
   }
 
   const leads = paginaDeLeads.data?.leads ?? [];
-  const totalExibido = (layoutV2 ? contagemV2.data?.total : contagem.data) ?? leads.length;
+  const totalExibido = (layoutV2 && filtrosRapidos.etapas.length === 0 ? totalDoFunil : contagem.data) ?? leads.length;
   const textoContador = t.contador
     .replace("{exibindo}", String(leads.length))
     .replace("{total}", String(totalExibido));
@@ -223,10 +229,25 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
         : t.erroAbrirAtendimento
       : null;
 
+  const buscaColaboracao = !telaEstreita && podeColaborar && (
+    <div className="flex flex-wrap items-center gap-2">
+      <Input className="w-full sm:max-w-sm" value={buscaEntrada} onChange={(evento) => setBuscaEntrada(evento.target.value)}
+        placeholder={entrada.placeholder} aria-label={entrada.placeholder} />
+      {buscaColega.data?.map((lead) => (
+        <div key={lead.id} className="flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs">
+          <span>{lead.nome}{lead.empresa ? " · " + lead.empresa : ""}</span>
+          <span className="text-muted-foreground">{entrada.responsavel.replace("{nome}", lead.responsavelNome)}</span>
+          <Button size="sm" variant="outline" onClick={() => pedirEntrada(lead.id)}
+            disabled={pedidoEmAndamento === lead.id}>{entrada.pedir}</Button>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div data-layout={layoutV2 ? "v2" : "legado"}
       className={layoutV2 ? cn(listaV2.pagina, estilos.pagina) : "flex h-full flex-col overflow-hidden bg-background p-6 max-sm:p-4"}>
-      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} />}
+      {layoutV2 && <CabecalhoListaV2 titulo={t.v2.titulo} busca={textosGerais.gestao?.v2?.buscaGlobal} />}
       <header className={cn(
         "flex-none",
         telaEstreita
@@ -234,8 +255,8 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
           : "-mx-6 -mt-6 mb-4 border-b border-border bg-card px-6 py-4",
       )}>
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-foreground max-sm:text-[1.375rem]">{t.titulo}</h1>
-          {!telaEstreita && <p className="mt-1 text-sm text-muted-foreground">{t.descricao}</p>}
+          <h1 className="text-xl font-bold text-foreground max-sm:text-[1.375rem]">{layoutV2 ? t.v2.titulo : t.titulo}</h1>
+          {!telaEstreita && <p className="mt-1 text-sm text-muted-foreground">{layoutV2 ? t.v2.descricao : t.descricao}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {podeGerenciar && t.importacao && (
@@ -291,12 +312,7 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
       </header>
 
       <div className="flex-none">
-        {!telaEstreita && podeColaborar && (
-          <div className="mb-3 flex items-center gap-2">
-            <Input value={buscaEntrada} onChange={(evento) => setBuscaEntrada(evento.target.value)} placeholder={entrada.placeholder} aria-label={entrada.placeholder} />
-            {buscaColega.data?.map((lead) => <div key={lead.id} className="flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs"><span>{lead.nome}{lead.empresa ? ` · ${lead.empresa}` : ""}</span><span className="text-muted-foreground">{entrada.responsavel.replace("{nome}", lead.responsavelNome)}</span><Button size="sm" variant="outline" onClick={() => pedirEntrada(lead.id)} disabled={pedidoEmAndamento === lead.id}>{entrada.pedir}</Button></div>)}
-          </div>
-        )}
+        {!layoutV2 && buscaColaboracao}
         {(!telaEstreita || filtrosMobileAbertos) && (
           <BarraDeFiltros
             campos={campos.data ?? []}
@@ -318,17 +334,20 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
             atalhos={layoutV2 && (
               <div className={estilos.escopos}>
                 {[
-                  { id: null, rotulo: t.v2.todos },
-                  ...(usuarioId ? [{ id: usuarioId, rotulo: t.v2.meus }] : []),
-                  { id: SEM_RESPONSAVEL, rotulo: t.semResponsavel },
-                ].map(({ id, rotulo }) => {
+                  { id: null, rotulo: t.v2.todos, total: todos.data },
+                  ...(usuarioId ? [{ id: usuarioId, rotulo: t.v2.meus, total: meus.data }] : []),
+                  { id: SEM_RESPONSAVEL, rotulo: t.semResponsavel, total: semResponsavel.data },
+                ].map(({ id, rotulo, total }) => {
                   const valores = filtrosRapidos.atendentes;
                   const ativo = id ? valores.length === 1 && valores[0] === id : valores.length === 0;
                   return <button type="button" key={rotulo} aria-pressed={ativo}
-                    onClick={() => atualizarFiltrosRapidos({ ...filtrosRapidos, atendentes: id ? [id] : [] })}>{rotulo}</button>;
+                    onClick={() => atualizarFiltrosRapidos({ ...filtrosRapidos, atendentes: id ? [id] : [] })}>
+                      {rotulo}{total !== undefined && <small className={ativo ? "font-semibold text-primary" : undefined}>{total}</small>}
+                    </button>;
                 })}
               </div>
             )}
+            acoesAvancadas={layoutV2 ? buscaColaboracao : undefined}
             contador={
               <p className="text-sm whitespace-nowrap text-muted-foreground">
                 {textoContador}
@@ -351,14 +370,15 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
             <p className="mt-2 text-sm text-muted-foreground">{textoContador}</p>
           </div>
         )}
-        {layoutV2 && !!etapas.data?.length && (
+        {layoutV2 && (
           <div className={estilos.etapas} role="group" aria-label={t.filtros.etapa}>
             <button type="button" aria-pressed={filtrosRapidos.etapas.length === 0}
               onClick={() => atualizarFiltrosRapidos({ ...filtrosRapidos, etapas: [] })}>
               {t.v2.todasEtapas}
-              {contagemV2.data && <span>{contagemV2.data.total}</span>}
+              {totalDoFunil !== undefined && <strong>{totalDoFunil}</strong>}
+              <span aria-hidden className={estilos.trilho}><span style={{ width: "100%" }} /></span>
             </button>
-            {etapas.data.map((etapa) => (
+            {etapas.data?.map((etapa) => (
               <button type="button" key={etapa.id} aria-pressed={filtrosRapidos.etapas.includes(etapa.id)}
                 style={{ "--tom-etapa": etapa.corVisual ?? "var(--v2-azul)" } as React.CSSProperties}
                 onClick={() => atualizarFiltrosRapidos({
@@ -368,7 +388,8 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
                     : [...filtrosRapidos.etapas, etapa.id],
                 })}>
                 {etapa.nome}
-                {contagemPorEtapa && <span>{contagemPorEtapa.get(etapa.id) ?? 0}</span>}
+                {contagemPorEtapa && <strong>{contagemPorEtapa.get(etapa.id) ?? 0}</strong>}
+                <span aria-hidden className={estilos.trilho}><span style={{ width: 100 * (contagemPorEtapa?.get(etapa.id) ?? 0) / Math.max(totalDoFunil ?? 0, 1) + "%" }} /></span>
               </button>
             ))}
           </div>

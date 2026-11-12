@@ -157,6 +157,13 @@
   background: rgb(255 255 255 / 95%);
 }
 
+.canvas :global([data-slot="sidebar-menu-perfil"]) {
+  bottom: calc(100% - 4px);
+  border-color: var(--border);
+  background: var(--card);
+  color: var(--foreground);
+}
+
 .canvas :global([data-slot="sidebar-avatar"]) {
   width: 36px;
   height: 36px;

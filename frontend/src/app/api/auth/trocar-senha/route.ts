@@ -1,11 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  NOME_COOKIE_PERSISTENCIA_SESSAO,
-  NOME_COOKIE_REFRESH,
-} from "@/lib/auth/constants";
-import { opcoesCookieRefresh } from "@/lib/auth/cookie-refresh";
+import { gravarSessao, identidadeDaSessao, sessaoAtiva } from "@/lib/auth/sessoes-servidor";
 import { obterUrlApiServidor } from "@/lib/api/server-api-url";
 
 /**
@@ -19,7 +15,12 @@ import { obterUrlApiServidor } from "@/lib/api/server-api-url";
  * por isso o cliente reenvia o cabeçalho Authorization, e este handler só repassa.
  */
 export async function POST(requisicao: NextRequest) {
+  const cookieStore = await cookies();
+  const { conta, persistente } = sessaoAtiva(cookieStore);
   const autorizacao = requisicao.headers.get("authorization");
+  if (conta && autorizacao && identidadeDaSessao(autorizacao.slice(7))?.id !== conta.id) {
+    return new NextResponse(null, { status: 409 });
+  }
   const corpo = await requisicao.json();
 
   const respostaBackend = await fetch(`${obterUrlApiServidor()}/api/v1/auth/senha`, {
@@ -44,14 +45,9 @@ export async function POST(requisicao: NextRequest) {
     expiraEmSegundos: number;
   };
 
-  const cookieStore = await cookies();
-  const manterSessaoAtiva = cookieStore.get(NOME_COOKIE_PERSISTENCIA_SESSAO)?.value !== "0";
-  cookieStore.set(NOME_COOKIE_REFRESH, sessao.refreshToken, opcoesCookieRefresh(manterSessaoAtiva));
-  cookieStore.set(
-    NOME_COOKIE_PERSISTENCIA_SESSAO,
-    manterSessaoAtiva ? "1" : "0",
-    opcoesCookieRefresh(manterSessaoAtiva),
-  );
+  if (!conta || identidadeDaSessao(sessao.accessToken)?.id === conta.id) {
+    gravarSessao(cookieStore, sessao, persistente, conta, false);
+  }
 
   return NextResponse.json({
     accessToken: sessao.accessToken,

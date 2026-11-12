@@ -332,6 +332,13 @@ describe("sidebar", () => {
     expect(sidebar.className).toMatch(/\babsolute\b/);
     expect(sidebar.className).toMatch(/inset-y-0/);
     expect(sidebar.className).toMatch(/\bz-40\b/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Status de presença: Online" }));
+    expect(screen.getByRole("button", { name: "Trocar conta" })).toBeVisible();
+    fireEvent.mouseLeave(sidebar);
+    act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.atrasoFecharMs));
+    expect(screen.queryByRole("button", { name: "Trocar conta" })).not.toBeInTheDocument();
+    expect(sidebar).toHaveAttribute("data-state", "collapsed");
   });
 
   it("mostra Dashboard para ADMINISTRADOR quando a feature está habilitada", async () => {

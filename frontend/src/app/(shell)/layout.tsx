@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { ShellComSidebar } from "@/components/shell/shell-com-sidebar";
-import { NOME_COOKIE_REFRESH } from "@/lib/auth/constants";
+import { sessaoAtiva } from "@/lib/auth/sessoes-servidor";
 import { buscarTema, temaParaCssVariaveis } from "@/lib/config/fetch-config";
 
 /**
@@ -14,7 +14,7 @@ import { buscarTema, temaParaCssVariaveis } from "@/lib/config/fetch-config";
  */
 export default async function ShellLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
-  if (!cookieStore.has(NOME_COOKIE_REFRESH)) {
+  if (!sessaoAtiva(cookieStore).refreshToken) {
     redirect("/login");
   }
   const tema = await buscarTema();

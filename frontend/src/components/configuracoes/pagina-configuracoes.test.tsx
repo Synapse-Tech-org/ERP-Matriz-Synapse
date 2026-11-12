@@ -6,7 +6,9 @@ const mutate = vi.fn();
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
+    menu: { itens: {} },
     configuracoes: {
+      abaNotificacoes: "Notificações", abaInterface: "Interface", abaAjuda: "Ajuda",
       titulo: "Configurações", descricao: "Conta e sistema", abrir: "Abrir configurações",
       perfil: "Perfil do usuário", perfilDescricao: "Nome, e-mail e senha", nome: "Nome", email: "E-mail",
       emailAjuda: "A troca do e-mail deve ser solicitada ao administrador.", telefone: "Telefone", cargo: "Cargo",
@@ -51,6 +53,8 @@ vi.mock("@/lib/equipe/use-equipe", () => ({
   useRemoverMinhaFoto: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
 }));
 
+vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () => null }));
+
 vi.mock("next/link", () => ({ default: ({ children, ...props }: { children: ReactNode; href: string }) => <a {...props}>{children}</a> }));
 
 import { PaginaConfiguracoes } from "./pagina-configuracoes";
@@ -76,6 +80,7 @@ describe("pagina de configurações", () => {
   it("exibe e grava as quatro novas preferências", () => {
     render(<PaginaConfiguracoes />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Notificações" }));
     expect(screen.getByRole("switch", { name: "Notificações visuais" })).toBeChecked();
     expect(screen.getByRole("switch", { name: "Notificações do chat interno" })).toBeChecked();
     expect(screen.getByRole("combobox", { name: "Duração dos avisos" })).toHaveTextContent("3 segundos");

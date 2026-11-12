@@ -1,3 +1,29 @@
+.pagina :global([data-slot="dashboard-busca"]) {
+  display: flex;
+  width: min(350px, 28vw);
+  min-width: 0;
+  height: 36px;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.pagina :global([data-slot="dashboard-busca"]) > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pagina :global([data-slot="dashboard-busca"]) kbd {
+  margin-inline-start: auto;
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: var(--muted);
+}
+
 .pagina :global([data-slot="agenda-filtros"]) {
   margin-bottom: 8px;
   padding-bottom: 0;
@@ -52,7 +78,9 @@
 
 .etapas button {
   --tom-etapa: var(--chat-texto-forte);
+  display: flex;
   position: relative;
+  align-items: center;
   min-height: 54px;
   flex: 1 0 122px;
   padding: 8px 12px 16px;
@@ -76,23 +104,30 @@
   content: "";
 }
 
-.etapas button::after {
+.trilho {
   position: absolute;
-  bottom: 9px;
-  left: 12px;
-  width: 34px;
-  height: 3px;
-  border-radius: 3px;
+  bottom: 10px;
+  inset-inline: 12px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--muted);
+}
+
+.trilho > span {
+  display: block;
+  max-width: 100%;
+  height: 100%;
+  border-radius: inherit;
   background: var(--tom-etapa);
-  content: "";
 }
 
 .etapas button[aria-pressed="true"] {
   border-color: var(--tom-etapa);
 }
 
-.etapas button > span {
-  margin-inline-start: 10px;
+.etapas button > strong {
+  margin-inline-start: auto;
+  padding-inline-start: 10px;
   color: var(--chat-texto-forte);
   font-weight: 600;
 }
@@ -132,7 +167,7 @@
 }
 
 .resultados td {
-  padding: 10px 14px;
+  padding: 7px 14px;
   font-size: 13px;
 }
 
@@ -140,6 +175,13 @@
 .resultados td:nth-child(5) span {
   border-radius: 999px;
   font-weight: 500;
+}
+
+.resultados :global([data-slot="agenda-atender"]) {
+  min-height: 30px;
+  border-radius: 9px;
+  background: var(--card);
+  box-shadow: none;
 }
 
 .paginacao {

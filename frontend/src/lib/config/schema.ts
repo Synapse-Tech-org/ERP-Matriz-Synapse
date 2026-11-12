@@ -170,6 +170,9 @@ export const TextosSchema = z.object({
   }),
   rodape: z.object({
     trocarConta: z.string(),
+    adicionarConta: z.string().default("Adicionar conta"),
+    carregandoContas: z.string().default("Carregando contas…"),
+    erroTrocarConta: z.string().default("Não foi possível trocar de conta. Entre novamente se a sessão tiver expirado."),
     trocarSenha: z.string(),
     sair: z.string(),
     presenca:z.object({rotulo:z.string(),online:z.string(),ausente:z.string(),offline:z.string()}),
@@ -205,6 +208,13 @@ export const TextosSchema = z.object({
     posicaoBaixo: z.string(),
   }),
   configuracoes: z.object({
+    abaNotificacoes: z.string().default("Notificações"),
+    abaInterface: z.string().default("Interface"),
+    abaAjuda: z.string().default("Ajuda"),
+    enterEnvia: z.string().default("Enter envia mensagem"),
+    enterEnviaDescricao: z.string().default("Com essa opção desligada, Enter quebra a linha. Use o botão de envio para mandar a mensagem."),
+    feedbackTitulo: z.string().default("Sugestões e problemas"),
+    feedbackAcao: z.string().default("Enviar feedback"),
     titulo: z.string(), descricao: z.string(), abrir: z.string(), perfil: z.string(), perfilDescricao: z.string(),
     nome: z.string(), email: z.string(), emailAjuda: z.string(), telefone: z.string(), cargo: z.string(),
     papel: z.string(), senha: z.string(), senhaAjuda: z.string(), alterarSenha: z.string(),
@@ -1504,6 +1514,9 @@ export const TextosSchema = z.object({
     v2: z.object({
       todos: z.string().default("Todos"),
       meus: z.string().default("Meus contatos"),
+      titulo: z.string().default("Agenda de Contatos"),
+      descricao: z.string().default("Clique para consultar a ficha · duplo clique abre o atendimento."),
+      atender: z.string().default("Atender"),
       todasEtapas: z.string().default("Todas as etapas"),
       lista: z.string().default("Lista"),
       kanban: z.string().default("Kanban"),

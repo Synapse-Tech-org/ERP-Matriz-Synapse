@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { MessageSquare } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
@@ -25,6 +26,18 @@ const COR_DE_STATUS: Record<StatusBasicoLead, string> = {
   FINALIZADO: "var(--cor-sucesso)",
 };
 
+const relativo = new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto", style: "short" });
+const dataCompleta = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
+
+function ultimoContato(valor: string, agora: number) {
+  const data = new Date(valor);
+  const minutos = Math.max(0, Math.floor((agora - data.getTime()) / 60_000));
+  if (minutos < 60) return relativo.format(-minutos, "minute");
+  if (minutos < 1_440) return relativo.format(-Math.floor(minutos / 60), "hour");
+  if (minutos < 10_080) return relativo.format(-Math.floor(minutos / 1_440), "day");
+  return dataCompleta.format(data);
+}
+
 interface Props {
   leads: LeadDaAgenda[];
   etapas: EtapaAtendimento[];
@@ -47,6 +60,7 @@ export function TabelaDeLeads({
   abrindoLeadId = null,
   layoutV2 = false,
 }: Props) {
+  const [agora] = useState(() => Date.now());
   const etapaPorId = new Map(etapas.map((etapa) => [etapa.id, etapa]));
   const nomePorAtendenteId = new Map(
     equipe.map((usuario) => [usuario.id, usuario.nome]),
@@ -191,10 +205,9 @@ export function TabelaDeLeads({
                 </td>
                 <td className="px-5 py-3 text-right text-xs font-medium text-muted-foreground">
                   {lead.ultimaInteracaoEm
-                    ? new Intl.DateTimeFormat(undefined, {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      }).format(new Date(lead.ultimaInteracaoEm))
+                    ? <time dateTime={lead.ultimaInteracaoEm} title={dataCompleta.format(new Date(lead.ultimaInteracaoEm))}>
+                        {layoutV2 ? ultimoContato(lead.ultimaInteracaoEm, agora) : dataCompleta.format(new Date(lead.ultimaInteracaoEm))}
+                      </time>
                     : "—"}
                 </td>
                 <td className="px-5 py-3 text-right">
@@ -203,6 +216,7 @@ export function TabelaDeLeads({
                       type="button"
                       size="sm"
                       variant="outline"
+                      data-slot="agenda-atender"
                       className="rounded-lg"
                       disabled={abrindoLeadId != null}
                       aria-busy={abrindo}
@@ -213,7 +227,7 @@ export function TabelaDeLeads({
                       onDoubleClick={(evento) => evento.stopPropagation()}
                     >
                       <MessageSquare className="mr-1.5 size-(--tamanho-icone-interface)" aria-hidden />
-                      {abrindo ? textos.abrindoAtendimento : textos.abrirAtendimento}
+                      {abrindo ? textos.abrindoAtendimento : layoutV2 ? textos.v2.atender : textos.abrirAtendimento}
                     </Button>
                   )}
                 </td>

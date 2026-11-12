@@ -1,5 +1,7 @@
 "use client";
 
+import { enterEnviaMensagem } from "@/lib/atendimento/preferencia-de-envio";
+
 import { type ChangeEvent, type ClipboardEvent, type KeyboardEvent, type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -540,7 +542,7 @@ export function Composer({
       onCancelarResposta?.();
       return;
     }
-    if (evento.key === "Enter" && !evento.shiftKey) {
+    if (evento.key === "Enter" && !evento.shiftKey && !evento.nativeEvent.isComposing && enterEnviaMensagem()) {
       evento.preventDefault();
       enviarConteudo();
     }

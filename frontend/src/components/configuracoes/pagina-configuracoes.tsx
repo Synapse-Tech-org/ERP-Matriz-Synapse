@@ -2,8 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Camera, KeyRound, Save, Trash2, UserRound } from "lucide-react";
+import { Bell, Camera, CircleHelp, KeyRound, Palette, Save, Trash2, UserRound } from "lucide-react";
 
+import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
+import listaV2 from "@/components/shell/lista-v2.module.css";
+import { useEnterEnviaMensagem } from "@/lib/atendimento/preferencia-de-envio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +41,15 @@ export function PaginaConfiguracoes() {
   const preferenciaChatInterno = usePreferenciaChatInternoDeNotificacao();
   const preferenciaDuracao = usePreferenciaDuracaoDeNotificacao();
   const preferenciaPosicao = usePreferenciaPosicaoDeNotificacao();
+  const [aba, setAba] = useState("perfil");
+  const envio = useEnterEnviaMensagem();
+  const abas = [
+    { id: "perfil", nome: t.perfil, icone: UserRound },
+    { id: "notificacoes", nome: t.abaNotificacoes, icone: Bell },
+    { id: "interface", nome: t.abaInterface, icone: Palette },
+    { id: "ajuda", nome: t.abaAjuda, icone: CircleHelp },
+  ];
+  const abaAtual = abas.find(({ id }) => id === aba)!;
   const usuario = useMeuUsuario();
   const atualizar = useAtualizarMeuUsuario();
   const atualizarFoto = useAtualizarMinhaFoto();
@@ -79,18 +91,25 @@ export function PaginaConfiguracoes() {
   }
 
   return (
-    <div className="min-h-full bg-background">
-      <header className="border-b bg-card px-6 py-5 md:px-8">
+    <div className={listaV2.pagina + " " + listaV2.modulo}>
+      <CabecalhoListaV2 titulo={t.titulo} trilha={[abaAtual.nome]} busca={textos.gestao?.v2?.buscaGlobal} />
+      <header>
         <h1 className="text-xl font-bold tracking-tight">{t.titulo}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t.descricao}</p>
       </header>
-      <div className="p-6 md:p-8">
-        <div className="mx-auto w-full max-w-3xl">
-          <h2 className="mb-4 text-lg font-bold tracking-tight">{t.perfil}</h2>
-          <Card>
+      <nav aria-label={t.titulo} className={listaV2.opcoes + " flex-wrap"}>
+        {abas.map(({ id, nome, icone: Icone }) => (
+          <button key={id} type="button" aria-pressed={aba === id} onClick={() => setAba(id)}>
+            <Icone className="size-4" aria-hidden />{nome}
+          </button>
+        ))}
+      </nav>
+      <div className="mx-auto w-full max-w-4xl">
+          <h2 className="mb-4 text-lg font-bold tracking-tight">{abaAtual.nome}</h2>
+          {aba === "perfil" && <Card>
             <CardHeader className="border-b">
                 <div className="flex items-center gap-4">
-                <AvatarIniciais id={dados.id} nome={dados.nome} fotoUrl={dados.fotoUrl} className="flex size-16 shrink-0 items-center justify-center rounded-xl text-xl font-bold text-primary-foreground" />
+                <AvatarIniciais id={dados.id} nome={dados.nome} fotoUrl={dados.fotoUrl} className="flex size-16 shrink-0 items-center justify-center rounded-full text-xl font-bold text-primary-foreground" />
                 <div>
                   <CardTitle>{dados.nome}</CardTitle>
                   <CardDescription>{t.perfilDescricao}</CardDescription>
@@ -153,8 +172,8 @@ export function PaginaConfiguracoes() {
                 </div>
               </form>
             </CardContent>
-          </Card>
-          <Card className="mt-6">
+          </Card>}
+          {aba === "notificacoes" && <Card>
             <CardHeader>
               <CardTitle>{notificacoes.somTitulo}</CardTitle>
               <CardDescription>{notificacoes.somDescricao}</CardDescription>
@@ -213,8 +232,20 @@ export function PaginaConfiguracoes() {
                 </div>
               </div>
             </CardContent>
-          </Card>
-        </div>
+          </Card>}
+          {aba === "interface" && <Card>
+            <CardHeader>
+              <CardTitle>{t.enterEnvia}</CardTitle>
+              <CardDescription>{t.enterEnviaDescricao}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Switch checked={envio.ativo} onCheckedChange={envio.definir} aria-label={t.enterEnvia} />
+            </CardContent>
+          </Card>}
+          {aba === "ajuda" && <Card>
+            <CardHeader><CardTitle>{t.feedbackTitulo}</CardTitle></CardHeader>
+            <CardContent><Link href="/feedbacks" className="text-primary underline">{t.feedbackAcao}</Link></CardContent>
+          </Card>}
       </div>
     </div>
   );

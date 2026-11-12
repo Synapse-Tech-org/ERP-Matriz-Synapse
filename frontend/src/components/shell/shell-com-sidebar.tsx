@@ -36,7 +36,8 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
   const atendimentosV2 = funcionalidades.data?.includes("atendimentos_layout_v2") ?? false;
   const [dashboardFixada, setDashboardFixada] = useState<boolean | null>(null);
   const noDashboard = pathname === "/dashboard";
-  const visualV2 = (noDashboard && dashboardV2)
+  const visualV2 = pathname === "/configuracoes"
+    || (noDashboard && dashboardV2)
     || (pathname === "/atendimentos" && atendimentosV2)
     || (pathname === "/relatorios" && funcionalidades.data?.includes("relatorios"))
     || (pathname === "/agenda" && funcionalidades.data?.includes("agenda_layout_v2"))
