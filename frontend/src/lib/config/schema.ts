@@ -208,6 +208,10 @@ export const TextosSchema = z.object({
     posicaoBaixo: z.string(),
   }),
   configuracoes: z.object({
+    dadosPessoais: z.string().default("Dados pessoais"),
+    acessoConta: z.string().default("Acesso à conta"),
+    alteracoesPendentes: z.string().default("Alterações não salvas"),
+    descartar: z.string().default("Descartar"),
     abaNotificacoes: z.string().default("Notificações"),
     abaInterface: z.string().default("Interface"),
     abaAjuda: z.string().default("Ajuda"),
@@ -1253,6 +1257,14 @@ export const TextosSchema = z.object({
   }),
   templatesWhatsApp: z.object({
     v2: z.object({
+      criar: z.string().default("Crie o modelo"),
+      analisar: z.string().default("Meta analisa"),
+      analisarDescricao: z.string().default("A aprovação pode levar algumas horas."),
+      usar: z.string().default("Use no chat"),
+      usarDescricao: z.string().default("Disponível quando a janela de 24 h estiver fechada."),
+      duplicar: z.string().default("Duplicar"),
+      previa: z.string().default("Prévia da mensagem"),
+      variaveis: z.string().default("{total} variáveis"),
       estado: z.string().default("Status"),
       todos: z.string().default("Todos"),
       todasCategorias: z.string().default("Todas as categorias"),

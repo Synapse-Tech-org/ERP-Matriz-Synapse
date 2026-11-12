@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bell, Camera, CircleHelp, KeyRound, Palette, Save, Trash2, UserRound } from "lucide-react";
 
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
+import visual from "@/components/shell/agenda-recursos-v2.module.css";
 import listaV2 from "@/components/shell/lista-v2.module.css";
 import { useEnterEnviaMensagem } from "@/lib/atendimento/preferencia-de-envio";
 import { Badge } from "@/components/ui/badge";
@@ -75,8 +76,24 @@ export function PaginaConfiguracoes() {
   const telefone = telefoneEditado ?? dados.telefone ?? "";
   const cargo = cargoEditado ?? dados.cargo ?? "";
 
+  const emailAlterado = email.trim().toLowerCase() !== dados.email.toLowerCase();
+  const alterado = nome.trim() !== dados.nome || emailAlterado
+    || telefone.trim() !== (dados.telefone ?? "") || cargo.trim() !== (dados.cargo ?? "");
+
+  function descartar() {
+    setNomeEditado(null);
+    setEmailEditado(null);
+    setTelefoneEditado(null);
+    setCargoEditado(null);
+    setSenhaAtual("");
+    setErroNome(false);
+    setSalvo(false);
+    atualizar.reset?.();
+  }
+
   function salvar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
+    if (!alterado || atualizar.isPending || (emailAlterado && !senhaAtual)) return;
     setSalvo(false);
     const normalizado = nome.trim();
     if (!normalizado) {
@@ -85,94 +102,143 @@ export function PaginaConfiguracoes() {
     }
     setErroNome(false);
     atualizar.mutate(
-      { nome: normalizado, email: email.trim(), telefone: telefone || null, cargo: cargo || null, senhaAtual: senhaAtual || null },
-      { onSuccess: (novo) => { setNomeEditado(novo.nome); setEmailEditado(novo.email); setTelefoneEditado(novo.telefone); setCargoEditado(novo.cargo); setSenhaAtual(""); setSalvo(true); } },
+      { nome: normalizado, email: email.trim(), telefone: telefone.trim() || null, cargo: cargo.trim() || null, senhaAtual: emailAlterado ? senhaAtual : null },
+      { onSuccess: () => { descartar(); setSalvo(true); } },
     );
   }
 
   return (
-    <div className={listaV2.pagina + " " + listaV2.modulo}>
+    <div className={listaV2.pagina + " " + listaV2.modulo + " " + visual.paleta}>
       <CabecalhoListaV2 titulo={t.titulo} trilha={[abaAtual.nome]} busca={textos.gestao?.v2?.buscaGlobal} />
       <header>
-        <h1 className="text-xl font-bold tracking-tight">{t.titulo}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t.descricao}</p>
-      </header>
-      <nav aria-label={t.titulo} className={listaV2.opcoes + " flex-wrap"}>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">{t.titulo}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{aba === "perfil" ? t.perfilDescricao : t.descricao}</p>
+        </div>
+        <nav aria-label={t.titulo} className={listaV2.opcoes + " flex-wrap"}>
         {abas.map(({ id, nome, icone: Icone }) => (
           <button key={id} type="button" aria-pressed={aba === id} onClick={() => setAba(id)}>
             <Icone className="size-4" aria-hidden />{nome}
           </button>
         ))}
-      </nav>
-      <div className="mx-auto w-full max-w-4xl">
-          <h2 className="mb-4 text-lg font-bold tracking-tight">{abaAtual.nome}</h2>
-          {aba === "perfil" && <Card>
-            <CardHeader className="border-b">
-                <div className="flex items-center gap-4">
-                <AvatarIniciais id={dados.id} nome={dados.nome} fotoUrl={dados.fotoUrl} className="flex size-16 shrink-0 items-center justify-center rounded-full text-xl font-bold text-primary-foreground" />
-                <div>
-                  <CardTitle>{dados.nome}</CardTitle>
-                  <CardDescription>{t.perfilDescricao}</CardDescription>
+        </nav>
+      </header>
+      <div className={aba === "perfil" ? "w-full" : "mx-auto w-full max-w-4xl"}>
+          {aba !== "perfil" && <h2 className="mb-4 text-lg font-bold tracking-tight">{abaAtual.nome}</h2>}
+          {aba === "perfil" && (
+            <form className="space-y-4" onSubmit={salvar}>
+              <fieldset disabled={atualizar.isPending} className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+                <Card className="rounded-2xl">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <UserRound aria-hidden className="size-9 rounded-full bg-muted p-2.5" />
+                      {t.dadosPessoais}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-5">
+                    <div className="flex flex-wrap items-center gap-4 rounded-2xl border bg-muted/30 p-4">
+                      <AvatarIniciais id={dados.id} nome={nome || dados.nome} fotoUrl={dados.fotoUrl}
+                        className="flex size-16 shrink-0 items-center justify-center rounded-full text-xl font-bold text-primary-foreground" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-base font-semibold">{nome || dados.nome}</p>
+                        {cargo && <p className="truncate text-sm text-muted-foreground">{cargo}</p>}
+                      </div>
+                      <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border bg-card px-3 text-sm font-medium hover:bg-muted focus-within:ring-2 focus-within:ring-ring"
+                        aria-busy={atualizarFoto.isPending}>
+                        <Camera aria-hidden className="size-4" />{atualizarFoto.isPending ? t.salvando : t.alterarFoto}
+                        <input type="file" className="sr-only" disabled={atualizarFoto.isPending || removerFoto.isPending}
+                          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={(evento) => {
+                            const arquivo = evento.target.files?.[0];
+                            if (arquivo) atualizarFoto.mutate(arquivo);
+                            evento.currentTarget.value = "";
+                          }} />
+                      </label>
+                      {dados.fotoUrl && (
+                        <Button type="button" variant="outline" size="sm" disabled={removerFoto.isPending || atualizarFoto.isPending}
+                          onClick={() => removerFoto.mutate()}>
+                          <Trash2 aria-hidden className="size-4" />{t.removerFoto}
+                        </Button>
+                      )}
+                    </div>
+                    {(atualizarFoto.isError || removerFoto.isError) && <p role="alert" className="text-sm text-destructive">{t.fotoErro}</p>}
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="perfil-nome">{t.nome}</Label>
+                        <Input id="perfil-nome" autoComplete="name" value={nome} aria-invalid={erroNome}
+                          onChange={(evento) => { setNomeEditado(evento.target.value); setErroNome(false); setSalvo(false); }} />
+                        {erroNome && <p role="alert" className="text-xs text-destructive">{t.erroNome}</p>}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="perfil-telefone">{t.telefone}</Label>
+                        <Input id="perfil-telefone" type="tel" autoComplete="tel" value={telefone} placeholder={t.naoInformado}
+                          onChange={(evento) => { setTelefoneEditado(evento.target.value); setSalvo(false); }} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="perfil-cargo">{t.cargo}</Label>
+                        <Input id="perfil-cargo" autoComplete="organization-title" value={cargo} placeholder={t.naoInformado}
+                          onChange={(evento) => { setCargoEditado(evento.target.value); setSalvo(false); }} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="rounded-2xl">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <KeyRound aria-hidden className="size-9 rounded-full bg-muted p-2.5" />
+                      {t.acessoConta}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="perfil-email">{t.email}</Label>
+                      <Input id="perfil-email" type="email" required autoComplete="email" value={email}
+                        onChange={(evento) => {
+                          setEmailEditado(evento.target.value);
+                          if (evento.target.value.trim().toLowerCase() === dados.email.toLowerCase()) setSenhaAtual("");
+                          setSalvo(false);
+                        }} />
+                    </div>
+                    {emailAlterado && (
+                      <div className="space-y-2 rounded-xl bg-accent p-3 text-accent-foreground">
+                        <p className="text-sm">{t.emailAjuda}</p>
+                        <Label htmlFor="perfil-senha-atual">{t.senhaAtual}</Label>
+                        <PasswordInput id="perfil-senha-atual" required autoComplete="current-password" value={senhaAtual}
+                          onChange={(evento) => setSenhaAtual(evento.target.value)} />
+                      </div>
+                    )}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+                      <span className="text-sm font-medium">{t.papel}</span>
+                      <Badge variant="secondary">{dados.papel}</Badge>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+                      <div className="text-xs text-muted-foreground">
+                        <p className="text-sm font-medium text-foreground">{t.senha}</p>
+                        <p>{t.ultimaAlteracaoSenha} · {dataDaSenha(dados.senhaAlteradaEm, t)}</p>
+                      </div>
+                      <Link href="/trocar-senha" className="inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium hover:bg-muted">
+                        {t.alterarSenha}
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              </fieldset>
+              {(alterado || salvo || atualizar.isError) && (
+                <div className="sticky bottom-0 z-10 mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-3 rounded-2xl border bg-card p-2.5 shadow-lg">
+                  {salvo && <span role="status" className="px-2 text-sm text-cor-sucesso">{t.salvo}</span>}
+                  {atualizar.isError && !salvo && <span role="alert" className="px-2 text-sm text-destructive">{t.erro}</span>}
+                  {alterado && (
+                    <>
+                      <span className="px-2 text-sm font-medium">{t.alteracoesPendentes}</span>
+                      <Button type="button" variant="ghost" disabled={atualizar.isPending} onClick={descartar}>{t.descartar}</Button>
+                      <Button type="submit" disabled={atualizar.isPending}>
+                        <Save aria-hidden className="size-4" />{atualizar.isPending ? t.salvando : t.salvarPerfil}
+                      </Button>
+                    </>
+                  )}
                 </div>
-                <div className="ml-auto flex flex-wrap justify-end gap-2">
-                  <label className={`inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-sm font-medium ${atualizarFoto.isPending ? "cursor-wait opacity-60" : "cursor-pointer hover:bg-muted"}`} aria-busy={atualizarFoto.isPending}>
-                    <Camera className="size-(--tamanho-icone-interface)" />{atualizarFoto.isPending ? t.salvando : t.alterarFoto}
-                    <input type="file" className="sr-only" disabled={atualizarFoto.isPending} accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={(evento) => { const arquivo = evento.target.files?.[0]; if (arquivo) atualizarFoto.mutate(arquivo); evento.currentTarget.value = ""; }} />
-                  </label>
-                  {dados.fotoUrl && <Button type="button" variant="outline" size="sm" onClick={() => removerFoto.mutate()} disabled={removerFoto.isPending}><Trash2 className="size-(--tamanho-icone-interface)" />{t.removerFoto}</Button>}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <form className="space-y-5" onSubmit={salvar}>
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="perfil-nome">{t.nome}</Label>
-                    <Input id="perfil-nome" value={nome} aria-invalid={erroNome} onChange={(evento) => { setNomeEditado(evento.target.value); setErroNome(false); setSalvo(false); }} />
-                    {erroNome && <p className="text-xs text-destructive">{t.erroNome}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="perfil-email">{t.email}</Label>
-                    <Input id="perfil-email" value={email} onChange={(evento) => { setEmailEditado(evento.target.value); setSalvo(false); }} />
-                    <p className="text-xs text-muted-foreground">{t.emailAjuda}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="perfil-telefone">{t.telefone}</Label>
-                    <Input id="perfil-telefone" value={telefone} placeholder={t.naoInformado} onChange={(evento) => { setTelefoneEditado(evento.target.value); setSalvo(false); }} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="perfil-cargo">{t.cargo}</Label>
-                    <Input id="perfil-cargo" value={cargo} placeholder={t.naoInformado} onChange={(evento) => { setCargoEditado(evento.target.value); setSalvo(false); }} />
-                  </div>
-                </div>
-                <div className="max-w-md space-y-2">
-                  <Label htmlFor="perfil-senha-atual">{t.senhaAtual}</Label>
-                  <PasswordInput id="perfil-senha-atual" value={senhaAtual} onChange={(evento) => { setSenhaAtual(evento.target.value); setSalvo(false); }} placeholder={t.senhaAtualAjuda} />
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-medium">{t.papel}</span>
-                  <Badge variant="secondary"><UserRound className="size-[calc(var(--tamanho-icone-interface)*0.75)]" />{dados.papel}</Badge>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-5">
-                  <div className="text-sm text-muted-foreground">
-                    <p className="font-medium text-foreground">{t.senha}</p>
-                    <p>{t.ultimaAlteracaoSenha}: {dataDaSenha(dados.senhaAlteradaEm, t)}</p>
-                  </div>
-                  <Link href="/trocar-senha" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-sm font-medium hover:bg-muted">
-                    <KeyRound className="size-(--tamanho-icone-interface)" />{t.alterarSenha}
-                  </Link>
-                </div>
-                <div className="flex items-center justify-end gap-3">
-                  {salvo && <span role="status" className="text-sm text-cor-sucesso">{t.salvo}</span>}
-                  {atualizar.isError && <span role="alert" className="text-sm text-destructive">{t.erro}</span>}
-                  {(atualizarFoto.isError || removerFoto.isError) && <span role="alert" className="text-sm text-destructive">{t.fotoErro}</span>}
-                  <Button type="submit" disabled={atualizar.isPending}>
-                    <Save className="size-(--tamanho-icone-interface)" />{atualizar.isPending ? t.salvando : t.salvarPerfil}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>}
+              )}
+            </form>
+          )}
           {aba === "notificacoes" && <Card>
             <CardHeader>
               <CardTitle>{notificacoes.somTitulo}</CardTitle>

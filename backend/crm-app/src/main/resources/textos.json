@@ -216,6 +216,10 @@
     "posicaoBaixo": "Embaixo"
   },
   "configuracoes": {
+    "dadosPessoais": "Dados pessoais",
+    "acessoConta": "Acesso à conta",
+    "alteracoesPendentes": "Alterações não salvas",
+    "descartar": "Descartar",
     "abaNotificacoes": "Notificações",
     "abaInterface": "Interface",
     "abaAjuda": "Ajuda",
@@ -230,7 +234,7 @@
     "perfilDescricao": "Nome, e-mail e senha",
     "nome": "Nome",
     "email": "E-mail",
-    "emailAjuda": "A troca do e-mail deve ser solicitada ao administrador.",
+    "emailAjuda": "Confirme sua senha atual para trocar o e-mail de login.",
     "telefone": "Telefone",
     "cargo": "Cargo",
     "papel": "Papel",
@@ -240,7 +244,7 @@
     "ultimaAlteracaoSenha": "Última alteração",
     "senhaProvisoria": "Ainda não alterada",
     "naoInformado": "Não informado",
-    "salvarPerfil": "Salvar perfil",
+    "salvarPerfil": "Salvar alterações",
     "salvando": "Salvando...",
     "salvo": "Perfil salvo.",
     "carregando": "Carregando perfil...",
@@ -1262,6 +1266,14 @@
   },
   "templatesWhatsApp": {
     "v2": {
+      "criar": "Crie o modelo",
+      "analisar": "Meta analisa",
+      "analisarDescricao": "A aprovação pode levar algumas horas.",
+      "usar": "Use no chat",
+      "usarDescricao": "Disponível quando a janela de 24 h estiver fechada.",
+      "duplicar": "Duplicar",
+      "previa": "Prévia da mensagem",
+      "variaveis": "{total} variáveis",
       "estado": "Status",
       "todos": "Todos",
       "todasCategorias": "Todas as categorias"

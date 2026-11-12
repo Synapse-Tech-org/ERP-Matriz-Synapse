@@ -1,0 +1,56 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 250px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.lateral, .guia, .cartao, .vazio {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+}
+
+.lateral {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+}
+
+.lateral button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-align: start;
+  font-size: 13px;
+}
+
+.lateral button:hover { background: var(--muted); }
+.lateral button[aria-pressed="true"] { background: var(--accent); color: var(--accent-foreground); }
+
+.conteudo { min-width: 0; display: grid; gap: 14px; }
+.guia { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.guia > div { display: flex; align-items: center; gap: 10px; padding: 14px; }
+.guia > div + div { border-inline-start: 1px solid var(--border); }
+.guia svg { flex: none; width: 34px; height: 34px; padding: 8px; border-radius: 50%; color: var(--primary); background: var(--accent); }
+
+.filtros { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+.cartao { display: flex; min-width: 0; flex-direction: column; gap: 14px; padding: 16px; }
+.previa { display: flex; min-height: 108px; flex: 1; align-items: flex-end; justify-content: flex-end; border-radius: 14px; background: var(--background); padding: 12px; }
+.balao { max-width: 94%; border-radius: 16px 16px 5px 16px; padding: 9px 12px; background: var(--primary); color: var(--primary-foreground); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.balao code { border-radius: 5px; padding: 1px 4px; background: color-mix(in srgb, var(--primary-foreground) 22%, transparent); }
+.vazio { padding: 48px 20px; text-align: center; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .lateral { display: flex; flex-wrap: wrap; align-items: center; }
+}
+@media (max-width: 600px) {
+  .guia { grid-template-columns: minmax(0, 1fr); }
+  .guia > div + div { border-inline-start: 0; border-top: 1px solid var(--border); }
+}

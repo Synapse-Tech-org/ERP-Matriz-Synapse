@@ -8,6 +8,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     menu: { itens: {} },
     configuracoes: {
+      dadosPessoais: "Dados pessoais", acessoConta: "Acesso à conta", alteracoesPendentes: "Alterações não salvas", descartar: "Descartar",
       abaNotificacoes: "Notificações", abaInterface: "Interface", abaAjuda: "Ajuda",
       titulo: "Configurações", descricao: "Conta e sistema", abrir: "Abrir configurações",
       perfil: "Perfil do usuário", perfilDescricao: "Nome, e-mail e senha", nome: "Nome", email: "E-mail",
@@ -64,6 +65,8 @@ describe("pagina de configurações", () => {
     render(<PaginaConfiguracoes />);
 
     expect(screen.getByDisplayValue("ana@example.invalid")).not.toBeDisabled();
+    expect(screen.queryByLabelText("Senha atual")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Salvar perfil" })).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("Consultora")).not.toBeDisabled();
     expect(screen.getByText("ATENDENTE")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Alterar senha" })).toHaveAttribute("href", "/trocar-senha");
@@ -75,6 +78,17 @@ describe("pagina de configurações", () => {
       { nome: "Ana Atualizada", email: "ana@example.invalid", telefone: null, cargo: "Consultora", senhaAtual: null },
       expect.any(Object),
     );
+  });
+
+  it("pede a senha só ao mudar o e-mail e descarta o rascunho", () => {
+    render(<PaginaConfiguracoes />);
+    const email = screen.getByLabelText("E-mail");
+    fireEvent.change(email, { target: { value: "novo@empresa.invalid" } });
+    expect(screen.getByLabelText("Senha atual")).toBeRequired();
+    fireEvent.click(screen.getByRole("button", { name: "Descartar" }));
+    expect(email).toHaveValue("ana@example.invalid");
+    expect(screen.queryByLabelText("Senha atual")).not.toBeInTheDocument();
+    expect(screen.queryByText("Alterações não salvas")).not.toBeInTheDocument();
   });
 
   it("exibe e grava as quatro novas preferências", () => {
