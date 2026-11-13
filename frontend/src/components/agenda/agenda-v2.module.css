@@ -171,6 +171,10 @@
   font-size: 13px;
 }
 
+:global([data-densidade="compacta"]) .resultados td {
+  padding-block: 3px;
+}
+
 .resultados td:nth-child(4) > span,
 .resultados td:nth-child(5) span {
   border-radius: 999px;

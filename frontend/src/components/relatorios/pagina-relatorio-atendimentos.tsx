@@ -35,7 +35,9 @@ const FILTROS_INICIAIS: FiltrosRelatorio = {
 const STATUS = ["EM_IA", "EM_ATENDIMENTO", "FINALIZADO"] as const;
 const numeros = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 const percentual = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 1 });
-const tempo = new Intl.NumberFormat("pt-BR", { style: "unit", unit: "minute", unitDisplay: "short", maximumFractionDigits: 1 });
+const unidadesDeTempo = (["day", "hour", "minute", "second"] as const).map((unit) =>
+  new Intl.NumberFormat("pt-BR", { style: "unit", unit, unitDisplay: "narrow" }),
+);
 
 export function PaginaRelatorioAtendimentos() {
   const { relatorios: t, menu, gestao } = useTextos();
@@ -227,7 +229,14 @@ function opcoesDeGrupo(grupos?: GrupoRelatorio[]) {
 }
 
 function formatarDuracao(segundos: number | null, vazio: string) {
-  return segundos === null ? vazio : tempo.format(segundos / 60);
+  if (segundos === null) return vazio;
+  const total = Math.max(0, Math.round(segundos));
+  const valores = [Math.floor(total / 86400), Math.floor(total / 3600) % 24, Math.floor(total / 60) % 60, total % 60];
+  const primeira = valores.findIndex((valor) => valor > 0);
+  if (primeira === -1) return unidadesDeTempo[3].format(0);
+  return valores.slice(primeira, primeira + 2).flatMap((valor, indice) =>
+    valor > 0 ? [unidadesDeTempo[primeira + indice].format(valor)] : [],
+  ).join(" ");
 }
 
 function Indicador({ icone: Icone, titulo, valor, legenda, tom }: {

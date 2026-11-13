@@ -18,6 +18,7 @@ import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDensidadeDasListas } from "@/lib/config/preferencia-densidade";
 import { useTextos } from "@/lib/config/textos-provider";
 import {
   usePreferenciaChatInternoDeNotificacao,
@@ -44,6 +45,7 @@ export function PaginaConfiguracoes() {
   const preferenciaPosicao = usePreferenciaPosicaoDeNotificacao();
   const [aba, setAba] = useState("perfil");
   const envio = useEnterEnviaMensagem();
+  const densidade = useDensidadeDasListas();
   const abas = [
     { id: "perfil", nome: t.perfil, icone: UserRound },
     { id: "notificacoes", nome: t.abaNotificacoes, icone: Bell },
@@ -318,6 +320,15 @@ export function PaginaConfiguracoes() {
             </section>
             <section id="configuracoes-interface" ref={(secao) => { secoes.current.interface = secao; }} tabIndex={-1} className="space-y-3 outline-none">
               <h2 className="text-lg font-bold tracking-tight">{t.abaInterface}</h2>
+              <Card className="rounded-2xl">
+                <CardHeader><CardTitle>{t.densidadeListas}</CardTitle></CardHeader>
+                <CardContent>
+                  <div role="group" aria-label={t.densidadeListas} className={listaV2.opcoes}>
+                    <button type="button" aria-pressed={!densidade.compacta} onClick={() => densidade.definir(false)}>{t.densidadeConfortavel}</button>
+                    <button type="button" aria-pressed={densidade.compacta} onClick={() => densidade.definir(true)}>{t.densidadeCompacta}</button>
+                  </div>
+                </CardContent>
+              </Card>
               <Card className="rounded-2xl">
                 <CardHeader>
                   <CardTitle>{t.enterEnvia}</CardTitle>

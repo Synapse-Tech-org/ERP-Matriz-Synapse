@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useAuthStore } from "@/lib/auth/auth-store";
 import { EXPANSAO_DA_SIDEBAR } from "./expansao-da-sidebar";
 
 const estadoSidebar = vi.hoisted(() => ({
@@ -114,6 +115,8 @@ describe("ShellComSidebar", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    useAuthStore.setState({ usuarioId: null });
+    localStorage.removeItem("synapse:densidade-listas:ana");
   });
 
   it("inicia a sidebar retraida em viewport largo", () => {
@@ -166,6 +169,20 @@ describe("ShellComSidebar", () => {
     fireEvent.mouseLeave(screen.getByTestId("sidebar"));
     act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.atrasoFecharMs));
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "collapsed");
+  });
+
+  it("aplica a densidade salva apenas na conta que escolheu modo compacto", () => {
+    rota.atual = "/agenda";
+    funcionalidades.flags = ["agenda_layout_v2"];
+    localStorage.setItem("synapse:densidade-listas:ana", "compacta");
+    useAuthStore.setState({ usuarioId: "ana" });
+    render(<ShellComSidebar><p>Agenda</p></ShellComSidebar>);
+
+    const canvas = slotDaSidebar().closest("[data-slot='page-canvas']");
+    expect(canvas).toHaveAttribute("data-densidade", "compacta");
+
+    act(() => useAuthStore.setState({ usuarioId: "bia" }));
+    expect(canvas).not.toHaveAttribute("data-densidade");
   });
 
   it("abre a sidebar no Dashboard sem mudar o estado inicial de Atendimentos", () => {

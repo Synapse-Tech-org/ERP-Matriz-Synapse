@@ -76,6 +76,7 @@ button.barra:focus-visible { outline: 2px solid var(--ring); outline-offset: -2p
 .tabela table { width: 100%; min-width: 760px; border-spacing: 0; text-align: left; font-size: 13px; }
 .tabela th, .tabela td { padding: 10px 14px; }
 .tabela thead { border-radius: 10px; background: var(--muted); color: var(--muted-foreground); }
+:global([data-densidade="compacta"]) .tabela td { padding-block: 5px; }
 .tabela tbody tr { cursor: pointer; border-bottom: 1px solid var(--border); }
 .tabela tbody tr:hover { background: var(--muted); }
 .tabela th:first-child { min-width: 160px; overflow-wrap: anywhere; }

@@ -11,6 +11,7 @@ import { ProvedorConversaEmTelaCheia, useConversaEmTelaCheia } from "@/lib/naveg
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn } from "@/lib/utils";
 import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
+import { useDensidadeDasListas } from "@/lib/config/preferencia-densidade";
 import { fonteFrontendV2 } from "@/lib/config/fonte-frontend-v2";
 import estilosV2 from "./shell-v2.module.css";
 
@@ -31,6 +32,7 @@ export function ShellComSidebar({ children }: { children: React.ReactNode }) {
 function ShellInterno({ children }: { children: React.ReactNode }) {
   const expansao = useExpansaoDaSidebar();
   const pathname = usePathname();
+  const { compacta } = useDensidadeDasListas();
   const funcionalidades = useFuncionalidadesHabilitadas();
   const dashboardV2 = funcionalidades.data?.includes("dashboard_layout_v2") ?? false;
   const atendimentosV2 = funcionalidades.data?.includes("atendimentos_layout_v2") ?? false;
@@ -57,6 +59,7 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
     <div
       className={cn("flex min-h-0 flex-1 overflow-hidden bg-[var(--fundo-canvas)]", visualV2 && [estilosV2.canvas, fonteFrontendV2.variable])}
       data-slot="page-canvas"
+      data-densidade={visualV2 && compacta ? "compacta" : undefined}
     >
       {!telaEstreita && (
         <div
