@@ -14,6 +14,8 @@ const authMock = vi.hoisted(() => ({ papel: "GESTOR" }));
 const navigation = vi.hoisted(() => ({ replace: vi.fn((href: string) => window.history.replaceState(null, "", href)) }));
 
 const PARAMETROS = [
+  { chave: "clinica.regua_consultas", valor: JSON.stringify({ inicio: "08:00", fim: "18:00", antecedencia: 24,
+    confirmacao: "", lembrete: "", reengajamento: "" }), unidade: null, tipo: "TEXT", valorMin: null, valorMax: null, descricao: "" },
   { chave: "followup.primeiro.minutos", valor: "15", unidade: "minutos", tipo: "INT", valorMin: 1, valorMax: 1440, descricao: "Tempo sem resposta do lead.", atualizadoEm: "2026-01-01T00:00:00Z" },
   { chave: "automacao.habilitada", valor: "true", unidade: null, tipo: "BOOLEAN", valorMin: null, valorMax: null, descricao: "Chave geral da automação.", atualizadoEm: "2026-01-01T00:00:00Z" },
 ];
@@ -30,12 +32,19 @@ const DATAS_FESTIVAS = [{ id: "data-1", titulo: "Data customizada", icone: "★"
 
 const TEXTOS = {
   app: { nome: "Synapse CRM", marca: "Instância Teste" },
+  menu: { grupoGestao: "Gestão" },
+  gestao: { v2: { buscaGlobal: "Buscar" } },
   equipe: {
     papeis: { atendente: "Atendente", subgestor: "Subgestor" },
     presenca: { online: "Online", ausente: "Ausente", offline: "Offline" },
     disponibilidadeIa: { rotulo: "Disponibilidade IA", disponivel: "Disponível", indisponivel: "Fora", naoAplicavel: "N/A" },
   },
   automacao: {
+    confirmacoesConsultas: { rotulo: "Confirmações e lembretes", titulo: "Confirmações e lembretes de consultas",
+      descricao: "Configure os horários.", janela: "Janela de envio", inicio: "Início", fim: "Fim",
+      antecedencia: "Horas de antecedência", mensagens: "Mensagens", confirmacao: "Confirmação inicial",
+      lembrete: "Lembrete de consulta", reengajamento: "Reengajamento", erroJanela: "Horário inválido.",
+      erroDados: "Erro ao ler dados.", salvo: "Configuração salva." },
     titulo: "Automação", descricao: "Descrição", descricaoPorAba: { geral: "Configurações gerais do assistente de IA.", followUp: "Mensagens automáticas enviadas quando o cliente demora para responder.", fidelizacao: "Mensagens automáticas para reativar clientes sem contato recente." },
     semPermissao: "Você não tem permissão para acessar a Automação.", carregando: "Carregando...", vazio: "Nenhum parâmetro.", erro: "Erro ao carregar.", erroSalvar: "Erro ao salvar.", erroFaixa: "Valor fora da faixa permitida.", faixaLabel: "Faixa", ativado: "Ativado", desativado: "Desativado", salvar: "Salvar", salvando: "Salvando...",
     abas: { geral: "Geral", followUp: "Follow-up", fidelizacao: "Fidelização" },
@@ -55,6 +64,7 @@ const TEXTOS = {
 };
 
 vi.mock("@/lib/config/textos-provider", () => ({ useTextos: () => TEXTOS }));
+vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () => null }));
 vi.mock("@/lib/auth/auth-store", () => ({ useAuthStore: (seletor: (estado: { papel: string }) => unknown) => seletor(authMock) }));
 vi.mock("@/lib/equipe/use-equipe", () => ({
   useEquipe: () => ({ data: EQUIPE, isLoading: false, isError: false, refetch: vi.fn() }),
@@ -90,6 +100,24 @@ describe("pagina de automacao", () => {
     authMock.papel = "GESTOR";
     window.history.replaceState(null, "", "/automacao");
     vi.clearAllMocks();
+  });
+
+  it("abre e grava a régua apenas na variante clínica", () => {
+    window.history.replaceState(null, "", "/automacao?aba=confirmacoesConsultas");
+    const { unmount } = render(<PaginaAutomacao visualV2 />);
+    expect(screen.queryByText("Confirmações e lembretes de consultas")).not.toBeInTheDocument();
+    unmount();
+
+    definirCapacidadesDeTeste({ negadas: [] });
+    render(<PaginaAutomacao visualV2 varianteClinica />);
+    expect(screen.getByText("Confirmações e lembretes de consultas")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Confirmação inicial" }), { target: { value: "Confirme a consulta." } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(atualizarParametro).toHaveBeenCalledWith({
+      chave: "clinica.regua_consultas",
+      valor: JSON.stringify({ inicio: "08:00", fim: "18:00", antecedencia: 24,
+        confirmacao: "Confirme a consulta.", lembrete: "", reengajamento: "" }),
+    });
   });
 
   // A leitura (automacao.ver) é guardada na rota por ExigeCapacidade — ver exige-capacidade.test.tsx.
