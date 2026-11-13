@@ -10,11 +10,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 const api = vi.hoisted(() => ({ obterConfiguracaoCancelamentos: vi.fn(), listarCancelamentos: vi.fn(), obterCancelamento: vi.fn() }));
 const identidade = vi.hoisted(() => ({ usuarioId: "gestor", papel: "GESTOR", revisao: 1 }));
 const viewport = vi.hoisted(() => ({ estreita: false }));
+const flags = vi.hoisted(() => ({ data: ["gestao_layout_v2"] }));
+const baixar = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/cancelamentos/api", () => api);
 vi.mock("@/lib/auth/auth-store", () => ({ useAuthStore: (seletor: (e: typeof identidade) => unknown) => seletor(identidade) }));
 vi.mock("@/lib/config/textos-provider", () => ({ useTextos: () => textosReais }));
 vi.mock("@/lib/gestao/use-gestao", () => ({ useMinhasPermissoes: () => ({ data: { revisao: identidade.revisao } }) }));
-vi.mock("@/lib/config/use-funcionalidades", () => ({ useFuncionalidadesHabilitadas: () => ({ data: ["gestao_layout_v2"] }) }));
+vi.mock("@/lib/config/use-funcionalidades", () => ({ useFuncionalidadesHabilitadas: () => flags }));
+vi.mock("@/lib/midia/baixar-arquivo", () => ({ baixarBlobComoArquivo: baixar }));
 vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () => null }));
 vi.mock("./use-lista-em-cartoes", () => ({ useListaEmCartoes: () => viewport.estreita }));
 import Pagina from "@/app/(shell)/cancelamentos/page";
@@ -31,6 +34,7 @@ function montar() {
 beforeEach(() => {
   vi.resetAllMocks(); identidade.usuarioId = "gestor"; identidade.papel = "GESTOR"; identidade.revisao = 1;
   viewport.estreita = false;
+  flags.data = ["gestao_layout_v2"];
   api.obterConfiguracaoCancelamentos.mockResolvedValue({ fusoHorario: "America/Sao_Paulo", inicioPadrao: "2026-10-01", fimPadrao: "2026-10-18",
     tamanhoPagina: 25, maximoPagina: 100, maximoDias: 90, maximoPaginas: 100, maximoBusca: 200 });
   api.listarCancelamentos.mockResolvedValue({ itens: [item], temProxima: false });
@@ -38,6 +42,26 @@ beforeEach(() => {
 });
 
 describe("Cancelamentos na rota real", () => {
+  it("aplica o período clínico e exporta todas as páginas do mesmo filtro", async () => {
+    flags.data = ["variante_clinica"];
+    api.listarCancelamentos.mockImplementation(async (_filtros, pagina) => pagina === 0
+      ? { itens: [item], temProxima: true }
+      : { itens: [{ ...item, id: "c2", contatoNome: "=Paciente" }], temProxima: false });
+    montar();
+    await screen.findByText(item.contatoNome!);
+    fireEvent.click(screen.getByRole("button", { name: t.mesPassado }));
+    await waitFor(() => expect(api.listarCancelamentos).toHaveBeenLastCalledWith(
+      expect.objectContaining({ inicio: "2026-09-01", fim: "2026-09-30" }), 0, 25, expect.any(AbortSignal),
+    ));
+    fireEvent.click(await screen.findByRole("button", { name: t.exportar }));
+    await waitFor(() => expect(baixar).toHaveBeenCalledOnce());
+    expect(api.listarCancelamentos).toHaveBeenLastCalledWith(
+      expect.objectContaining({ inicio: "2026-09-01", fim: "2026-09-30" }), 1, 25, expect.any(AbortSignal),
+    );
+    const [csv, nome] = baixar.mock.calls[0];
+    expect(nome).toBe("cancelamentos.csv");
+    expect(await csv.text()).toContain("'=Paciente");
+  });
   it("separa recebimento de cancelamento ausente e so cria link com par canonico autorizado", async()=>{
     api.obterCancelamento.mockResolvedValue({...item,leadId:"lead-canonico",atendimentoId:"atendimento-canonico"});
     montar();await screen.findByText(item.contatoNome!);

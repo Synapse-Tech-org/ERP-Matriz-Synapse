@@ -1,8 +1,8 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarX2, ChevronDown, ChevronLeft, ChevronRight, Info, Search, SlidersHorizontal } from "lucide-react";
+import { CalendarDays, CalendarX2, ChevronDown, ChevronLeft, ChevronRight, Download, Info, Search, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import visual from "@/components/shell/agenda-recursos-v2.module.css";
@@ -25,6 +25,9 @@ import { useListaEmCartoes } from "./use-lista-em-cartoes";
 import { listarCancelamentos, obterCancelamento, obterConfiguracaoCancelamentos,
   type ConfiguracaoCancelamentos, type FiltrosCancelamentos, type Cancelamento, type DetalheCancelamento } from "@/lib/cancelamentos/api";
 import { preencher } from "@/components/gestao/apoio";
+import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
+import { exportarCancelamentos } from "@/lib/cancelamentos/exportar";
+import { baixarBlobComoArquivo } from "@/lib/midia/baixar-arquivo";
 
 type Textos = ReturnType<typeof useTextos>["cancelamentos"];
 
@@ -55,7 +58,9 @@ function Carregando() {
 export function PaginaCancelamentos() {
   const textos = useTextos();
   const t = textos.cancelamentos;
-  const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("gestao_layout_v2") ?? false;
+  const flags = useFuncionalidadesHabilitadas().data;
+  const clinica = flags?.includes("variante_clinica") ?? false;
+  const layoutV2 = clinica || (flags?.includes("gestao_layout_v2") ?? false);
   const { pode } = useCapacidades();
   const sessao = useAuthStore(e => `${e.usuarioId}:${e.papel}`);
   const permissoes = useMinhasPermissoes();
@@ -64,7 +69,7 @@ export function PaginaCancelamentos() {
     queryFn: ({ signal }) => obterConfiguracaoCancelamentos(signal), enabled: pode("cancelamentos.ver"), retry: false });
   const conteudo = (
     <>
-      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} />}
+      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} busca={clinica ? textos.gestao.v2.buscaGlobal : undefined} />}
       <header>
         <div className="flex min-w-0 items-start gap-3">
           {!layoutV2 && (
@@ -77,11 +82,16 @@ export function PaginaCancelamentos() {
             <p className="text-sm text-muted-foreground">{t.descricao}</p>
           </div>
         </div>
+        {clinica && pode("clientes.acessar") && (
+          <Link href="/agenda" className={buttonVariants({ variant: "outline" })}>
+            <CalendarDays aria-hidden />{t.agendaContatos}
+          </Link>
+        )}
       </header>
       <div className={cn("min-w-0 space-y-5", layoutV2 && "min-h-0 flex-1 overflow-y-auto overscroll-contain")}>
         {configuracao.isPending ? <Carregando /> : configuracao.isError
           ? <Falha erro={configuracao.error} tentar={() => void configuracao.refetch()} />
-          : <Consulta key={identidade + ":" + JSON.stringify(configuracao.data)} config={configuracao.data} identidade={identidade} />}
+          : <Consulta key={identidade + ":" + JSON.stringify(configuracao.data)} config={configuracao.data} identidade={identidade} clinica={clinica} />}
       </div>
     </>
   );
@@ -97,7 +107,7 @@ function filtrosIguais(a: FiltrosCancelamentos, b: FiltrosCancelamentos) {
   return (Object.keys(a) as (keyof FiltrosCancelamentos)[]).every(chave => a[chave] === b[chave]);
 }
 
-function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; identidade: string }) {
+function Consulta({ config, identidade, clinica }: { config: ConfiguracaoCancelamentos; identidade: string; clinica: boolean }) {
   const t = useTextos().cancelamentos;
   const id = useId();
   const telaEstreita = useListaEmCartoes();
@@ -110,6 +120,9 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
   const [ajudaAberta, mostrarAjuda] = useState(false);
   const [erroPeriodo, setErroPeriodo] = useState<string | null>(null);
   const [selecionado, selecionar] = useState<string | null>(null);
+  const [estadoExportacao, setEstadoExportacao] = useState<"ocioso" | "exportando" | "erro" | "limite">("ocioso");
+  const exportacao = useRef<AbortController | null>(null);
+  useEffect(() => () => exportacao.current?.abort(), []);
   const lista = useQuery({ queryKey: ["cancelamentos", identidade, "lista", consulta, config.tamanhoPagina],
     queryFn: ({ signal }) => listarCancelamentos(consulta.filtros, consulta.pagina, config.tamanhoPagina, signal),
     enabled: pode("cancelamentos.ver"), retry: false });
@@ -120,6 +133,38 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
     consulta.filtros.descricao !== "TODAS"].filter(Boolean).length;
   const consultaAlterada = !filtrosIguais(consulta.filtros, iniciais);
   const podeLimpar = consultaAlterada || !filtrosIguais(rascunho, iniciais) || consulta.pagina > 0;
+  const filtrosVisiveis = [
+    { chave: "nome", rotulo: t.nome, valor: consulta.filtros.nome.trim(), padrao: "" },
+    { chave: "profissional", rotulo: t.profissional, valor: consulta.filtros.profissional.trim(), padrao: "" },
+    { chave: "tipo", rotulo: t.tipo, valor: consulta.filtros.tipo.trim(), padrao: "" },
+    { chave: "descricao", rotulo: t.descricaoFiltro, valor: consulta.filtros.descricao === "TODAS" ? ""
+      : consulta.filtros.descricao === "COM_DESCRICAO" ? t.comDescricao : t.semDescricao, padrao: "TODAS" },
+  ] as const;
+
+  function usarFiltros(filtros: FiltrosCancelamentos) {
+    exportacao.current?.abort();
+    setEstadoExportacao("ocioso");
+    selecionar(null);
+    setConsulta({ filtros, pagina: 0 });
+  }
+
+  const referencia = new Date(config.fimPadrao + "T00:00:00Z");
+  const ano = referencia.getUTCFullYear();
+  const mes = referencia.getUTCMonth();
+  const atalhos = Number.isFinite(referencia.getTime()) ? [
+    { rotulo: t.hoje, inicio: referencia, fim: referencia },
+    { rotulo: preencher(t.diasRecentes, { dias: 7 }),
+      inicio: new Date(Date.UTC(ano, mes, referencia.getUTCDate() - 6)), fim: referencia },
+    { rotulo: t.esteMes, inicio: new Date(Date.UTC(ano, mes, 1)), fim: new Date(Date.UTC(ano, mes + 1, 0)) },
+    { rotulo: t.mesPassado, inicio: new Date(Date.UTC(ano, mes - 1, 1)), fim: new Date(Date.UTC(ano, mes, 0)) },
+  ].filter(({ inicio, fim }) => (fim.getTime() - inicio.getTime()) / 86_400_000 < config.maximoDias) : [];
+
+  function usarPeriodo(inicio: Date, fim: Date) {
+    const datas = { inicio: inicio.toISOString().slice(0, 10), fim: fim.toISOString().slice(0, 10) };
+    setErroPeriodo(null);
+    setRascunho((atual) => ({ ...atual, ...datas }));
+    usarFiltros({ ...consulta.filtros, ...datas });
+  }
 
   function aplicar(e: FormEvent) {
     e.preventDefault();
@@ -131,10 +176,10 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
       : (fim - inicio) / 86_400_000 >= config.maximoDias ? preencher(t.periodoExcedido, { dias: config.maximoDias }) : null;
     setErroPeriodo(erro);
     if (erro) { document.getElementById(`${id}-inicio`)?.focus(); return; }
-    selecionar(null); setConsulta({ filtros: { ...rascunho }, pagina: 0 });
+    usarFiltros({ ...rascunho });
   }
   function limpar() {
-    setRascunho(iniciais); setConsulta({ filtros: iniciais, pagina: 0 }); selecionar(null);
+    setRascunho(iniciais); usarFiltros(iniciais);
     setErroPeriodo(null); mostrarMaisFiltros(false);
   }
   function campo<K extends keyof FiltrosCancelamentos>(chave: K, valor: FiltrosCancelamentos[K]) {
@@ -144,6 +189,30 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
   const data = (valor: string | null) => valor ? new Intl.DateTimeFormat("pt-BR", {
     timeZone: config.fusoHorario, dateStyle: "short", timeStyle: "short",
   }).format(new Date(valor)) : t.naoInformado;
+
+  async function baixarCsv() {
+    if (exportacao.current) return;
+    const controller = new AbortController();
+    exportacao.current = controller;
+    setEstadoExportacao("exportando");
+    try {
+      const blob = await exportarCancelamentos(consulta.filtros, config, [
+        { titulo: t.contato, valor: (item) => item.contatoNome },
+        { titulo: t.profissional, valor: (item) => item.profissionalNome },
+        { titulo: t.tipo, valor: (item) => item.tipoAgendamento },
+        { titulo: t.agendamento, valor: (item) => item.agendadoPara && data(item.agendadoPara) },
+        { titulo: t.canceladoEm, valor: (item) => item.canceladoEm && data(item.canceladoEm) },
+        { titulo: t.descricaoCampo, valor: (item) => item.descricao },
+      ], controller.signal);
+      if (controller.signal.aborted) return;
+      if (blob) baixarBlobComoArquivo(blob, "cancelamentos.csv");
+      setEstadoExportacao(blob ? "ocioso" : "limite");
+    } catch {
+      if (!controller.signal.aborted) setEstadoExportacao("erro");
+    } finally {
+      exportacao.current = null;
+    }
+  }
   const paginar = !lista.isPending && (consulta.pagina > 0 || (lista.isSuccess && lista.data.itens.length > 0 && lista.data.temProxima));
   return <>
     <form onSubmit={aplicar} className="min-w-0 overflow-hidden rounded-xl border bg-card">
@@ -153,6 +222,13 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
             <Info aria-hidden className="size-4 text-muted-foreground" />
           </TooltipTrigger><TooltipContent id={`${id}-ajuda-periodo`} role="tooltip"><span>{preencher(t.limitePeriodo, { dias: config.maximoDias })}<br />{preencher(t.fuso, { fuso: config.fusoHorario })}</span></TooltipContent></Tooltip>
         </div>
+        {clinica && <div className="flex flex-wrap gap-2">
+          {atalhos.map(({ rotulo, inicio, fim }) => (
+            <Button key={rotulo} type="button" size="sm" variant="outline" onClick={() => usarPeriodo(inicio, fim)}>
+              {rotulo}
+            </Button>
+          ))}
+        </div>}
         <fieldset aria-describedby={erroPeriodo ? `${id}-erro-periodo` : undefined} aria-invalid={!!erroPeriodo}
           className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3">
           <legend className="sr-only">{t.periodo}</legend>
@@ -167,9 +243,19 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
             <SeletorData id={`${id}-fim`} className="h-9 rounded-lg" obrigatorio valor={rascunho.fim} placeholder={t.fim} onChange={v => campo("fim", v)} /></label>
         </fieldset>
         {erroPeriodo && <p id={`${id}-erro-periodo`} role="alert" className="text-sm text-destructive">{erroPeriodo}</p>}
+        {clinica && (
+          <label className="grid max-w-md gap-2 text-sm font-medium">
+            {t.nome}
+            <div className="relative">
+              <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input className="h-10 pl-9" maxLength={config.maximoBusca} value={rascunho.nome}
+                onChange={(e) => campo("nome", e.target.value)} />
+            </div>
+          </label>
+        )}
         <div id={`${id}-extras`} hidden={!maisFiltros}>
           <div className="grid min-w-0 grid-cols-1 gap-4 border-t pt-4 sm:grid-cols-2 xl:grid-cols-4">
-            <label className="grid min-w-0 gap-2 text-sm font-medium">{t.nome}<Input className="h-9 font-normal" maxLength={config.maximoBusca} value={rascunho.nome} onChange={e => campo("nome", e.target.value)} /></label>
+            {!clinica && <label className="grid min-w-0 gap-2 text-sm font-medium">{t.nome}<Input className="h-9 font-normal" maxLength={config.maximoBusca} value={rascunho.nome} onChange={e => campo("nome", e.target.value)} /></label>}
             <label className="grid min-w-0 gap-2 text-sm font-medium">{t.profissional}<Input className="h-9 font-normal" maxLength={config.maximoBusca} value={rascunho.profissional} onChange={e => campo("profissional", e.target.value)} /></label>
             <label className="grid min-w-0 gap-2 text-sm font-medium">{t.tipo}<Input className="h-9 font-normal" maxLength={config.maximoBusca} value={rascunho.tipo} onChange={e => campo("tipo", e.target.value)} /></label>
             <label htmlFor={`${id}-descricao`} className="grid min-w-0 gap-2 text-sm font-medium">{t.descricaoFiltro}<Seletor id={`${id}-descricao`} valor={rascunho.descricao} placeholder={t.descricaoFiltro} ariaLabel={t.descricaoFiltro}
@@ -190,6 +276,20 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
       </div>
     </form>
 
+    {clinica && filtrosVisiveis.some(({ valor }) => valor) && (
+      <div className="flex flex-wrap gap-2">
+        {filtrosVisiveis.filter(({ valor }) => valor).map(({ chave, rotulo, valor, padrao }) => (
+          <Button key={chave} type="button" size="sm" variant="outline" className="max-w-full rounded-full"
+            aria-label={preencher(t.removerFiltro, { campo: rotulo })} onClick={() => {
+              setRascunho((atual) => ({ ...atual, [chave]: padrao }));
+              usarFiltros({ ...consulta.filtros, [chave]: padrao });
+            }}>
+            <span className="truncate">{rotulo} · {valor}</span><X aria-hidden />
+          </Button>
+        ))}
+      </div>
+    )}
+
     <section aria-label={t.resultados} className="space-y-3" aria-busy={lista.isFetching}>
       {lista.isPending ? <Carregando /> : lista.isError ? <Falha erro={lista.error} tentar={() => void lista.refetch()} />
         : lista.data.itens.length === 0 ? <div role="status" className="flex min-h-56 flex-col items-center justify-center gap-3 rounded-xl border bg-card px-6 py-9 text-center">
@@ -198,8 +298,21 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
             <p className="text-sm text-muted-foreground">{consulta.pagina > 0 ? t.paginaVaziaAjuda : extrasAtivos > 0 ? t.vazioAjuda : t.vazioPeriodoAjuda}</p></div>
           {consultaAlterada && <Button type="button" variant="outline" onClick={limpar}>{t.limpar}</Button>}
         </div> : <>
-          <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold text-foreground">{t.resultados}</h2>
-            <p className="text-xs text-muted-foreground">{preencher(t.ordenacao, { base: consulta.filtros.base === "REGISTRO" ? t.registro : consulta.filtros.base === "AGENDAMENTO" ? t.agendamento : t.canceladoEm })}</p></div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-sm font-semibold text-foreground">{t.resultados}</h2>
+              {clinica && <span className="rounded-full bg-muted px-2 py-1 text-xs">
+                {preencher(t.nestaPagina, { total: lista.data.itens.length })}
+              </span>}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-xs text-muted-foreground">{preencher(t.ordenacao, { base: consulta.filtros.base === "REGISTRO" ? t.registro : consulta.filtros.base === "AGENDAMENTO" ? t.agendamento : t.canceladoEm })}</p>
+              {clinica && <Button type="button" variant="outline" size="sm" disabled={estadoExportacao === "exportando"}
+                onClick={() => void baixarCsv()}>
+                <Download aria-hidden />{estadoExportacao === "exportando" ? t.exportando : t.exportar}
+              </Button>}
+            </div>
+          </div>
           {telaEstreita ? <div className="grid gap-3 md:grid-cols-2">{lista.data.itens.map(item =>
             <article key={item.id} aria-label={item.contatoNome || t.naoInformado} className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4">
               <Detalhes item={item} t={t} data={data} resumido />
@@ -211,8 +324,15 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
                 <th scope="col" className="p-3 font-medium">{t.agendamento}</th><th scope="col" className="p-3 font-medium">{t.canceladoEm}</th>
                 <th scope="col" className="p-3 font-medium">{t.descricaoFiltro}</th><th scope="col" className="w-28 p-3 font-medium"><span className="sr-only">{t.detalhes}</span></th>
               </tr></thead><tbody>{lista.data.itens.map(item => <tr key={item.id} className="border-b last:border-0 hover:bg-muted/30">
-                <td className="min-w-0 p-3 align-top [overflow-wrap:anywhere]"><p className="line-clamp-2 font-semibold text-foreground">{item.contatoNome || t.naoInformado}</p>
-                  <p className="mt-1 text-xs text-muted-foreground"><span className="sr-only">{t.tipo}: </span>{item.tipoAgendamento || t.naoInformado}</p></td>
+                <td className="min-w-0 p-3 align-top [overflow-wrap:anywhere]">
+                  <div className="flex items-center gap-3">
+                    {clinica && item.contatoNome && <span aria-hidden><AvatarIniciais id={item.leadId ?? item.id} nome={item.contatoNome} /></span>}
+                    <div className="min-w-0">
+                      <p className="line-clamp-2 font-semibold text-foreground">{item.contatoNome || t.naoInformado}</p>
+                      <p className="mt-1 text-xs text-muted-foreground"><span className="sr-only">{t.tipo}: </span>{item.tipoAgendamento || t.naoInformado}</p>
+                    </div>
+                  </div>
+                </td>
                 <td className="p-3 align-top [overflow-wrap:anywhere]"><span className="line-clamp-2">{item.profissionalNome || t.naoInformado}</span></td>
                 <td className="p-3 align-top text-xs tabular-nums [overflow-wrap:anywhere]">{data(item.agendadoPara)}</td>
                 <td className="p-3 align-top text-xs text-muted-foreground tabular-nums [overflow-wrap:anywhere]">{data(item.canceladoEm ?? null)}</td>
@@ -220,6 +340,9 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
                 <td className="p-3 align-top"><Button variant="ghost" size="sm" onClick={() => selecionar(item.id)}>{t.detalhes}</Button></td>
               </tr>)}</tbody></table></div>}
         </>}
+      {(estadoExportacao === "erro" || estadoExportacao === "limite") && <p role="alert" className="text-sm text-destructive">
+        {estadoExportacao === "erro" ? t.exportacaoErro : t.exportacaoLimite}
+      </p>}
       {paginar && <nav aria-label={t.paginacao} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2 text-sm">
         <span className="text-muted-foreground">{preencher(t.pagina, { pagina: consulta.pagina + 1 })}</span>
         <div className="flex gap-2"><Button variant="outline" size="sm" disabled={consulta.pagina === 0} onClick={() => setConsulta(v => ({ ...v, pagina: v.pagina - 1 }))}><ChevronLeft aria-hidden className="size-4" />{t.anterior}</Button>
