@@ -12,14 +12,14 @@ import estilos from "./lista-v2.module.css";
 export function MolduraGestaoV2({
   secao, children,
 }: {
-  secao: "gestao" | "campanhas" | "configuracoes" | "administracao" | "feedbacks";
+  secao: "gestao" | "campanhas" | "administracao";
   children: ReactNode;
 }) {
   const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("gestao_layout_v2") ?? false;
   const textos = useTextos();
   if (!layoutV2) return children;
 
-  const titulo = secao === "configuracoes" ? textos.configuracoes.titulo : textos.menu.itens[secao];
+  const titulo = textos.menu.itens[secao];
   return (
     <section
       data-layout="v2"

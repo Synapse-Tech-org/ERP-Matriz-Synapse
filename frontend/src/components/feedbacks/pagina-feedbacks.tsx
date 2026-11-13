@@ -78,11 +78,13 @@ export function PaginaFeedbacks() {
   }
 
   return (
-    <main className={layoutV2 ? cn(listaV2.pagina, listaV2.modulo, visual.paleta) : "mx-auto w-full max-w-3xl space-y-6 p-6"}>
+    <section className={layoutV2 ? cn(listaV2.pagina, listaV2.modulo, visual.paleta) : "mx-auto w-full max-w-3xl space-y-6 p-6"}>
       {layoutV2 && <CabecalhoListaV2 titulo={textos.titulo} busca={catalogo.gestao?.v2?.buscaGlobal} />}
       <header>
-        <h1 className="text-2xl font-bold text-foreground">{textos.titulo}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{textos.descricao}</p>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">{textos.titulo}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{textos.descricao}</p>
+        </div>
       </header>
 
       <div className={cn(layoutV2 && "grid min-h-0 flex-1 items-start gap-4 overflow-y-auto overscroll-contain xl:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]")}>
@@ -158,7 +160,7 @@ export function PaginaFeedbacks() {
         </form>
         {layoutV2 && <MeusEnvios />}
       </div>
-    </main>
+    </section>
   );
 }
 
