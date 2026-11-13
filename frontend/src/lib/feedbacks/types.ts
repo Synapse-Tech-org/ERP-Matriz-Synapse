@@ -21,6 +21,7 @@ export interface FeedbackCriado {
 }
 
 export interface FeedbackAcompanhado extends FeedbackCriado {
+  anexoNome?: string | null;
   resposta?: string | null;
   respondidoEm?: string | null;
 }

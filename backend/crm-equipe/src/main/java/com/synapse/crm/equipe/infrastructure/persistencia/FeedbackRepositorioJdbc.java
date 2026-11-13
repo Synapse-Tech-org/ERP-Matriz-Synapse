@@ -7,12 +7,14 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.equipe.application.feedback.FeedbackRepositorio;
+import com.synapse.crm.equipe.domain.feedback.AnexoFeedback;
 import com.synapse.crm.equipe.domain.feedback.Feedback;
 import com.synapse.crm.equipe.domain.feedback.TipoFeedback;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
@@ -26,13 +28,27 @@ class FeedbackRepositorioJdbc implements FeedbackRepositorio {
     }
 
     @Override
-    public Feedback salvar(Feedback feedback) {
+    public Feedback salvar(Feedback feedback, AnexoFeedback anexo) {
         jdbc.update("""
-                INSERT INTO feedback_usuario(id, autor_id, tipo, area_chave, descricao, criado_em)
-                VALUES (?, ?, ?::tipo_feedback, ?, ?, ?)
+                INSERT INTO feedback_usuario(id, autor_id, tipo, area_chave, descricao, criado_em,
+                                             anexo_nome, anexo_tipo, anexo_conteudo)
+                VALUES (?, ?, ?::tipo_feedback, ?, ?, ?, ?, ?, ?)
                 """, feedback.id(), feedback.autorId(), feedback.tipo().name(),
-                feedback.area().name(), feedback.descricao(), Timestamp.from(feedback.criadoEm()));
+                feedback.area().name(), feedback.descricao(), Timestamp.from(feedback.criadoEm()),
+                anexo == null ? null : anexo.nome(), anexo == null ? null : anexo.tipo(),
+                anexo == null ? null : anexo.conteudo());
         return feedback;
+    }
+
+    @Override
+    public Optional<AnexoFeedback> obterAnexo(UUID id, UUID usuarioId, boolean administrador) {
+        return jdbc.query("""
+                SELECT anexo_nome, anexo_tipo, anexo_conteudo
+                  FROM feedback_usuario
+                 WHERE id = ? AND (autor_id = ? OR ?) AND anexo_conteudo IS NOT NULL
+                """, (rs, indice) -> new AnexoFeedback(
+                        rs.getString(1), rs.getString(2), rs.getBytes(3)),
+                id, usuarioId, administrador).stream().findFirst();
     }
 
     @Override
@@ -59,7 +75,8 @@ class FeedbackRepositorioJdbc implements FeedbackRepositorio {
         StringBuilder sql = new StringBuilder("""
                 SELECT f.id, f.autor_id, u.nome AS autor_nome, u.papel::text AS autor_papel,
                        CASE WHEN u.foto_referencia IS NOT NULL THEN '/api/v1/me/foto/' || u.id END AS autor_foto_url,
-                       f.tipo::text, f.area_chave, f.descricao, f.criado_em, f.resposta, f.respondido_em
+                       f.tipo::text, f.area_chave, f.descricao, f.criado_em, f.resposta, f.respondido_em,
+                       f.anexo_nome
                   FROM feedback_usuario f
                   JOIN usuario u ON u.id = f.autor_id
                  WHERE TRUE
@@ -106,6 +123,7 @@ class FeedbackRepositorioJdbc implements FeedbackRepositorio {
                 resultado.getString("descricao"),
                 resultado.getTimestamp("criado_em").toInstant(),
                 resultado.getString("resposta"),
-                respondidoEm == null ? null : respondidoEm.toInstant());
+                respondidoEm == null ? null : respondidoEm.toInstant(),
+                resultado.getString("anexo_nome"));
     }
 }

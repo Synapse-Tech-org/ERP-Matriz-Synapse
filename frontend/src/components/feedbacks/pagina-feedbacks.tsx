@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Seletor } from "@/components/ui/seletor";
 import { Textarea } from "@/components/ui/textarea";
+import { AnexoFeedback } from "./anexo-feedback";
 import { apiFetch } from "@/lib/api/http-client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -50,6 +51,8 @@ export function PaginaFeedbacks() {
   const [tipo, setTipo] = useState<TipoFeedback>("SUGESTAO");
   const [area, setArea] = useState<AreaFeedback | "">("GERAL");
   const [descricao, setDescricao] = useState("");
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [erroAnexo, setErroAnexo] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [validacao, setValidacao] = useState(false);
   const areasVisiveis = CHAVES_DE_AREA.filter((opcao) =>
@@ -65,11 +68,13 @@ export function PaginaFeedbacks() {
     }
     setValidacao(false);
     enviar.mutate(
-      { tipo, areaChave: area, descricao },
+      { tipo, areaChave: area, descricao, ...(arquivo ? { arquivo } : {}) },
       {
         onSuccess: () => {
           setArea("GERAL");
           setDescricao("");
+          setArquivo(null);
+          setErroAnexo(false);
           setTipo("SUGESTAO");
           setEnviado(true);
         },
@@ -147,6 +152,32 @@ export function PaginaFeedbacks() {
             </span>
           </label>
 
+          {layoutV2 && textos.anexo && (
+            <div className="space-y-2 rounded-xl border border-dashed p-4">
+              <label className="block cursor-pointer text-sm font-medium">
+                {textos.anexo.titulo}
+                <input className="mt-2 block w-full text-sm" type="file" accept="image/png,image/jpeg"
+                  disabled={enviar.isPending} onChange={(evento) => {
+                    const selecionado = evento.currentTarget.files?.[0];
+                    if (!selecionado) return;
+                    const valido = selecionado.size > 0 && selecionado.size <= 5 * 1024 * 1024
+                      && ["image/png", "image/jpeg"].includes(selecionado.type);
+                    setErroAnexo(!valido);
+                    if (valido) setArquivo(selecionado);
+                    evento.currentTarget.value = "";
+                  }} />
+              </label>
+              <p className="text-xs text-muted-foreground">{textos.anexo.formatos}</p>
+              {arquivo && (
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span className="break-all">{arquivo.name}</span>
+                  <Button type="button" size="sm" variant="ghost" disabled={enviar.isPending}
+                    onClick={() => { setArquivo(null); setErroAnexo(false); }}>{textos.anexo.remover}</Button>
+                </div>
+              )}
+              {erroAnexo && <p role="alert" className="text-sm text-destructive">{textos.anexo.erro}</p>}
+            </div>
+          )}
           <div id="feedback-mensagem" aria-live="polite">
             {validacao && <p className="text-sm text-destructive">{textos.obrigatorio}</p>}
             {enviar.isError && <p className="text-sm text-destructive">{textos.erro}</p>}
@@ -196,6 +227,7 @@ function MeusEnvios() {
                 </time>
               </div>
               <p className="whitespace-pre-wrap break-words text-sm">{item.descricao}</p>
+              {item.anexoNome && <AnexoFeedback id={item.id} nome={item.anexoNome} />}
               {textos.acompanhamento && (
                 <div className="space-y-2 border-t pt-2 text-sm">
                   <span className={item.resposta ? "font-medium text-cor-sucesso" : "font-medium text-cor-atencao"}>

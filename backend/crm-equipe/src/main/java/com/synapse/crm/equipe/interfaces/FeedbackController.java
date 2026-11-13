@@ -1,5 +1,7 @@
 package com.synapse.crm.equipe.interfaces;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -16,7 +18,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -29,15 +35,19 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.synapse.crm.equipe.application.feedback.EnviarFeedbackUseCase;
 import com.synapse.crm.equipe.application.feedback.FeedbackRepositorio;
 import com.synapse.crm.equipe.application.feedback.ListarFeedbacksUseCase;
 import com.synapse.crm.equipe.application.feedback.ListarMeusFeedbacksUseCase;
+import com.synapse.crm.equipe.application.feedback.ObterAnexoFeedbackUseCase;
 import com.synapse.crm.equipe.application.feedback.ResponderFeedbackUseCase;
+import com.synapse.crm.equipe.domain.feedback.AnexoFeedback;
 import com.synapse.crm.equipe.domain.feedback.AreaFeedback;
 import com.synapse.crm.equipe.domain.feedback.Feedback;
 import com.synapse.crm.equipe.domain.feedback.FeedbackInvalidoException;
@@ -54,13 +64,16 @@ class FeedbackController {
     private final ListarMeusFeedbacksUseCase listarMeus;
 
     private final ResponderFeedbackUseCase responder;
+    private final ObterAnexoFeedbackUseCase obterAnexo;
 
     FeedbackController(EnviarFeedbackUseCase enviar, ListarFeedbacksUseCase listar,
-            ListarMeusFeedbacksUseCase listarMeus, ResponderFeedbackUseCase responder) {
+            ListarMeusFeedbacksUseCase listarMeus, ResponderFeedbackUseCase responder,
+            ObterAnexoFeedbackUseCase obterAnexo) {
         this.enviar = enviar;
         this.listar = listar;
         this.listarMeus = listarMeus;
         this.responder = responder;
+        this.obterAnexo = obterAnexo;
     }
 
     @Operation(summary = "Enviar feedback", description = "Registra sugestão ou erro com autoria derivada da sessão autenticada.")
@@ -69,11 +82,38 @@ class FeedbackController {
             @ApiResponse(responseCode = "400", description = "Tipo, área ou descrição inválidos."),
             @ApiResponse(responseCode = "401", description = "Usuário não autenticado.")
     })
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     FeedbackCriadoResposta enviar(@Valid @RequestBody FeedbackRequisicao requisicao) {
         return FeedbackCriadoResposta.de(
-                enviar.executar(requisicao.tipo(), requisicao.areaChave(), requisicao.descricao()));
+                enviar.executar(requisicao.tipo(), requisicao.areaChave(), requisicao.descricao(), null));
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    FeedbackCriadoResposta enviarComAnexo(@Valid @RequestPart("feedback") FeedbackRequisicao requisicao,
+            @RequestPart("arquivo") MultipartFile arquivo) {
+        if (arquivo.isEmpty() || arquivo.getSize() > AnexoFeedback.LIMITE_BYTES) {
+            throw new FeedbackInvalidoException("O print deve ter até 5 MB.");
+        }
+        try {
+            var anexo = AnexoFeedback.de(arquivo.getOriginalFilename(), arquivo.getBytes());
+            return FeedbackCriadoResposta.de(enviar.executar(
+                    requisicao.tipo(), requisicao.areaChave(), requisicao.descricao(), anexo));
+        } catch (IOException erro) {
+            throw new FeedbackInvalidoException("Não foi possível ler o print anexado.");
+        }
+    }
+
+    @GetMapping("/{id}/anexo")
+    ResponseEntity<byte[]> baixarAnexo(@PathVariable UUID id) {
+        return obterAnexo.executar(id).map(anexo -> ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(anexo.tipo()))
+                .cacheControl(CacheControl.noStore())
+                .header("X-Content-Type-Options", "nosniff")
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(anexo.nome(), StandardCharsets.UTF_8).build().toString())
+                .body(anexo.conteudo())).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @Operation(summary = "Listar feedbacks", description = "Lista feedbacks para Administração, com filtro e paginação por cursor; exclusivo de administrador.")
@@ -101,7 +141,7 @@ class FeedbackController {
         var pagina = listarMeus.executar(antesDe, antesDoId, limite);
         var itens = pagina.itens().stream().map(item -> new MeuFeedbackResposta(
                 item.id(), item.tipo(), item.areaChave(), item.descricao(), item.criadoEm(),
-                item.resposta(), item.respondidoEm())).toList();
+                item.resposta(), item.respondidoEm(), item.anexoNome())).toList();
         return new PaginaMeusFeedbacksResposta(itens, pagina.proximoCriadoEm(), pagina.proximoId());
     }
 
@@ -115,7 +155,7 @@ class FeedbackController {
     record RespostaRequisicao(@NotBlank @Size(max = 2000) String resposta) {}
 
     record MeuFeedbackResposta(UUID id, TipoFeedback tipo, String areaChave, String descricao,
-            Instant criadoEm, String resposta, Instant respondidoEm) {}
+            Instant criadoEm, String resposta, Instant respondidoEm, String anexoNome) {}
 
     record PaginaMeusFeedbacksResposta(List<MeuFeedbackResposta> itens, Instant proximoCriadoEm,
             UUID proximoId) {}
@@ -148,12 +188,12 @@ class FeedbackController {
 
     record FeedbackResposta(UUID id, UUID autorId, String autorNome, String autorPapel,
             String autorFotoUrl, TipoFeedback tipo, String areaChave, String descricao,
-            Instant criadoEm, String resposta, Instant respondidoEm) {
+            Instant criadoEm, String resposta, Instant respondidoEm, String anexoNome) {
         static FeedbackResposta de(FeedbackRepositorio.FeedbackResumo feedback) {
             return new FeedbackResposta(feedback.id(), feedback.autorId(), feedback.autorNome(),
                     feedback.autorPapel().name(), feedback.autorFotoUrl(), feedback.tipo(),
                     feedback.areaChave(), feedback.descricao(), feedback.criadoEm(),
-                    feedback.resposta(), feedback.respondidoEm());
+                    feedback.resposta(), feedback.respondidoEm(), feedback.anexoNome());
         }
     }
 

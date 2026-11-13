@@ -302,6 +302,9 @@ export const TextosSchema = z.object({
     historicoCarregando: z.string().default("Carregando seus envios..."),
     historicoErro: z.string().default("Não foi possível carregar seus envios."),
     historicoMais: z.string().default("Ver mais"),
+    anexo: z.object({
+      titulo: z.string(), formatos: z.string(), remover: z.string(), erro: z.string(), falhaDownload: z.string(),
+    }).optional(),
     acompanhamento: z.object({
       emAnalise: z.string(), resolvido: z.string(), resposta: z.string(),
       publicar: z.string(), editar: z.string(), cancelar: z.string(), erro: z.string(),

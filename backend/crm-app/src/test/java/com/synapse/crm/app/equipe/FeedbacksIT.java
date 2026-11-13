@@ -11,6 +11,7 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_SUBGESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -33,6 +35,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.LinkedMultiValueMap;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
@@ -191,6 +194,46 @@ class FeedbacksIT extends PostgresIT {
         assertThat(item.path("respondidoEm").isTextual()).isTrue();
         var deOutro = chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET, historico, null);
         assertThat(JSON.readTree(deOutro.getBody()).path("itens")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("print é salvo com o feedback e só autor e administrador podem baixá-lo")
+    void printPrivado() throws Exception {
+        byte[] png = Base64.getDecoder().decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2uoAAAAASUVORK5CYII=");
+        var corpo = new LinkedMultiValueMap<String, Object>();
+        var parte = new HttpHeaders();
+        parte.setContentType(MediaType.APPLICATION_JSON);
+        corpo.add("feedback", new HttpEntity<>(Map.of(
+                "tipo", "ERRO", "areaChave", "GERAL", "descricao", "Envio com print"), parte));
+        corpo.add("arquivo", new ByteArrayResource(png) {
+            @Override
+            public String getFilename() {
+                return "print.png";
+            }
+        });
+        var headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.setBearerAuth(ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken());
+        var criado = http.postForEntity("/api/v1/feedbacks", new HttpEntity<>(corpo, headers), String.class);
+        assertThat(criado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        String id = JSON.readTree(criado.getBody()).path("id").asText();
+        String url = "/api/v1/feedbacks/" + id + "/anexo";
+        for (var acesso : List.of(
+                Map.entry(EMAIL_ANA, SENHA_ATENDENTE),
+                Map.entry(EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR),
+                Map.entry(EMAIL_GESTOR, SENHA_GESTOR))) {
+            var autenticacao = new HttpHeaders();
+            autenticacao.setBearerAuth(ApoioAutenticacao.login(http, acesso.getKey(), acesso.getValue()).accessToken());
+            var resposta = http.exchange(url, HttpMethod.GET, new HttpEntity<>(autenticacao), byte[].class);
+            if (acesso.getKey().equals(EMAIL_GESTOR)) {
+                assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+            } else {
+                assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+                assertThat(resposta.getHeaders().getContentType()).isEqualTo(MediaType.IMAGE_PNG);
+                assertThat(resposta.getBody()).isEqualTo(png);
+            }
+        }
     }
 
     @Test

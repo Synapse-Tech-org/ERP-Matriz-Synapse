@@ -8,6 +8,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.equipe.domain.feedback.AnexoFeedback;
 import com.synapse.crm.equipe.domain.feedback.AreaFeedback;
 import com.synapse.crm.equipe.domain.feedback.Feedback;
 import com.synapse.crm.equipe.domain.feedback.TipoFeedback;
@@ -28,9 +29,9 @@ public class EnviarFeedbackUseCase {
 
     @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR','OPERADOR')")
     @Transactional
-    public Feedback executar(TipoFeedback tipo, AreaFeedback area, String descricao) {
+    public Feedback executar(TipoFeedback tipo, AreaFeedback area, String descricao, AnexoFeedback anexo) {
         Feedback feedback = new Feedback(UUID.randomUUID(), usuario.atual().id(), tipo, area,
                 descricao, Instant.now(relogio));
-        return repositorio.salvar(feedback);
+        return repositorio.salvar(feedback, anexo);
     }
 }

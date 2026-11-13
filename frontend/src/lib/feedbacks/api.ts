@@ -1,4 +1,5 @@
-import { apiFetch } from "@/lib/api/http-client";
+import { apiFetch, apiFetchArquivo } from "@/lib/api/http-client";
+import { baixarBlobComoArquivo } from "@/lib/midia/baixar-arquivo";
 
 import type {
   AreaFeedback,
@@ -13,11 +14,24 @@ export function enviarFeedback(dados: {
   tipo: TipoFeedback;
   areaChave: AreaFeedback;
   descricao: string;
+  arquivo?: File;
 }) {
+  const { arquivo, ...feedback } = dados;
+  if (arquivo) {
+    const formulario = new FormData();
+    formulario.append("feedback", new Blob([JSON.stringify(feedback)], { type: "application/json" }));
+    formulario.append("arquivo", arquivo);
+    return apiFetch<FeedbackCriado>("/api/v1/feedbacks", { method: "POST", body: formulario });
+  }
   return apiFetch<FeedbackCriado>("/api/v1/feedbacks", {
     method: "POST",
     body: JSON.stringify(dados),
   });
+}
+
+export async function baixarAnexoFeedback(id: string, nomeOriginal: string) {
+  const { blob, nome } = await apiFetchArquivo("/api/v1/feedbacks/" + encodeURIComponent(id) + "/anexo");
+  baixarBlobComoArquivo(blob, nome ?? nomeOriginal);
 }
 
 export function listarFeedbacks({

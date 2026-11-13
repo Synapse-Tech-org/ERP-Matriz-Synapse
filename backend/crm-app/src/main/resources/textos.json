@@ -353,6 +353,13 @@
     "historicoCarregando": "Carregando seus envios...",
     "historicoErro": "Não foi possível carregar seus envios.",
     "historicoMais": "Ver mais",
+    "anexo": {
+      "titulo": "Anexar um print",
+      "formatos": "Opcional · PNG ou JPG de até 5 MB",
+      "remover": "Remover anexo",
+      "erro": "Escolha um print PNG ou JPG de até 5 MB.",
+      "falhaDownload": "Não foi possível baixar o anexo."
+    },
     "acompanhamento": {
       "emAnalise": "Em análise",
       "resolvido": "Resolvido",

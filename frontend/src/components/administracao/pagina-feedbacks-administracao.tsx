@@ -11,6 +11,7 @@ import { useTextos } from "@/lib/config/textos-provider";
 import { useFeedbacksAdministrativos, useResponderFeedback } from "@/lib/feedbacks/use-feedbacks";
 import type { AreaFeedback, FeedbackAdministrativo, TipoFeedback } from "@/lib/feedbacks/types";
 import { Textarea } from "@/components/ui/textarea";
+import { AnexoFeedback } from "@/components/feedbacks/anexo-feedback";
 import { cn } from "@/lib/utils";
 
 const AREA_PARA_TEXTO: Record<
@@ -129,6 +130,7 @@ export function PaginaFeedbacksAdministracao() {
                     <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                       {feedback.descricao}
                     </p>
+                    {feedback.anexoNome && <AnexoFeedback id={feedback.id} nome={feedback.anexoNome} />}
                     {textos.feedbacks.acompanhamento && <RespostaDaEquipe feedback={feedback} />}
                   </div>
                 </div>
