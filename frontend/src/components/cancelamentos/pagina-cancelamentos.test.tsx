@@ -14,6 +14,8 @@ vi.mock("@/lib/cancelamentos/api", () => api);
 vi.mock("@/lib/auth/auth-store", () => ({ useAuthStore: (seletor: (e: typeof identidade) => unknown) => seletor(identidade) }));
 vi.mock("@/lib/config/textos-provider", () => ({ useTextos: () => textosReais }));
 vi.mock("@/lib/gestao/use-gestao", () => ({ useMinhasPermissoes: () => ({ data: { revisao: identidade.revisao } }) }));
+vi.mock("@/lib/config/use-funcionalidades", () => ({ useFuncionalidadesHabilitadas: () => ({ data: ["gestao_layout_v2"] }) }));
+vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () => null }));
 vi.mock("./use-lista-em-cartoes", () => ({ useListaEmCartoes: () => viewport.estreita }));
 import Pagina from "@/app/(shell)/cancelamentos/page";
 

@@ -143,6 +143,31 @@ describe("ShellComSidebar", () => {
     expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
   });
 
+  it.each([
+    ["/agenda", "/cancelamentos", ["agenda_layout_v2", "gestao_layout_v2", "cancelamentos"]],
+    ["/atendimentos", "/chat-interno", ["atendimentos_layout_v2", "chat_interno"]],
+    ["/configuracoes", "/trocar-senha", []],
+  ])("mantém a sidebar V2 ao navegar de %s para %s", (origem, destino, flags) => {
+    vi.useFakeTimers();
+    rota.atual = origem;
+    funcionalidades.flags = flags;
+    const shell = render(<ShellComSidebar><p>Conteúdo</p></ShellComSidebar>);
+
+    rota.atual = destino;
+    shell.rerender(<ShellComSidebar><p>Conteúdo</p></ShellComSidebar>);
+    expect(slotDaSidebar().closest("[data-slot='page-canvas']")).toHaveClass("fonte-v2-de-teste");
+    expect(slotDaSidebar()).toHaveStyle({ width: "88px" });
+
+    fireEvent.mouseEnter(screen.getByTestId("sidebar"));
+    act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.intencaoAbrirMs));
+    expect(slotDaSidebar()).toHaveAttribute("data-sobreposta", "true");
+    expect(slotDaSidebar()).toHaveStyle({ width: "88px" });
+
+    fireEvent.mouseLeave(screen.getByTestId("sidebar"));
+    act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.atrasoFecharMs));
+    expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "collapsed");
+  });
+
   it("abre a sidebar no Dashboard sem mudar o estado inicial de Atendimentos", () => {
     rota.atual = "/dashboard";
     render(<ShellComSidebar><p>Dashboard</p></ShellComSidebar>);

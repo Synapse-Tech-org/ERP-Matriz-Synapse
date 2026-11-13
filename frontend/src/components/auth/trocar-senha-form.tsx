@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { KeyRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,9 +54,12 @@ export function TrocarSenhaForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full rounded-3xl shadow-sm sm:p-2">
       <CardHeader>
-        <CardTitle>{textos.titulo}</CardTitle>
+        <span className="mb-2 flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <KeyRound className="size-5" aria-hidden />
+        </span>
+        <CardTitle className="text-2xl font-semibold tracking-tight">{textos.titulo}</CardTitle>
         <CardDescription>
           {precisaTrocarSenha ? textos.avisoPrimeiroAcesso : textos.subtitulo}
         </CardDescription>

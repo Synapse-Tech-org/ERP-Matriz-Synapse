@@ -4,6 +4,9 @@ import { useId, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarX2, ChevronDown, ChevronLeft, ChevronRight, Info, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
+import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
+import visual from "@/components/shell/agenda-recursos-v2.module.css";
+import listaV2 from "@/components/shell/lista-v2.module.css";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Seletor } from "@/components/ui/seletor";
@@ -11,6 +14,8 @@ import { SeletorData } from "@/components/ui/seletor-data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import { useTextos } from "@/lib/config/textos-provider";
 import { ErroDeApi } from "@/lib/api/errors";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -48,25 +53,44 @@ function Carregando() {
 }
 
 export function PaginaCancelamentos() {
-  const t = useTextos().cancelamentos;
+  const textos = useTextos();
+  const t = textos.cancelamentos;
+  const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("gestao_layout_v2") ?? false;
   const { pode } = useCapacidades();
   const sessao = useAuthStore(e => `${e.usuarioId}:${e.papel}`);
   const permissoes = useMinhasPermissoes();
   const identidade = `${sessao}:${permissoes.data?.revisao ?? ""}`;
   const configuracao = useQuery({ queryKey: ["cancelamentos", identidade, "configuracao"],
     queryFn: ({ signal }) => obterConfiguracaoCancelamentos(signal), enabled: pode("cancelamentos.ver"), retry: false });
-  return <div className="min-w-0 flex-1 overflow-auto bg-background">
-    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
-      <header className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><CalendarX2 aria-hidden className="size-5" /></span>
-        <div className="min-w-0 space-y-1"><h1 className="text-xl font-semibold text-foreground">{t.titulo}</h1>
-          <p className="text-sm text-muted-foreground">{t.descricao}</p></div>
+  const conteudo = (
+    <>
+      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} />}
+      <header>
+        <div className="flex min-w-0 items-start gap-3">
+          {!layoutV2 && (
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <CalendarX2 aria-hidden className="size-5" />
+            </span>
+          )}
+          <div className="min-w-0 space-y-1">
+            <h1 className="text-xl font-semibold text-foreground">{t.titulo}</h1>
+            <p className="text-sm text-muted-foreground">{t.descricao}</p>
+          </div>
+        </div>
       </header>
-      {configuracao.isPending ? <Carregando /> : configuracao.isError
-        ? <Falha erro={configuracao.error} tentar={() => void configuracao.refetch()} />
-        : <Consulta key={`${identidade}:${JSON.stringify(configuracao.data)}`} config={configuracao.data} identidade={identidade} />}
-    </div>
-  </div>;
+      <div className={cn("min-w-0 space-y-5", layoutV2 && "min-h-0 flex-1 overflow-y-auto overscroll-contain")}>
+        {configuracao.isPending ? <Carregando /> : configuracao.isError
+          ? <Falha erro={configuracao.error} tentar={() => void configuracao.refetch()} />
+          : <Consulta key={identidade + ":" + JSON.stringify(configuracao.data)} config={configuracao.data} identidade={identidade} />}
+      </div>
+    </>
+  );
+
+  return layoutV2
+    ? <div className={cn(listaV2.pagina, visual.paleta)}>{conteudo}</div>
+    : <div className="min-w-0 flex-1 overflow-auto bg-background">
+        <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">{conteudo}</div>
+      </div>;
 }
 
 function filtrosIguais(a: FiltrosCancelamentos, b: FiltrosCancelamentos) {

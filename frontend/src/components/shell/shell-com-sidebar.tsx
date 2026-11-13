@@ -18,7 +18,7 @@ import { estiloDaLarguraDoSlot, useExpansaoDaSidebar } from "./expansao-da-sideb
 
 const ROTAS_RECURSOS_V2 = new Set(["/templates-whatsapp", "/tags", "/mensagens-programadas", "/lembretes"]);
 
-const ROTAS_GESTAO_V2 = new Set(["/gestao", "/campanhas", "/automacao", "/configuracoes", "/administracao", "/feedbacks"]);
+const ROTAS_GESTAO_V2 = new Set(["/gestao", "/campanhas", "/automacao", "/administracao", "/feedbacks", "/cancelamentos"]);
 
 export function ShellComSidebar({ children }: { children: React.ReactNode }) {
   return (
@@ -36,9 +36,9 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
   const atendimentosV2 = funcionalidades.data?.includes("atendimentos_layout_v2") ?? false;
   const [dashboardFixada, setDashboardFixada] = useState<boolean | null>(null);
   const noDashboard = pathname === "/dashboard";
-  const visualV2 = pathname === "/configuracoes"
+  const visualV2 = pathname === "/configuracoes" || pathname === "/trocar-senha"
     || (noDashboard && dashboardV2)
-    || (pathname === "/atendimentos" && atendimentosV2)
+    || ((pathname === "/atendimentos" || pathname === "/chat-interno") && atendimentosV2)
     || (pathname === "/relatorios" && funcionalidades.data?.includes("relatorios"))
     || (pathname === "/agenda" && funcionalidades.data?.includes("agenda_layout_v2"))
     || (pathname === "/mensagens-rapidas" && funcionalidades.data?.includes("mensagens_rapidas_layout_v2"))

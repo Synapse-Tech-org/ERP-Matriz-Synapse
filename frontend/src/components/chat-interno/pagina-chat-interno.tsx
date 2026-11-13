@@ -4,11 +4,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MessageCircle, Plus, UsersRound } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
+import visual from "@/components/shell/agenda-recursos-v2.module.css";
+import listaV2 from "@/components/shell/lista-v2.module.css";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { AvatarDoGrupo } from "@/components/chat-interno/avatar-do-grupo";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
+import { cn } from "@/lib/utils";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
@@ -45,6 +50,7 @@ import { useMensagensDoChat } from "@/lib/chat-interno/use-mensagens-do-chat";
 export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicialId?: string | null }) {
   const catalogo = useTextos();
   const textos = catalogo.chatInterno;
+  const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("atendimentos_layout_v2") ?? false;
   const usuarioAtual = useAuthStore((s) => s.usuarioId);
   const cache = useQueryClient();
   const composerRef = useRef<ComposerChatHandle>(null);
@@ -148,10 +154,11 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
   }
   if (conversas.isError) return <ErroDeCarregamento mensagem={textos.erro} onTentarNovamente={() => void conversas.refetch()} />;
   return (
-    <div className="flex h-full min-h-0 flex-col gap-5 p-6">
+    <div className={layoutV2 ? cn(listaV2.pagina, visual.paleta) : "flex h-full min-h-0 flex-col gap-5 p-6"}>
+      {layoutV2 && <CabecalhoListaV2 titulo={textos.titulo} />}
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 text-2xl font-bold">
-          <MessageCircle className="size-[calc(var(--tamanho-icone-interface)*1.5)]" />
+          {!layoutV2 && <MessageCircle aria-hidden className="size-[calc(var(--tamanho-icone-interface)*1.5)]" />}
           {textos.titulo}
         </h1>
         <div className="flex gap-2">
@@ -174,7 +181,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
       </header>
       <div className="relative flex min-h-0 min-w-0 flex-1 gap-4">
         <div className="grid min-h-0 min-w-0 flex-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-          <Card className="min-h-0 min-w-0">
+          <Card className={cn("min-h-0 min-w-0", layoutV2 && "rounded-2xl")}>
             <CardHeader>
               <CardTitle>{textos.conversas}</CardTitle>
             </CardHeader>
@@ -216,7 +223,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
               })}
             </CardContent>
           </Card>
-          <Card className="min-h-0 min-w-0">
+          <Card className={cn("min-h-0 min-w-0", layoutV2 && "rounded-2xl")}>
             <CardHeader className="p-0">
               <CardTitle className="sr-only">{conversaAtual?.participantes ?? textos.selecioneConversa}</CardTitle>
               {conversaAtual && (
