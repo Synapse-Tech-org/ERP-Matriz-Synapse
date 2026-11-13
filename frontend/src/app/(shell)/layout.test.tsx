@@ -1,8 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { NOME_COOKIE_REFRESH } from "@/lib/auth/constants";
+
 vi.mock("next/headers", () => ({
-  cookies: async () => ({ has: () => true }),
+  cookies: async () => ({
+    get: (nome: string) => nome === NOME_COOKIE_REFRESH ? { name: nome, value: "sessao-de-teste" } : undefined,
+  }),
 }));
 
 vi.mock("next/navigation", () => ({ redirect: vi.fn(), usePathname: () => "/atendimentos" }));
