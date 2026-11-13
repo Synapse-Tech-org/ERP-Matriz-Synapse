@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/api/http-client";
 import type {
   AreaFeedback,
   CursorDeFeedbacks,
+  FeedbackAcompanhado,
   FeedbackCriado,
   PaginaDeFeedbacks,
   TipoFeedback,
@@ -43,5 +44,12 @@ export function listarMeusFeedbacks(cursor: CursorDeFeedbacks | null, signal?: A
     busca.set("antesDe", cursor.antesDe);
     busca.set("antesDoId", cursor.antesDoId);
   }
-  return apiFetch<PaginaDeFeedbacks<FeedbackCriado>>("/api/v1/feedbacks/meus?" + busca.toString(), { signal });
+  return apiFetch<PaginaDeFeedbacks<FeedbackAcompanhado>>("/api/v1/feedbacks/meus?" + busca.toString(), { signal });
+}
+
+export function responderFeedback({ id, resposta }: { id: string; resposta: string }) {
+  return apiFetch<void>("/api/v1/feedbacks/" + encodeURIComponent(id) + "/resposta", {
+    method: "PUT",
+    body: JSON.stringify({ resposta }),
+  });
 }

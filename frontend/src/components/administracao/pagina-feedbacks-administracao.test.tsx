@@ -4,15 +4,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const consultar = vi.hoisted(() => vi.fn());
 const refetch = vi.hoisted(() => vi.fn());
 const fetchNextPage = vi.hoisted(() => vi.fn());
+const publicar = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/feedbacks/use-feedbacks", () => ({
   useFeedbacksAdministrativos: (tipo: unknown) => consultar(tipo),
+  useResponderFeedback: () => ({ mutate: publicar, isPending: false, isError: false }),
 }));
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     estados: { tentarNovamente: "Tentar novamente" },
     feedbacks: {
+      acompanhamento: {
+        emAnalise: "Em análise", resolvido: "Resolvido", resposta: "Resposta da equipe",
+        publicar: "Publicar resposta", editar: "Editar resposta", cancelar: "Cancelar", erro: "Falha",
+      },
       tipos: { sugestao: "Sugestão", erro: "Erro" },
       areas: {
         geral: "Nenhuma aba específica",
@@ -73,6 +79,7 @@ describe("PaginaFeedbacksAdministracao", () => {
     consultar.mockReset();
     refetch.mockReset();
     fetchNextPage.mockReset();
+    publicar.mockReset();
     consultar.mockReturnValue({
       data: { pages: [pagina] },
       isLoading: false,
@@ -93,6 +100,18 @@ describe("PaginaFeedbacksAdministracao", () => {
     expect(consultar).toHaveBeenLastCalledWith("ERRO");
     fireEvent.click(screen.getByRole("button", { name: "Carregar mais" }));
     expect(fetchNextPage).toHaveBeenCalledOnce();
+  });
+
+  it("publica a resposta no feedback selecionado", () => {
+    render(<PaginaFeedbacksAdministracao />);
+    fireEvent.click(screen.getByRole("button", { name: "Publicar resposta" }));
+    const resposta = screen.getByRole("textbox", { name: "Resposta da equipe" });
+    fireEvent.change(resposta, { target: { value: " Corrigido " } });
+    fireEvent.click(screen.getByRole("button", { name: "Publicar resposta" }));
+    expect(publicar).toHaveBeenCalledWith(
+      { id: "feedback-1", resposta: "Corrigido" },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
   });
 
   it("renderiza vazio real e tenta novamente depois de erro", () => {

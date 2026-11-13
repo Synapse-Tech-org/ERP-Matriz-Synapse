@@ -20,7 +20,12 @@ export interface FeedbackCriado {
   criadoEm: string;
 }
 
-export interface FeedbackAdministrativo extends FeedbackCriado {
+export interface FeedbackAcompanhado extends FeedbackCriado {
+  resposta?: string | null;
+  respondidoEm?: string | null;
+}
+
+export interface FeedbackAdministrativo extends FeedbackAcompanhado {
   autorId: string;
   autorNome: string;
   autorPapel: string;

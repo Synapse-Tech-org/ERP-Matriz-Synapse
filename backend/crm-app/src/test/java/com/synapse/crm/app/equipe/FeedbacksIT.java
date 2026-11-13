@@ -172,6 +172,28 @@ class FeedbacksIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("somente administrador responde e somente o autor recebe a resposta no histórico")
+    void respostaAdministrativaApareceNoHistoricoDoAutor() throws Exception {
+        var criado = post(Map.of("tipo", "ERRO", "areaChave", "GERAL", "descricao", "Meu problema"));
+        String id = JSON.readTree(criado.getBody()).path("id").asText();
+        String rota = "/api/v1/feedbacks/" + id + "/resposta";
+        var corpo = Map.of("resposta", "Corrigido pela equipe");
+
+        assertThat(chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.PUT, rota, corpo).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chamar(EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR, HttpMethod.PUT, rota, corpo)
+                .getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        String historico = "/api/v1/feedbacks/meus";
+        var doAutor = chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET, historico, null);
+        JsonNode item = JSON.readTree(doAutor.getBody()).path("itens").get(0);
+        assertThat(item.path("resposta").asText()).isEqualTo("Corrigido pela equipe");
+        assertThat(item.path("respondidoEm").isTextual()).isTrue();
+        var deOutro = chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET, historico, null);
+        assertThat(JSON.readTree(deOutro.getBody()).path("itens")).isEmpty();
+    }
+
+    @Test
     @DisplayName("requisições sem autenticação recebem 401")
     void exigeAutenticacao() {
         assertThat(http.exchange("/api/v1/feedbacks", HttpMethod.GET, HttpEntity.EMPTY, String.class)

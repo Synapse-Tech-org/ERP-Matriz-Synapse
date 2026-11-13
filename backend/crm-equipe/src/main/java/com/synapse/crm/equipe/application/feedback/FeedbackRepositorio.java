@@ -15,9 +15,11 @@ public interface FeedbackRepositorio {
 
     Pagina listarDoAutor(UUID autorId, Instant antesDe, UUID antesDoId, int limite);
 
+    boolean responder(UUID id, String resposta, Instant respondidoEm);
+
     record FeedbackResumo(UUID id, UUID autorId, String autorNome, PapelUsuario autorPapel,
             String autorFotoUrl, TipoFeedback tipo, String areaChave, String descricao,
-            Instant criadoEm) {}
+            Instant criadoEm, String resposta, Instant respondidoEm) {}
 
     record Pagina(List<FeedbackResumo> itens, Instant proximoCriadoEm, UUID proximoId) {}
 }

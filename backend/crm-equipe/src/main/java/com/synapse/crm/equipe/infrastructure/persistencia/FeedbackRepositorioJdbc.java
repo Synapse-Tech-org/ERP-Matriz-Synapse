@@ -36,6 +36,15 @@ class FeedbackRepositorioJdbc implements FeedbackRepositorio {
     }
 
     @Override
+    public boolean responder(UUID id, String resposta, Instant respondidoEm) {
+        return jdbc.update("""
+                UPDATE feedback_usuario
+                   SET resposta = ?, respondido_em = ?
+                 WHERE id = ?
+                """, resposta, Timestamp.from(respondidoEm), id) == 1;
+    }
+
+    @Override
     public Pagina listar(TipoFeedback tipo, Instant antesDe, UUID antesDoId, int limite) {
         return consultar(tipo, null, antesDe, antesDoId, limite);
     }
@@ -50,7 +59,7 @@ class FeedbackRepositorioJdbc implements FeedbackRepositorio {
         StringBuilder sql = new StringBuilder("""
                 SELECT f.id, f.autor_id, u.nome AS autor_nome, u.papel::text AS autor_papel,
                        CASE WHEN u.foto_referencia IS NOT NULL THEN '/api/v1/me/foto/' || u.id END AS autor_foto_url,
-                       f.tipo::text, f.area_chave, f.descricao, f.criado_em
+                       f.tipo::text, f.area_chave, f.descricao, f.criado_em, f.resposta, f.respondido_em
                   FROM feedback_usuario f
                   JOIN usuario u ON u.id = f.autor_id
                  WHERE TRUE
@@ -85,6 +94,7 @@ class FeedbackRepositorioJdbc implements FeedbackRepositorio {
     }
 
     private static FeedbackResumo mapear(ResultSet resultado, int indice) throws SQLException {
+        Timestamp respondidoEm = resultado.getTimestamp("respondido_em");
         return new FeedbackResumo(
                 resultado.getObject("id", UUID.class),
                 resultado.getObject("autor_id", UUID.class),
@@ -94,6 +104,8 @@ class FeedbackRepositorioJdbc implements FeedbackRepositorio {
                 TipoFeedback.valueOf(resultado.getString("tipo")),
                 resultado.getString("area_chave"),
                 resultado.getString("descricao"),
-                resultado.getTimestamp("criado_em").toInstant());
+                resultado.getTimestamp("criado_em").toInstant(),
+                resultado.getString("resposta"),
+                respondidoEm == null ? null : respondidoEm.toInstant());
     }
 }

@@ -26,6 +26,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     feedbacks: {
       meusEnvios: "Meus envios",
+      acompanhamento: { emAnalise: "Em análise", resolvido: "Resolvido", resposta: "Resposta da equipe" },
       historicoMais: "Ver mais",
       titulo: "Envie seu feedback",
       descricao: "Ajude a melhorar",
@@ -90,6 +91,7 @@ describe("PaginaFeedbacks", () => {
       data: { pages: [{ itens: [{
         id: "envio-1", tipo: "ERRO", areaChave: "AGENDA",
         descricao: "Feedback retornado pela API", criadoEm: "2026-11-12T15:00:00Z",
+        resposta: "Correção publicada",
       }] }] },
     });
     flags.push("gestao_layout_v2");
@@ -97,6 +99,8 @@ describe("PaginaFeedbacks", () => {
       renderizar();
       expect(await screen.findByRole("heading", { name: "Meus envios" })).toBeInTheDocument();
       expect(screen.getByText("Feedback retornado pela API")).toBeInTheDocument();
+      expect(screen.getByText("Resolvido")).toBeInTheDocument();
+      expect(screen.getByText("Correção publicada")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "Ver mais" }));
       expect(carregarMais).toHaveBeenCalledOnce();
     } finally {

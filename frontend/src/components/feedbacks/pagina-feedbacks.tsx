@@ -196,6 +196,19 @@ function MeusEnvios() {
                 </time>
               </div>
               <p className="whitespace-pre-wrap break-words text-sm">{item.descricao}</p>
+              {textos.acompanhamento && (
+                <div className="space-y-2 border-t pt-2 text-sm">
+                  <span className={item.resposta ? "font-medium text-cor-sucesso" : "font-medium text-cor-atencao"}>
+                    {item.resposta ? textos.acompanhamento.resolvido : textos.acompanhamento.emAnalise}
+                  </span>
+                  {item.resposta && (
+                    <div className="rounded-lg bg-muted/40 p-3">
+                      <p className="font-medium">{textos.acompanhamento.resposta}</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">{item.resposta}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </li>
           );
         })}

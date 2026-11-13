@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { useTextos } from "@/lib/config/textos-provider";
-import { useFeedbacksAdministrativos } from "@/lib/feedbacks/use-feedbacks";
-import type { AreaFeedback, TipoFeedback } from "@/lib/feedbacks/types";
+import { useFeedbacksAdministrativos, useResponderFeedback } from "@/lib/feedbacks/use-feedbacks";
+import type { AreaFeedback, FeedbackAdministrativo, TipoFeedback } from "@/lib/feedbacks/types";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 const AREA_PARA_TEXTO: Record<
@@ -128,6 +129,7 @@ export function PaginaFeedbacksAdministracao() {
                     <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                       {feedback.descricao}
                     </p>
+                    {textos.feedbacks.acompanhamento && <RespostaDaEquipe feedback={feedback} />}
                   </div>
                 </div>
               </article>
@@ -147,5 +149,45 @@ export function PaginaFeedbacksAdministracao() {
         </Button>
       )}
     </section>
+  );
+}
+
+function RespostaDaEquipe({ feedback }: { feedback: FeedbackAdministrativo }) {
+  const { acompanhamento: textos } = useTextos().feedbacks;
+  const [rascunho, setRascunho] = useState<string | null>(null);
+  const publicar = useResponderFeedback();
+
+  if (!textos) return null;
+
+  return (
+    <div className="mt-4 space-y-2 border-t pt-3">
+      <p className="text-sm font-medium">{feedback.resposta ? textos.resolvido : textos.emAnalise}</p>
+      {rascunho === null ? (
+        <>
+          {feedback.resposta && <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{feedback.resposta}</p>}
+          <Button type="button" variant="outline" size="sm" onClick={() => setRascunho(feedback.resposta ?? "")}>
+            {feedback.resposta ? textos.editar : textos.publicar}
+          </Button>
+        </>
+      ) : (
+        <form className="space-y-2" onSubmit={(evento) => {
+          evento.preventDefault();
+          const resposta = rascunho.trim();
+          if (!resposta || publicar.isPending) return;
+          publicar.mutate({ id: feedback.id, resposta }, { onSuccess: () => setRascunho(null) });
+        }}>
+          <Textarea aria-label={textos.resposta} value={rascunho} maxLength={2000} required disabled={publicar.isPending}
+            onChange={(evento) => setRascunho(evento.target.value)} />
+          {publicar.isError && <p role="alert" className="text-sm text-destructive">{textos.erro}</p>}
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" size="sm" disabled={!rascunho.trim() || publicar.isPending}>{textos.publicar}</Button>
+            <Button type="button" variant="ghost" size="sm" disabled={publicar.isPending} onClick={() => {
+              publicar.reset();
+              setRascunho(null);
+            }}>{textos.cancelar}</Button>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }

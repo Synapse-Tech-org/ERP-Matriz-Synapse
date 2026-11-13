@@ -353,6 +353,15 @@
     "historicoCarregando": "Carregando seus envios...",
     "historicoErro": "Não foi possível carregar seus envios.",
     "historicoMais": "Ver mais",
+    "acompanhamento": {
+      "emAnalise": "Em análise",
+      "resolvido": "Resolvido",
+      "resposta": "Resposta da equipe",
+      "publicar": "Publicar resposta",
+      "editar": "Editar resposta",
+      "cancelar": "Cancelar",
+      "erro": "Não foi possível publicar a resposta. Tente novamente."
+    },
     "titulo": "Envie seu feedback",
     "descricao": "Conte o que podemos melhorar ou informe um problema encontrado no CRM.",
     "tipo": "Tipo de feedback",

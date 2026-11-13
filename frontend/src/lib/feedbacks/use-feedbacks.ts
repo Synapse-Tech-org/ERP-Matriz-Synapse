@@ -2,7 +2,7 @@
 
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { enviarFeedback, listarFeedbacks, listarMeusFeedbacks } from "./api";
+import { enviarFeedback, listarFeedbacks, listarMeusFeedbacks, responderFeedback } from "./api";
 import type { CursorDeFeedbacks, TipoFeedback } from "./types";
 
 export function useEnviarFeedback() {
@@ -13,6 +13,14 @@ export function useEnviarFeedback() {
       void cache.invalidateQueries({ queryKey: ["feedbacks", "administracao"] });
       void cache.invalidateQueries({ queryKey: ["feedbacks", "meus"] });
     },
+  });
+}
+
+export function useResponderFeedback() {
+  const cache = useQueryClient();
+  return useMutation({
+    mutationFn: responderFeedback,
+    onSuccess: () => cache.invalidateQueries({ queryKey: ["feedbacks"] }),
   });
 }
 

@@ -18,11 +18,14 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -34,6 +37,7 @@ import com.synapse.crm.equipe.application.feedback.EnviarFeedbackUseCase;
 import com.synapse.crm.equipe.application.feedback.FeedbackRepositorio;
 import com.synapse.crm.equipe.application.feedback.ListarFeedbacksUseCase;
 import com.synapse.crm.equipe.application.feedback.ListarMeusFeedbacksUseCase;
+import com.synapse.crm.equipe.application.feedback.ResponderFeedbackUseCase;
 import com.synapse.crm.equipe.domain.feedback.AreaFeedback;
 import com.synapse.crm.equipe.domain.feedback.Feedback;
 import com.synapse.crm.equipe.domain.feedback.FeedbackInvalidoException;
@@ -49,11 +53,14 @@ class FeedbackController {
 
     private final ListarMeusFeedbacksUseCase listarMeus;
 
+    private final ResponderFeedbackUseCase responder;
+
     FeedbackController(EnviarFeedbackUseCase enviar, ListarFeedbacksUseCase listar,
-            ListarMeusFeedbacksUseCase listarMeus) {
+            ListarMeusFeedbacksUseCase listarMeus, ResponderFeedbackUseCase responder) {
         this.enviar = enviar;
         this.listar = listar;
         this.listarMeus = listarMeus;
+        this.responder = responder;
     }
 
     @Operation(summary = "Enviar feedback", description = "Registra sugestão ou erro com autoria derivada da sessão autenticada.")
@@ -92,12 +99,25 @@ class FeedbackController {
             @RequestParam(required = false) UUID antesDoId,
             @RequestParam(defaultValue = "20") int limite) {
         var pagina = listarMeus.executar(antesDe, antesDoId, limite);
-        var itens = pagina.itens().stream().map(item -> new FeedbackCriadoResposta(
-                item.id(), item.tipo(), item.areaChave(), item.descricao(), item.criadoEm())).toList();
+        var itens = pagina.itens().stream().map(item -> new MeuFeedbackResposta(
+                item.id(), item.tipo(), item.areaChave(), item.descricao(), item.criadoEm(),
+                item.resposta(), item.respondidoEm())).toList();
         return new PaginaMeusFeedbacksResposta(itens, pagina.proximoCriadoEm(), pagina.proximoId());
     }
 
-    record PaginaMeusFeedbacksResposta(List<FeedbackCriadoResposta> itens, Instant proximoCriadoEm,
+    @Operation(summary = "Responder feedback", description = "Publica ou atualiza a resposta para o autor. Exclusivo de administrador.")
+    @PutMapping("/{id}/resposta")
+    ResponseEntity<Void> responder(@PathVariable UUID id, @Valid @RequestBody RespostaRequisicao dados) {
+        return responder.executar(id, dados.resposta())
+                ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+    }
+
+    record RespostaRequisicao(@NotBlank @Size(max = 2000) String resposta) {}
+
+    record MeuFeedbackResposta(UUID id, TipoFeedback tipo, String areaChave, String descricao,
+            Instant criadoEm, String resposta, Instant respondidoEm) {}
+
+    record PaginaMeusFeedbacksResposta(List<MeuFeedbackResposta> itens, Instant proximoCriadoEm,
             UUID proximoId) {}
 
     @ExceptionHandler(FeedbackInvalidoException.class)
@@ -128,11 +148,12 @@ class FeedbackController {
 
     record FeedbackResposta(UUID id, UUID autorId, String autorNome, String autorPapel,
             String autorFotoUrl, TipoFeedback tipo, String areaChave, String descricao,
-            Instant criadoEm) {
+            Instant criadoEm, String resposta, Instant respondidoEm) {
         static FeedbackResposta de(FeedbackRepositorio.FeedbackResumo feedback) {
             return new FeedbackResposta(feedback.id(), feedback.autorId(), feedback.autorNome(),
                     feedback.autorPapel().name(), feedback.autorFotoUrl(), feedback.tipo(),
-                    feedback.areaChave(), feedback.descricao(), feedback.criadoEm());
+                    feedback.areaChave(), feedback.descricao(), feedback.criadoEm(),
+                    feedback.resposta(), feedback.respondidoEm());
         }
     }
 
