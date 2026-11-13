@@ -105,6 +105,7 @@ class FeedbackController {
         }
     }
 
+    @Operation(summary = "Baixar anexo do feedback", description = "Entrega o print anexado ao autor do feedback ou a um administrador.")
     @GetMapping("/{id}/anexo")
     ResponseEntity<byte[]> baixarAnexo(@PathVariable UUID id) {
         return obterAnexo.executar(id).map(anexo -> ResponseEntity.ok()
