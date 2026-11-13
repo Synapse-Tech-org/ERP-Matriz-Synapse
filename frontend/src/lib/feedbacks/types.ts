@@ -27,8 +27,8 @@ export interface FeedbackAdministrativo extends FeedbackCriado {
   autorFotoUrl: string | null;
 }
 
-export interface PaginaDeFeedbacks {
-  itens: FeedbackAdministrativo[];
+export interface PaginaDeFeedbacks<Item = FeedbackAdministrativo> {
+  itens: Item[];
   proximoCriadoEm: string | null;
   proximoId: string | null;
 }

@@ -13,6 +13,8 @@ public interface FeedbackRepositorio {
 
     Pagina listar(TipoFeedback tipo, Instant antesDe, UUID antesDoId, int limite);
 
+    Pagina listarDoAutor(UUID autorId, Instant antesDe, UUID antesDoId, int limite);
+
     record FeedbackResumo(UUID id, UUID autorId, String autorNome, PapelUsuario autorPapel,
             String autorFotoUrl, TipoFeedback tipo, String areaChave, String descricao,
             Instant criadoEm) {}

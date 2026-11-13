@@ -1,19 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Bug, Lightbulb, Send } from "lucide-react";
+import { Bug, History, Lightbulb, Send } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import visual from "@/components/shell/agenda-recursos-v2.module.css";
 import listaV2 from "@/components/shell/lista-v2.module.css";
 import { Button } from "@/components/ui/button";
+import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Seletor } from "@/components/ui/seletor";
 import { Textarea } from "@/components/ui/textarea";
 import { apiFetch } from "@/lib/api/http-client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
-import { useEnviarFeedback } from "@/lib/feedbacks/use-feedbacks";
+import { useEnviarFeedback, useMeusFeedbacks } from "@/lib/feedbacks/use-feedbacks";
 import { cn } from "@/lib/utils";
 import type { AreaFeedback, TipoFeedback } from "@/lib/feedbacks/types";
 import { areaDeFeedbackVisivel } from "@/lib/navegacao/visibilidade-do-menu";
@@ -84,7 +85,7 @@ export function PaginaFeedbacks() {
         <p className="mt-1 text-sm text-muted-foreground">{textos.descricao}</p>
       </header>
 
-      <div className={cn(layoutV2 && "min-h-0 flex-1 overflow-y-auto overscroll-contain")}>
+      <div className={cn(layoutV2 && "grid min-h-0 flex-1 items-start gap-4 overflow-y-auto overscroll-contain xl:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]")}>
         <form className={cn("space-y-6 rounded-xl border bg-card p-6 shadow-sm", layoutV2 && "max-w-3xl rounded-2xl")} onSubmit={submeter}>
           <fieldset className="space-y-2">
             <legend className="text-sm font-semibold text-foreground">{textos.tipo}</legend>
@@ -155,7 +156,54 @@ export function PaginaFeedbacks() {
             {enviar.isPending ? textos.enviando : textos.enviar}
           </Button>
         </form>
+        {layoutV2 && <MeusEnvios />}
       </div>
     </main>
+  );
+}
+
+function MeusEnvios() {
+  const textos = useTextos().feedbacks;
+  const usuarioId = useAuthStore((estado) => estado.usuarioId);
+  const consulta = useMeusFeedbacks(usuarioId);
+  const itens = consulta.data?.pages.flatMap((pagina) => pagina.itens) ?? [];
+
+  return (
+    <section className="min-w-0 rounded-2xl border bg-card p-5 shadow-sm">
+      <h2 className="mb-4 flex items-center gap-2 text-base font-semibold">
+        <History className="size-4 text-primary" aria-hidden />{textos.meusEnvios}
+      </h2>
+      {consulta.isPending && <p role="status" className="text-sm text-muted-foreground">{textos.historicoCarregando}</p>}
+      {consulta.isError && <ErroDeCarregamento mensagem={textos.historicoErro} onTentarNovamente={() => void consulta.refetch()} />}
+      {consulta.isSuccess && itens.length === 0 && (
+        <p className="rounded-xl bg-muted/40 p-5 text-sm text-muted-foreground">{textos.historicoVazio}</p>
+      )}
+      <ul className="space-y-2">
+        {itens.map((item) => {
+          const area = CHAVES_DE_AREA.find(({ valor }) => valor === item.areaChave);
+          return (
+            <li key={item.id} className="space-y-2 rounded-xl border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span className={cn("rounded-full px-2 py-1 font-medium", item.tipo === "ERRO"
+                  ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}>
+                  {item.tipo === "ERRO" ? textos.tipos.erro : textos.tipos.sugestao}
+                </span>
+                {area && <span>{textos.areas[area.texto]}</span>}
+                <time dateTime={item.criadoEm}>
+                  {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(item.criadoEm))}
+                </time>
+              </div>
+              <p className="whitespace-pre-wrap break-words text-sm">{item.descricao}</p>
+            </li>
+          );
+        })}
+      </ul>
+      {consulta.hasNextPage && (
+        <Button type="button" variant="outline" size="sm" className="mt-4" disabled={consulta.isFetching}
+          onClick={() => void consulta.fetchNextPage()}>
+          {textos.historicoMais}
+        </Button>
+      )}
+    </section>
   );
 }

@@ -148,6 +148,30 @@ class FeedbacksIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("histórico pessoal isola autores, inclusive para administrador")
+    void historicoPessoalIsolaAutores() throws Exception {
+        post(Map.of("tipo", "ERRO", "areaChave", "GERAL", "descricao", "envio de Ana"));
+        chamar(EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR, HttpMethod.POST, "/api/v1/feedbacks",
+                Map.of("tipo", "SUGESTAO", "areaChave", "GERAL", "descricao", "envio da administração"));
+
+        String rota = "/api/v1/feedbacks/meus";
+        for (var acesso : List.of(
+                Map.entry(EMAIL_ANA, SENHA_ATENDENTE),
+                Map.entry(EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR))) {
+            ResponseEntity<String> resposta = chamar(acesso.getKey(), acesso.getValue(),
+                    HttpMethod.GET, rota, null);
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            JsonNode itens = JSON.readTree(resposta.getBody()).path("itens");
+            assertThat(itens).hasSize(1);
+            assertThat(itens.get(0).path("descricao").asText()).isEqualTo(
+                    acesso.getKey().equals(EMAIL_ANA) ? "envio de Ana" : "envio da administração");
+            assertThat(itens.get(0).has("autorId")).isFalse();
+        }
+        assertThat(http.exchange(rota, HttpMethod.GET, HttpEntity.EMPTY, String.class)
+                .getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
     @DisplayName("requisições sem autenticação recebem 401")
     void exigeAutenticacao() {
         assertThat(http.exchange("/api/v1/feedbacks", HttpMethod.GET, HttpEntity.EMPTY, String.class)

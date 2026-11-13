@@ -2,15 +2,34 @@
 
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { enviarFeedback, listarFeedbacks } from "./api";
+import { enviarFeedback, listarFeedbacks, listarMeusFeedbacks } from "./api";
 import type { CursorDeFeedbacks, TipoFeedback } from "./types";
 
 export function useEnviarFeedback() {
   const cache = useQueryClient();
   return useMutation({
     mutationFn: enviarFeedback,
-    onSuccess: () => cache.invalidateQueries({ queryKey: ["feedbacks", "administracao"] }),
+    onSuccess: () => {
+      void cache.invalidateQueries({ queryKey: ["feedbacks", "administracao"] });
+      void cache.invalidateQueries({ queryKey: ["feedbacks", "meus"] });
+    },
   });
+}
+
+export function useMeusFeedbacks(usuarioId: string | null) {
+  return useInfiniteQuery({
+    queryKey: ["feedbacks", "meus", usuarioId],
+    enabled: Boolean(usuarioId),
+    initialPageParam: null as CursorDeFeedbacks | null,
+    queryFn: ({ pageParam, signal }) => listarMeusFeedbacks(pageParam, signal),
+    getNextPageParam: proximoCursor,
+  });
+}
+
+function proximoCursor(pagina: { proximoCriadoEm: string | null; proximoId: string | null }) {
+  return pagina.proximoCriadoEm && pagina.proximoId
+    ? { antesDe: pagina.proximoCriadoEm, antesDoId: pagina.proximoId }
+    : undefined;
 }
 
 export function useFeedbacksAdministrativos(tipo: TipoFeedback | null) {
@@ -18,9 +37,6 @@ export function useFeedbacksAdministrativos(tipo: TipoFeedback | null) {
     queryKey: ["feedbacks", "administracao", tipo],
     initialPageParam: null as CursorDeFeedbacks | null,
     queryFn: ({ pageParam }) => listarFeedbacks({ tipo, cursor: pageParam }),
-    getNextPageParam: (pagina) =>
-      pagina.proximoCriadoEm && pagina.proximoId
-        ? { antesDe: pagina.proximoCriadoEm, antesDoId: pagina.proximoId }
-        : undefined,
+    getNextPageParam: proximoCursor,
   });
 }

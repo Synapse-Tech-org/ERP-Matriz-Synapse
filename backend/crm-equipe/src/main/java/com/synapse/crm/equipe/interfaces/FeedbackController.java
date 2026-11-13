@@ -33,6 +33,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import com.synapse.crm.equipe.application.feedback.EnviarFeedbackUseCase;
 import com.synapse.crm.equipe.application.feedback.FeedbackRepositorio;
 import com.synapse.crm.equipe.application.feedback.ListarFeedbacksUseCase;
+import com.synapse.crm.equipe.application.feedback.ListarMeusFeedbacksUseCase;
 import com.synapse.crm.equipe.domain.feedback.AreaFeedback;
 import com.synapse.crm.equipe.domain.feedback.Feedback;
 import com.synapse.crm.equipe.domain.feedback.FeedbackInvalidoException;
@@ -46,9 +47,13 @@ class FeedbackController {
     private final EnviarFeedbackUseCase enviar;
     private final ListarFeedbacksUseCase listar;
 
-    FeedbackController(EnviarFeedbackUseCase enviar, ListarFeedbacksUseCase listar) {
+    private final ListarMeusFeedbacksUseCase listarMeus;
+
+    FeedbackController(EnviarFeedbackUseCase enviar, ListarFeedbacksUseCase listar,
+            ListarMeusFeedbacksUseCase listarMeus) {
         this.enviar = enviar;
         this.listar = listar;
+        this.listarMeus = listarMeus;
     }
 
     @Operation(summary = "Enviar feedback", description = "Registra sugestão ou erro com autoria derivada da sessão autenticada.")
@@ -79,6 +84,21 @@ class FeedbackController {
             @Parameter(description = "Quantidade entre 1 e 50.") @RequestParam(defaultValue = "20") int limite) {
         return PaginaFeedbackResposta.de(listar.executar(tipo, antesDe, antesDoId, limite));
     }
+
+    @Operation(summary = "Listar meus feedbacks",
+            description = "Lista apenas os feedbacks do usuário autenticado, com paginação por cursor.")
+    @GetMapping("/meus")
+    PaginaMeusFeedbacksResposta listarMeus(@RequestParam(required = false) Instant antesDe,
+            @RequestParam(required = false) UUID antesDoId,
+            @RequestParam(defaultValue = "20") int limite) {
+        var pagina = listarMeus.executar(antesDe, antesDoId, limite);
+        var itens = pagina.itens().stream().map(item -> new FeedbackCriadoResposta(
+                item.id(), item.tipo(), item.areaChave(), item.descricao(), item.criadoEm())).toList();
+        return new PaginaMeusFeedbacksResposta(itens, pagina.proximoCriadoEm(), pagina.proximoId());
+    }
+
+    record PaginaMeusFeedbacksResposta(List<FeedbackCriadoResposta> itens, Instant proximoCriadoEm,
+            UUID proximoId) {}
 
     @ExceptionHandler(FeedbackInvalidoException.class)
     ProblemDetail feedbackInvalido(FeedbackInvalidoException erro) {

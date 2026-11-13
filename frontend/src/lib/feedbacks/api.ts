@@ -36,3 +36,12 @@ export function listarFeedbacks({
   }
   return apiFetch<PaginaDeFeedbacks>(`/api/v1/feedbacks?${busca.toString()}`);
 }
+
+export function listarMeusFeedbacks(cursor: CursorDeFeedbacks | null, signal?: AbortSignal) {
+  const busca = new URLSearchParams();
+  if (cursor) {
+    busca.set("antesDe", cursor.antesDe);
+    busca.set("antesDoId", cursor.antesDoId);
+  }
+  return apiFetch<PaginaDeFeedbacks<FeedbackCriado>>("/api/v1/feedbacks/meus?" + busca.toString(), { signal });
+}

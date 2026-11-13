@@ -8,6 +8,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Copy,
   Hash,
   Mail,
   MapPin,
@@ -73,6 +74,7 @@ import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades"
 import { EditorTelefoneDoLead } from "../leads/editor-telefone-do-lead";
 import { ContadorDoPainel } from "../ui/contador-do-painel";
 import { SomenteAdministrador } from "../administracao/somente-administrador";
+import { copiarTexto } from "@/lib/mensagens/copiar-texto";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -100,6 +102,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
   const etapas = useEtapas();
   const capacidades = useCapacidades();
   const funcionalidades = useFuncionalidadesHabilitadas();
+  const layoutV2 = funcionalidades.data?.includes("atendimentos_layout_v2") ?? false;
   const dadosClienteAtivos = funcionalidades.data?.includes("dados_cliente_ficha") ?? false;
   const textosDadosCliente = useTextos().dadosCliente;
 
@@ -183,24 +186,31 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
               valor={lead.data.telefone}
               vazio={textosLead.dados.naoInformado}
               acao={(
-                <EditorTelefoneDoLead
-                  leadId={leadId}
-                  telefone={lead.data.telefone}
-                  permitido={capacidades.pode("contatos.editar")}
-                />
+                <>
+                  {layoutV2 && lead.data.telefone && <CopiarTelefone key={lead.data.telefone} valor={lead.data.telefone} />}
+                  <EditorTelefoneDoLead
+                    leadId={leadId}
+                    telefone={lead.data.telefone}
+                    permitido={capacidades.pode("contatos.editar")}
+                  />
+                </>
               )}
             />
             {dadosClienteAtivos && <DadosClienteLocais lead={lead.data} />}
-            <InformacaoDoPainel
+            {(!layoutV2 || dadosClienteAtivos) && <InformacaoDoPainel
               icone={<Mail className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.email}
               valor={lead.data.email}
-            />
+            />}
             {!dadosClienteAtivos && <ConsultaDarwin key={`darwin:${leadId}`} leadId={leadId} cpfAtual={lead.data.cpf} permitido={capacidades.pode("contatos.editar")} />}
             <InformacaoDoPainel
               icone={<MapPin className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.localizacao}
               valor={lead.data.localizacao}
+              vazio={textosLead.dados.naoInformado}
+              acao={layoutV2 && capacidades.pode("contatos.editar") && (
+                <EditarLocalizacao key={leadId} leadId={leadId} valor={lead.data.localizacao} />
+              )}
             />
             <InformacaoDoPainel
               icone={<UserRound className="size-(--tamanho-icone-interface)" aria-hidden />}
@@ -551,6 +561,67 @@ function InformacaoDoPainel({
         {acao}
       </div>
     </div>
+  );
+}
+
+function CopiarTelefone({ valor }: { valor: string }) {
+  const { media, mensagem } = useTextos().atendimentos;
+  const [resultado, setResultado] = useState<boolean | null>(null);
+
+  return (
+    <>
+      <Button type="button" variant="ghost" size="icon-sm"
+        aria-label={media.copiarTelefone ?? mensagem.acoes.copiar}
+        onClick={async () => setResultado(await copiarTexto(valor))}>
+        <Copy aria-hidden />
+      </Button>
+      <span role="status" className="sr-only">
+        {resultado === true ? mensagem.acoes.copiada : resultado === false ? mensagem.acoes.copiarErro : ""}
+      </span>
+    </>
+  );
+}
+
+function EditarLocalizacao({ leadId, valor }: { leadId: string; valor: string | null }) {
+  const catalogo = useTextos();
+  const textos = catalogo.painelLead.dados;
+  const salvar = useSalvarFicha(leadId);
+  const [rascunho, setRascunho] = useState<string | null>(null);
+
+  function encerrar() {
+    setRascunho(null);
+    salvar.reset();
+  }
+
+  return (
+    <>
+      <Button type="button" size="icon-sm" variant="ghost" aria-label={textos.editarLocalizacao}
+        onClick={() => setRascunho(valor ?? "")}>
+        <Pencil aria-hidden />
+      </Button>
+      <Dialog open={rascunho !== null} onOpenChange={(aberto) => { if (!aberto && !salvar.isPending) encerrar(); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{textos.editarLocalizacao}</DialogTitle></DialogHeader>
+          <form className="space-y-4" onSubmit={(evento) => {
+            evento.preventDefault();
+            if (rascunho === null || salvar.isPending) return;
+            const localizacao = rascunho.trim();
+            if (localizacao === (valor ?? "")) { encerrar(); return; }
+            salvar.mutate({ localizacao }, { onSuccess: encerrar });
+          }}>
+            <Input aria-label={textos.localizacao} value={rascunho ?? ""} maxLength={200} disabled={salvar.isPending}
+              onChange={(evento) => setRascunho(evento.target.value)} />
+            {salvar.isError && <p role="alert" className="text-sm text-destructive">{textos.erroLocalizacao}</p>}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={encerrar} disabled={salvar.isPending}>
+                {catalogo.configuracoes.descartar}
+              </Button>
+              <Button type="submit" disabled={salvar.isPending}>{catalogo.painelLead.edicao.salvar}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

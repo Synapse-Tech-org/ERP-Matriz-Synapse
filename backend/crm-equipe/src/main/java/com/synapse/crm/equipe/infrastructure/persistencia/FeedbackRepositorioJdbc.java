@@ -6,6 +6,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -36,6 +37,16 @@ class FeedbackRepositorioJdbc implements FeedbackRepositorio {
 
     @Override
     public Pagina listar(TipoFeedback tipo, Instant antesDe, UUID antesDoId, int limite) {
+        return consultar(tipo, null, antesDe, antesDoId, limite);
+    }
+
+    @Override
+    public Pagina listarDoAutor(UUID autorId, Instant antesDe, UUID antesDoId, int limite) {
+        return consultar(null, Objects.requireNonNull(autorId), antesDe, antesDoId, limite);
+    }
+
+    private Pagina consultar(TipoFeedback tipo, UUID autorId, Instant antesDe, UUID antesDoId,
+            int limite) {
         StringBuilder sql = new StringBuilder("""
                 SELECT f.id, f.autor_id, u.nome AS autor_nome, u.papel::text AS autor_papel,
                        CASE WHEN u.foto_referencia IS NOT NULL THEN '/api/v1/me/foto/' || u.id END AS autor_foto_url,
@@ -45,6 +56,10 @@ class FeedbackRepositorioJdbc implements FeedbackRepositorio {
                  WHERE TRUE
                 """);
         List<Object> parametros = new ArrayList<>();
+        if (autorId != null) {
+            sql.append(" AND f.autor_id = ?");
+            parametros.add(autorId);
+        }
         if (tipo != null) {
             sql.append(" AND f.tipo = ?::tipo_feedback");
             parametros.add(tipo.name());
