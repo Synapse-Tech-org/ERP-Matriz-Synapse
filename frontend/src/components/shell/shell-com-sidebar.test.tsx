@@ -117,6 +117,8 @@ describe("ShellComSidebar", () => {
     vi.useRealTimers();
     useAuthStore.setState({ usuarioId: null });
     localStorage.removeItem("synapse:densidade-listas:ana");
+    localStorage.removeItem("synapse:aparencia:ana:tema");
+    localStorage.removeItem("synapse:aparencia:ana:cor");
   });
 
   it("inicia a sidebar retraida em viewport largo", () => {
@@ -150,6 +152,8 @@ describe("ShellComSidebar", () => {
     ["/agenda", "/cancelamentos", ["agenda_layout_v2", "gestao_layout_v2", "cancelamentos"]],
     ["/atendimentos", "/chat-interno", ["atendimentos_layout_v2", "chat_interno"]],
     ["/configuracoes", "/trocar-senha", []],
+    ["/administracao", "/administracao/acessos", ["gestao_layout_v2"]],
+    ["/campanhas", "/campanhas/nova", ["gestao_layout_v2"]],
   ])("mantém a sidebar V2 ao navegar de %s para %s", (origem, destino, flags) => {
     vi.useFakeTimers();
     rota.atual = origem;
@@ -183,6 +187,19 @@ describe("ShellComSidebar", () => {
 
     act(() => useAuthStore.setState({ usuarioId: "bia" }));
     expect(canvas).not.toHaveAttribute("data-densidade");
+  });
+
+  it("aplica o tema e a cor da conta atual e restaura os padrões ao trocar de conta", () => {
+    localStorage.setItem("synapse:aparencia:ana:tema", "escuro");
+    localStorage.setItem("synapse:aparencia:ana:cor", "verde");
+    useAuthStore.setState({ usuarioId: "ana" });
+    render(<ShellComSidebar><p>Agenda</p></ShellComSidebar>);
+
+    expect(document.documentElement).toHaveClass("dark");
+    expect(document.documentElement).toHaveAttribute("data-cor-destaque", "verde");
+    act(() => useAuthStore.setState({ usuarioId: "bia" }));
+    expect(document.documentElement).not.toHaveClass("dark");
+    expect(document.documentElement).toHaveAttribute("data-cor-destaque", "azul");
   });
 
   it("abre a sidebar no Dashboard sem mudar o estado inicial de Atendimentos", () => {

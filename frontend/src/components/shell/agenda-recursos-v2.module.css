@@ -288,3 +288,22 @@
   .camposVinculo { grid-template-columns: minmax(0, 1fr); }
   .avisoExclusao { bottom: 76px; }
 }
+:global(html.dark) .paleta, :global(html.dark) .formulario {
+  --background: var(--crm-v2-fundo);
+  --foreground: var(--crm-v2-texto);
+  --card: var(--crm-v2-cartao);
+  --card-foreground: var(--crm-v2-texto);
+  --popover: var(--crm-v2-cartao);
+  --popover-foreground: var(--crm-v2-texto);
+  --muted: var(--crm-v2-suave);
+  --muted-foreground: var(--crm-v2-texto-suave);
+  --border: var(--crm-v2-borda);
+  --input: var(--crm-v2-borda);
+  --chat-texto-forte: var(--crm-v2-texto);
+}
+:global(html[data-cor-destaque]:not([data-cor-destaque="azul"])) .paleta,
+:global(html[data-cor-destaque]:not([data-cor-destaque="azul"])) .formulario {
+  --primary: var(--cor-destaque);
+  --ring: var(--cor-destaque);
+  --accent-foreground: var(--cor-destaque);
+}

@@ -12,6 +12,7 @@ import { ErroDeApi } from "@/lib/api/errors";
 import { trocarSenha } from "@/lib/auth/api";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
+import { PrimeiroAcesso } from "./primeiro-acesso";
 
 /**
  * Alcançada de duas formas (E29): redirecionamento automático quando a senha é provisória
@@ -28,6 +29,7 @@ export function TrocarSenhaForm() {
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [mostrarPrimeiroAcesso, setMostrarPrimeiroAcesso] = useState(false);
 
   async function handleSubmit(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -41,7 +43,14 @@ export function TrocarSenhaForm() {
     setEnviando(true);
     try {
       await trocarSenha(senhaAtual, novaSenha);
-      router.push("/");
+      if (precisaTrocarSenha && textos.primeiroAcesso) {
+        setSenhaAtual("");
+        setNovaSenha("");
+        setConfirmarSenha("");
+        setMostrarPrimeiroAcesso(true);
+      } else {
+        router.push("/");
+      }
     } catch (excecao) {
       if (excecao instanceof ErroDeApi && excecao.status === 400) {
         setErro(excecao.message);
@@ -52,6 +61,8 @@ export function TrocarSenhaForm() {
       setEnviando(false);
     }
   }
+
+  if (mostrarPrimeiroAcesso) return <PrimeiroAcesso onConcluir={() => router.replace("/")} />;
 
   return (
     <Card className="w-full rounded-3xl shadow-sm sm:p-2">

@@ -180,3 +180,24 @@
     backdrop-filter: none;
   }
 }
+:global(html.dark) .canvas {
+  background-image: linear-gradient(var(--crm-v2-fundo), var(--crm-v2-cartao));
+  --sidebar-border: var(--crm-v2-borda);
+  --sidebar-item-overlay-ativo: var(--crm-v2-suave);
+  --sidebar-item-overlay-ativo-hover: var(--crm-v2-suave);
+  --sidebar-item-overlay-hover: var(--crm-v2-cartao);
+  --sidebar-item-texto-hover: var(--crm-v2-texto);
+  --sidebar-texto-forte: var(--crm-v2-texto);
+  --texto-sidebar-item: var(--crm-v2-texto);
+  --texto-sidebar-sub: var(--crm-v2-texto-suave);
+  --texto-sidebar-titulo: var(--crm-v2-texto-suave);
+}
+:global(html.dark) .canvas :global([data-slot="sidebar"]) {
+  background: color-mix(in srgb, var(--crm-v2-cartao) 78%, transparent);
+}
+:global(html.dark) .canvas :global([data-slot="sidebar-link"]) :is(.icone, svg) {
+  color: var(--crm-v2-texto-suave);
+}
+:global(html[data-cor-destaque]) .canvas {
+  --sidebar-item-icone-ativo: var(--cor-destaque);
+}

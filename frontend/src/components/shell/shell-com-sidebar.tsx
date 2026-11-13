@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { SinalizadorShellPronto } from "@/components/auth/sinalizador-shell-pronto";
@@ -12,6 +12,7 @@ import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn } from "@/lib/utils";
 import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import { useDensidadeDasListas } from "@/lib/config/preferencia-densidade";
+import { usePreferenciasAparencia } from "@/lib/config/preferencias-aparencia";
 import { fonteFrontendV2 } from "@/lib/config/fonte-frontend-v2";
 import estilosV2 from "./shell-v2.module.css";
 
@@ -33,11 +34,24 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
   const expansao = useExpansaoDaSidebar();
   const pathname = usePathname();
   const { compacta } = useDensidadeDasListas();
+  const { escuro, cor, tamanho } = usePreferenciasAparencia();
+  useEffect(() => {
+    const raiz = document.documentElement;
+    raiz.classList.toggle("dark", escuro);
+    raiz.dataset.corDestaque = cor.valor;
+    raiz.dataset.tamanhoTexto = tamanho.valor;
+    return () => {
+      raiz.classList.remove("dark");
+      delete raiz.dataset.corDestaque;
+      delete raiz.dataset.tamanhoTexto;
+    };
+  }, [escuro, cor.valor, tamanho.valor]);
   const funcionalidades = useFuncionalidadesHabilitadas();
   const dashboardV2 = funcionalidades.data?.includes("dashboard_layout_v2") ?? false;
   const atendimentosV2 = funcionalidades.data?.includes("atendimentos_layout_v2") ?? false;
   const [dashboardFixada, setDashboardFixada] = useState<boolean | null>(null);
   const noDashboard = pathname === "/dashboard";
+  const secao = "/" + pathname.split("/")[1];
   const visualV2 = pathname === "/configuracoes" || pathname === "/trocar-senha"
     || (noDashboard && dashboardV2)
     || ((pathname === "/atendimentos" || pathname === "/chat-interno") && atendimentosV2)
@@ -45,7 +59,7 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
     || (pathname === "/agenda" && funcionalidades.data?.includes("agenda_layout_v2"))
     || (pathname === "/mensagens-rapidas" && funcionalidades.data?.includes("mensagens_rapidas_layout_v2"))
     || (ROTAS_RECURSOS_V2.has(pathname) && funcionalidades.data?.includes("recursos_layout_v2"))
-    || (ROTAS_GESTAO_V2.has(pathname) && funcionalidades.data?.includes("gestao_layout_v2"));
+    || (ROTAS_GESTAO_V2.has(secao) && funcionalidades.data?.includes("gestao_layout_v2"));
   const fixada = noDashboard ? dashboardFixada ?? !dashboardV2 : expansao.fixada;
   const expandida = noDashboard ? fixada || expansao.expandida : expansao.expandida;
   const alternarFixacao = noDashboard

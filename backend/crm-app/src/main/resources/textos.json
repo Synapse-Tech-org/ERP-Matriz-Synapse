@@ -225,6 +225,15 @@
     "densidadeListas": "Densidade das listas",
     "densidadeConfortavel": "Confortável",
     "densidadeCompacta": "Compacto",
+    "aparencia": {
+      "titulo": "Aparência",
+      "tema": "Tema",
+      "cor": "Cor de destaque",
+      "tamanho": "Tamanho do texto",
+      "temas": { "claro": "Claro", "escuro": "Escuro", "sistema": "Igual ao sistema" },
+      "cores": { "azul": "Azul", "indigo": "Índigo", "petroleo": "Petróleo", "verde": "Verde", "ambar": "Âmbar" },
+      "tamanhos": { "compacto": "Compacto", "padrao": "Padrão", "grande": "Grande" }
+    },
     "abaAjuda": "Ajuda",
     "enterEnvia": "Enter envia mensagem",
     "enterEnviaDescricao": "Com essa opção desligada, Enter quebra a linha. Use o botão de envio para mandar a mensagem.",
@@ -305,6 +314,21 @@
     "titulo": "Trocar senha",
     "subtitulo": "Defina uma nova senha para continuar.",
     "avisoPrimeiroAcesso": "Sua senha é provisória — alguém além de você a conhece. Defina uma senha só sua antes de continuar.",
+    "primeiroAcesso": {
+      "titulo": "Primeiro acesso ao CRM",
+      "etapaPerfil": "Etapa 2 de 3",
+      "etapaOrientacao": "Etapa 3 de 3",
+      "perfil": "Complete seu perfil",
+      "orientacao": "Conheça o CRM",
+      "dicas": [
+        "Abra Atendimentos para acompanhar e responder às conversas.",
+        "Use a Agenda de Contatos para consultar as fichas dos clientes.",
+        "Ajuste a aparência, o som e os avisos em Configurações."
+      ],
+      "pular": "Pular",
+      "continuar": "Continuar",
+      "concluir": "Começar a usar o CRM"
+    },
     "campoSenhaAtual": "Senha atual",
     "campoNovaSenha": "Nova senha",
     "campoConfirmarSenha": "Confirmar nova senha",
