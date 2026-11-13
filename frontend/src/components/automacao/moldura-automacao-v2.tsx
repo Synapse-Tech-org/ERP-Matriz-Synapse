@@ -23,19 +23,21 @@ const ABAS = {
   sistema: { rotulo: "Mensagens do sistema", titulo: "Mensagens do sistema", descricao: "Mensagens automáticas configuradas nesta instância.", icone: "chat-settings-line" },
   followUp: { rotulo: "Follow-up", titulo: "Follow-up", descricao: "Mensagens automáticas quando o lead para de responder durante uma negociação.", icone: "repeat-line" },
   fidelizacao: { rotulo: "Fidelização", titulo: "Fidelização", descricao: "Mensagens para reativar clientes sem contato e celebrar datas especiais.", icone: "heart-3-line" },
+  observacoesConsultas: { icone: "calendar-line" },
 } as const;
 
 export type AbaAutomacaoV2 = keyof typeof ABAS;
 
-export function MolduraAutomacaoV2({ aba, onSelecionar, resumo, children }: {
+export function MolduraAutomacaoV2({ aba, clinica = false, onSelecionar, resumo, children }: {
   aba: AbaAutomacaoV2;
+  clinica?: boolean;
   onSelecionar: (aba: AbaAutomacaoV2) => void;
   resumo: ReactNode;
   children: ReactNode;
 }) {
   const textos = useTextos();
   const capacidades = useCapacidades();
-  const pagina = ABAS[aba];
+  const pagina = aba === "observacoesConsultas" ? textos.automacao.observacoesConsultas! : ABAS[aba];
   const grupoAtual = GRUPOS.find(({ abas }) => abas.some((item) => item === aba));
 
   return (
@@ -59,6 +61,15 @@ export function MolduraAutomacaoV2({ aba, onSelecionar, resumo, children }: {
                 ))}
               </div>
             ))}
+            {clinica && textos.automacao.observacoesConsultas && (
+              <div className={estilos.grupo}>
+                <button type="button" aria-current={aba === "observacoesConsultas" ? "page" : undefined}
+                  onClick={() => onSelecionar("observacoesConsultas")}>
+                  <IconeFrontendV2 nome={ABAS.observacoesConsultas.icone} />
+                  {textos.automacao.observacoesConsultas.rotulo}
+                </button>
+              </div>
+            )}
           </nav>
         </aside>
         <div className={estilos.conteudo}>

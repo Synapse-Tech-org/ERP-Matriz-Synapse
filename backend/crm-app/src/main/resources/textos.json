@@ -2375,6 +2375,17 @@
     }
   },
   "automacao": {
+    "observacoesConsultas": {
+      "rotulo": "Observações das consultas",
+      "titulo": "Observações das consultas",
+      "descricao": "Cadastre os tipos de consulta e as orientações para cada um.",
+      "tipo": "Tipo de consulta",
+      "observacao": "Observação",
+      "adicionar": "Novo tipo de consulta",
+      "remover": "Remover tipo de consulta",
+      "vazio": "Nenhum tipo de consulta cadastrado.",
+      "erroDados": "O CRM não conseguiu ler as observações cadastradas."
+    },
     "titulo": "Automação",
     "descricao": "Parâmetros gerais que controlam o comportamento da automação.",
     "descricaoPorAba": {

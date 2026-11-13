@@ -44,6 +44,7 @@ import type { StatusPresenca } from "@/lib/equipe/types";
 import { cn } from "@/lib/utils";
 
 import { MolduraAutomacaoV2, type AbaAutomacaoV2 } from "./moldura-automacao-v2";
+import { ObservacoesDasConsultas } from "./observacoes-das-consultas";
 import estilos from "./automacao-v2.module.css";
 
 type Aba = "geral" | "followUp" | "fidelizacao";
@@ -53,8 +54,9 @@ type Preview = { texto: string; legenda: string };
 const ABAS: readonly Aba[] = ["geral", "followUp", "fidelizacao"];
 
 export function RotaAutomacao() {
-  const visualV2 = useFuncionalidadesHabilitadas().data?.includes("gestao_layout_v2") ?? false;
-  return <PaginaAutomacao key={String(visualV2)} visualV2={visualV2} />;
+  const flags = useFuncionalidadesHabilitadas().data;
+  const visualV2 = flags?.includes("gestao_layout_v2") ?? false;
+  return <PaginaAutomacao key={String(visualV2)} visualV2={visualV2} varianteClinica={flags?.includes("variante_clinica")} />;
 }
 
 function ResumoAutomacao({ textos }: { textos: Textos }) {
@@ -200,11 +202,15 @@ function EditorDeSaudacao({ parametro, textos, podeEditar }: {
   );
 }
 
-export function PaginaAutomacao({ visualV2 = false }: { visualV2?: boolean } = {}) {
+export function PaginaAutomacao({ visualV2 = false, varianteClinica = false }: {
+  visualV2?: boolean;
+  varianteClinica?: boolean;
+} = {}) {
   const textos = useTextos();
   const t = textos.automacao;
   const router = useRouter();
   const parametrosDaUrl = useSearchParams();
+  const clinica = varianteClinica && Boolean(textos.automacao.observacoesConsultas);
   const [aba, setAba] = useState<AbaAutomacaoV2>(() => normalizarAba(parametrosDaUrl.get("aba"), visualV2));
 
   function selecionarAba(novaAba: AbaAutomacaoV2) {
@@ -217,6 +223,7 @@ export function PaginaAutomacao({ visualV2 = false }: { visualV2?: boolean } = {
   }
 
   if (visualV2) {
+    const abaAtual = aba === "observacoesConsultas" && !clinica ? "geral" : aba;
     const paineis: Record<AbaAutomacaoV2, ReactNode> = {
       geral: <GeralAutomacao textos={textos} visualV2 />,
       distribuicao: <PainelDistribuicao textos={textos} />,
@@ -224,10 +231,11 @@ export function PaginaAutomacao({ visualV2 = false }: { visualV2?: boolean } = {
       fidelizacao: <PainelFidelizacao textos={textos} />,
       sistema: <PainelMensagensDoSistema textos={textos} />,
       conhecimento: <EstadoVazio texto="A base de conhecimento depende da integração com o motor de IA desta instância." />,
+      observacoesConsultas: clinica ? <ObservacoesDasConsultas /> : null,
     };
     return (
-      <MolduraAutomacaoV2 aba={aba} onSelecionar={selecionarAba} resumo={<ResumoAutomacao textos={textos} />}>
-        {paineis[aba]}
+      <MolduraAutomacaoV2 aba={abaAtual} clinica={clinica} onSelecionar={selecionarAba} resumo={<ResumoAutomacao textos={textos} />}>
+        {paineis[abaAtual]}
       </MolduraAutomacaoV2>
     );
   }
@@ -260,7 +268,7 @@ export function PaginaAutomacao({ visualV2 = false }: { visualV2?: boolean } = {
 
 function normalizarAba(valor: string | null, visualV2: boolean): AbaAutomacaoV2 {
   if (valor === "followUp" || valor === "fidelizacao") return valor;
-  if (visualV2 && (valor === "distribuicao" || valor === "conhecimento" || valor === "sistema")) return valor;
+  if (visualV2 && (valor === "distribuicao" || valor === "conhecimento" || valor === "sistema" || valor === "observacoesConsultas")) return valor;
   return "geral";
 }
 
@@ -316,10 +324,10 @@ function GeralAutomacao({ textos, visualV2 = false }: { textos: Textos; visualV2
   const atualizarParametro = useAtualizarParametroAutomacao();
   const podeEditarParametros = capacidades.pode("automacao.editar_parametros");
   const preenchimento = parametros.data?.find((p) => p.chave === "ia.preenchimento_automatico");
-  const parametrosAvancados = parametros.data?.filter((p) => !visualV2 || ![
+  const parametrosAvancados = parametros.data?.filter((p) => !p.chave.startsWith("clinica.") && (!visualV2 || ![
     "automacao.habilitada", "automacao.saudacao", "ia.distribuicao.por_botoes", "ia.preenchimento_automatico",
     "ia.transferir_apos_mensagens", "ia.distribuicao.perguntar_preferencia", "ia.distribuicao.atendente_vinculado",
-  ].includes(p.chave));
+  ].includes(p.chave)));
 
   return (
     <div className="space-y-6">

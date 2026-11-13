@@ -1714,6 +1714,11 @@ export const TextosSchema = z.object({
     }),
   }),
   automacao: z.object({
+    observacoesConsultas: z.object({
+      rotulo: z.string(), titulo: z.string(), descricao: z.string(), tipo: z.string(),
+      observacao: z.string(), adicionar: z.string(), remover: z.string(), vazio: z.string(),
+      erroDados: z.string(),
+    }).optional(),
     titulo: z.string(),
     descricao: z.string(),
     descricaoPorAba: z.object({ geral: z.string(), followUp: z.string(), fidelizacao: z.string() }),
