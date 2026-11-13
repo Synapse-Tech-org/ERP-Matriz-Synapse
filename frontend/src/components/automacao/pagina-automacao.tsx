@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 
 import { MolduraAutomacaoV2, type AbaAutomacaoV2 } from "./moldura-automacao-v2";
 import { ObservacoesDasConsultas } from "./observacoes-das-consultas";
+import { ConfirmacoesDasConsultas } from "./confirmacoes-das-consultas";
 import estilos from "./automacao-v2.module.css";
 
 type Aba = "geral" | "followUp" | "fidelizacao";
@@ -210,7 +211,7 @@ export function PaginaAutomacao({ visualV2 = false, varianteClinica = false }: {
   const t = textos.automacao;
   const router = useRouter();
   const parametrosDaUrl = useSearchParams();
-  const clinica = varianteClinica && Boolean(textos.automacao.observacoesConsultas);
+  const clinica = varianteClinica;
   const [aba, setAba] = useState<AbaAutomacaoV2>(() => normalizarAba(parametrosDaUrl.get("aba"), visualV2));
 
   function selecionarAba(novaAba: AbaAutomacaoV2) {
@@ -223,7 +224,8 @@ export function PaginaAutomacao({ visualV2 = false, varianteClinica = false }: {
   }
 
   if (visualV2) {
-    const abaAtual = aba === "observacoesConsultas" && !clinica ? "geral" : aba;
+    const abaClinica = aba === "observacoesConsultas" || aba === "confirmacoesConsultas";
+    const abaAtual = abaClinica && (!clinica || !t[aba]) ? "geral" : aba;
     const paineis: Record<AbaAutomacaoV2, ReactNode> = {
       geral: <GeralAutomacao textos={textos} visualV2 />,
       distribuicao: <PainelDistribuicao textos={textos} />,
@@ -232,6 +234,7 @@ export function PaginaAutomacao({ visualV2 = false, varianteClinica = false }: {
       sistema: <PainelMensagensDoSistema textos={textos} />,
       conhecimento: <EstadoVazio texto="A base de conhecimento depende da integração com o motor de IA desta instância." />,
       observacoesConsultas: clinica ? <ObservacoesDasConsultas /> : null,
+      confirmacoesConsultas: clinica ? <ConfirmacoesDasConsultas /> : null,
     };
     return (
       <MolduraAutomacaoV2 aba={abaAtual} clinica={clinica} onSelecionar={selecionarAba} resumo={<ResumoAutomacao textos={textos} />}>
@@ -268,7 +271,8 @@ export function PaginaAutomacao({ visualV2 = false, varianteClinica = false }: {
 
 function normalizarAba(valor: string | null, visualV2: boolean): AbaAutomacaoV2 {
   if (valor === "followUp" || valor === "fidelizacao") return valor;
-  if (visualV2 && (valor === "distribuicao" || valor === "conhecimento" || valor === "sistema" || valor === "observacoesConsultas")) return valor;
+  if (visualV2 && (valor === "distribuicao" || valor === "conhecimento" || valor === "sistema"
+    || valor === "observacoesConsultas" || valor === "confirmacoesConsultas")) return valor;
   return "geral";
 }
 

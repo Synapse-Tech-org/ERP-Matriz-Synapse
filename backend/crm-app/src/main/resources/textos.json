@@ -2375,6 +2375,22 @@
     }
   },
   "automacao": {
+    "confirmacoesConsultas": {
+      "rotulo": "Confirmações e lembretes",
+      "titulo": "Confirmações e lembretes de consultas",
+      "descricao": "Configure os horários e as mensagens que serão usados pela integração de agendamentos.",
+      "janela": "Janela de envio",
+      "inicio": "Início",
+      "fim": "Fim",
+      "antecedencia": "Horas de antecedência",
+      "mensagens": "Mensagens da régua",
+      "confirmacao": "Confirmação inicial",
+      "lembrete": "Lembrete de consulta",
+      "reengajamento": "Reengajamento",
+      "erroJanela": "O horário final deve ser posterior ao inicial.",
+      "erroDados": "Não foi possível ler a configuração de consultas.",
+      "salvo": "Configuração salva."
+    },
     "observacoesConsultas": {
       "rotulo": "Observações das consultas",
       "titulo": "Observações das consultas",

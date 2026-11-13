@@ -1714,6 +1714,13 @@ export const TextosSchema = z.object({
     }),
   }),
   automacao: z.object({
+    confirmacoesConsultas: z.object({
+      rotulo: z.string(), titulo: z.string(), descricao: z.string(),
+      janela: z.string(), inicio: z.string(), fim: z.string(), antecedencia: z.string(),
+      mensagens: z.string(), confirmacao: z.string(), lembrete: z.string(),
+      reengajamento: z.string(), erroJanela: z.string(), erroDados: z.string(),
+      salvo: z.string(),
+    }).optional(),
     observacoesConsultas: z.object({
       rotulo: z.string(), titulo: z.string(), descricao: z.string(), tipo: z.string(),
       observacao: z.string(), adicionar: z.string(), remover: z.string(), vazio: z.string(),

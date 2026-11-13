@@ -24,6 +24,7 @@ const ABAS = {
   followUp: { rotulo: "Follow-up", titulo: "Follow-up", descricao: "Mensagens automáticas quando o lead para de responder durante uma negociação.", icone: "repeat-line" },
   fidelizacao: { rotulo: "Fidelização", titulo: "Fidelização", descricao: "Mensagens para reativar clientes sem contato e celebrar datas especiais.", icone: "heart-3-line" },
   observacoesConsultas: { icone: "calendar-line" },
+  confirmacoesConsultas: { icone: "calendar-line" },
 } as const;
 
 export type AbaAutomacaoV2 = keyof typeof ABAS;
@@ -37,7 +38,8 @@ export function MolduraAutomacaoV2({ aba, clinica = false, onSelecionar, resumo,
 }) {
   const textos = useTextos();
   const capacidades = useCapacidades();
-  const pagina = aba === "observacoesConsultas" ? textos.automacao.observacoesConsultas! : ABAS[aba];
+  const pagina = aba === "observacoesConsultas" || aba === "confirmacoesConsultas"
+    ? textos.automacao[aba] ?? ABAS.geral : ABAS[aba];
   const grupoAtual = GRUPOS.find(({ abas }) => abas.some((item) => item === aba));
 
   return (
@@ -61,13 +63,17 @@ export function MolduraAutomacaoV2({ aba, clinica = false, onSelecionar, resumo,
                 ))}
               </div>
             ))}
-            {clinica && textos.automacao.observacoesConsultas && (
+            {clinica && (
               <div className={estilos.grupo}>
-                <button type="button" aria-current={aba === "observacoesConsultas" ? "page" : undefined}
-                  onClick={() => onSelecionar("observacoesConsultas")}>
-                  <IconeFrontendV2 nome={ABAS.observacoesConsultas.icone} />
-                  {textos.automacao.observacoesConsultas.rotulo}
-                </button>
+                {(["confirmacoesConsultas", "observacoesConsultas"] as const).map((item) => {
+                  const rotulo = textos.automacao[item]?.rotulo;
+                  return rotulo && (
+                    <button key={item} type="button" aria-current={aba === item ? "page" : undefined}
+                      onClick={() => onSelecionar(item)}>
+                      <IconeFrontendV2 nome={ABAS[item].icone} />{rotulo}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </nav>
