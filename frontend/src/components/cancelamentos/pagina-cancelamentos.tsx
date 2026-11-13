@@ -215,8 +215,8 @@ function Consulta({ config, identidade, clinica }: { config: ConfiguracaoCancela
   }
   const paginar = !lista.isPending && (consulta.pagina > 0 || (lista.isSuccess && lista.data.itens.length > 0 && lista.data.temProxima));
   return <>
-    <form onSubmit={aplicar} className="min-w-0 overflow-hidden rounded-xl border bg-card">
-      <div className="flex flex-col gap-3 p-4 md:p-5">
+    <form onSubmit={aplicar} className={cn("min-w-0 overflow-hidden border bg-card", clinica ? "rounded-[18px] shadow-(--sombra-sm)" : "rounded-xl")}>
+      <div className={cn("flex flex-col gap-3 p-4 md:p-5", clinica && "xl:flex-row xl:flex-wrap xl:items-end")}>
         <div className="flex items-center gap-1.5"><h2 className="text-sm font-semibold text-foreground">{t.periodo}</h2>
           <Tooltip open={ajudaAberta} onOpenChange={mostrarAjuda}><TooltipTrigger aria-describedby={ajudaAberta ? `${id}-ajuda-periodo` : undefined} render={<Button type="button" size="icon-sm" variant="ghost" aria-label={t.ajudaPeriodo} />}>
             <Info aria-hidden className="size-4 text-muted-foreground" />
@@ -224,13 +224,16 @@ function Consulta({ config, identidade, clinica }: { config: ConfiguracaoCancela
         </div>
         {clinica && <div className="flex flex-wrap gap-2">
           {atalhos.map(({ rotulo, inicio, fim }) => (
-            <Button key={rotulo} type="button" size="sm" variant="outline" onClick={() => usarPeriodo(inicio, fim)}>
+            <Button key={rotulo} type="button" size="sm" variant="outline"
+              aria-pressed={consulta.filtros.inicio === inicio.toISOString().slice(0, 10) && consulta.filtros.fim === fim.toISOString().slice(0, 10)}
+              className="aria-pressed:border-primary aria-pressed:bg-accent aria-pressed:text-accent-foreground"
+              onClick={() => usarPeriodo(inicio, fim)}>
               {rotulo}
             </Button>
           ))}
         </div>}
         <fieldset aria-describedby={erroPeriodo ? `${id}-erro-periodo` : undefined} aria-invalid={!!erroPeriodo}
-          className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3">
+          className={cn("grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3", clinica && "xl:flex-1")}>
           <legend className="sr-only">{t.periodo}</legend>
           <label htmlFor={`${id}-base`} className="col-span-2 grid min-w-0 gap-2 text-sm font-medium sm:col-span-1">{t.base}
             <Seletor id={`${id}-base`} valor={rascunho.base} placeholder={t.base} ariaLabel={t.base}
@@ -242,13 +245,15 @@ function Consulta({ config, identidade, clinica }: { config: ConfiguracaoCancela
           <label htmlFor={`${id}-fim`} className="grid min-w-0 gap-2 text-sm font-medium">{t.fim}
             <SeletorData id={`${id}-fim`} className="h-9 rounded-lg" obrigatorio valor={rascunho.fim} placeholder={t.fim} onChange={v => campo("fim", v)} /></label>
         </fieldset>
-        {erroPeriodo && <p id={`${id}-erro-periodo`} role="alert" className="text-sm text-destructive">{erroPeriodo}</p>}
+        {erroPeriodo && <p id={`${id}-erro-periodo`} role="alert" className="basis-full text-sm text-destructive">{erroPeriodo}</p>}
+      </div>
+      <div hidden={!clinica && !maisFiltros} className={cn("space-y-3 px-4 pb-4 md:px-5", clinica && "border-t pt-3")}>
         {clinica && (
           <label className="grid max-w-md gap-2 text-sm font-medium">
             {t.nome}
             <div className="relative">
               <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input className="h-10 pl-9" maxLength={config.maximoBusca} value={rascunho.nome}
+              <Input className="h-10 rounded-xl bg-card pl-9" maxLength={config.maximoBusca} value={rascunho.nome}
                 onChange={(e) => campo("nome", e.target.value)} />
             </div>
           </label>
@@ -290,7 +295,8 @@ function Consulta({ config, identidade, clinica }: { config: ConfiguracaoCancela
       </div>
     )}
 
-    <section aria-label={t.resultados} className="space-y-3" aria-busy={lista.isFetching}>
+    <section aria-label={t.resultados} className={cn("space-y-3", clinica && "rounded-[18px] border bg-card p-2 shadow-(--sombra-sm)")}
+      aria-busy={lista.isFetching}>
       {lista.isPending ? <Carregando /> : lista.isError ? <Falha erro={lista.error} tentar={() => void lista.refetch()} />
         : lista.data.itens.length === 0 ? <div role="status" className="flex min-h-56 flex-col items-center justify-center gap-3 rounded-xl border bg-card px-6 py-9 text-center">
           <span className="flex size-11 items-center justify-center rounded-lg bg-muted"><CalendarX2 aria-hidden className="size-5 text-muted-foreground" /></span>
@@ -298,7 +304,7 @@ function Consulta({ config, identidade, clinica }: { config: ConfiguracaoCancela
             <p className="text-sm text-muted-foreground">{consulta.pagina > 0 ? t.paginaVaziaAjuda : extrasAtivos > 0 ? t.vazioAjuda : t.vazioPeriodoAjuda}</p></div>
           {consultaAlterada && <Button type="button" variant="outline" onClick={limpar}>{t.limpar}</Button>}
         </div> : <>
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className={cn("flex flex-wrap items-center justify-between gap-2", clinica && "px-3 pt-2")}>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-sm font-semibold text-foreground">{t.resultados}</h2>
               {clinica && <span className="rounded-full bg-muted px-2 py-1 text-xs">
@@ -318,7 +324,7 @@ function Consulta({ config, identidade, clinica }: { config: ConfiguracaoCancela
               <Detalhes item={item} t={t} data={data} resumido />
               <Button variant="outline" className="w-full" onClick={() => selecionar(item.id)}>{t.detalhes}</Button>
             </article>)}</div>
-            : <div className="overflow-hidden rounded-xl border bg-card"><table className="w-full table-fixed text-left text-sm">
+            : <div className={cn("overflow-hidden rounded-xl bg-card", !clinica && "border")}><table className="w-full table-fixed text-left text-sm">
               <thead className="border-b bg-muted/40 text-xs text-muted-foreground"><tr>
                 <th scope="col" className="w-1/4 p-3 font-medium">{t.contato}</th><th scope="col" className="p-3 font-medium">{t.profissional}</th>
                 <th scope="col" className="p-3 font-medium">{t.agendamento}</th><th scope="col" className="p-3 font-medium">{t.canceladoEm}</th>

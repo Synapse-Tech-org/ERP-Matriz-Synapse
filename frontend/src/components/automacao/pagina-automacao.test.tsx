@@ -11,6 +11,7 @@ const atualizarFidelizacao = vi.fn();
 const atualizarDataFestiva = vi.fn();
 const alternarDataFestiva = vi.fn();
 const authMock = vi.hoisted(() => ({ papel: "GESTOR" }));
+const flags = vi.hoisted(() => ({ data: [] as string[] }));
 const navigation = vi.hoisted(() => ({ replace: vi.fn((href: string) => window.history.replaceState(null, "", href)) }));
 
 const PARAMETROS = [
@@ -64,6 +65,7 @@ const TEXTOS = {
 };
 
 vi.mock("@/lib/config/textos-provider", () => ({ useTextos: () => TEXTOS }));
+vi.mock("@/lib/config/use-funcionalidades", () => ({ useFuncionalidadesHabilitadas: () => flags }));
 vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () => null }));
 vi.mock("@/lib/auth/auth-store", () => ({ useAuthStore: (seletor: (estado: { papel: string }) => unknown) => seletor(authMock) }));
 vi.mock("@/lib/equipe/use-equipe", () => ({
@@ -93,23 +95,26 @@ vi.mock("@/lib/automacao/use-automacao", () => ({
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => navigation, useSearchParams: () => new URLSearchParams(window.location.search) }));
 
-import { PaginaAutomacao } from "./pagina-automacao";
+import { PaginaAutomacao, RotaAutomacao } from "./pagina-automacao";
 
 describe("pagina de automacao", () => {
   beforeEach(() => {
     authMock.papel = "GESTOR";
+    flags.data = [];
     window.history.replaceState(null, "", "/automacao");
     vi.clearAllMocks();
   });
 
   it("abre e grava a régua apenas na variante clínica", () => {
     window.history.replaceState(null, "", "/automacao?aba=confirmacoesConsultas");
-    const { unmount } = render(<PaginaAutomacao visualV2 />);
+    flags.data = ["gestao_layout_v2"];
+    const { unmount } = render(<RotaAutomacao />);
     expect(screen.queryByText("Confirmações e lembretes de consultas")).not.toBeInTheDocument();
     unmount();
 
     definirCapacidadesDeTeste({ negadas: [] });
-    render(<PaginaAutomacao visualV2 varianteClinica />);
+    flags.data = ["variante_clinica"];
+    render(<RotaAutomacao />);
     expect(screen.getByText("Confirmações e lembretes de consultas")).toBeInTheDocument();
     fireEvent.change(screen.getByRole("textbox", { name: "Confirmação inicial" }), { target: { value: "Confirme a consulta." } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));

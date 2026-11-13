@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
 const CAMPOS = [
   { apelido: "nome", rotulo: "Nome", tipo: "TEXTO", operadores: ["IGUAL", "CONTEM"], opcoes: [] },
@@ -49,6 +50,9 @@ const LEADS = [
 const push = vi.fn();
 const abrirAtendimentoApi = vi.fn();
 let papel = "ATENDENTE";
+const flags = vi.hoisted(() => ({ data: [] as string[] }));
+
+vi.mock("@/lib/config/use-funcionalidades", () => ({ useFuncionalidadesHabilitadas: () => flags }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
@@ -64,6 +68,7 @@ vi.mock("@/lib/auth/auth-store", () => ({
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
+    cancelamentos: { titulo: "Cancelamentos" },
     agenda: {
       titulo: "Agenda de contatos",
       descricao: "Clique no contato para consultar a ficha; use Abrir atendimento para ir ao chat.",
@@ -206,6 +211,7 @@ function renderAgenda() {
 describe("pagina da agenda", () => {
   beforeEach(() => {
     papel = "ATENDENTE";
+    flags.data = [];
     push.mockReset();
     abrirAtendimentoApi.mockReset();
     abrirAtendimentoApi.mockResolvedValue({
@@ -229,6 +235,20 @@ describe("pagina da agenda", () => {
       isError: false,
     });
     useContagemDeLeads.mockReturnValue({ data: 2 });
+  });
+
+  it.each([
+    [["variante_clinica", "cancelamentos"], [], true],
+    [["variante_clinica"], [], false],
+    [["cancelamentos"], [], false],
+    [["variante_clinica", "cancelamentos"], ["cancelamentos.ver"], false],
+  ] as const)("restringe o atalho clínico para as flags %j e as permissões %j", (habilitadas, negadas, visivel) => {
+    flags.data = [...habilitadas];
+    definirCapacidadesDeTeste({ negadas: [...negadas] });
+    renderAgenda();
+    const atalho = screen.queryByRole("link", { name: "Cancelamentos" });
+    if (visivel) expect(atalho).toHaveAttribute("href", "/cancelamentos");
+    else expect(atalho).not.toBeInTheDocument();
   });
 
   it("mostra importacao e exportacao apenas para gestao", () => {

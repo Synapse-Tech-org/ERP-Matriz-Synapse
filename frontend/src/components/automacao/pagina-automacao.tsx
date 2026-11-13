@@ -56,8 +56,9 @@ const ABAS: readonly Aba[] = ["geral", "followUp", "fidelizacao"];
 
 export function RotaAutomacao() {
   const flags = useFuncionalidadesHabilitadas().data;
-  const visualV2 = flags?.includes("gestao_layout_v2") ?? false;
-  return <PaginaAutomacao key={String(visualV2)} visualV2={visualV2} varianteClinica={flags?.includes("variante_clinica")} />;
+  const clinica = flags?.includes("variante_clinica") ?? false;
+  const visualV2 = clinica || (flags?.includes("gestao_layout_v2") ?? false);
+  return <PaginaAutomacao key={String(visualV2)} visualV2={visualV2} varianteClinica={clinica} />;
 }
 
 function ResumoAutomacao({ textos }: { textos: Textos }) {

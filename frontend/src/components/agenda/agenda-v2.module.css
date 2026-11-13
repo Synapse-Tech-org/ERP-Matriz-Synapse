@@ -11,6 +11,19 @@
   background: var(--card);
 }
 
+.pagina :global([data-slot="agenda-cancelamentos"]) {
+  min-height: 38px;
+  border-radius: 12px;
+  border-color: color-mix(in srgb, var(--destructive) 20%, var(--card));
+  color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 5%, var(--card));
+  box-shadow: var(--sombra-sm);
+}
+
+.pagina :global([data-slot="agenda-cancelamentos"]):hover {
+  background: color-mix(in srgb, var(--destructive) 10%, var(--card));
+}
+
 .pagina :global([data-slot="dashboard-busca"]) > span {
   overflow: hidden;
   text-overflow: ellipsis;

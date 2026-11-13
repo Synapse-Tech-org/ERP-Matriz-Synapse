@@ -6,6 +6,8 @@ const glifos = {
   "calendar-2-line": "\ueb21",
   "arrow-down-s-line": "\uea4e",
   "calendar-line": "\ueb27",
+  "calendar-close-line": "\uf38e",
+  "calendar-close-fill": "\uf38d",
   "layout-grid-fill": "\uee8f",
   "bar-chart-box-fill": "\uea97",
   "layout-grid-line": "\uee90",

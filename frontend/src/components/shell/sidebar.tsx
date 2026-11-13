@@ -98,11 +98,14 @@ const ITENS_RECURSOS_V2 = [
   "mensagensRapidas", "templatesWhatsApp", "mensagensProgramadas", "lembretes", "bancoArquivos", "tags",
 ].flatMap((chave) => ITENS_MENU_SIDEBAR.filter((item) => item.chave === chave));
 const ITENS_PRINCIPAIS_V2 = ITENS_MENU_SIDEBAR.filter((item) => !ITENS_RECURSOS_V2.includes(item));
+const ITENS_PRINCIPAIS_CLINICA = ["atendimentos", "cancelamentos", "dashboard", "agenda"]
+  .flatMap((chave) => ITENS_PRINCIPAIS_V2.filter((item) => item.chave === chave));
 
 const ICONES_SIDEBAR_V2: Partial<Record<string, [NomeIconeFrontendV2, NomeIconeFrontendV2]>> = {
   atendimentos: ["chat-smile-2-line", "chat-smile-2-fill"],
   dashboard: ["dashboard-horizontal-line", "dashboard-horizontal-fill"],
   agenda: ["contacts-book-3-line", "contacts-book-3-fill"],
+  cancelamentos: ["calendar-close-line", "calendar-close-fill"],
   mensagensRapidas: ["flashlight-line", "flashlight-fill"],
   templatesWhatsApp: ["file-text-line", "file-text-fill"],
   mensagensProgramadas: ["calendar-schedule-line", "calendar-schedule-fill"],
@@ -223,6 +226,7 @@ export function Sidebar({
   }
 
   const sobreposta = !fixada;
+  const principais = flags?.includes("variante_clinica") ? ITENS_PRINCIPAIS_CLINICA : ITENS_PRINCIPAIS_V2;
   const statusAtual = meuUsuario.data?.presenca ?? "OFFLINE";
   const rotuloDaPresenca = (status: StatusPresenca) =>
     ({
@@ -350,7 +354,7 @@ export function Sidebar({
           />
         )}
         {[
-          { chave: "principal", titulo: visualV2 ? textos.menu.grupoPrincipal : textos.menu.grupoMenu, itens: visualV2 ? ITENS_PRINCIPAIS_V2 : ITENS_MENU_SIDEBAR },
+          { chave: "principal", titulo: visualV2 ? textos.menu.grupoPrincipal : textos.menu.grupoMenu, itens: visualV2 ? principais : ITENS_MENU_SIDEBAR },
           ...(visualV2 ? [{ chave: "recursos", titulo: textos.menu.grupoRecursos, itens: ITENS_RECURSOS_V2 }] : []),
           { chave: "gestao", titulo: textos.menu.grupoGestao, itens: ITENS_GESTAO },
         ].map(({ chave, titulo, itens }) => (

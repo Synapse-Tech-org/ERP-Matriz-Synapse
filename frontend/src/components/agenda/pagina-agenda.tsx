@@ -2,10 +2,11 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Columns3, Download, List, Upload } from "lucide-react";
+import { CalendarX2, ChevronLeft, ChevronRight, Columns3, Download, List, Upload } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { PainelLateralLead } from "@/components/leads/painel-lateral-lead";
@@ -63,7 +64,8 @@ import estilos from "./agenda-v2.module.css";
 export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
   const textosGerais = useTextos();
   const t = textosGerais.agenda;
-  const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("agenda_layout_v2") ?? false;
+  const flags = useFuncionalidadesHabilitadas().data;
+  const layoutV2 = flags?.includes("agenda_layout_v2") ?? false;
   const entrada = t.entrada ?? {
     placeholder: t.filtros.titulo,
     pedir: t.filtros.adicionar,
@@ -77,6 +79,8 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
   const podeEditarContato = capacidades.pode("contatos.editar");
   const podeAbrirAtendimento = capacidades.pode("atendimentos.abrir_para_contato");
   const podeColaborar = capacidades.pode("atendimentos.colaborar");
+  const mostraCancelamentos = flags?.includes("variante_clinica") && flags.includes("cancelamentos")
+    && capacidades.pode("cancelamentos.ver");
 
   const [filtrosAtivos, setFiltrosAtivos] = useState<FiltroAtivo[]>([]);
   const [filtrosRapidos, setFiltrosRapidos] = useState<FiltrosRapidosAgenda>({
@@ -258,7 +262,15 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
           <h1 className="text-xl font-bold text-foreground max-sm:text-[1.375rem]">{layoutV2 ? t.v2.titulo : t.titulo}</h1>
           {!telaEstreita && <p className="mt-1 text-sm text-muted-foreground">{layoutV2 ? t.v2.descricao : t.descricao}</p>}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {mostraCancelamentos && (
+            <Link href="/cancelamentos" data-slot="agenda-cancelamentos"
+              className={buttonVariants({ variant: "outline", size: telaEstreita ? "icon" : "sm" })}
+              aria-label={textosGerais.cancelamentos.titulo}>
+              <CalendarX2 aria-hidden />
+              {!telaEstreita && textosGerais.cancelamentos.titulo}
+            </Link>
+          )}
           {podeGerenciar && t.importacao && (
             <>
               <Button
@@ -311,6 +323,7 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
         </div>
       </header>
 
+      {exportacao.isError && <p role="alert" className="text-sm text-destructive">{t.exportacao.erro}</p>}
       <div className="flex-none">
         {!layoutV2 && buscaColaboracao}
         {(!telaEstreita || filtrosMobileAbertos) && (
