@@ -385,7 +385,7 @@ function ListaConversasBase({
 
   const botaoFiltros = (
     <Button type="button" variant="outline" size="icon-sm" className="min-h-10 min-w-10"
-      aria-label={textos.lista.filtros} aria-pressed={filtrosAbertos}
+      aria-label={textos.lista.filtros} aria-expanded={filtrosAbertos}
       disabled={etapas.length === 0 && !temFiltroDeAtendente} onClick={() => setFiltrosAbertos((abertos) => !abertos)}>
       <SlidersHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />
     </Button>
@@ -484,6 +484,18 @@ function ListaConversasBase({
           {filtroOperacional.recorte && filtroOperacional.recorte !== "EM_ABERTO" && <button type="button" className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary" aria-label={catalogo.painelOperacional.remover.replace("{filtro}", ({ NOVAS: catalogo.painelOperacional.novas, ATIVOS: catalogo.painelOperacional.ativos, PENDENTES: catalogo.painelOperacional.pendentes, POTENCIAIS: catalogo.painelOperacional.potenciais, SEM_RESPOSTA: catalogo.painelOperacional.comAtraso, FINALIZADOS: catalogo.painelOperacional.finalizados })[filtroOperacional.recorte])} onClick={() => onFiltroOperacionalAlterado?.({ ...filtroOperacional, recorte: "EM_ABERTO" })}>{({ NOVAS: catalogo.painelOperacional.novas, ATIVOS: catalogo.painelOperacional.ativos, PENDENTES: catalogo.painelOperacional.pendentes, POTENCIAIS: catalogo.painelOperacional.potenciais, SEM_RESPOSTA: catalogo.painelOperacional.comAtraso, FINALIZADOS: catalogo.painelOperacional.finalizados })[filtroOperacional.recorte]}<X className="size-3" aria-hidden /></button>}
           {(filtroOperacional.atendenteId || filtroOperacional.entrada) && <button type="button" className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary" aria-label={catalogo.painelOperacional.remover.replace("{filtro}", nomeFiltroOperacional ?? catalogo.painelOperacional.entrada)} onClick={() => onFiltroOperacionalAlterado?.({ ...filtroOperacional, atendenteId: undefined, entrada: undefined })}>{nomeFiltroOperacional ?? catalogo.painelOperacional.entrada}<X className="size-3" aria-hidden /></button>}
           {filtroOperacional.sinal && filtroOperacional.sinal !== "TODOS" && <button type="button" className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary" onClick={() => onFiltroOperacionalAlterado?.({ ...filtroOperacional, sinal: "TODOS" })} aria-label={catalogo.painelOperacional.remover.replace("{filtro}", filtroOperacional.sinal === "NOVAS" ? catalogo.painelOperacional.novas : catalogo.painelOperacional.comAtraso)}>{filtroOperacional.sinal === "NOVAS" ? catalogo.painelOperacional.novas : catalogo.painelOperacional.comAtraso}<X className="size-3" aria-hidden /></button>}
+          {layoutV2 && (etapas.length > 0 || temFiltroDeAtendente) && (
+            <button
+              type="button"
+              aria-label={textos.lista.adicionarFiltro}
+              title={textos.lista.adicionarFiltro}
+              aria-expanded={filtrosAbertos}
+              onClick={() => setFiltrosAbertos((abertos) => !abertos)}
+              className="grid size-7 shrink-0 place-items-center rounded-full border border-dashed border-primary/30 bg-card text-primary hover:border-primary hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Plus className="size-4" aria-hidden />
+            </button>
+          )}
           <button type="button" className="px-2 py-1 underline underline-offset-2" onClick={() => onFiltroOperacionalAlterado?.(null)}>{catalogo.painelOperacional.limpar}</button>
         </div>}
       </div>
@@ -523,7 +535,7 @@ function ListaConversasBase({
       </Tabs>
 
       {filtrosAbertos && (etapas.length > 0 || temFiltroDeAtendente) && (
-        <div className="flex gap-2 border-b border-border p-2 text-xs">
+        <div className="flex flex-wrap gap-2 border-b border-border px-4 py-2 text-xs">
           {etapas.length > 0 && (
             <Seletor
               className="min-w-28"

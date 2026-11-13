@@ -85,6 +85,11 @@ describe("pagina de configurações", () => {
     const email = screen.getByLabelText("E-mail");
     fireEvent.change(email, { target: { value: "novo@empresa.invalid" } });
     expect(screen.getByLabelText("Senha atual")).toBeRequired();
+    const notificacoes = screen.getByRole("button", { name: "Notificações" });
+    fireEvent.click(notificacoes);
+    expect(notificacoes).toHaveAttribute("aria-current", "location");
+    expect(screen.getByRole("heading", { name: "Notificações" }).parentElement).toHaveFocus();
+    expect(email).toHaveValue("novo@empresa.invalid");
     fireEvent.click(screen.getByRole("button", { name: "Descartar" }));
     expect(email).toHaveValue("ana@example.invalid");
     expect(screen.queryByLabelText("Senha atual")).not.toBeInTheDocument();

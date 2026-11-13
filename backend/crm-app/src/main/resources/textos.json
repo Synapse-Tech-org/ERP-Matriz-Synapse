@@ -231,7 +231,9 @@
     "descricao": "Conta e sistema · a automação da IA é configurada na aba Automação",
     "abrir": "Abrir configurações",
     "perfil": "Perfil do usuário",
-    "perfilDescricao": "Nome, e-mail e senha",
+    "descricaoGeral": "Perfil, notificações e interface da sua conta, tudo em uma página.",
+    "secoes": "Seções de configurações",
+    "perfilDescricao": "Seus dados pessoais e o acesso à sua conta.",
     "nome": "Nome",
     "email": "E-mail",
     "emailAjuda": "Confirme sua senha atual para trocar o e-mail de login.",
@@ -420,6 +422,7 @@
     "lista": {
       "busca": "Buscar cliente ou protocolo...",
       "filtros": "Filtros da lista",
+      "adicionarFiltro": "Adicionar filtro",
       "carregarMais": "Carregar mais conversas",
       "carregandoMais": "Carregando conversas...",
       "finalizados": "Ver Finalizados"

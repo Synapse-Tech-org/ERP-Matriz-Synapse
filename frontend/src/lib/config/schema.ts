@@ -208,6 +208,8 @@ export const TextosSchema = z.object({
     posicaoBaixo: z.string(),
   }),
   configuracoes: z.object({
+    descricaoGeral: z.string().default("Perfil, notificações e interface da sua conta, tudo em uma página."),
+    secoes: z.string().default("Seções de configurações"),
     dadosPessoais: z.string().default("Dados pessoais"),
     acessoConta: z.string().default("Acesso à conta"),
     alteracoesPendentes: z.string().default("Alterações não salvas"),
@@ -456,6 +458,7 @@ export const TextosSchema = z.object({
     lista: z.object({
       busca: z.string(),
       filtros: z.string(),
+      adicionarFiltro: z.string().default("Adicionar filtro"),
       carregarMais: z.string(),
       carregandoMais: z.string(),
       finalizados: z.string(),

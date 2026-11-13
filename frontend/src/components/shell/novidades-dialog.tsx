@@ -38,9 +38,9 @@ export function NovidadesDialog({ aberto, onFechar }: NovidadesDialogProps) {
 
   return (
     <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-hidden flex flex-col p-0">
-        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle>{n.titulo}</DialogTitle>
+      <DialogContent className="sm:max-w-[840px] max-h-[85dvh] overflow-hidden flex flex-col gap-0 rounded-3xl p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
+          <DialogTitle className="text-2xl tracking-tight">{n.titulo}</DialogTitle>
           <DialogDescription>
             {aba === "novidades" ? n.subtituloNovidades : n.subtituloEmBreve}
           </DialogDescription>
@@ -73,30 +73,30 @@ export function NovidadesDialog({ aberto, onFechar }: NovidadesDialogProps) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-muted/20">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-muted/30 p-5 sm:p-7">
           {aba === "novidades" && (
             <div id="panel-novidades" role="tabpanel" className="flex flex-col gap-6">
               {datasOrdenadas.map(data => (
                 <div key={data} className="space-y-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground border-b pb-2">{
+                  <h3 className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground after:h-px after:flex-1 after:bg-border">{
                     new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(data + "T12:00:00"))
                   }</h3>
-                  <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-3">
                     {agrupadasPorData[data].map((item, i) => (
-                      <div key={i} className="flex gap-4">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <article key={i} className={cn("flex items-start gap-4 rounded-2xl border bg-card p-4 shadow-sm sm:p-5", item.novo && "border-cor-sucesso/20 bg-cor-sucesso/5")}>
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                           <Sparkles className="size-[calc(var(--tamanho-icone-interface)*1.25)]" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold">{item.titulo}</h4>
+                          <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <h4 className="text-[1.0625rem] font-semibold tracking-tight">{item.titulo}</h4>
                             {item.novo && n.novoTag && (
-                              <Badge className="h-5 px-1.5 text-[10px] bg-primary/20 text-primary hover:bg-primary/20 border-none">{n.novoTag}</Badge>
+                              <Badge className="h-5 border-none bg-cor-sucesso/10 px-2 text-[10px] font-semibold text-cor-sucesso">{n.novoTag}</Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground">{item.descricao}</p>
+                          <p className="text-sm leading-relaxed text-muted-foreground">{item.descricao}</p>
                         </div>
-                      </div>
+                      </article>
                     ))}
                   </div>
                 </div>
