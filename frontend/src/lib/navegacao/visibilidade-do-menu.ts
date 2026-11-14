@@ -7,6 +7,7 @@ import type { MinhasPermissoes } from "@/lib/gestao/types";
  */
 const CAPACIDADE_DO_ITEM: Record<string, string> = {
   agenda: "clientes.acessar",
+  agendaConsultas: "clientes.acessar",
   dashboard: "dashboard.ver",
   campanhas: "campanhas.ver",
   cancelamentos: "cancelamentos.ver",

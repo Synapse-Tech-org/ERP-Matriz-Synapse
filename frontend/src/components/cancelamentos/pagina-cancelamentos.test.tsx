@@ -48,7 +48,9 @@ describe("Cancelamentos na rota real", () => {
       ? { itens: [item], temProxima: true }
       : { itens: [{ ...item, id: "c2", contatoNome: "=Paciente" }], temProxima: false });
     montar();
-    await screen.findByText(item.contatoNome!);
+    await screen.findByText(item.contatoNome!, {}, { timeout: 5_000 });
+    expect(screen.getByRole("link", { name: textosReais.agendaConsultas.canceladasNaAgenda }))
+      .toHaveAttribute("href", "/agenda-consultas?estado=CANCELADO");
     fireEvent.click(screen.getByRole("button", { name: t.mesPassado }));
     await waitFor(() => expect(api.listarCancelamentos).toHaveBeenLastCalledWith(
       expect.objectContaining({ inicio: "2026-09-01", fim: "2026-09-30" }), 0, 25, expect.any(AbortSignal),

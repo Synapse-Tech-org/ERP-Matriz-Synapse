@@ -62,6 +62,7 @@ const ICONES: Record<string, React.ComponentType<{ className?: string }>> = {
   atendimentos: Headset,
   dashboard: TrendingUp,
   agenda: BookUser,
+  agendaConsultas: CalendarClock,
   cancelamentos: CalendarClock,
   tags: Tag,
   mensagensRapidas: Zap,
@@ -100,6 +101,11 @@ export function NavegacaoInferior() {
   // Gestão (docs/47): efetivas do backend; revalidadas no foco e no aviso ACESSO_ALTERADO.
   const minhasPermissoes = useMinhasPermissoes(sessaoPronta);
   const { data: flags } = useFuncionalidadesHabilitadas();
+  const rotulosMenu = flags?.includes("variante_clinica") ? {
+    ...textos.menu.itens,
+    agenda: textos.agendaConsultas.pacientes,
+    agendaConsultas: textos.agendaConsultas.titulo,
+  } as Record<string, string> : textos.menu.itens;
   const { data: contagens } = useContagemDeAtendimentos();
   const { data: capacidadeDoCanal } = useQuery({
     queryKey: ["capacidade-do-canal"],
@@ -158,7 +164,7 @@ export function NavegacaoInferior() {
           {abas.map((item) => {
             const Icone = ICONES[item.chave];
             const ativo = pathname.startsWith(item.rota);
-            const rotulo = textos.menu.itens[item.chave] ?? item.chave;
+            const rotulo = rotulosMenu[item.chave] ?? item.chave;
             return (
               <li key={item.chave} className="min-w-0 flex-1">
                 <Link
@@ -259,7 +265,7 @@ export function NavegacaoInferior() {
           <ul className="grid gap-0.5">
             {extras.map((item) => {
               const Icone = ICONES[item.chave];
-              const rotulo = textos.menu.itens[item.chave] ?? item.chave;
+              const rotulo = rotulosMenu[item.chave] ?? item.chave;
               const ativo = pathname.startsWith(item.rota);
               return (
                 <li key={item.chave}>

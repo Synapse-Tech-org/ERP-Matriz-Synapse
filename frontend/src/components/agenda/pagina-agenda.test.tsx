@@ -51,6 +51,7 @@ const push = vi.fn();
 const abrirAtendimentoApi = vi.fn();
 let papel = "ATENDENTE";
 const flags = vi.hoisted(() => ({ data: [] as string[] }));
+vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () => null }));
 
 vi.mock("@/lib/config/use-funcionalidades", () => ({ useFuncionalidadesHabilitadas: () => flags }));
 
@@ -69,6 +70,7 @@ vi.mock("@/lib/auth/auth-store", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     cancelamentos: { titulo: "Cancelamentos" },
+    agendaConsultas: { titulo: "Agenda de consultas", pacientes: "Pacientes", clientesDescricao: "Consulte a ficha." },
     agenda: {
       titulo: "Agenda de contatos",
       descricao: "Clique no contato para consultar a ficha; use Abrir atendimento para ir ao chat.",
@@ -76,6 +78,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       carregando: "Carregando agenda...",
       erro: "Não foi possível carregar a agenda.",
       semResponsavel: "Sem responsável",
+      v2: { titulo: "Agenda de Contatos", descricao: "Consulte os contatos.", lista: "Lista", kanban: "Kanban", todos: "Todos", meus: "Meus" },
       contador: "Exibindo {exibindo} de {total}",
       indiceAlfabetico: "Índice alfabético",
       abrirAtendimento: "Abrir atendimento",

@@ -152,6 +152,7 @@ describe("ShellComSidebar", () => {
     ["/agenda", "/cancelamentos", ["agenda_layout_v2", "gestao_layout_v2", "cancelamentos"]],
     ["/agenda", "/cancelamentos", ["agenda_layout_v2", "variante_clinica", "cancelamentos"]],
     ["/cancelamentos", "/automacao", ["variante_clinica", "cancelamentos"]],
+    ["/agenda", "/agenda-consultas", ["variante_clinica"]],
     ["/atendimentos", "/chat-interno", ["atendimentos_layout_v2", "chat_interno"]],
     ["/configuracoes", "/trocar-senha", []],
     ["/administracao", "/administracao/acessos", ["gestao_layout_v2"]],

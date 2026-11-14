@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
-import { CalendarX2, ChevronLeft, ChevronRight, Columns3, Download, List, Upload } from "lucide-react";
+import { CalendarDays, CalendarX2, ChevronLeft, ChevronRight, Columns3, Download, List, Upload } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { PainelLateralLead } from "@/components/leads/painel-lateral-lead";
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import listaV2 from "@/components/shell/lista-v2.module.css";
+import visual from "@/components/shell/agenda-recursos-v2.module.css";
 import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import { useEquipe } from "@/lib/equipe/use-equipe";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -61,11 +62,14 @@ import estilos from "./agenda-v2.module.css";
  * <p>Kanban fica de fora de propósito. Importação e exportação CSV ficam disponíveis apenas para
  * gestão e usam endpoints próprios, sempre com o mesmo recorte de visibilidade da Agenda.
  */
-export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
+export function PaginaAgenda({ tagInicial, pacienteInicial }: { tagInicial?: string; pacienteInicial?: string } = {}) {
   const textosGerais = useTextos();
   const t = textosGerais.agenda;
   const flags = useFuncionalidadesHabilitadas().data;
-  const layoutV2 = flags?.includes("agenda_layout_v2") ?? false;
+  const clinica = flags?.includes("variante_clinica") ?? false;
+  const layoutV2 = clinica || (flags?.includes("agenda_layout_v2") ?? false);
+  const titulo = clinica ? textosGerais.agendaConsultas.pacientes : layoutV2 ? t.v2.titulo : t.titulo;
+  const descricao = clinica ? textosGerais.agendaConsultas.clientesDescricao : layoutV2 ? t.v2.descricao : t.descricao;
   const entrada = t.entrada ?? {
     placeholder: t.filtros.titulo,
     pedir: t.filtros.adicionar,
@@ -89,6 +93,9 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
   });
   const [pagina, setPagina] = useState(0);
   const [leadNoPainel, setLeadNoPainel] = useState<LeadDaAgenda | null>(null);
+  const [pacienteDoLink, setPacienteDoLink] = useState(pacienteInicial);
+  const pacienteAberto = clinica ? pacienteDoLink : undefined;
+  const leadAberto = pacienteAberto ?? leadNoPainel?.id;
   const [buscaEntrada, setBuscaEntrada] = useState("");
   const [filtrosMobileAbertos, setFiltrosMobileAbertos] = useState(false);
   const [importacaoAberta, setImportacaoAberta] = useState(false);
@@ -122,6 +129,7 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
         httpStatus: 200,
       });
       setLeadNoPainel(null);
+      setPacienteDoLink(undefined);
       router.push(destinoDaAberturaDeAtendimento(resposta));
     },
     onError: (erro, leadId) => {
@@ -202,12 +210,13 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
 
   function abrirFicha(lead: LeadDaAgenda) {
     abrirAtendimento.reset();
+    setPacienteDoLink(undefined);
     // Guarda o snapshot retornado pela Agenda. O item pode sair da página após um refetch,
     // mas o painel e a abertura continuam ancorados no mesmo lead autorizado.
     setLeadNoPainel(lead);
   }
 
-  function solicitarAbrirAtendimento(lead: LeadDaAgenda) {
+  function solicitarAbrirAtendimento(lead: Pick<LeadDaAgenda, "id">) {
     if (abrirAtendimento.isPending || aberturaEmAndamento.current != null) return;
     aberturaEmAndamento.current = lead.id;
     registrarDiagnosticoDeAbertura({
@@ -250,8 +259,8 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
 
   return (
     <div data-layout={layoutV2 ? "v2" : "legado"}
-      className={layoutV2 ? cn(listaV2.pagina, estilos.pagina) : "flex h-full flex-col overflow-hidden bg-background p-6 max-sm:p-4"}>
-      {layoutV2 && <CabecalhoListaV2 titulo={t.v2.titulo} busca={textosGerais.gestao?.v2?.buscaGlobal} />}
+      className={layoutV2 ? cn(listaV2.pagina, estilos.pagina, clinica && visual.paleta) : "flex h-full flex-col overflow-hidden bg-background p-6 max-sm:p-4"}>
+      {layoutV2 && <CabecalhoListaV2 titulo={titulo} busca={textosGerais.gestao?.v2?.buscaGlobal} />}
       <header className={cn(
         "flex-none",
         telaEstreita
@@ -259,10 +268,17 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
           : "-mx-6 -mt-6 mb-4 border-b border-border bg-card px-6 py-4",
       )}>
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-foreground max-sm:text-[1.375rem]">{layoutV2 ? t.v2.titulo : t.titulo}</h1>
-          {!telaEstreita && <p className="mt-1 text-sm text-muted-foreground">{layoutV2 ? t.v2.descricao : t.descricao}</p>}
+          <h1 className="text-xl font-bold text-foreground max-sm:text-[1.375rem]">{titulo}</h1>
+          {!telaEstreita && <p className="mt-1 text-sm text-muted-foreground">{descricao}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {clinica && (
+            <Link href="/agenda-consultas" className={buttonVariants({ variant: "outline", size: telaEstreita ? "icon" : "sm" })}
+              aria-label={textosGerais.agendaConsultas.titulo}>
+              <CalendarDays aria-hidden />
+              {!telaEstreita && textosGerais.agendaConsultas.titulo}
+            </Link>
+          )}
           {mostraCancelamentos && (
             <Link href="/cancelamentos" data-slot="agenda-cancelamentos"
               className={buttonVariants({ variant: "outline", size: telaEstreita ? "icon" : "sm" })}
@@ -468,16 +484,17 @@ export function PaginaAgenda({ tagInicial }: { tagInicial?: string } = {}) {
         </Button>
       </div>
 
-      {leadNoPainel && (
+      {leadAberto && (
         <PainelLateralLead
-          leadId={leadNoPainel.id}
-          contexto="agenda"
+          leadId={leadAberto}
+          contexto={pacienteAberto ? "padrao" : "agenda"}
           onFechar={() => {
             if (abrirAtendimento.isPending) return;
             setLeadNoPainel(null);
+            setPacienteDoLink(undefined);
             abrirAtendimento.reset();
           }}
-          onAbrirAtendimento={podeAbrirAtendimento
+          onAbrirAtendimento={podeAbrirAtendimento && leadNoPainel
             ? () => {
                 solicitarAbrirAtendimento(leadNoPainel);
               }

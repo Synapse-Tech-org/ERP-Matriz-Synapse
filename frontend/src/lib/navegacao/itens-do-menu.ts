@@ -9,6 +9,7 @@ export interface ItemDeMenuBase {
 
 export const ITENS_MENU: readonly ItemDeMenuBase[] = [
   { chave: "atendimentos", rota: "/atendimentos" },
+  { chave: "agendaConsultas", rota: "/agenda-consultas", flag: "variante_clinica" },
   { chave: "dashboard", rota: "/dashboard", flag: "dashboard" },
   { chave: "agenda", rota: "/agenda" },
   { chave: "cancelamentos", rota: "/cancelamentos", flag: "cancelamentos" },

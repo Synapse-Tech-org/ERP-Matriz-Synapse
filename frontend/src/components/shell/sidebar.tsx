@@ -70,6 +70,7 @@ const ICONES_MENU: Record<string, React.ComponentType<{ className?: string }>> =
   atendimentos: Headset,
   dashboard: TrendingUp,
   agenda: BookUser,
+  agendaConsultas: CalendarClock,
   cancelamentos: CalendarClock,
   tags: Tag,
   mensagensRapidas: Zap,
@@ -98,13 +99,14 @@ const ITENS_RECURSOS_V2 = [
   "mensagensRapidas", "templatesWhatsApp", "mensagensProgramadas", "lembretes", "bancoArquivos", "tags",
 ].flatMap((chave) => ITENS_MENU_SIDEBAR.filter((item) => item.chave === chave));
 const ITENS_PRINCIPAIS_V2 = ITENS_MENU_SIDEBAR.filter((item) => !ITENS_RECURSOS_V2.includes(item));
-const ITENS_PRINCIPAIS_CLINICA = ["atendimentos", "cancelamentos", "dashboard", "agenda"]
+const ITENS_PRINCIPAIS_CLINICA = ["atendimentos", "agendaConsultas", "cancelamentos", "dashboard", "agenda"]
   .flatMap((chave) => ITENS_PRINCIPAIS_V2.filter((item) => item.chave === chave));
 
 const ICONES_SIDEBAR_V2: Partial<Record<string, [NomeIconeFrontendV2, NomeIconeFrontendV2]>> = {
   atendimentos: ["chat-smile-2-line", "chat-smile-2-fill"],
   dashboard: ["dashboard-horizontal-line", "dashboard-horizontal-fill"],
   agenda: ["contacts-book-3-line", "contacts-book-3-fill"],
+  agendaConsultas: ["calendar-2-line", "calendar-2-line"],
   cancelamentos: ["calendar-close-line", "calendar-close-fill"],
   mensagensRapidas: ["flashlight-line", "flashlight-fill"],
   templatesWhatsApp: ["file-text-line", "file-text-fill"],
@@ -227,6 +229,11 @@ export function Sidebar({
 
   const sobreposta = !fixada;
   const principais = flags?.includes("variante_clinica") ? ITENS_PRINCIPAIS_CLINICA : ITENS_PRINCIPAIS_V2;
+  const rotulosMenu = flags?.includes("variante_clinica") ? {
+    ...textos.menu.itens,
+    agenda: textos.agendaConsultas.pacientes,
+    agendaConsultas: textos.agendaConsultas.titulo,
+  } : textos.menu.itens;
   const statusAtual = meuUsuario.data?.presenca ?? "OFFLINE";
   const rotuloDaPresenca = (status: StatusPresenca) =>
     ({
@@ -363,7 +370,7 @@ export function Sidebar({
             titulo={titulo}
             itens={itens}
             visivel={itemVisivel}
-            rotulos={textos.menu.itens}
+            rotulos={rotulosMenu}
             pathname={pathname}
             contagemPendentes={contagens?.PENDENTES}
             retraida={retraida}

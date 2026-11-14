@@ -83,9 +83,14 @@ export function PaginaCancelamentos() {
           </div>
         </div>
         {clinica && pode("clientes.acessar") && (
-          <Link href="/agenda" className={buttonVariants({ variant: "outline" })}>
-            <CalendarDays aria-hidden />{t.agendaContatos}
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/agenda-consultas?estado=CANCELADO" className={buttonVariants({ variant: "outline" })}>
+              {textos.agendaConsultas.canceladasNaAgenda}
+            </Link>
+            <Link href="/agenda-consultas" className={buttonVariants({ variant: "outline" })}>
+              <CalendarDays aria-hidden />{textos.agendaConsultas.titulo}
+            </Link>
+          </div>
         )}
       </header>
       <div className={cn("min-w-0 space-y-5", layoutV2 && "min-h-0 flex-1 overflow-y-auto overscroll-contain")}>

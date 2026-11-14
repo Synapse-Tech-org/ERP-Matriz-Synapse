@@ -8,6 +8,7 @@ import { ErrosTextosSchema } from "./schema-erros";
 import { PainelOperacionalTextosSchema } from "./schema-painel-operacional";
 import { RelatoriosTextosSchema } from "./schema-relatorios";
 import { CancelamentosTextosSchema, TEXTOS_CANCELAMENTOS } from "./schema-cancelamentos";
+import { AgendaConsultasTextosSchema } from "./schema-agenda-consultas";
 
 /**
  * Espelha tema.json (backend/crm-app/src/main/resources/tema.json), gerado a partir de
@@ -135,6 +136,7 @@ export type Tema = z.infer<typeof TemaSchema>;
  * de frontend e backend; a estrutura fundacional continua obrigatória.
  */
 export const TextosSchema = z.object({
+  agendaConsultas: AgendaConsultasTextosSchema,
   darwin: DarwinTextosSchema,
   painelOperacional: PainelOperacionalTextosSchema,
   erros: ErrosTextosSchema,
