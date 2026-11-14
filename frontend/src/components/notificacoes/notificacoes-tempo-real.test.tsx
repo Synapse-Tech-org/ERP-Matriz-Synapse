@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { NotificacaoTempoReal } from "@/lib/atendimento/types";
+import { useCentralDeAvisos } from "@/lib/atendimento/central-de-avisos";
 
 const mocks = vi.hoisted(() => ({
   callback: undefined as ((notificacao: NotificacaoTempoReal) => void) | undefined,
@@ -109,9 +110,13 @@ describe("NotificacoesTempoReal", () => {
     act(() => mocks.callback?.(mensagem()));
 
     expect(screen.getByRole("status")).toHaveTextContent("Nova mensagem de Maria");
+    expect(useCentralDeAvisos.getState().avisos).toMatchObject([
+      { id: "evento-1", titulo: "Nova mensagem de Maria", lido: false },
+    ]);
     expect(screen.getByRole("button", { name: "Fechar aviso" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Nova mensagem de Maria/ }));
     expect(mocks.push).toHaveBeenCalledWith("/atendimentos?leadId=lead-1&atendimentoId=atendimento-1&visao=ATIVOS");
+    expect(useCentralDeAvisos.getState().avisos[0]?.lido).toBe(true);
   });
 
   it("fecha o aviso sem interferir na mensagem recebida", () => {

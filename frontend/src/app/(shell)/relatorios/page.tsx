@@ -1,3 +1,10 @@
-import { Placeholder } from "@/components/shell/placeholder";
+import { ExigeCapacidade } from "@/components/gestao/exige-capacidade";
+import { PaginaRelatorioAtendimentos } from "@/components/relatorios/pagina-relatorio-atendimentos";
 
-export default function RelatoriosEmConstrucao() { return <Placeholder />; }
+export default function RelatoriosPage() {
+  return (
+    <ExigeCapacidade capacidade="relatorios.ver">
+      <PaginaRelatorioAtendimentos />
+    </ExigeCapacidade>
+  );
+}

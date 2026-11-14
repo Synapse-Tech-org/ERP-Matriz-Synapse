@@ -22,8 +22,26 @@ finalizar() {
 trap finalizar EXIT INT TERM
 
 limpar
-docker build --file "$RAIZ_REPOSITORIO/backend/Dockerfile" \
-  --tag synapse-backend-websocket-test:local "$RAIZ_REPOSITORIO"
+# O apt do estagio runtime ja falhou na CI com "Could not resolve 'archive.ubuntu.com'" (DNS do container de build do
+# runner, nao o codigo). Repete ate 3 vezes; a partir da 2a usa a rede do host, que resolve pelo resolvedor do proprio
+# runner. So o build desta imagem descartavel muda; a imagem publicada e o Dockerfile nao.
+construir_imagem() {
+  tentativa_build=1
+  while :; do
+    rede=''
+    [ "$tentativa_build" -gt 1 ] && rede='--network host'
+    # shellcheck disable=SC2086
+    if docker build $rede --file "$RAIZ_REPOSITORIO/backend/Dockerfile" \
+      --tag synapse-backend-websocket-test:local "$RAIZ_REPOSITORIO"; then
+      return 0
+    fi
+    [ "$tentativa_build" -ge 3 ] && return 1
+    echo "docker build falhou (tentativa $tentativa_build/3); repetindo com a rede do host em 15s" >&2
+    tentativa_build=$((tentativa_build + 1))
+    sleep 15
+  done
+}
+construir_imagem
 # A imagem atual exige colunas aditivas posteriores a V72. Num banco descartavel vazio,
 # prepare o schema com o runner exclusivo antes do primeiro boot HTTP; nao dependa de
 # um processo web saudavel para executar migrations nem desative a validacao do Hibernate.

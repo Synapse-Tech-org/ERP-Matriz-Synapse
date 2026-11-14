@@ -11,6 +11,7 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_SUBGESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -33,6 +35,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.LinkedMultiValueMap;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
@@ -144,6 +147,92 @@ class FeedbacksIT extends PostgresIT {
                     HttpMethod.GET, "/api/v1/feedbacks", null);
             assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
             assertThat(resposta.getBody()).isNullOrEmpty();
+        }
+    }
+
+    @Test
+    @DisplayName("histórico pessoal isola autores, inclusive para administrador")
+    void historicoPessoalIsolaAutores() throws Exception {
+        post(Map.of("tipo", "ERRO", "areaChave", "GERAL", "descricao", "envio de Ana"));
+        chamar(EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR, HttpMethod.POST, "/api/v1/feedbacks",
+                Map.of("tipo", "SUGESTAO", "areaChave", "GERAL", "descricao", "envio da administração"));
+
+        String rota = "/api/v1/feedbacks/meus";
+        for (var acesso : List.of(
+                Map.entry(EMAIL_ANA, SENHA_ATENDENTE),
+                Map.entry(EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR))) {
+            ResponseEntity<String> resposta = chamar(acesso.getKey(), acesso.getValue(),
+                    HttpMethod.GET, rota, null);
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            JsonNode itens = JSON.readTree(resposta.getBody()).path("itens");
+            assertThat(itens).hasSize(1);
+            assertThat(itens.get(0).path("descricao").asText()).isEqualTo(
+                    acesso.getKey().equals(EMAIL_ANA) ? "envio de Ana" : "envio da administração");
+            assertThat(itens.get(0).has("autorId")).isFalse();
+        }
+        assertThat(http.exchange(rota, HttpMethod.GET, HttpEntity.EMPTY, String.class)
+                .getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("somente administrador responde e somente o autor recebe a resposta no histórico")
+    void respostaAdministrativaApareceNoHistoricoDoAutor() throws Exception {
+        var criado = post(Map.of("tipo", "ERRO", "areaChave", "GERAL", "descricao", "Meu problema"));
+        String id = JSON.readTree(criado.getBody()).path("id").asText();
+        String rota = "/api/v1/feedbacks/" + id + "/resposta";
+        var corpo = Map.of("resposta", "Corrigido pela equipe");
+
+        assertThat(chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.PUT, rota, corpo).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chamar(EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR, HttpMethod.PUT, rota, corpo)
+                .getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        String historico = "/api/v1/feedbacks/meus";
+        var doAutor = chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET, historico, null);
+        JsonNode item = JSON.readTree(doAutor.getBody()).path("itens").get(0);
+        assertThat(item.path("resposta").asText()).isEqualTo("Corrigido pela equipe");
+        assertThat(item.path("respondidoEm").isTextual()).isTrue();
+        var deOutro = chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET, historico, null);
+        assertThat(JSON.readTree(deOutro.getBody()).path("itens")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("print é salvo com o feedback e só autor e administrador podem baixá-lo")
+    void printPrivado() throws Exception {
+        byte[] png = Base64.getDecoder().decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2uoAAAAASUVORK5CYII=");
+        var corpo = new LinkedMultiValueMap<String, Object>();
+        var parte = new HttpHeaders();
+        parte.setContentType(MediaType.APPLICATION_JSON);
+        corpo.add("feedback", new HttpEntity<>(Map.of(
+                "tipo", "ERRO", "areaChave", "GERAL", "descricao", "Envio com print"), parte));
+        corpo.add("arquivo", new ByteArrayResource(png) {
+            @Override
+            public String getFilename() {
+                return "print.png";
+            }
+        });
+        var headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.setBearerAuth(ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken());
+        var criado = http.postForEntity("/api/v1/feedbacks", new HttpEntity<>(corpo, headers), String.class);
+        assertThat(criado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        String id = JSON.readTree(criado.getBody()).path("id").asText();
+        String url = "/api/v1/feedbacks/" + id + "/anexo";
+        for (var acesso : List.of(
+                Map.entry(EMAIL_ANA, SENHA_ATENDENTE),
+                Map.entry(EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR),
+                Map.entry(EMAIL_GESTOR, SENHA_GESTOR))) {
+            var autenticacao = new HttpHeaders();
+            autenticacao.setBearerAuth(ApoioAutenticacao.login(http, acesso.getKey(), acesso.getValue()).accessToken());
+            var resposta = http.exchange(url, HttpMethod.GET, new HttpEntity<>(autenticacao), byte[].class);
+            if (acesso.getKey().equals(EMAIL_GESTOR)) {
+                assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+            } else {
+                assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+                assertThat(resposta.getHeaders().getContentType()).isEqualTo(MediaType.IMAGE_PNG);
+                assertThat(resposta.getBody()).isEqualTo(png);
+            }
         }
     }
 

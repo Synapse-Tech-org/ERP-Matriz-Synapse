@@ -20,15 +20,21 @@ export interface FeedbackCriado {
   criadoEm: string;
 }
 
-export interface FeedbackAdministrativo extends FeedbackCriado {
+export interface FeedbackAcompanhado extends FeedbackCriado {
+  anexoNome?: string | null;
+  resposta?: string | null;
+  respondidoEm?: string | null;
+}
+
+export interface FeedbackAdministrativo extends FeedbackAcompanhado {
   autorId: string;
   autorNome: string;
   autorPapel: string;
   autorFotoUrl: string | null;
 }
 
-export interface PaginaDeFeedbacks {
-  itens: FeedbackAdministrativo[];
+export interface PaginaDeFeedbacks<Item = FeedbackAdministrativo> {
+  itens: Item[];
   proximoCriadoEm: string | null;
   proximoId: string | null;
 }

@@ -1,0 +1,182 @@
+{
+  "preparedAt": "2026-11-09T17:42:45.223Z",
+  "target": "https://n8n-teste.187.77.47.30.sslip.io",
+  "source": "https://n8n.187.77.47.30.sslip.io",
+  "active": false,
+  "globalPending": [
+    "LOGIN_CRM_HML",
+    "VALIDAR_TABELAS_TECNICAS_E_FAQ",
+    "CONFIGURAR_REPASSE_CRM_E_WEBHOOKS",
+    "ENVIOS_DESLIGADOS_NO_ADAPTADOR",
+    "VALIDAR_BOTOES_LISTAS_MIDIAS_SEM_EXECUCAO_AUTOMATICA"
+  ],
+  "workflows": [
+    {
+      "sourceId": "FNCKnkLKsvU2qMKL",
+      "name": "HML - EV-00 Entrada Webhook",
+      "pending": [],
+      "targetId": "Q4LshQqfcloscgEV"
+    },
+    {
+      "sourceId": "ifYNV5emHaYerNHC",
+      "name": "HML - EV-01 Orquestrador Principal",
+      "pending": [],
+      "targetId": "4DP8BA2hcSS80fMc"
+    },
+    {
+      "sourceId": "jWXxbeR7g2PIkelX",
+      "name": "HML - EV-02 FAQ Institucional",
+      "pending": [],
+      "targetId": "YaOVTODEGSG1t5aN"
+    },
+    {
+      "sourceId": "nglTw6N8vO6Pddr7",
+      "name": "HML - EV-03 Transferir Atendimento",
+      "pending": [
+        "Textos da transferencia: CONFIGURAR_atendente_outros_id"
+      ],
+      "targetId": "6A1a6nPRjBUd1DqN"
+    },
+    {
+      "sourceId": "IcjNpu2EcuacreAM",
+      "name": "HML - EV-17 Etapas por inatividade — JEV",
+      "pending": [
+        "JEV — tentativa 1: JEV_HML_NAO_CONFIGURADO",
+        "JEV — tentativa 2: JEV_HML_NAO_CONFIGURADO",
+        "JEV — tentativa 3: JEV_HML_NAO_CONFIGURADO"
+      ],
+      "targetId": "9j3C2dgjBsAyoYGH"
+    },
+    {
+      "sourceId": "K56hk1tbNXRAatMM",
+      "name": "HML - EV-05 Gerar Resumo",
+      "pending": [
+        "Parâmetros de teste manual: CONFIGURAR_telefone_HML"
+      ],
+      "targetId": "5qDHXpGudMI77wA3"
+    },
+    {
+      "sourceId": "NTMZ14d3pNNuo2o0",
+      "name": "HML - EV-06 Follow-up de teste — relógio persistente",
+      "pending": [
+        "Variaveis follow-up: CONFIGURAR_lead_id_teste_followup_inativo"
+      ],
+      "targetId": "IUSgbDjPRPIJPIP2"
+    },
+    {
+      "sourceId": "DvzVmajWrUIlDSGG",
+      "name": "HML - EV-07 | Fidelização e mensagens festivas",
+      "pending": [
+        "Enviar template aniversário pela Meta: TEMPLATE_META_PRECISA_DE_CONTEUDO_EVOLUTION",
+        "Enviar template festivo pela Meta: TEMPLATE_META_PRECISA_DE_CONTEUDO_EVOLUTION",
+        "Enviar template fidelização pela Meta: TEMPLATE_META_PRECISA_DE_CONTEUDO_EVOLUTION"
+      ],
+      "targetId": "nMSfkbJawJKNAh8D"
+    },
+    {
+      "sourceId": "tKAG5YpkDxzb2gPn",
+      "name": "HML - EV-08 Avaliacao de Atendimento",
+      "pending": [],
+      "targetId": "HR34x2ZAN8vyI9Yi"
+    },
+    {
+      "sourceId": "11jt3laOLT4REqg7",
+      "name": "HML - EV-09 Reservado — Sem escopo definido",
+      "pending": [],
+      "targetId": "kGrMpkAV90KT33Jm"
+    },
+    {
+      "sourceId": "MZKBEbScSoN7gcb7",
+      "name": "HML - EV-10 Reservado — Sem escopo definido",
+      "pending": [],
+      "targetId": "tdqqODiDFIP5E5sF"
+    },
+    {
+      "sourceId": "BKwxF1hPZufgsJnk",
+      "name": "HML - EV-99 Tratamento de Erros",
+      "pending": [],
+      "targetId": "tjeeCNmXQaGI2sB3"
+    },
+    {
+      "sourceId": "GvCXzv5l0xHEZeCk",
+      "name": "HML - EV-11 Renovar token JWT do CRM",
+      "pending": [],
+      "targetId": "JwZ7mgjz2yrz2NoA"
+    },
+    {
+      "sourceId": "4ZCtNxasGfd6O1uG",
+      "name": "HML - EV-12 Busca Atendimento ID",
+      "pending": [],
+      "targetId": "fyUbmjnzl1DChOq1"
+    },
+    {
+      "sourceId": "nksMZg1fZma1w3A5",
+      "name": "HML - EV-13 Processar Midias",
+      "pending": [],
+      "targetId": "Xz6N2UVfLL3UyEDw"
+    },
+    {
+      "sourceId": "coJzT7iKvN6AIol5",
+      "name": "HML - EV-14 Coletar Fotos Contatos",
+      "pending": [],
+      "targetId": "HB5IRcnlnNDYKkYU"
+    },
+    {
+      "sourceId": "Z2J19flWC576eg79",
+      "name": "HML - EV-15 Limpar Follow-ups Fim Expediente",
+      "pending": [],
+      "targetId": "AiQM0LMb5guXoWxJ"
+    },
+    {
+      "sourceId": "9X5hZh0dr34H5vDl",
+      "name": "HML - EV-16 Buffer Mensagens",
+      "pending": [],
+      "targetId": "F0SbW4OCb8CoIGSM"
+    },
+    {
+      "sourceId": "8twV2VG6RyqpULui",
+      "name": "HML - EV-01 Orquestrador Principal copy",
+      "pending": [],
+      "targetId": "kbi2B4joUEZudCjH"
+    },
+    {
+      "sourceId": "V0pOklD4K8biXt2O",
+      "name": "HML - EV-13 Processar Midias copy",
+      "pending": [],
+      "targetId": "EzNfjbjWtXb1cnf5"
+    },
+    {
+      "sourceId": "qzB23Yfr6HiCbF3e",
+      "name": "HML - EV-03 Transferir Atendimento copy",
+      "pending": [
+        "Textos da transferencia: CONFIGURAR_atendente_outros_id"
+      ],
+      "targetId": "UjyAO5xAb8tyoPeB"
+    },
+    {
+      "sourceId": "QJzvVGiwCB9vVQUT",
+      "name": "HML - EV-08 Avaliacao de Atendimento copy",
+      "pending": [],
+      "targetId": "vcD0zOIoBW6bE0V6"
+    },
+    {
+      "sourceId": "O83GXc4CTRjXj02R",
+      "name": "HML - EV-12 Busca Atendimento ID copy",
+      "pending": [],
+      "targetId": "vvXDQw1YZBBYYl3t"
+    },
+    {
+      "sourceId": "E1m0KSlmiUCLJTmD",
+      "name": "HML - EV-16 Buffer Mensagens copy",
+      "pending": [],
+      "targetId": "YIQCp3QV2Ho6xvjc"
+    },
+    {
+      "sourceId": "uVhIKUyw3czlhuIB",
+      "name": "HML - EV-00 Entrada Webhook copy",
+      "pending": [],
+      "targetId": "rA0U0yYqqP9WCGMZ"
+    }
+  ],
+  "helperId": "j9vBXDJ8Xn91uGmp"
+}

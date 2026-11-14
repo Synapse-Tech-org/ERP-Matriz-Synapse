@@ -77,6 +77,71 @@ class LembretesIT extends PostgresIT {
     }
 
     @Test
+    void criaLembretePessoalSemVinculoEProtegeDeOutroAtendente() {
+        String texto = "Lembrete pessoal " + UUID.randomUUID();
+        var criado = chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.POST, "/api/v1/lembretes",
+                Map.of("texto", texto, "dataHora", "2026-08-05T13:00:00Z"));
+        assertThat(criado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(criado.getBody()).contains(texto);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.GET,
+                "/api/v1/lembretes", null).getBody()).doesNotContain(texto);
+    }
+
+    @Test
+    void atribuicaoExigeGestaoEResponsavelAtivo() {
+        var dados = Map.of("leadId", leadAna, "responsavelId", bruno, "texto", "Responsável escolhido",
+                "dataHora", "2026-08-05T13:00:00Z");
+        assertThat(chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.POST, "/api/v1/lembretes", dados).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        var desconhecido = Map.of("responsavelId", UUID.randomUUID(), "texto", "Responsável inexistente",
+                "dataHora", "2026-08-05T13:00:00Z");
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.POST, "/api/v1/lembretes", desconhecido).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        var criado = chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.POST, "/api/v1/lembretes", dados);
+        assertThat(criado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(criado.getBody()).contains(bruno.toString());
+        String id = criado.getBody().split("\"id\":\"")[1].split("\"")[0];
+        var alteracao = Map.of("responsavelId", ana, "texto", "Responsável alterado",
+                "dataHora", "2026-08-05T13:00:00Z", "status", "PENDENTE");
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.PUT, "/api/v1/lembretes/" + id, alteracao).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.PUT, "/api/v1/lembretes/" + id, alteracao).getBody())
+                .contains(ana.toString());
+    }
+
+    @Test
+    void exclusaoReversivelSomeDaListaEExigeAutorEChave() {
+        String rota = "/api/v1/lembretes/" + lembreteBruno;
+        String chave = UUID.randomUUID().toString();
+        String exclusao = rota + "?chaveExclusao=" + chave;
+        String restauracao = rota + "/restaurar?chaveExclusao=";
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.DELETE, exclusao, null).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.DELETE, exclusao, null).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.GET,
+                "/api/v1/lembretes?leadId=" + leadBruno + "&incluirResumo=true", null).getBody())
+                .doesNotContain(lembreteBruno.toString()).contains("\"pendentes\":0");
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.POST, restauracao + chave, null).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.POST,
+                restauracao + UUID.randomUUID(), null).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.POST, restauracao + chave, null).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.GET,
+                "/api/v1/lembretes?leadId=" + leadBruno, null).getBody()).contains(lembreteBruno.toString());
+
+        String novaChave = UUID.randomUUID().toString();
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.DELETE,
+                rota + "?chaveExclusao=" + novaChave, null).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.POST, restauracao + chave, null).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        jdbc.update("UPDATE lembrete SET excluido_em = statement_timestamp() - interval '31 seconds' WHERE id = ?", lembreteBruno);
+        assertThat(chamar(EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.POST, restauracao + novaChave, null).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     @DisplayName("RN-CRM-04: atendente NAO lista, altera, remove nem cria no lead do colega")
     void negativoPrivacidadeDoAtendente() {
         String listaAna = chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET,
@@ -103,6 +168,32 @@ class LembretesIT extends PostgresIT {
         String lista = chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET,
                 "/api/v1/lembretes", null).getBody();
         assertThat(lista).contains(lembreteBruno.toString()).contains("Bruno Atendente");
+    }
+
+    @Test
+    void buscaEOrigemFiltramNaOrigemSemExporLembreteDeOutroAtendente() {
+        jdbc.update("UPDATE lembrete SET origem_automatica = TRUE WHERE id = ?", lembreteBruno);
+        String rota = "/api/v1/lembretes?leadId=" + leadBruno + "&atendenteId=" + bruno;
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET,
+                rota + "&busca=pRiVaDo&origemAutomatica=true", null).getBody()).contains(lembreteBruno.toString());
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET,
+                rota + "&busca=pRiVaDo&origemAutomatica=false", null).getBody()).doesNotContain(lembreteBruno.toString());
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET,
+                rota + "&busca=E13", null).getBody()).contains(lembreteBruno.toString());
+        assertThat(chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET,
+                rota + "&busca=privado&origemAutomatica=true", null).getBody()).doesNotContain(lembreteBruno.toString());
+    }
+
+    @Test
+    void resumoContaPendentesAutorizadosMesmoComFiltroDeConcluidos() {
+        jdbc.update("UPDATE lembrete SET origem_automatica = TRUE WHERE id = ?", lembreteBruno);
+        String rota = "/api/v1/lembretes?leadId=" + leadBruno + "&status=CONCLUIDO&incluirResumo=true";
+        var gestor = chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET, rota, null);
+        assertThat(gestor.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(gestor.getBody()).contains("\"lembretes\":[]", "\"pendentes\":1", "\"automaticos\":1");
+        var colega = chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET, rota, null);
+        assertThat(colega.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(colega.getBody()).contains("\"pendentes\":0", "\"automaticos\":0");
     }
 
     private ResponseEntity<String> chamar(String email, String senha, HttpMethod metodo, String url, Object corpo) {

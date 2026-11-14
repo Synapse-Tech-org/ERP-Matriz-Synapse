@@ -1,0 +1,187 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { readFileSync, readdirSync, mkdtempSync, rmdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import test, { after } from "node:test";
+import { parse } from "yaml";
+
+// So renderiza configuracao: nao usa daemon, credenciais reais ou stack deploy.
+const raiz = fileURLToPath(new URL("../../", import.meta.url));
+const arquivo = "docker/dokploy-stack.yml";
+const fonte = readFileSync(join(raiz, arquivo), "utf8");
+const configTemporaria = mkdtempSync(join(tmpdir(), "synapse-stack-config-"));
+after(() => rmdirSync(configTemporaria));
+const docker = process.env.DOCKER_CLI || "docker";
+const digest = "@sha256:" + "a".repeat(64);
+
+function ambienteSintetico(adicional = {}) {
+    const env = { ...process.env, DOCKER_CONFIG: configTemporaria };
+    const expressoes = [...fonte.matchAll(/\$\{([A-Z0-9_]+)([^}]*)\}/g)];
+    // A mesma env pode ser obrigatoria no CRM e opcional na automacao desligada.
+    // Remover todas primeiro evita que a ultima ocorrencia apague o fixture.
+    for (const [, nome] of expressoes) delete env[nome];
+    for (const [, nome, operador] of expressoes) {
+        if (operador.startsWith(":?")) env[nome] = "fixture-ci";
+    }
+    Object.assign(env, {
+        SYNAPSE_IMAGE_TAG: "abcdef1",
+        N8N_IMAGE_TAG: "2.33.4",
+        SYNAPSE_TIMEZONE: "UTC",
+        TRAEFIK_ROUTER_PREFIX: "ci-stack",
+        SYNAPSE_DOMINIO: "crm.example.test",
+        AUTOMACAO_DOMINIO: "n8n.example.test",
+        MIDIA_DOMINIO: "midia.example.test",
+        POSTGRES_DB: "crm_fixture",
+        POSTGRES_USER: "admin_fixture",
+        POSTGRES_PASSWORD: "dummy-postgres-ci",
+        N8N_DB_NAME: "n8n_fixture",
+        N8N_DB_USER: "n8n_fixture",
+        N8N_DB_PASSWORD: "dummy-n8n-ci",
+        ...adicional,
+    });
+    return env;
+}
+
+function renderizar(adicional = {}) {
+    const resultado = spawnSync(
+        docker,
+        ["stack", "config", "--compose-file", arquivo],
+        {
+            cwd: raiz,
+            env: ambienteSintetico(adicional),
+            encoding: "utf8",
+            timeout: 30000,
+            maxBuffer: 4 * 1024 * 1024,
+        },
+    );
+    assert.ifError(resultado.error);
+    assert.equal(resultado.status, 0, resultado.stderr);
+    const stack = parse(resultado.stdout);
+    // O CLI legado pode retornar zero mesmo produzindo imagem com ${...} ou }.
+    for (const [nome, servico] of Object.entries(stack.services)) {
+        assert.doesNotMatch(
+            servico.image,
+            /[\s${}]/,
+            "imagem invalida: " + nome,
+        );
+        const labels = servico.deploy?.labels || {};
+        for (const valor of Object.values(labels)) {
+            assert.doesNotMatch(
+                String(valor),
+                /\$\{|[{}]/,
+                "label nao resolvida: " + nome,
+            );
+        }
+    }
+    return stack;
+}
+
+test("Stack nao contem variaveis aninhadas, regressao do deploy 63dee0a", () => {
+    assert.doesNotMatch(fonte, /\$\{[^}]*\$\{/);
+});
+
+test("Docker Stack real: sem override mantem tag conjunta e componentes desligados", () => {
+    const stack = renderizar();
+    assert.equal(
+        stack.services.automacao.image,
+        "ghcr.io/synapse-auto/erp-matriz-synapse-automacao:abcdef1",
+    );
+    assert.equal(stack.services.automacao.deploy.replicas, 0);
+    assert.equal(stack.services["automacao-banco"].deploy.replicas, 0);
+    assert.equal(
+        String(stack.services.automacao.deploy.labels["traefik.enable"]),
+        "false",
+    );
+});
+
+test("Docker Stack real: override vazio tambem preserva tag conjunta", () => {
+    const stack = renderizar({
+        AUTOMACAO_IMAGE_DIGEST: "",
+        AUTOMACAO_ROUTER_PREFIX: "",
+    });
+    assert.equal(
+        stack.services.automacao.image,
+        "ghcr.io/synapse-auto/erp-matriz-synapse-automacao:abcdef1",
+    );
+});
+
+test("preparador recebe SQL e migracoes por arquivo sem depender da imagem TypeScript", () => {
+    const stack = renderizar();
+    const preparador = stack.services["automacao-banco"];
+    assert.equal(preparador.image, "postgres:15-alpine");
+    const destinos = new Map(preparador.configs.map(c => [c.target, c.source]));
+    assert.equal(destinos.get("/opt/automacao/provisionar.sql"), "automacao-provisionar-sql-v2");
+    assert.equal(destinos.get("/opt/automacao/aplicar-migracoes.sh"), "automacao-migrar-sh-v1");
+    assert.equal(destinos.get("/opt/automacao/migrations/V2__criar_faq_institucional.sql"), "automacao-migracao-v2");
+    const arquivos = readdirSync(join(raiz, "automacao/banco/migrations")).filter(f => /^V\d+__.*\.sql$/.test(f));
+    assert.equal(arquivos.length, 10);
+    for (const arquivo of arquivos) {
+        const source = destinos.get("/opt/automacao/migrations/" + arquivo);
+        assert.ok(source, "Migration nao montada: " + arquivo);
+        assert.equal(stack.configs[source].file.replaceAll("\\", "/").endsWith("/automacao/banco/migrations/" + arquivo), true);
+    }
+    const sql = readFileSync(join(raiz, "automacao/banco/provisionar.sql"), "utf8");
+    assert.ok(sql.indexOf("clonar-estrutura.sh") < sql.indexOf("aplicar-migracoes.sh"));
+    assert.equal(stack.services.automacao.deploy.replicas, 0);
+});
+
+test("Docker Stack real: digest seleciona somente automacao, sem mudar outros servicos", () => {
+    const base = renderizar();
+    const hml = renderizar({
+        AUTOMACAO_IMAGE_DIGEST: digest,
+        AUTOMACAO_REPLICAS: "1",
+        AUTOMACAO_PROVISIONAR_REPLICAS: "1",
+        AUTOMACAO_PAINEL_HABILITADO: "true",
+        AUTOMACAO_PAINEL_DOMINIO: "painel.example.test",
+        AUTOMACAO_ROUTER_PREFIX: "automacao-hml",
+        AUTOMACAO_DB_NAME: "automacao_ci",
+        AUTOMACAO_DB_USER: "automacao_ci_app",
+        AUTOMACAO_DB_PASSWORD: "dummy-automacao-ci",
+    });
+    assert.equal(
+        hml.services.automacao.image,
+        base.services.automacao.image + digest,
+    );
+    for (const [nome, servico] of Object.entries(base.services)) {
+        if (!["automacao", "automacao-banco"].includes(nome))
+            assert.deepEqual(hml.services[nome], servico, nome);
+    }
+    assert.equal(hml.services.automacao.deploy.replicas, 1);
+    const labels = hml.services.automacao.deploy.labels;
+    assert.equal(String(labels["traefik.enable"]), "true");
+    assert.equal(
+        labels["traefik.http.routers.automacao-hml-ci-stack.rule"],
+        "Host(`painel.example.test`) && (PathPrefix(`/painel/`) || Path(`/painel`) || Path(`/`))",
+    );
+    assert.equal(
+        labels["traefik.http.routers.automacao-hml-ci-stack.service"],
+        "automacao-hml-ci-stack",
+    );
+});
+
+test("Docker Stack real: roteadores padrao sao exclusivos por filho", () => {
+    const a = renderizar({ TRAEFIK_ROUTER_PREFIX: "filho-a" });
+    const b = renderizar({ TRAEFIK_ROUTER_PREFIX: "filho-b" });
+    assert.ok(
+        a.services.automacao.deploy.labels[
+            "traefik.http.routers.painel-filho-a.rule"
+        ],
+    );
+    assert.ok(
+        b.services.automacao.deploy.labels[
+            "traefik.http.routers.painel-filho-b.rule"
+        ],
+    );
+});
+
+test("repositorio e digest publicados na org atual alteram somente a imagem da automacao", () => {
+    const base = renderizar();
+    const repositorio = "ghcr.io/fixture-org/erp-matriz-synapse-automacao";
+    const hml = renderizar({AUTOMACAO_IMAGE_REPOSITORIO:repositorio, AUTOMACAO_IMAGE_DIGEST:digest});
+    assert.equal(hml.services.automacao.image, repositorio + ":abcdef1" + digest);
+    for (const [nome, servico] of Object.entries(base.services)) {
+        if (nome !== "automacao") assert.deepEqual(hml.services[nome], servico, nome);
+    }
+});

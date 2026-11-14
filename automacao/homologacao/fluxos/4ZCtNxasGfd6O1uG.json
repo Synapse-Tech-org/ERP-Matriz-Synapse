@@ -1,0 +1,437 @@
+{
+  "name": "HML - EV-12 Busca Atendimento ID",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "evento",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -5584,
+        1056
+      ],
+      "id": "c72f11c2-6064-4efc-93aa-5fb8c1ca7b9e",
+      "name": "When Executed by Another Workflow",
+      "notesInFlow": true,
+      "notes": "Recebe a execu??o iniciada pelo EV-01. O objeto evento ? enviado pelo node Execute Workflow do EV-01."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Variaveis contexto CRM').first().json.crm_base_url.replace(/\\/$/, '') + '/api/v1/leads/filtrar' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { criterio: { tipo: 'SIMPLES', campo: 'telefone', operador: 'CONTEM', valor: $('Preparar telefones CRM').first().json.telefone_busca_principal ?? '' }, pagina: Number($('Variaveis contexto CRM').first().json.leads_filtro_pagina), tamanho: Number($('Variaveis contexto CRM').first().json.leads_filtro_tamanho) } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -4832,
+        1056
+      ],
+      "id": "fd574165-8895-417c-9f8c-bf1110b1f2a9",
+      "name": "Buscar lead pelo telefone",
+      "notesInFlow": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "vVM51dBWEAWnTxtg",
+          "name": "HML CRM JWT - PENDENTE LOGIN"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Localiza o lead pelo wa_id usando a API do CRM e o JWT dinamico; nao usa SQL."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compara os telefones sem formatacao e aceita o formato original ou o temporario do CRM.\nconst evento = $('When Executed by Another Workflow').first().json.evento ?? {};\nconst prep = $('Preparar telefones CRM').first().json ?? {};\nconst respostaPrincipal = $('Buscar lead pelo telefone').isExecuted ? $('Buscar lead pelo telefone').first().json : null;\nconst respostaFallback = $('Buscar lead pelo telefone original').isExecuted ? $('Buscar lead pelo telefone original').first().json : null;\nconst resposta = respostaFallback ?? respostaPrincipal ?? {};\nconst limpar = (v) => String(v ?? '').replace(/\\D/g, '');\nconst telefonesAceitos = new Set([\n  limpar(prep.telefone_original ?? evento.contato?.wa_id),\n  limpar(prep.telefone_busca_principal ?? evento.contato?.wa_id)\n].filter(Boolean));\nconst candidatos = Array.isArray(resposta)\n  ? resposta\n  : (resposta.leads ?? resposta.content ?? resposta.data ?? resposta.items ?? []);\nconst lead = (Array.isArray(candidatos) ? candidatos : [])\n  .find((item) => telefonesAceitos.has(limpar(item.telefone ?? item.phone ?? item.whatsapp)));\nreturn [{ json: { ...evento, crm: { lead_id: String(lead?.id ?? lead?.leadId ?? ''), atendimento_id: '' } } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4176,
+        880
+      ],
+      "id": "9f7ee140-0dc5-4cea-97b7-5e6c0b5511d7",
+      "name": "Selecionar lead exato",
+      "notesInFlow": true,
+      "notes": "Seleciona somente o lead cujo telefone corresponde ao wa_id real do webhook."
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Variaveis contexto CRM').first().json.crm_base_url.replace(/\\/$/, '') + '/api/v1/atendimentos/busca' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "leadId",
+              "value": "={{ $('Selecionar lead exato').first().json.crm.lead_id }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -3680,
+        864
+      ],
+      "id": "61cace26-218a-48e0-b5bd-189cb31cca9a",
+      "name": "Buscar atendimento do lead no CRM",
+      "notesInFlow": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "vVM51dBWEAWnTxtg",
+          "name": "HML CRM JWT - PENDENTE LOGIN"
+        }
+      },
+      "notes": "Busca somente o cartão representativo do lead localizado. Contrato GET /api/v1/atendimentos/busca?leadId=... da PR #196; exige o JWT já usado pelo EV-12. HTTP 404 significa que o lead não tem atendimento visível."
+    },
+    {
+      "parameters": {
+        "jsCode": "// A busca pontual do CRM devolve um único cartão, em vez da lista inteira do painel.\n// Se ainda não há lead, pulamos o HTTP. Se a API devolve 404, mantemos o mesmo\n// contexto anterior: lead conhecido, mas atendimento não localizado.\nconst contexto = $('Selecionar lead exato').first().json;\nconst variaveis = $('Variaveis contexto CRM').first().json;\nconst leadId = String(contexto.crm?.lead_id ?? '');\nlet atendimento = {};\n\nif (leadId && $('Buscar atendimento do lead no CRM').isExecuted) {\n  const resposta = $('Buscar atendimento do lead no CRM').first().json;\n  const status = Number(resposta.statusCode ?? 0);\n\n  if (status === 200) {\n    atendimento = resposta.body ?? {};\n    // Nunca aceitar o cartão de outro lead nem tratar uma resposta quebrada\n    // como se não existisse atendimento. Isso poderia liberar a IA indevidamente.\n    if (!atendimento.atendimentoId || String(atendimento.leadId ?? '') !== leadId) {\n      throw new Error('CARTAO_DE_ATENDIMENTO_INCOMPATIVEL_COM_LEAD');\n    }\n  } else if (status !== 404) {\n    throw new Error('FALHA_NA_BUSCA_PONTUAL_DE_ATENDIMENTO_HTTP_' + status);\n  }\n}\n\nconst atendimentoId = String(atendimento.atendimentoId ?? '');\nconst statusAtendimento = String(atendimento.status ?? '').toUpperCase();\nconst modoAtendimento = String(atendimento.modoAtendimento ?? atendimento.modo ?? '').toUpperCase();\nconst iaAtivaCampo = atendimento.iaAtiva ?? atendimento.ia_ativa ?? atendimento.emIa ?? atendimento.em_ia ?? null;\nconst iaAtiva = typeof iaAtivaCampo === 'boolean'\n  ? iaAtivaCampo\n  : ['TRUE', '1', 'SIM', 'EM_IA', 'IA'].includes(String(iaAtivaCampo ?? '').trim().toUpperCase());\nconst statusIa = ['EM_IA', 'IA', 'BOT', 'AUTOMACAO', 'AUTOMACAO_IA'].includes(statusAtendimento) || modoAtendimento === 'IA' || iaAtiva;\nconst iaAutorizada = !atendimentoId || statusIa;\n\nconst memoriaContextWindowLength = Number(variaveis.memoria_context_window_length);\nif (!Number.isFinite(memoriaContextWindowLength) || memoriaContextWindowLength <= 0) {\n  throw new Error('MEMORIA_CONTEXT_WINDOW_LENGTH_NAO_CONFIGURADO');\n}\n\nconst waId = String(contexto.contato?.wa_id ?? '').replace(/\\D/g, '');\n// A memória da IA pertence ao lead, não ao atendimento.\n// Um novo atendimento do mesmo lead continua usando a conversa anterior.\nconst sessionId = leadId\n  ? String(variaveis.session_prefix_lead ?? '') + leadId\n  : String(variaveis.session_prefix_wa ?? '') + waId;\n\nreturn [{ json: {\n  ...contexto,\n  crm: {\n    ...contexto.crm,\n    atendimento_id: atendimentoId,\n    status_atendimento: statusAtendimento,\n    modo_atendimento: modoAtendimento,\n    ia_ativa: statusIa,\n    ia_autorizada: iaAutorizada,\n    contexto_localizado: Boolean(leadId && atendimentoId),\n    origem_status_atendimento: atendimentoId ? 'LISTA_ATENDIMENTOS_CRM' : 'ATENDIMENTO_NAO_LOCALIZADO'\n  },\n  memoria: {\n    tipo: 'POSTGRES_CHAT_MEMORY',\n    session_id: sessionId,\n    table: String(variaveis.memoria_tabela ?? ''),\n    context_window_length: memoriaContextWindowLength\n  }\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3440,
+        864
+      ],
+      "id": "85f45ed1-7a2e-46ad-981a-782002f05127",
+      "name": "Selecionar atendimento do lead",
+      "notesInFlow": true,
+      "notes": "Mantém a mesma saída do EV-12 para EV-01 e EV-00. Lê o cartão único da busca pontual, preserva a memória por lead e bloqueia falha HTTP ou cartão incompatível."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ev12-config-crm-base-url",
+              "name": "crm_base_url",
+              "value": "https://crm-teste.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "ev12-config-leads-filtro-pagina",
+              "name": "leads_filtro_pagina",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "ev12-config-leads-filtro-tamanho",
+              "name": "leads_filtro_tamanho",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "ev12-config-memoria-tabela",
+              "name": "memoria_tabela",
+              "value": "public.n8n_chat_histories",
+              "type": "string"
+            },
+            {
+              "id": "ev12-config-memoria-context-window-length",
+              "name": "memoria_context_window_length",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "ev12-config-session-prefix-lead",
+              "name": "session_prefix_lead",
+              "value": "hml:lead-",
+              "type": "string"
+            },
+            {
+              "id": "ev12-config-session-prefix-wa",
+              "name": "session_prefix_wa",
+              "value": "hml:wa-",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "74e23c12-2d01-4d14-b3ec-3c86aee42a70",
+      "name": "Variaveis contexto CRM",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -5344,
+        1056
+      ],
+      "notesInFlow": true,
+      "notes": "Centraliza variaveis de producao deste workflow."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ajuste temporario para o formato de telefone usado atualmente pelo CRM.\n// Para celulares brasileiros, o CRM pode armazenar um 9 adicional depois do DDD.\nconst contexto = $('Variaveis contexto CRM').first().json;\nconst original = String(contexto.evento?.contato?.wa_id ?? '').replace(/\\D/g, '');\nlet principal = original;\n\n// So altera Brasil (55) com DDD + assinante de exatamente 8 digitos.\n// Assinantes iniciados em 6, 7, 8 ou 9 sao tratados como celular.\nif (original.startsWith('55') && original.length === 12) {\n  const assinante = original.slice(4);\n  if (/^[6-9]\\d{7}$/.test(assinante)) {\n    principal = original.slice(0, 4) + '9' + assinante;\n  }\n}\n\nreturn [{ json: {\n  ...contexto,\n  telefone_original: original,\n  telefone_busca_principal: principal\n} }];"
+      },
+      "id": "4ae7d16f-87ed-47fd-aede-59c487e00742",
+      "name": "Preparar telefones CRM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5072,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6d946b2b-e152-412d-a5af-8173548241f8",
+              "leftValue": "={{ (() => { const r = $('Buscar lead pelo telefone').first().json ?? {}; const a = Array.isArray(r) ? r : (r.leads ?? r.content ?? r.data ?? r.items ?? []); return Array.isArray(a) && a.length > 0; })() }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f5d09267-4266-48c0-b823-278c0a4018c3",
+      "name": "Lead encontrado na busca principal?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -4592,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Variaveis contexto CRM').first().json.crm_base_url.replace(/\\/$/, '') + '/api/v1/leads/filtrar' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { criterio: { tipo: 'SIMPLES', campo: 'telefone', operador: 'CONTEM', valor: $('Preparar telefones CRM').first().json.telefone_original ?? '' }, pagina: Number($('Variaveis contexto CRM').first().json.leads_filtro_pagina), tamanho: Number($('Variaveis contexto CRM').first().json.leads_filtro_tamanho) } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -4176,
+        1120
+      ],
+      "id": "3fb1d34a-bcab-4e83-9f3c-24a1876e3d12",
+      "name": "Buscar lead pelo telefone original",
+      "notesInFlow": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "vVM51dBWEAWnTxtg",
+          "name": "HML CRM JWT - PENDENTE LOGIN"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Localiza o lead pelo wa_id usando a API do CRM e o JWT dinamico; nao usa SQL."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ev12-lead-id-presente",
+              "leftValue": "={{ $('Selecionar lead exato').first().json.crm.lead_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3952,
+        864
+      ],
+      "id": "64e7ae41-9d5f-4fd1-a3c0-23091e7ecf91",
+      "name": "Lead identificado para consulta?",
+      "notesInFlow": true,
+      "notes": "Evita requisição sem leadId. Um contato ainda não cadastrado segue direto para a saída padrão do EV-12."
+    },
+    {
+      "id": "aecdb744-0184-4de8-800d-4227efb3caa9",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-12 Busca Atendimento ID\nCRM de teste / Evolution.\nVer pendencias gerais no manifesto local.\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Variaveis contexto CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar lead pelo telefone": {
+      "main": [
+        [
+          {
+            "node": "Lead encontrado na busca principal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Selecionar lead exato": {
+      "main": [
+        [
+          {
+            "node": "Lead identificado para consulta?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar atendimento do lead no CRM": {
+      "main": [
+        [
+          {
+            "node": "Selecionar atendimento do lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Variaveis contexto CRM": {
+      "main": [
+        [
+          {
+            "node": "Preparar telefones CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar telefones CRM": {
+      "main": [
+        [
+          {
+            "node": "Buscar lead pelo telefone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead encontrado na busca principal?": {
+      "main": [
+        [
+          {
+            "node": "Selecionar lead exato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar lead pelo telefone original",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar lead pelo telefone original": {
+      "main": [
+        [
+          {
+            "node": "Selecionar lead exato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead identificado para consulta?": {
+      "main": [
+        [
+          {
+            "node": "Buscar atendimento do lead no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Selecionar atendimento do lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}

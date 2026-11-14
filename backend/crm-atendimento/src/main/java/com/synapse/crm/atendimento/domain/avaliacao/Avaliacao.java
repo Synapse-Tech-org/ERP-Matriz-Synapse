@@ -18,7 +18,8 @@ public record Avaliacao(
         UUID atendenteId,
         int nota,
         String comentario,
-        Instant criadoEm) {
+        Instant criadoEm,
+        Integer notaRecomendacao) {
 
     public static final int NOTA_MINIMA = EscalaDeAvaliacao.NOTA_MINIMA;
     public static final int NOTA_MAXIMA = EscalaDeAvaliacao.NOTA_MAXIMA;
@@ -29,6 +30,9 @@ public record Avaliacao(
         Objects.requireNonNull(atendenteId, "avaliacao e de um atendente");
         Objects.requireNonNull(criadoEm, "criadoEm e obrigatorio");
         exigirFaixa(nota);
+        if (notaRecomendacao != null) {
+            exigirFaixa(notaRecomendacao);
+        }
         comentario = normalizar(comentario);
     }
 
@@ -39,7 +43,7 @@ public record Avaliacao(
             int nota,
             String comentario,
             Instant criadoEm) {
-        return new Avaliacao(id, atendimentoId, atendenteId, nota, comentario, criadoEm);
+        return new Avaliacao(id, atendimentoId, atendenteId, nota, comentario, criadoEm, null);
     }
 
     public static void exigirFaixa(int nota) {
@@ -50,6 +54,11 @@ public record Avaliacao(
 
     public boolean ehIdentica(int outraNota, String outroComentario) {
         return this.nota == outraNota && Objects.equals(this.comentario, normalizar(outroComentario));
+    }
+
+    public boolean ehIdentica(int outraNota, String outroComentario, Integer outraRecomendacao) {
+        return ehIdentica(outraNota, outroComentario)
+                && (outraRecomendacao == null || Objects.equals(notaRecomendacao, outraRecomendacao));
     }
 
     public static String normalizar(String comentario) {

@@ -75,6 +75,10 @@ public interface LeadRepositorio {
      */
     long contar(FiltroDeLeads filtro);
 
+    List<ContagemPorEtapa> contarPorEtapa(FiltroDeLeads filtro);
+
+    record ContagemPorEtapa(UUID etapaId, long total) {}
+
     /**
      * Ids de todos os leads visiveis ao usuario da requisicao, sem nenhum criterio alem da RN-CRM-01.
      *

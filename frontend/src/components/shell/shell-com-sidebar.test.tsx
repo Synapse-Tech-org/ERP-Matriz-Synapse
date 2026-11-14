@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useAuthStore } from "@/lib/auth/auth-store";
 import { EXPANSAO_DA_SIDEBAR } from "./expansao-da-sidebar";
 
 const estadoSidebar = vi.hoisted(() => ({
@@ -19,6 +20,11 @@ const estadoSidebar = vi.hoisted(() => ({
   onFocoFora: undefined as undefined | (() => void),
 }));
 const rota = vi.hoisted(() => ({ atual: "/atendimentos" }));
+const funcionalidades = vi.hoisted(() => ({ flags: [] as string[] }));
+vi.mock("@/lib/config/use-funcionalidades", () => ({
+  useFuncionalidadesHabilitadas: () => ({ data: funcionalidades.flags }),
+}));
+vi.mock("next/font/google", () => ({ Geist: () => ({ variable: "fonte-v2-de-teste" }) }));
 
 vi.mock("next/navigation", () => ({ usePathname: () => rota.atual }));
 
@@ -89,6 +95,7 @@ describe("ShellComSidebar", () => {
   let notificarMudanca: (() => void) | undefined;
 
   beforeEach(() => {
+    funcionalidades.flags = [];
     rota.atual = "/atendimentos";
     telaEstreita = false;
     notificarMudanca = undefined;
@@ -108,6 +115,10 @@ describe("ShellComSidebar", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    useAuthStore.setState({ usuarioId: null });
+    localStorage.removeItem("synapse:densidade-listas:ana");
+    localStorage.removeItem("synapse:aparencia:ana:tema");
+    localStorage.removeItem("synapse:aparencia:ana:cor");
   });
 
   it("inicia a sidebar retraida em viewport largo", () => {
@@ -121,6 +132,77 @@ describe("ShellComSidebar", () => {
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-fixada", "false");
     expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
     expect(screen.queryByTestId("navegacao-inferior")).not.toBeInTheDocument();
+  });
+
+  it("usa a geometria da referência no Dashboard v2 sem alterar Atendimentos", () => {
+    funcionalidades.flags = ["dashboard_layout_v2"];
+    rota.atual = "/dashboard";
+    const shell = render(<ShellComSidebar><p>Dashboard</p></ShellComSidebar>);
+    expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "collapsed");
+    expect(slotDaSidebar()).toHaveStyle({ width: "88px" });
+    fireEvent.click(screen.getByRole("button", { name: "pin" }));
+    expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "expanded");
+    expect(slotDaSidebar()).toHaveStyle({ width: "288px" });
+    rota.atual = "/atendimentos";
+    shell.rerender(<ShellComSidebar><p>Atendimentos</p></ShellComSidebar>);
+    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
+  });
+
+  it.each([
+    ["/agenda", "/cancelamentos", ["agenda_layout_v2", "gestao_layout_v2", "cancelamentos"]],
+    ["/agenda", "/cancelamentos", ["agenda_layout_v2", "variante_clinica", "cancelamentos"]],
+    ["/cancelamentos", "/automacao", ["variante_clinica", "cancelamentos"]],
+    ["/agenda", "/agenda-consultas", ["variante_clinica"]],
+    ["/atendimentos", "/chat-interno", ["atendimentos_layout_v2", "chat_interno"]],
+    ["/configuracoes", "/trocar-senha", []],
+    ["/administracao", "/administracao/acessos", ["gestao_layout_v2"]],
+    ["/campanhas", "/campanhas/nova", ["gestao_layout_v2"]],
+  ])("mantém a sidebar V2 ao navegar de %s para %s", (origem, destino, flags) => {
+    vi.useFakeTimers();
+    rota.atual = origem;
+    funcionalidades.flags = flags;
+    const shell = render(<ShellComSidebar><p>Conteúdo</p></ShellComSidebar>);
+
+    rota.atual = destino;
+    shell.rerender(<ShellComSidebar><p>Conteúdo</p></ShellComSidebar>);
+    expect(slotDaSidebar().closest("[data-slot='page-canvas']")).toHaveClass("fonte-v2-de-teste");
+    expect(slotDaSidebar()).toHaveStyle({ width: "88px" });
+
+    fireEvent.mouseEnter(screen.getByTestId("sidebar"));
+    act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.intencaoAbrirMs));
+    expect(slotDaSidebar()).toHaveAttribute("data-sobreposta", "true");
+    expect(slotDaSidebar()).toHaveStyle({ width: "88px" });
+
+    fireEvent.mouseLeave(screen.getByTestId("sidebar"));
+    act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.atrasoFecharMs));
+    expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "collapsed");
+  });
+
+  it("aplica a densidade salva apenas na conta que escolheu modo compacto", () => {
+    rota.atual = "/agenda";
+    funcionalidades.flags = ["agenda_layout_v2"];
+    localStorage.setItem("synapse:densidade-listas:ana", "compacta");
+    useAuthStore.setState({ usuarioId: "ana" });
+    render(<ShellComSidebar><p>Agenda</p></ShellComSidebar>);
+
+    const canvas = slotDaSidebar().closest("[data-slot='page-canvas']");
+    expect(canvas).toHaveAttribute("data-densidade", "compacta");
+
+    act(() => useAuthStore.setState({ usuarioId: "bia" }));
+    expect(canvas).not.toHaveAttribute("data-densidade");
+  });
+
+  it("aplica o tema e a cor da conta atual e restaura os padrões ao trocar de conta", () => {
+    localStorage.setItem("synapse:aparencia:ana:tema", "escuro");
+    localStorage.setItem("synapse:aparencia:ana:cor", "verde");
+    useAuthStore.setState({ usuarioId: "ana" });
+    render(<ShellComSidebar><p>Agenda</p></ShellComSidebar>);
+
+    expect(document.documentElement).toHaveClass("dark");
+    expect(document.documentElement).toHaveAttribute("data-cor-destaque", "verde");
+    act(() => useAuthStore.setState({ usuarioId: "bia" }));
+    expect(document.documentElement).not.toHaveClass("dark");
+    expect(document.documentElement).toHaveAttribute("data-cor-destaque", "azul");
   });
 
   it("abre a sidebar no Dashboard sem mudar o estado inicial de Atendimentos", () => {

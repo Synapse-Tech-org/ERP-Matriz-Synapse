@@ -24,6 +24,7 @@ export interface LeadFicha {
 }
 
 export interface AtualizacaoLead {
+  etapaAtendimentoId?: string;
   notas?: string;
   dadosCustomizados?: Record<string, unknown>;
   /** Ausente preserva o telefone; o backend normaliza ao salvar. */
@@ -32,6 +33,7 @@ export interface AtualizacaoLead {
   codigo?: string | null;
   /** Ausente preserva. Vazio é recusado no servidor — o nome não se apaga. */
   nome?: string;
+  localizacao?: string;
 }
 
 export type StatusResumoIa = "PENDENTE" | "PROCESSANDO" | "CONCLUIDO" | "FALHOU";

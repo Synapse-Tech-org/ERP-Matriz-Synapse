@@ -1,0 +1,1022 @@
+{
+  "name": "HML - EV-03 Transferir Atendimento",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "atendimento_id"
+            },
+            {
+              "name": "resumo_transferencia"
+            },
+            {
+              "name": "transferir_para_atendente_especifico",
+              "type": "boolean"
+            },
+            {
+              "name": "atendente_id"
+            },
+            {
+              "name": "mensagem_id"
+            },
+            {
+              "name": "wa_id"
+            },
+            {
+              "name": "phone_number_id"
+            },
+            {
+              "name": "atendentes_transferiveis_json"
+            },
+            {
+              "name": "lead_nome"
+            },
+            {
+              "name": "fora_horario_humano",
+              "type": "boolean"
+            },
+            {
+              "name": "usar_lista_atendentes",
+              "type": "boolean"
+            },
+            {
+              "name": "bloquear_transferencia_generica_fora_horario_com_memoria",
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        6528,
+        3696
+      ],
+      "id": "3c9cbd05-738f-4079-89ee-05fc27212687",
+      "name": "When Executed by Another Workflow",
+      "notesInFlow": true,
+      "notes": "Recebe do EV-01 o UUID do atendimento, dados da mensagem de origem, nome do lead quando disponivel, flag de fora do horario humano e o booleano transferir_para_atendente_especifico. True exige atendente_id; false deixa o CRM escolher."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ev03-config-texto-lembrete-retorno-expediente",
+              "name": "texto_lembrete_retorno_expediente",
+              "value": "Lead {nome} atribuido pela IA. Retome o atendimento assim que iniciar o expediente.",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-crm-base-url",
+              "name": "crm_base_url",
+              "value": "https://crm-teste.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-meta-graph-base-url",
+              "name": "meta_graph_base_url",
+              "value": "https://evolution-hml.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-meta-graph-version",
+              "name": "meta_graph_version",
+              "value": "evolution",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-timezone",
+              "name": "timezone",
+              "value": "America/Sao_Paulo",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-faq-nome-busca-horario",
+              "name": "faq_nome_busca_horario",
+              "value": "horario",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-minutos-lembrete-pos-inicio-expediente",
+              "name": "minutos_lembrete_pos_inicio_expediente",
+              "value": 5,
+              "type": "number"
+            },
+            {
+              "id": "ev03-config-texto-confirmacao-transferencia-especifica",
+              "name": "texto_confirmacao_transferencia_especifica",
+              "value": "Voce foi transferido para o atendente {atendente}.",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-texto-confirmacao-transferencia-especifica-offline",
+              "name": "texto_confirmacao_transferencia_especifica_offline",
+              "value": "Voce foi transferido para o atendente {atendente}. No momento ele esta offline, mas vai te atender assim que iniciar o expediente.",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-texto-confirmacao-transferencia-generica",
+              "name": "texto_confirmacao_transferencia_generica",
+              "value": "Voce foi transferido para um atendente da nossa equipe.",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-idempotency-transferencia-especifica-prefixo",
+              "name": "idempotency_transferencia_especifica_prefixo",
+              "value": "ev03:especifico",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-idempotency-transferencia-proximo-prefixo",
+              "name": "idempotency_transferencia_proximo_prefixo",
+              "value": "ev03:proximo-humano",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-idempotency-lembrete-prefixo",
+              "name": "idempotency_lembrete_prefixo",
+              "value": "ev03:lembrete-retorno-expediente",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-nome-lead-fallback-lembrete",
+              "name": "nome_lead_fallback_lembrete",
+              "value": "sem nome informado",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-texto-lista-atendentes-generica",
+              "name": "texto_lista_atendentes_generica",
+              "value": "Para te encaminhar, escolha um atendente disponivel agora:",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-texto-lista-atendente-indisponivel",
+              "name": "texto_lista_atendente_indisponivel",
+              "value": "No momento, {atendente} nao esta disponivel. Voce pode escolher um dos atendentes disponiveis agora:",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-texto-lista-sem-atendentes-disponiveis",
+              "name": "texto_lista_sem_atendentes_disponiveis",
+              "value": "No momento nao encontrei atendentes disponiveis. Posso deixar seu atendimento para retorno assim que possivel.",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-lista-atendentes-botao",
+              "name": "lista_atendentes_botao",
+              "value": "Escolher atendente",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-lista-atendentes-secao",
+              "name": "lista_atendentes_secao",
+              "value": "Atendentes disponiveis",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-lista-atendentes-row-id-prefixo",
+              "name": "lista_atendentes_row_id_prefixo",
+              "value": "ev03_atendente_",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-lista-atendentes-max-itens",
+              "name": "lista_atendentes_max_itens",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "ev03-config-lista-descricao-disponivel",
+              "name": "lista_atendentes_descricao_disponivel",
+              "value": "Clique aqui",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-outros-row-id",
+              "name": "lista_outros_row_id",
+              "value": "ev03_atendente_d1a021b3-6510-4783-88c4-be9813c6aff6",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-outros-titulo",
+              "name": "lista_outros_titulo",
+              "value": "Outros Assuntos",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-michele-id",
+              "name": "atendente_outros_id",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-michele-nome",
+              "name": "atendente_outros_nome",
+              "value": "Michele",
+              "type": "string"
+            },
+            {
+              "id": "ev03-config-texto-fora-horario-com-memoria",
+              "name": "texto_fora_horario_com_memoria",
+              "value": "No momento estamos fora do horário de atendimento. Para eu repassar seu caso corretamente, qual era o nome do atendente que estava te acompanhando?",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6784,
+        3696
+      ],
+      "id": "54f587c1-c8ff-4eb2-ab27-25371cb6146b",
+      "name": "Textos da transferencia",
+      "notesInFlow": true,
+      "notes": "Centraliza os textos operacionais deste subworkflow. Use {nome} para inserir o nome do lead quando ele vier do EV-01."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"http://synapse-backend-internal:8080\".replace(/\\/$/, '') + '/internal/v1/atendimentos/' + encodeURIComponent($('When Executed by Another Workflow').first().json.atendimento_id) + '/transferir' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $('Textos da transferencia').first().json.idempotency_transferencia_especifica_prefixo + ':' + $('When Executed by Another Workflow').first().json.atendimento_id + ':' + $('When Executed by Another Workflow').first().json.mensagem_id }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"atendenteId\": \"{{ $('When Executed by Another Workflow').first().json.atendente_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        8000,
+        3520
+      ],
+      "id": "4ee9c0a4-6ea4-4ef2-bda8-d98d8f39b0eb",
+      "name": "Solicitar transferencia especifica ao CRM",
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "notes": "POST /internal/v1/atendimentos/{id}/transferir. Envia { atendenteId } para transferir a um usuario ativo com papel ATENDENTE. Nao depende de horario humano nem de lista de atendentes online."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"http://synapse-backend-internal:8080\".replace(/\\/$/, '') + '/internal/v1/eventos' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { tipo: 'CLIENTE_TRANSFERIDO' } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        8416,
+        3664
+      ],
+      "id": "6f9c44cd-3905-416e-a945-2718f61379c9",
+      "name": "Registrar transferencia na telemetria",
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "notes": "Registra telemetria oficial depois de uma transferencia bem-sucedida. O contrato aceita somente CLIENTE_TRANSFERIDO."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('When Executed by Another Workflow').first().json.fora_horario_humano }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        8720,
+        3664
+      ],
+      "id": "a7760af8-ec8a-4f8c-8d3d-b54fa75d89ef",
+      "name": "Transferencia fora do horario humano?",
+      "notesInFlow": true,
+      "notes": "Permite criar o lembrete RF-AUT-07 somente quando o EV-01 informou que a transferencia aconteceu fora do horario humano."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Devolve para a IA somente dados operacionais.\n// A mensagem ao cliente ja foi enviada por este subworkflow apos sucesso da transferencia.\nconst especificaExecutada = $('Solicitar transferencia especifica ao CRM').isExecuted;\nconst transferencia = especificaExecutada\n  ? $('Solicitar transferencia especifica ao CRM').first().json\n  : $('Solicitar proximo humano ao CRM').first().json;\nconst entrada = $('When Executed by Another Workflow').first().json;\nconst confirmacao = $('Enviar confirmacao de transferencia pela Meta').first().json;\nconst registro = $('Registrar confirmacao de transferencia no CRM').first().json;\nconst lembreteCriado = $('Criar lembrete retorno expediente no CRM').isExecuted;\nconst lembrete = lembreteCriado ? $('Criar lembrete retorno expediente no CRM').first().json : {};\nconst preparoLembrete = $('Preparar lembrete retorno expediente').isExecuted\n  ? $('Preparar lembrete retorno expediente').first().json\n  : {};\n\nreturn [{ json: {\n  sucesso: true,\n  codigo: 'CLIENTE_TRANSFERIDO',\n  atendimento_id: String(transferencia.atendimentoId ?? entrada.atendimento_id),\n  atendente_id: String(transferencia.atendenteId ?? entrada.atendente_id ?? ''),\n  atendente_nome: String($('Preparar confirmacao de transferencia').first().json.atendente_nome ?? ''),\n  status: String(transferencia.status ?? ''),\n  transferir_para_atendente_especifico: Boolean(entrada.transferir_para_atendente_especifico),\n  fora_horario_humano: Boolean(entrada.fora_horario_humano),\n  mensagem_cliente_enviada: true,\n  texto_enviado_ao_cliente: String($('Preparar confirmacao de transferencia').first().json.texto ?? ''),\n  whatsapp_message_id: String(confirmacao.messages?.[0]?.id ?? ''),\n  mensagem_crm_id: String(registro.mensagemId ?? ''),\n  lembrete_retorno_expediente_criado: lembreteCriado,\n  lembrete_retorno_expediente_id: String(lembrete.id ?? lembrete.lembreteId ?? ''),\n  lembrete_retorno_expediente_data_hora: String(preparoLembrete.dataHora ?? '')\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10624,
+        3760
+      ],
+      "id": "210ae600-3866-4c68-afbf-8388c09bd452",
+      "name": "Retornar resultado da transferencia",
+      "notesInFlow": true,
+      "notes": "Retorna sucesso depois de transferir, criar lembrete somente quando fora do horario humano, enviar a confirmacao sistematica ao cliente e registrar a mensagem no CRM."
+    },
+    {
+      "parameters": {
+        "content": "## Transferencia pelo contrato interno\\n\\n1. O EV-01 chama este fluxo com atendimento, mensagem de origem, canal Meta, lista de atendentes, flag fora_horario_humano e flag usar_lista_atendentes.\\n2. Com usar_lista_atendentes=false, o comportamento antigo permanece: especifico usa /transferir; generico usa /transferir-proximo-humano.\\n3. Com usar_lista_atendentes=true, pedidos sem atendente especifico enviam lista interativa com atendentes online.\\n4. Com usar_lista_atendentes=true, atendente especifico online transfere direto.\\n5. Com usar_lista_atendentes=true, atendente especifico offline dentro do horario humano nao transfere: avisa indisponibilidade e envia lista.\\n6. Fora do horario humano, a transferencia para atendente especifico continua permitida mesmo offline.\\n7. Apos transferencia real, cria lembrete RF-AUT-07 somente se fora_horario_humano=true.\\n8. Apos qualquer acao enviada ao cliente, registra a mensagem em /mensagens-enviadas e retorna codigo para o EV-01 nao responder de novo.",
+        "height": 420,
+        "width": 764,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        6496,
+        3120
+      ],
+      "id": "5040694b-c255-47fd-83e0-f764853f6ad3",
+      "name": "Como funciona a transferencia"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COALESCE((SELECT nome FROM public.faq WHERE lower(nome) LIKE '%' || lower($1) || '%' ORDER BY id LIMIT 1), '') AS nome,\n  COALESCE((SELECT pergunta FROM public.faq WHERE lower(nome) LIKE '%' || lower($1) || '%' ORDER BY id LIMIT 1), '') AS pergunta,\n  COALESCE((SELECT resposta FROM public.faq WHERE lower(nome) LIKE '%' || lower($1) || '%' ORDER BY id LIMIT 1), '') AS resposta;",
+        "options": {
+          "queryReplacement": "={{ $('Textos da transferencia').first().json.faq_nome_busca_horario }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        8944,
+        3536
+      ],
+      "id": "57ba9014-82fa-4857-8dce-b9fda868b991",
+      "name": "Consultar horario expediente na FAQ",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Busca somente a linha de horario da FAQ e sempre retorna um item. O horario do lembrete nao fica hardcoded no workflow."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calcula o lembrete RF-AUT-07 a partir do horario cadastrado na FAQ.\n// Regra: agendar para 5 minutos depois do proximo inicio de expediente disponivel.\nconst entrada = $('When Executed by Another Workflow').first().json;\nconst textos = $('Textos da transferencia').first().json;\nconst timezone = String(textos.timezone ?? '').trim();\nconst minutosLembrete = Number(textos.minutos_lembrete_pos_inicio_expediente);\nif (!timezone) throw new Error('TIMEZONE_TRANSFERENCIA_NAO_CONFIGURADO');\nif (!Number.isFinite(minutosLembrete) || minutosLembrete < 0) throw new Error('MINUTOS_LEMBRETE_TRANSFERENCIA_INVALIDO');\nconst horarioFaq = $('Consultar horario expediente na FAQ').first().json;\nconst respostaHorario = String(horarioFaq.resposta ?? '').trim();\n\nif (!respostaHorario) {\n  throw new Error('FAQ_HORARIO_EXPEDIENTE_NAO_CADASTRADA');\n}\n\nconst normalizar = (texto) => String(texto ?? '')\n  .normalize('NFD')\n  .replace(/[\\u0300-\\u036f]/g, '')\n  .toLowerCase();\n\nconst extrairInicio = (trecho) => {\n  const match = String(trecho).match(/(\\d{1,2})(?::|h)?(\\d{2})?/);\n  if (!match) return null;\n  return {\n    hora: Number(match[1]),\n    minuto: Number(match[2] ?? 0)\n  };\n};\n\nconst regrasPorDia = new Map();\nfor (const parte of respostaHorario.split(',')) {\n  const texto = normalizar(parte);\n  const inicio = extrairInicio(parte);\n  if (!inicio) continue;\n\n  if (texto.includes('segunda') && texto.includes('sexta')) {\n    for (const dia of [1, 2, 3, 4, 5]) regrasPorDia.set(dia, inicio);\n  } else if (texto.includes('sabado')) {\n    regrasPorDia.set(6, inicio);\n  } else if (texto.includes('domingo')) {\n    regrasPorDia.set(0, inicio);\n  }\n}\n\nif (regrasPorDia.size === 0) {\n  throw new Error('FAQ_HORARIO_EXPEDIENTE_SEM_INICIO_RECONHECIVEL');\n}\n\nconst partesSP = (data) => {\n  const partes = new Intl.DateTimeFormat('en-US', {\n    timeZone: timezone,\n    weekday: 'short',\n    year: 'numeric',\n    month: '2-digit',\n    day: '2-digit',\n    hour: '2-digit',\n    minute: '2-digit',\n    second: '2-digit',\n    hourCycle: 'h23'\n  }).formatToParts(data).reduce((acc, parte) => {\n    acc[parte.type] = parte.value;\n    return acc;\n  }, {});\n\n  const diaSemana = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[partes.weekday];\n  return {\n    ano: Number(partes.year),\n    mes: Number(partes.month),\n    dia: Number(partes.day),\n    hora: Number(partes.hour),\n    minuto: Number(partes.minute),\n    segundo: Number(partes.second),\n    diaSemana\n  };\n};\n\nconst criarDataSP = ({ ano, mes, dia }, hora, minuto) => {\n  // Converte o horario local de Sao Paulo para ISO UTC sem fixar offset manualmente.\n  const alvoComoUtc = Date.UTC(ano, mes - 1, dia, hora, minuto, 0);\n  let candidato = new Date(alvoComoUtc);\n\n  for (let tentativa = 0; tentativa < 3; tentativa++) {\n    const local = partesSP(candidato);\n    const localComoUtc = Date.UTC(local.ano, local.mes - 1, local.dia, local.hora, local.minuto, local.segundo);\n    const diferenca = localComoUtc - alvoComoUtc;\n    const ajustado = new Date(candidato.getTime() - diferenca);\n    if (Math.abs(ajustado.getTime() - candidato.getTime()) < 1000) return ajustado;\n    candidato = ajustado;\n  }\n\n  return candidato;\n};\n\nconst somarDiasLocais = (base, dias) => {\n  const referenciaUtcMeioDia = new Date(Date.UTC(base.ano, base.mes - 1, base.dia + dias, 15, 0, 0));\n  return partesSP(referenciaUtcMeioDia);\n};\n\nconst agora = new Date();\nconst hojeSP = partesSP(agora);\nlet dataHora = null;\n\nfor (let deslocamento = 0; deslocamento < 14; deslocamento++) {\n  const diaCandidato = somarDiasLocais(hojeSP, deslocamento);\n  const inicio = regrasPorDia.get(diaCandidato.diaSemana);\n  if (!inicio) continue;\n\n  const minutoComLembrete = inicio.minuto + minutosLembrete;\n  const candidato = criarDataSP(\n    diaCandidato,\n    inicio.hora + Math.floor(minutoComLembrete / 60),\n    minutoComLembrete % 60\n  );\n\n  if (candidato > agora) {\n    dataHora = candidato;\n    break;\n  }\n}\n\nif (!dataHora) {\n  throw new Error('NAO_FOI_POSSIVEL_CALCULAR_LEMBRETE_RETORNO_EXPEDIENTE');\n}\n\nconst atendimentoId = String(entrada.atendimento_id ?? '').trim();\nconst mensagemId = String(entrada.mensagem_id ?? 'sem-mensagem').trim() || 'sem-mensagem';\nconst leadNome = String(entrada.lead_nome ?? '').trim();\nconst templateLembrete = String(textos.texto_lembrete_retorno_expediente ?? '').trim();\nif (!templateLembrete) throw new Error('TEXTO_LEMBRETE_TRANSFERENCIA_NAO_CONFIGURADO');\nconst textoLembrete = templateLembrete\n  .replace(/\\{nome\\}/gi, leadNome || String(textos.nome_lead_fallback_lembrete ?? ''))\n  .replace(/\\s+/g, ' ')\n  .trim();\nif (!atendimentoId) throw new Error('ATENDIMENTO_ID_AUSENTE_PARA_LEMBRETE');\n\nreturn [{ json: {\n  atendimento_id: atendimentoId,\n  texto: textoLembrete,\n  dataHora: dataHora.toISOString(),\n  idempotency_key: String(textos.idempotency_lembrete_prefixo ?? '') + ':' + atendimentoId + ':' + mensagemId,\n  horario_faq_usado: respostaHorario\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9200,
+        3536
+      ],
+      "id": "522109f4-2aec-4086-b0bd-17efca75c8f0",
+      "name": "Preparar lembrete retorno expediente",
+      "notesInFlow": true,
+      "notes": "Calcula dataHora do lembrete com base no horario cadastrado na FAQ, aplica o template do node Textos da transferencia e gera uma chave idempotente por atendimento + mensagem que originou a transferencia."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"http://synapse-backend-internal:8080\".replace(/\\/$/, '') + '/internal/v1/atendimentos/' + encodeURIComponent($('Preparar lembrete retorno expediente').first().json.atendimento_id) + '/lembretes' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $('Preparar lembrete retorno expediente').first().json.idempotency_key }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { texto: $('Preparar lembrete retorno expediente').first().json.texto, dataHora: $('Preparar lembrete retorno expediente').first().json.dataHora } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        9472,
+        3536
+      ],
+      "id": "63ee8b49-2036-46f5-b1c2-0a5af0a181bb",
+      "name": "Criar lembrete retorno expediente no CRM",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "maxTries": 3,
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "notes": "POST /internal/v1/atendimentos/{id}/lembretes. Cria o lembrete RF-AUT-07 para avisar o responsavel atual que um lead foi atribuido pela IA e precisa ser atendido."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"http://synapse-backend-internal:8080\".replace(/\\/$/, '') + '/internal/v1/atendimentos/' + encodeURIComponent($('When Executed by Another Workflow').first().json.atendimento_id) + '/transferir-proximo-humano' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $('Textos da transferencia').first().json.idempotency_transferencia_proximo_prefixo + ':' + $('When Executed by Another Workflow').first().json.atendimento_id + ':' + $('When Executed by Another Workflow').first().json.mensagem_id }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        8000,
+        3760
+      ],
+      "id": "43a197c8-d9c0-46f1-bbab-1aece62e8c8b",
+      "name": "Solicitar proximo humano ao CRM",
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "notes": "POST /internal/v1/atendimentos/{id}/transferir-proximo-humano. Nao envia corpo nem atendenteId: o CRM escolhe o proximo humano elegivel ou retorna 409 se nao houver."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Definir acao transferencia').first().json.acao_transferencia === 'TRANSFERIR_ESPECIFICA' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        7312,
+        3696
+      ],
+      "id": "47a8bcb3-33ae-4a60-94d6-7f6fc8d5ae44",
+      "name": "Transferir para atendente especifico?",
+      "notesInFlow": true,
+      "notes": "True usa /transferir com atendenteId. False avalia se ainda deve chamar proximo humano ou enviar lista."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Monta a mensagem sistematica de transferencia depois do sucesso real do CRM.\n// O nome e o status vêm primeiro do retorno do CRM; se nao vierem, usamos a lista objetiva enviada pelo EV-01.\nconst entrada = $('When Executed by Another Workflow').first().json;\nconst textos = $('Textos da transferencia').first().json;\nconst especificaExecutada = $('Solicitar transferencia especifica ao CRM').isExecuted;\nconst transferencia = especificaExecutada\n  ? $('Solicitar transferencia especifica ao CRM').first().json\n  : $('Solicitar proximo humano ao CRM').first().json;\n\nlet atendentes = [];\ntry {\n  const bruto = String(entrada.atendentes_transferiveis_json ?? '').trim();\n  atendentes = bruto ? JSON.parse(bruto) : [];\n} catch (error) {\n  atendentes = [];\n}\n\nconst atendenteId = String(transferencia.atendenteId ?? entrada.atendente_id ?? '');\nconst atendenteDaLista = atendentes.find((item) => String(item.atendente_id ?? item.id ?? '') === atendenteId);\nconst atendenteNome = String(\n  transferencia.atendenteNome ??\n  transferencia.atendente?.nome ??\n  atendenteDaLista?.nome ??\n  ''\n).trim();\n\nconst statusBruto = String(\n  transferencia.atendenteStatus ??\n  transferencia.atendente?.status ??\n  atendenteDaLista?.status ??\n  ''\n).trim().toLowerCase();\nconst disponivelAgora = transferencia.atendenteDisponivelAgora ??\n  transferencia.atendente?.disponivelAgora ??\n  transferencia.atendente?.disponivel_agora ??\n  atendenteDaLista?.disponivel_agora ??\n  atendenteDaLista?.disponivelAgora ??\n  null;\nconst atendenteOffline = statusBruto === 'offline' || disponivelAgora === false;\n\nconst aplicarTemplate = (template, valores) => String(template ?? '')\n  .replace(/{atendente}/gi, valores.atendente || '')\n  .replace(/\\s+/g, ' ')\n  .trim();\nconst templateEspecifico = atendenteOffline\n  ? textos.texto_confirmacao_transferencia_especifica_offline\n  : textos.texto_confirmacao_transferencia_especifica;\nconst texto = atendenteNome\n  ? aplicarTemplate(templateEspecifico, { atendente: atendenteNome })\n  : aplicarTemplate(textos.texto_confirmacao_transferencia_generica, {});\n\nif (!entrada.wa_id) throw new Error('WA_ID_AUSENTE_PARA_CONFIRMACAO_TRANSFERENCIA');\nif (!entrada.phone_number_id) throw new Error('PHONE_NUMBER_ID_AUSENTE_PARA_CONFIRMACAO_TRANSFERENCIA');\nif (!texto) throw new Error('TEXTO_CONFIRMACAO_TRANSFERENCIA_NAO_CONFIGURADO');\n\nreturn [{ json: {\n  atendimento_id: String(transferencia.atendimentoId ?? entrada.atendimento_id ?? ''),\n  atendente_id: atendenteId,\n  atendente_nome: atendenteNome,\n  atendente_offline: atendenteOffline,\n  wa_id: String(entrada.wa_id),\n  phone_number_id: String(entrada.phone_number_id),\n  texto\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9840,
+        3760
+      ],
+      "id": "1ac17037-9329-43fe-980e-9b21271e87f3",
+      "name": "Preparar confirmacao de transferencia",
+      "notesInFlow": true,
+      "notes": "Resolve nome/status do atendente e monta a mensagem sistematica. Se o atendente escolhido estiver offline, usa o texto offline configurado no Set."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "j9vBXDJ8Xn91uGmp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "payload": "={{ { messaging_product: 'whatsapp', recipient_type: 'individual', to: $('Preparar confirmacao de transferencia').first().json.wa_id, type: 'text', text: { preview_url: false, body: $('Preparar confirmacao de transferencia').first().json.texto } } }}",
+            "destinatario": "={{ $('When Executed by Another Workflow').first().json.evento?.wa_id || '' }}"
+          },
+          "schema": [
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "type": "object",
+              "required": true
+            },
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "type": "string"
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        10160,
+        3760
+      ],
+      "id": "88eb4a74-b953-4b42-83b2-e883a84939ec",
+      "name": "Enviar confirmacao de transferencia pela Meta",
+      "retryOnFail": false,
+      "waitBetweenTries": 3000,
+      "maxTries": 3,
+      "notesInFlow": true,
+      "notes": "Envia ao cliente a mensagem sistematica de transferencia depois que o CRM confirmou a atribuicao."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"http://synapse-backend-internal:8080\".replace(/\\/$/, '') + '/internal/v1/atendimentos/' + $('Preparar confirmacao de transferencia').first().json.atendimento_id + '/mensagens-enviadas' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { wamid: $('Enviar confirmacao de transferencia pela Meta').first().json.messages?.[0]?.id ?? '', tipo: 'TEXTO', conteudo: $('Preparar confirmacao de transferencia').first().json.texto, midiaUrl: null, midiaMetadados: null, opcoes: null } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        10384,
+        3760
+      ],
+      "id": "21a84c1d-e8a2-4cc4-98eb-ca50ae90e28d",
+      "name": "Registrar confirmacao de transferencia no CRM",
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "notes": "Registra no CRM a mensagem sistematica enviada ao cliente apos transferencia."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Decide se a solicitacao deve virar transferencia real ou lista de atendentes.\n// No modo padrao, preserva o comportamento antigo.\n// No modo lista, dentro do expediente so transfere para atendente online.\nconst entrada = $('When Executed by Another Workflow').first().json;\n\nlet atendentes = [];\ntry {\n  const bruto = String(entrada.atendentes_transferiveis_json ?? '').trim();\n  atendentes = bruto ? JSON.parse(bruto) : [];\n} catch (error) {\n  atendentes = [];\n}\n\nconst usarLista = entrada.usar_lista_atendentes === true;\nlet pediuEspecifico = entrada.transferir_para_atendente_especifico === true;\nconst foraHorario = entrada.fora_horario_humano === true;\n// Recebido como fato calculado pelo EV-01. Não depende da IA obedecer ao prompt.\nconst bloquearGenericaForaHorarioComMemoria =\n  entrada.bloquear_transferencia_generica_fora_horario_com_memoria === true;\nlet atendenteId = String(entrada.atendente_id ?? '').trim();\r\nconst textos = $('Textos da transferencia').first().json;\r\nconst pediuOutros = atendenteId === String(textos.lista_outros_row_id ?? '') ||\r\n  atendenteId === String(textos.atendente_outros_id ?? '');\r\nif (pediuOutros) {\r\n  atendenteId = String(textos.atendente_outros_id ?? '').trim();\r\n  pediuEspecifico = true;\r\n}\n\nconst normalizar = (texto) => String(texto ?? '')\n  .normalize('NFD')\n  .replace(/[\\u0300-\\u036f]/g, '')\n  .trim()\n  .toLowerCase();\n\nconst estaOnline = (atendente) => {\n  const status = normalizar(atendente?.status);\n  return atendente?.disponivel_agora === true ||\n    atendente?.disponivelAgora === true ||\n    status === 'online' ||\n    status === 'disponivel';\n};\n\n// A lista recebida e a fonte de verdade. Ela contem somente usuarios ativos liberados para IA; atendentes e subgestores podem ser selecionados com seguranca.\nconst atendenteSolicitado = atendenteId\n  ? atendentes.find((item) => String(item.atendente_id ?? item.id ?? '') === atendenteId)\n  : null;\nconst deduplicarAtendentes = (lista) => {\n  const vistos = new Set();\n  const unicos = [];\n  for (const atendente of lista) {\n    const id = String(atendente?.atendente_id ?? atendente?.id ?? '').trim();\n    if (!id || vistos.has(id)) continue;\n    vistos.add(id);\n    unicos.push(atendente);\n  }\n  return unicos;\n};\n\nconst atendentesOnline = deduplicarAtendentes(atendentes.filter(estaOnline));\n\nlet acao = pediuEspecifico ? 'TRANSFERIR_ESPECIFICA' : 'TRANSFERIR_PROXIMO';\nlet motivo = usarLista ? 'MODO_LISTA' : 'MODO_PADRAO';\n\nif (bloquearGenericaForaHorarioComMemoria && !pediuEspecifico) {\n  // Histórico existente + fora do horário: não transferir/listar automaticamente.\n  // O EV-03 enviará somente o aviso pedindo o nome do atendente anterior.\n  acao = 'ENVIAR_AVISO_FORA_HORARIO_COM_HISTORICO';\n  motivo = 'FORA_HORARIO_COM_HISTORICO_SEM_TRANSFERENCIA_GENERICA';\n} else if (usarLista) {\n  if (!pediuEspecifico) {\n    acao = 'ENVIAR_LISTA';\n    motivo = 'SEM_ATENDENTE_ESPECIFICO_NO_MODO_LISTA';\n  } else if (!atendenteSolicitado) {\n    acao = 'ENVIAR_LISTA';\n    motivo = 'ATENDENTE_ESPECIFICO_NAO_ENCONTRADO_NO_MODO_LISTA';\n  } else if (estaOnline(atendenteSolicitado)) {\n    acao = 'TRANSFERIR_ESPECIFICA';\n    motivo = 'ATENDENTE_ESPECIFICO_ONLINE';\n  } else if (foraHorario) {\n    acao = 'TRANSFERIR_ESPECIFICA';\n    motivo = 'ATENDENTE_ESPECIFICO_OFFLINE_FORA_DO_HORARIO';\n  } else {\n    acao = 'ENVIAR_LISTA';\n    motivo = 'ATENDENTE_ESPECIFICO_OFFLINE_DENTRO_DO_HORARIO';\n  }\n}\n\nreturn [{ json: {\n  acao_transferencia: acao,\n  motivo_acao_transferencia: motivo,\n  usar_lista_atendentes: usarLista,\n  fora_horario_humano: foraHorario,\n  bloquear_transferencia_generica_fora_horario_com_memoria: bloquearGenericaForaHorarioComMemoria,\n  transferir_para_atendente_especifico: pediuEspecifico,\n  atendente_solicitado_id: atendenteId,\n  atendente_solicitado_nome: String(atendenteSolicitado?.nome ?? ''),\n  atendente_solicitado_online: atendenteSolicitado ? estaOnline(atendenteSolicitado) : false,\n  atendentes_online_json: JSON.stringify(atendentesOnline),\n  quantidade_atendentes_online: atendentesOnline.length\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7040,
+        3696
+      ],
+      "id": "a402b2c1-9f87-47d0-9e7d-8536f118956f",
+      "name": "Definir acao transferencia",
+      "notesInFlow": true,
+      "notes": "Escolhe transferencia, lista ou aviso. Fora do horario com memoria anterior, solicitacao generica nunca transfere nem lista. Outros usa exclusivamente o UUID da Michele quando ela estiver online."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Definir acao transferencia').first().json.acao_transferencia === 'TRANSFERIR_PROXIMO' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        7616,
+        3776
+      ],
+      "id": "4a1277c8-6c66-4ff1-a609-5bebb5af6ff1",
+      "name": "Acao transferir proximo humano?",
+      "notesInFlow": true,
+      "notes": "No modo lista, o caminho falso envia a lista interativa em vez de transferir direto para proximo humano."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Monta a lista interativa da Meta com atendentes online.\n// Se nao houver atendentes online, envia um texto simples explicando a indisponibilidade.\nconst entrada = $('When Executed by Another Workflow').first().json;\nconst decisao = $('Definir acao transferencia').first().json;\nconst textos = $('Textos da transferencia').first().json;\n\nlet atendentesOnline = [];\ntry {\n  const bruto = String(decisao.atendentes_online_json ?? '').trim();\n  atendentesOnline = bruto ? JSON.parse(bruto) : [];\n} catch (error) {\n  atendentesOnline = [];\n}\n\n// Defesa em profundidade: o node anterior já envia apenas online, mas esta\n// lista ainda confirma o estado recebido antes de criar qualquer botão.\nconst estaOnline = (atendente) => {\n  const status = String(atendente?.status ?? '').trim().toLowerCase();\n  return atendente?.disponivel_agora === true ||\n    atendente?.disponivelAgora === true ||\n    status === 'online' ||\n    status === 'disponivel';\n};\natendentesOnline = atendentesOnline.filter(estaOnline);\n\nconst maxItens = Math.min(Math.max(Number(textos.lista_atendentes_max_itens ?? 10), 1), 10);\nconst prefixo = String(textos.lista_atendentes_row_id_prefixo ?? '').trim();\nconst botao = String(textos.lista_atendentes_botao ?? '').trim();\nconst secao = String(textos.lista_atendentes_secao ?? '').trim();\n// Outros aponta exclusivamente para Michele e somente aparece se ela estiver online.\nconst idOutrosPreferencial = String(textos.atendente_outros_id ?? '').trim();\nif (!prefixo) throw new Error('PREFIXO_LISTA_ATENDENTES_NAO_CONFIGURADO');\nif (!botao) throw new Error('BOTAO_LISTA_ATENDENTES_NAO_CONFIGURADO');\nif (!secao) throw new Error('SECAO_LISTA_ATENDENTES_NAO_CONFIGURADA');\n\nconst cortar = (texto, limite) => {\n  const valor = String(texto ?? '').replace(/\\s+/g, ' ').trim();\n  return valor.length > limite ? valor.slice(0, limite - 1).trimEnd() + '...' : valor;\n};\nconst aplicarTemplate = (template) => String(template ?? '')\n  .replace(/{atendente}/gi, decisao.atendente_solicitado_nome || 'esse atendente')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nconst apenasAvisoForaHorarioComHistorico =\n  decisao.acao_transferencia === 'ENVIAR_AVISO_FORA_HORARIO_COM_HISTORICO';\nconst texto = apenasAvisoForaHorarioComHistorico\n  ? String(textos.texto_fora_horario_com_memoria ?? '').replace(/\\s+/g, ' ').trim()\n  : (decisao.motivo_acao_transferencia === 'ATENDENTE_ESPECIFICO_OFFLINE_DENTRO_DO_HORARIO'\n    ? aplicarTemplate(textos.texto_lista_atendente_indisponivel)\n    : aplicarTemplate(textos.texto_lista_atendentes_generica));\n\n// A lista recebida e a fonte de verdade: contem somente usuarios ativos liberados para IA.\n// Este node separa a apresentacao: ATENDENTE aparece por nome e Michele\n// e representada pelo unico botao Outros.\nconst papelDoAtendente = (atendente) => String(atendente?.papel ?? '').trim().toUpperCase();\nconst idDoAtendente = (atendente) => String(atendente?.atendente_id ?? atendente?.id ?? '').trim();\n// Outros e exclusivo da Michele. Um subgestor diferente jamais vira\n// contingencia automatica, mesmo que esteja online no CRM.\nconst destinoOutros = atendentesOnline.find((atendente) =>\n  papelDoAtendente(atendente) === 'SUBGESTOR' &&\n  idDoAtendente(atendente) === idOutrosPreferencial\n) ?? null;\n\nconst vistos = new Set();\nconst atendentesListados = [];\nfor (const atendente of atendentesOnline) {\n  const id = idDoAtendente(atendente);\n  const nome = String(atendente.nome ?? '').trim();\n  // Um subgestor nunca aparece por nome; ele e o destino do botao Outros.\n  if (!id || !nome || papelDoAtendente(atendente) !== 'ATENDENTE' || vistos.has(id)) continue;\n  vistos.add(id);\n  atendentesListados.push({ id, nome });\n  if (atendentesListados.length >= maxItens) break;\n}\n\nconst limiteRegulares = destinoOutros ? Math.max(maxItens - 1, 0) : maxItens;\nconst rows = atendentesListados.slice(0, limiteRegulares).map((atendente) => ({\n  id: prefixo + atendente.id,\n  title: cortar(atendente.nome, 24),\n  description: String(textos.lista_atendentes_descricao_disponivel ?? '').trim()\n}));\n\nif (!apenasAvisoForaHorarioComHistorico && destinoOutros && rows.length < maxItens) {\n  rows.push({\n    id: prefixo + idDoAtendente(destinoOutros),\n    title: String(textos.lista_outros_titulo ?? 'Outros'),\n    description: 'Falar com outro atendente'\n  });\n}\n\nif (!entrada.wa_id) throw new Error('WA_ID_AUSENTE_PARA_LISTA_ATENDENTES');\nif (!entrada.phone_number_id) throw new Error('PHONE_NUMBER_ID_AUSENTE_PARA_LISTA_ATENDENTES');\n\n// No aviso obrigatório não criamos botões; o cliente precisa informar o nome.\nif (apenasAvisoForaHorarioComHistorico) rows.length = 0;\nconst listaEnviada = rows.length > 0;\nconst textoFinal = apenasAvisoForaHorarioComHistorico\n  ? texto\n  : (listaEnviada\n    ? texto\n    : String(textos.texto_lista_sem_atendentes_disponiveis ?? '').replace(/\\s+/g, ' ').trim());\nif (!textoFinal) throw new Error('TEXTO_LISTA_ATENDENTES_NAO_CONFIGURADO');\n\nconst payloadMeta = listaEnviada\n  ? {\n    messaging_product: 'whatsapp',\n    recipient_type: 'individual',\n    to: String(entrada.wa_id),\n    type: 'interactive',\n    interactive: {\n      type: 'list',\n      body: { text: textoFinal },\n      action: {\n        button: cortar(botao, 20),\n        sections: [{ title: cortar(secao, 24), rows }]\n      }\n    }\n  }\n  : {\n    messaging_product: 'whatsapp',\n    recipient_type: 'individual',\n    to: String(entrada.wa_id),\n    type: 'text',\n    text: { preview_url: false, body: textoFinal }\n  };\n\nreturn [{ json: {\n  atendimento_id: String(entrada.atendimento_id ?? ''),\n  wa_id: String(entrada.wa_id),\n  phone_number_id: String(entrada.phone_number_id),\n  texto: textoFinal,\n  lista_enviada: listaEnviada,\n  apenas_aviso_fora_horario_com_historico: apenasAvisoForaHorarioComHistorico,\n  atendentes_listados: atendentesListados,\n  destino_outros_id: destinoOutros ? idDoAtendente(destinoOutros) : '',\n  destino_outros_nome: destinoOutros ? String(destinoOutros.nome ?? '') : '',\n  payload_meta: payloadMeta\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8000,
+        4080
+      ],
+      "id": "e8e97398-5fef-4eec-ad03-29f7bef5d27f",
+      "name": "Preparar lista de atendentes disponiveis",
+      "notesInFlow": true,
+      "notes": "Monta lista somente com usuarios online. ATENDENTE aparece por nome; Outros aparece somente quando Michele esta online e disponivel para IA. Nenhum outro subgestor e usado como contingencia."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "j9vBXDJ8Xn91uGmp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "payload": "={{ $('Preparar lista de atendentes disponiveis').first().json.payload_meta }}",
+            "destinatario": "={{ $('When Executed by Another Workflow').first().json.evento?.wa_id || '' }}"
+          },
+          "schema": [
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "type": "object",
+              "required": true
+            },
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "type": "string"
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        8240,
+        4080
+      ],
+      "id": "9c94464f-92c2-495f-989e-0617a9f98098",
+      "name": "Enviar lista de atendentes pela Meta",
+      "retryOnFail": false,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"http://synapse-backend-internal:8080\".replace(/\\/$/, '') + '/internal/v1/atendimentos/' + encodeURIComponent($('Preparar lista de atendentes disponiveis').first().json.atendimento_id) + '/mensagens-enviadas' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { wamid: $('Enviar lista de atendentes pela Meta').first().json.messages?.[0]?.id ?? '', tipo: 'TEXTO', conteudo: $('Preparar lista de atendentes disponiveis').first().json.texto, midiaUrl: null, midiaMetadados: null } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        8480,
+        4080
+      ],
+      "id": "d53cdc57-566e-4497-8e89-61950da45de9",
+      "name": "Registrar lista de atendentes no CRM",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "notes": "Registra no CRM o texto que realmente foi enviado: lista, indisponibilidade ou aviso fora do horário."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retorna para o agente que este subworkflow ja enviou a lista ou o aviso ao cliente.\n// O EV-01 deve usar esse codigo para nao mandar uma segunda mensagem.\nconst lista = $('Preparar lista de atendentes disponiveis').first().json;\nconst meta = $('Enviar lista de atendentes pela Meta').first().json;\nconst registro = $('Registrar lista de atendentes no CRM').first().json;\n\nreturn [{ json: {\n  sucesso: true,\n  codigo: lista.apenas_aviso_fora_horario_com_historico ? 'AVISO_FORA_HORARIO_COM_HISTORICO_ENVIADO' : (lista.lista_enviada ? 'LISTA_ATENDENTES_ENVIADA' : 'LISTA_ATENDENTES_INDISPONIVEIS_ENVIADA'),\n  atendimento_id: String(lista.atendimento_id ?? ''),\n  transferencia_realizada: false,\n  mensagem_cliente_enviada: true,\n  texto_enviado_ao_cliente: String(lista.texto ?? ''),\n  atendentes_listados: lista.atendentes_listados ?? [],\n  whatsapp_message_id: String(meta.messages?.[0]?.id ?? ''),\n  mensagem_crm_id: String(registro.mensagemId ?? '')\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8720,
+        4080
+      ],
+      "id": "12892549-600e-4cd5-bf0f-a758c464f08d",
+      "name": "Retornar lista de atendentes enviada",
+      "notesInFlow": true,
+      "notes": "Sinaliza lista, indisponibilidade ou aviso fora do horário. No aviso com histórico, nenhuma transferência ocorreu e o EV-01 não deve responder outra vez."
+    },
+    {
+      "id": "0d3ea153-ee14-4317-9fc1-27f29f33eca5",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-03 Transferir Atendimento\nCRM de teste / Evolution.\n- Textos da transferencia: CONFIGURAR_atendente_outros_id\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Textos da transferencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Textos da transferencia": {
+      "main": [
+        [
+          {
+            "node": "Definir acao transferencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solicitar transferencia especifica ao CRM": {
+      "main": [
+        [
+          {
+            "node": "Registrar transferencia na telemetria",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar transferencia na telemetria": {
+      "main": [
+        [
+          {
+            "node": "Transferencia fora do horario humano?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transferencia fora do horario humano?": {
+      "main": [
+        [
+          {
+            "node": "Consultar horario expediente na FAQ",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar confirmacao de transferencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar horario expediente na FAQ": {
+      "main": [
+        [
+          {
+            "node": "Preparar lembrete retorno expediente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar lembrete retorno expediente": {
+      "main": [
+        [
+          {
+            "node": "Criar lembrete retorno expediente no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar lembrete retorno expediente no CRM": {
+      "main": [
+        [
+          {
+            "node": "Preparar confirmacao de transferencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solicitar proximo humano ao CRM": {
+      "main": [
+        [
+          {
+            "node": "Registrar transferencia na telemetria",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transferir para atendente especifico?": {
+      "main": [
+        [
+          {
+            "node": "Solicitar transferencia especifica ao CRM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Acao transferir proximo humano?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar confirmacao de transferencia": {
+      "main": [
+        [
+          {
+            "node": "Enviar confirmacao de transferencia pela Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar confirmacao de transferencia pela Meta": {
+      "main": [
+        [
+          {
+            "node": "Registrar confirmacao de transferencia no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar confirmacao de transferencia no CRM": {
+      "main": [
+        [
+          {
+            "node": "Retornar resultado da transferencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Definir acao transferencia": {
+      "main": [
+        [
+          {
+            "node": "Transferir para atendente especifico?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acao transferir proximo humano?": {
+      "main": [
+        [
+          {
+            "node": "Solicitar proximo humano ao CRM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar lista de atendentes disponiveis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar lista de atendentes disponiveis": {
+      "main": [
+        [
+          {
+            "node": "Enviar lista de atendentes pela Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar lista de atendentes pela Meta": {
+      "main": [
+        [
+          {
+            "node": "Registrar lista de atendentes no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar lista de atendentes no CRM": {
+      "main": [
+        [
+          {
+            "node": "Retornar lista de atendentes enviada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}

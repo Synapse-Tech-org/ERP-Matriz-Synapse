@@ -25,6 +25,11 @@ public class ListarFeedbacksUseCase {
     @Transactional(readOnly = true)
     public FeedbackRepositorio.Pagina executar(
             TipoFeedback tipo, Instant antesDe, UUID antesDoId, int limite) {
+        validarPaginacao(antesDe, antesDoId, limite);
+        return repositorio.listar(tipo, antesDe, antesDoId, limite);
+    }
+
+    static void validarPaginacao(Instant antesDe, UUID antesDoId, int limite) {
         if ((antesDe == null) != (antesDoId == null)) {
             throw new FeedbackInvalidoException("O cursor de paginação está incompleto.");
         }
@@ -32,6 +37,5 @@ public class ListarFeedbacksUseCase {
             throw new FeedbackInvalidoException(
                     "O limite deve estar entre 1 e " + LIMITE_MAXIMO + ".");
         }
-        return repositorio.listar(tipo, antesDe, antesDoId, limite);
     }
 }

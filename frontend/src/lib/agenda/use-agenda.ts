@@ -7,6 +7,7 @@ import type { TagDoLead } from "@/lib/lead/types";
 import {
   CRITERIO_SEM_FILTRO,
   contarLeads,
+  contarLeadsPorEtapa,
   filtrarLeads,
   listarCamposFiltraveis,
   listarCatalogosDeFiltro,
@@ -117,11 +118,27 @@ export function useContagemDeLeads(
   rapidos: FiltrosRapidosAgenda,
   avancados: FiltroAtivo[],
   tags: TagDoLead[],
+  habilitado = true,
 ) {
   const criterio = criterioDosFiltrosAtivos(rapidos, avancados, tags);
   return useQuery({
     queryKey: ["agenda", "contagem", criterio],
     queryFn: () => contarLeads(criterio),
+    enabled: habilitado,
+  });
+}
+
+export function useContagemPorEtapaDaAgenda(
+  rapidos: FiltrosRapidosAgenda,
+  avancados: FiltroAtivo[],
+  tags: TagDoLead[],
+  habilitado: boolean,
+) {
+  const criterio = criterioDosFiltrosAtivos(rapidos, avancados, tags);
+  return useQuery({
+    queryKey: ["agenda", "contagem-por-etapa", criterio],
+    queryFn: () => contarLeadsPorEtapa(criterio),
+    enabled: habilitado,
   });
 }
 

@@ -105,6 +105,10 @@ final class ProxyZApiParaTeste {
             var variaveis = Pattern.compile("\\$\\{([A-Z0-9_]+)([^}]*)}").matcher(yaml);
             while (variaveis.find()) {
                 processo.environment().remove(variaveis.group(1));
+            }
+            // Uma variável obrigatória pode aparecer também com valor padrão em outro serviço.
+            variaveis.reset();
+            while (variaveis.find()) {
                 if (variaveis.group(2).startsWith(":?")) processo.environment().put(variaveis.group(1), "teste-zapi");
             }
             processo.environment().putAll(Map.of("SYNAPSE_DOMINIO", DOMINIO, "TRAEFIK_ROUTER_PREFIX", PREFIXO,
@@ -114,7 +118,9 @@ final class ProxyZApiParaTeste {
                 iniciado.destroyForcibly();
                 throw new AssertionError("composicao final excedeu o prazo");
             }
-            assertThat(iniciado.exitValue()).as("docker compose config aceitou base/override com envs sinteticas").isZero();
+            assertThat(iniciado.exitValue())
+                .as("docker compose config aceitou base/override com envs sinteticas: %s", Files.readString(erros))
+                .isZero();
             return JSON.readTree(Files.readString(saida));
         } finally {
             Files.deleteIfExists(vazio); Files.deleteIfExists(saida); Files.deleteIfExists(erros);

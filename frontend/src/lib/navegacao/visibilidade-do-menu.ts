@@ -7,9 +7,11 @@ import type { MinhasPermissoes } from "@/lib/gestao/types";
  */
 const CAPACIDADE_DO_ITEM: Record<string, string> = {
   agenda: "clientes.acessar",
+  agendaConsultas: "clientes.acessar",
   dashboard: "dashboard.ver",
   campanhas: "campanhas.ver",
   cancelamentos: "cancelamentos.ver",
+  relatorios: "relatorios.ver",
   automacao: "automacao.ver",
   templatesWhatsApp: "templates.ver",
   mensagensRapidas: "mensagens_rapidas.usar",
@@ -58,7 +60,7 @@ function papelDeGestao(papel: string | null | undefined): boolean {
 
 function visivelPeloPapel(chave: string, papel: string | null): boolean {
   const gestao = papelDeGestao(papel);
-  if (chave === "gestao" || chave === "automacao" || chave === "dashboard" || chave === "campanhas" || chave === "cancelamentos") return gestao;
+  if (chave === "gestao" || chave === "automacao" || chave === "dashboard" || chave === "campanhas" || chave === "cancelamentos" || chave === "relatorios") return gestao;
   return true;
 }
 

@@ -4,13 +4,13 @@ import { CHAVE_MINHAS_PERMISSOES } from "./use-gestao";
 
 const PREFIXOS = new Set([
   "lead", "leads", "agenda", "mensagens", "midia-url-assinada", "resumo-ia",
-  "informacoes-chatbot", "dashboard", "cancelamentos", "lembretes", "mensagens-programadas",
+  "informacoes-chatbot", "dashboard", "relatorios", "cancelamentos", "lembretes", "mensagens-programadas",
   "finalizacao-em-massa", "campanhas",
 ]);
 
 const CAPACIDADES_EXTERNAS = new Set([
   "clientes", "atendimentos", "contatos", "resumo_ia", "dashboard", "mensagens_programadas",
-  "lembretes", "campanhas", "cancelamentos",
+  "lembretes", "campanhas", "relatorios", "cancelamentos",
 ]);
 
 export function consultaDeClientes(chave: QueryKey): boolean {

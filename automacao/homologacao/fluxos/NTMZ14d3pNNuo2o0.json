@@ -1,0 +1,1222 @@
+{
+  "name": "HML - EV-06 Follow-up de teste — relógio persistente",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "={{ \"http://synapse-backend-internal:8080\".replace(/\\/$/, '') + '/internal/v1/regras/follow-up' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2528,
+        8128
+      ],
+      "id": "6753c4a9-1ba4-4aad-af4c-242aea9463a0",
+      "name": "Buscar regras de follow-up",
+      "notesInFlow": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "notes": "GET /internal/v1/regras/follow-up. Com Always Output Data, o fluxo ainda recebe um item vazio quando o recurso geral esta inativo e pode executar o teste exclusivo."
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Variaveis follow-up').first().json.crm_base_url.replace(/\\/$/, '') + '/api/v1/atendimentos' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "visao",
+              "value": "={{ $('Variaveis follow-up').first().json.atendimentos_visao }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3328,
+        8128
+      ],
+      "id": "95b4604f-564f-4ef8-9f2b-2698a9d656cd",
+      "name": "Buscar atendimentos no CRM",
+      "notesInFlow": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "vVM51dBWEAWnTxtg",
+          "name": "HML CRM JWT - PENDENTE LOGIN"
+        }
+      },
+      "notes": "GET /api/v1/atendimentos?visao=TODOS. O filtro de follow-up fica no fluxo: atendimento ainda aberto, ultima mensagem nao foi do lead e regra ativa vencida."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transforma a resposta paginada/listada do CRM em um item por atendimento.\n// O loop nativo processa cada item depois; aqui nao decidimos envio.\nconst respostas = $('Buscar atendimentos no CRM').all();\nconst itens = respostas.flatMap((resposta) => {\n  const json = resposta.json ?? {};\n  if (Array.isArray(json)) return json;\n  return json.atendimentos ?? json.content ?? json.data ?? json.items ?? [json];\n});\nconst controle = $('Preparar regras para execucao').first().json;\nconst modoTesteExclusivo = controle.modo_teste_exclusivo === true;\nconst leadIdTeste = String(controle.lead_id_teste_followup_inativo ?? '').trim();\n\nreturn itens\n  .filter((cartao) => {\n    if (!cartao || !(cartao.atendimentoId || cartao.id)) return false;\n    const leadId = String(cartao.leadId ?? cartao.lead?.id ?? '');\n    return !modoTesteExclusivo || leadId === leadIdTeste;\n  })\n  .map((cartao, indice) => ({\n    json: {\n      indice_atendimento: indice,\n      atendimento_id: String(cartao.atendimentoId ?? cartao.id ?? ''),\n      lead_id: String(cartao.leadId ?? cartao.lead?.id ?? ''),\n      lead_nome: String(cartao.leadNome ?? cartao.lead?.nome ?? cartao.nomeLead ?? cartao.contatoNome ?? ''),\n      status_atendimento: String(cartao.status ?? '').toUpperCase(),\n      atendente_id: String(cartao.atendenteId ?? ''),\n      atendente_nome: String(cartao.atendenteNome ?? ''),\n      ultima_mensagem_preview: String(cartao.ultimaMensagemPreview ?? ''),\n      ultima_mensagem_remetente_tipo: String(cartao.ultimaMensagemRemetenteTipo ?? '').toUpperCase(),\n      ultima_mensagem_em: String(cartao.ultimaMensagemEm ?? cartao.updatedAt ?? ''),\n      ultima_mensagem_do_lead_em: String(cartao.ultimaMensagemDoLeadEm ?? ''),\n      nao_lidas: Number(cartao.naoLidas ?? 0)\n    }\n  }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3584,
+        8128
+      ],
+      "id": "73ec5101-53f1-4494-b4f4-a4cbc738d5ca",
+      "name": "Normalizar atendimentos do CRM",
+      "notesInFlow": true,
+      "notes": "Normaliza os atendimentos. Quando o follow-up geral esta inativo, deixa passar exclusivamente o lead de teste configurado."
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Variaveis follow-up').first().json.crm_base_url.replace(/\\/$/, '') + '/api/v1/leads/' + encodeURIComponent($('Aplicar trava anti-repeticao').item.json.lead_id) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6112,
+        7728
+      ],
+      "id": "8f0079b4-5707-461e-824c-47f387cd7882",
+      "name": "Buscar dados do lead no CRM",
+      "notesInFlow": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "vVM51dBWEAWnTxtg",
+          "name": "HML CRM JWT - PENDENTE LOGIN"
+        }
+      },
+      "notes": "GET /api/v1/leads/{id}. Busca o telefone do lead para enviar o follow-up pela Meta. Use Bearer Auth de usuário."
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        2080,
+        8128
+      ],
+      "id": "9c32f285-9ae1-4b66-9f89-c9e526b10815",
+      "name": "Verificar follow-ups a cada minuto",
+      "notesInFlow": true,
+      "notes": "Dispara de forma independente do atendimento da IA. A cada minuto, inicia uma nova consulta dos cartões de atendimento no CRM."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Avaliar follow-up por regra').item.json.enviar_followup }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5536,
+        8240
+      ],
+      "id": "56f3c051-730d-4a2c-9073-4077de93440c",
+      "name": "Atendimento tem regra vencida?",
+      "notesInFlow": true,
+      "notes": "So consulta a tabela anti-repeticao quando o atendimento ainda esta aberto, a ultima mensagem nao foi do lead e existe regra ativa vencida."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "j9vBXDJ8Xn91uGmp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "payload": "={{ { messaging_product: 'whatsapp', recipient_type: 'individual', to: String($('Buscar dados do lead no CRM').item.json.telefone ?? '').replace(/\\D/g, ''), type: 'interactive', interactive: { type: 'button', body: { text: $('Aplicar trava anti-repeticao').item.json.texto_followup }, action: { buttons: [ { type: 'reply', reply: { id: $('Variaveis follow-up').first().json.followup_botao_sim_id, title: $('Variaveis follow-up').first().json.followup_botao_sim_titulo } }, { type: 'reply', reply: { id: $('Variaveis follow-up').first().json.followup_botao_nao_id, title: $('Variaveis follow-up').first().json.followup_botao_nao_titulo } } ] } } } }}",
+            "destinatario": "={{ $('When Executed by Another Workflow').first().json.evento?.wa_id || '' }}"
+          },
+          "schema": [
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "type": "object",
+              "required": true
+            },
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "type": "string"
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        6368,
+        7728
+      ],
+      "id": "d0202f5a-ca32-49fd-95f1-95cccb057699",
+      "name": "Enviar follow-up pela Meta",
+      "retryOnFail": false,
+      "waitBetweenTries": 3000,
+      "maxTries": 3,
+      "notesInFlow": true,
+      "notes": "Envia a pergunta configurada na regra do CRM com botoes Sim e Nao. A opcao Nao interrompe definitivamente os proximos follow-ups daquele lead."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"http://synapse-backend-internal:8080\".replace(/\\/$/, '') + '/internal/v1/atendimentos/' + $('Aplicar trava anti-repeticao').item.json.atendimento_id + '/mensagens-enviadas' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { wamid: $('Enviar follow-up pela Meta').item.json.messages?.[0]?.id, tipo: 'TEXTO', conteudo: $('Aplicar trava anti-repeticao').item.json.texto_followup, midiaUrl: null, midiaMetadados: null, opcoes: null } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        7264,
+        7728
+      ],
+      "id": "787ab26c-850d-4bf8-9e68-8115a08167ba",
+      "name": "Registrar follow-up no CRM",
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      },
+      "notes": "POST /internal/v1/atendimentos/{id}/mensagens-enviadas. Registra no CRM a mensagem enviada pela Meta usando o wamid como idempotencia."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Confirma o resultado do envio sem expor credenciais.\nconst envio = $('Enviar follow-up pela Meta').item.json;\nconst registro = $('Registrar follow-up no CRM').item.json;\nconst registroLocal = $('Registrar envio anti-repeticao').item.json;\nconst atendimento = $('Aplicar trava anti-repeticao').item.json;\n\nreturn [{\n  json: {\n    codigo: 'FOLLOWUP_ENVIADO',\n    atendimento_id: atendimento.atendimento_id,\n    lead_id: atendimento.lead_id,\n    regra_followup_id: atendimento.regra_followup_id,\n    regra_followup_nome: atendimento.regra_followup_nome,\n    regra_tempo_minutos: atendimento.regra_tempo_minutos,\n    minutos_sem_resposta: atendimento.minutos_sem_resposta,\n    whatsapp_message_id: String(envio.messages?.[0]?.id ?? ''),\n    mensagem_crm_id: String(registro.mensagemId ?? ''),\n    registro_local_id: String(registroLocal.id ?? ''),\n    registro_local_enviado_em: String(registroLocal.enviado_em ?? ''),\n    crm_idempotente: Boolean(registro.idempotente)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7536,
+        7744
+      ],
+      "id": "6ab78edd-f92b-435c-8aff-9ccfcfd0b943",
+      "name": "Confirmar follow-up enviado",
+      "notesInFlow": true,
+      "notes": "Retorna o atendimento, a regra aplicada, o ID Meta e o registro criado no CRM."
+    },
+    {
+      "parameters": {
+        "content": "## Follow-up por regras do CRM\n\n1. Busca regras ativas do CRM a cada 15 minutos.\n2. Com regras ativas, processa todos os atendimentos normalmente.\n3. Sem regras ativas, ativa uma unica regra local apenas para o lead de teste configurado.\n4. Antes de enviar, respeita recusas permanentes pelo botao Nao.\n5. Cada envio usa botoes Sim e Nao.\n6. Sem resposta por 30 minutos apos o follow-up, finaliza o atendimento.\n\nO fallback existe somente para teste e nao libera outros leads quando o recurso geral estiver inativo.",
+        "height": 468,
+        "width": 720,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2992,
+        7568
+      ],
+      "id": "bd4fd2d2-1d24-4ebf-a55b-391628239ccb",
+      "name": "Como funciona o follow-up"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "9376b0c0-df35-471a-a187-7b426c9ddb55",
+      "name": "Loop follow-ups",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        3856,
+        8128
+      ],
+      "notes": "Processa um atendimento por vez. A saida 1 executa o item atual; ao fim de cada ramo voltamos para este node para pegar o proximo."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Avalia um unico atendimento contra as regras ativas retornadas pelo CRM.\n// Regra corrigida:\n// 1. Elegibilidade conta desde a ultima mensagem nossa/atendente.\n// 2. Anti-repeticao ancora na ultima mensagem do cliente, para follow-up nao gerar outro follow-up.\n// 3. Sem mensagem do cliente ou fora da janela de texto livre da Meta, nao envia texto comum.\nconst atendimento = $('Loop follow-ups').item.json;\nconst variaveis = $('Variaveis follow-up').first().json;\nconst regrasBrutas = $('Preparar regras para execucao').all().flatMap((item) => {\n  const json = item.json ?? {};\n  if (Array.isArray(json)) return json;\n  return json.regras ?? json.content ?? json.data ?? json.items ?? [json];\n});\nconst regras = regrasBrutas\n  .map((regra) => ({\n    id: String(regra.id ?? ''),\n    nome: String(regra.nome ?? ''),\n    tempoMinutos: Number(regra.tempoMinutos ?? regra.tempo_minutos ?? 0),\n    texto: String(regra.texto ?? regra.mensagem ?? '').trim()\n  }))\n  .filter((regra) => regra.id && regra.tempoMinutos > 0 && regra.texto)\n  .sort((a, b) => a.tempoMinutos - b.tempoMinutos);\n\nconst normalizarTexto = (valor) => String(valor ?? '')\n  .normalize('NFD')\n  .replace(/[\\u0300-\\u036f]/g, '')\n  .replace(/\\s+/g, ' ')\n  .trim()\n  .toLowerCase();\nconst status = String(atendimento.status_atendimento ?? '').toUpperCase();\nconst statusBloqueados = String(variaveis.status_bloqueados_followup ?? '').split(',').map((item) => item.trim().toUpperCase()).filter(Boolean);\nconst statusPermitido = Boolean(status) && !statusBloqueados.includes(status);\nconst remetente = String(atendimento.ultima_mensagem_remetente_tipo ?? '').toUpperCase();\nconst ultimaFoiNossa = Boolean(remetente) && remetente !== 'LEAD';\nconst ultimaMensagemBaseTexto = String(atendimento.ultima_mensagem_em ?? '').trim();\nconst ultimaMensagemBaseMs = Date.parse(ultimaMensagemBaseTexto);\nconst ultimaMensagemLeadTexto = String(atendimento.ultima_mensagem_do_lead_em ?? '').trim();\nconst ultimaMensagemLeadMs = Date.parse(ultimaMensagemLeadTexto);\nconst textoUltimaMensagem = normalizarTexto(atendimento.ultima_mensagem_preview);\nconst textosFollowup = new Set(regras.map((regra) => normalizarTexto(regra.texto)).filter(Boolean));\nconst ultimaMensagemEhFollowup = Boolean(textoUltimaMensagem && textosFollowup.has(textoUltimaMensagem));\nconst minutosSemResposta = ultimaFoiNossa && Number.isFinite(ultimaMensagemBaseMs)\n  ? Math.floor((Date.now() - ultimaMensagemBaseMs) / 60000)\n  : 0;\nconst minutosDesdeLead = Number.isFinite(ultimaMensagemLeadMs)\n  ? Math.floor((Date.now() - ultimaMensagemLeadMs) / 60000)\n  : null;\nconst janelaTextoLivreMinutos = Number(variaveis.janela_texto_livre_minutos ?? 1430);\nconst janelaTextoLivreAberta = Number.isFinite(minutosDesdeLead) && minutosDesdeLead <= janelaTextoLivreMinutos;\nconst regrasVencidas = regras.filter((regra) => minutosSemResposta >= regra.tempoMinutos);\n\nlet motivo = 'ELEGIVEL';\nif (regras.length === 0) motivo = 'SEM_REGRAS_ATIVAS';\nelse if (!atendimento.atendimento_id || !atendimento.lead_id) motivo = 'SEM_ATENDIMENTO_OU_LEAD';\nelse if (!statusPermitido) motivo = 'STATUS_FINALIZADO_OU_INVALIDO';\nelse if (!remetente) motivo = 'REMETENTE_ULTIMA_MENSAGEM_AUSENTE';\nelse if (!ultimaFoiNossa) motivo = 'ULTIMA_MENSAGEM_DO_LEAD';\nelse if (ultimaMensagemEhFollowup) motivo = 'ULTIMA_MENSAGEM_JA_E_FOLLOWUP';\nelse if (!Number.isFinite(ultimaMensagemBaseMs)) motivo = 'DATA_ULTIMA_MENSAGEM_INVALIDA';\nelse if (!Number.isFinite(ultimaMensagemLeadMs)) motivo = 'SEM_MENSAGEM_DO_LEAD';\nelse if (!janelaTextoLivreAberta) motivo = 'JANELA_24H_FECHADA_SEM_TEMPLATE';\nelse if (regrasVencidas.length === 0) motivo = 'TEMPO_INSUFICIENTE';\n\nconst enviarFollowup = motivo === 'ELEGIVEL';\nreturn [{\n  json: {\n    ...atendimento,\n    status_bloqueados_followup: statusBloqueados,\n    minutos_sem_resposta: minutosSemResposta,\n    minutos_desde_ultima_mensagem_lead: minutosDesdeLead,\n    janela_texto_livre_aberta: janelaTextoLivreAberta,\n    ultima_mensagem_eh_followup: ultimaMensagemEhFollowup,\n    followup_ciclo_chave: ultimaMensagemLeadTexto,\n    regras_vencidas: regrasVencidas,\n    regra_followup_id: '',\n    regra_followup_nome: '',\n    regra_tempo_minutos: null,\n    texto_followup: '',\n    motivo_followup: motivo,\n    enviar_followup: enviarFollowup\n  }\n}];"
+      },
+      "id": "ceff7a13-84d9-44c9-9731-f2e74c3fea6d",
+      "name": "Avaliar follow-up por regra",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4112,
+        8128
+      ],
+      "notes": "Avalia as regras preparadas pelo CRM ou, somente quando nao houver regras ativas, pela regra local limitada ao lead de teste."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS public.follow_ups_temporary (\n  id bigserial PRIMARY KEY,\n  follow_up_config_id text NOT NULL,\n  clinica_id integer NOT NULL DEFAULT 1,\n  paciente_id text,\n  lead_id text,\n  titulo text NOT NULL DEFAULT 'Follow-up de atendimento',\n  descricao text,\n  scheduled_at timestamptz NOT NULL DEFAULT now(),\n  crm_atendimento_id text NOT NULL,\n  crm_paciente_id text,\n  regra_followup_nome text,\n  lead_ultima_mensagem_em timestamptz,\n  lead_ultima_mensagem_chave text NOT NULL DEFAULT 'SEM_RESPOSTA_LEAD',\n  ultima_mensagem_base_em timestamptz,\n  mensagem_enviada text,\n  whatsapp_message_id text,\n  crm_mensagem_id text,\n  status text NOT NULL DEFAULT 'ENVIADO',\n  enviado_em timestamptz,\n  encerrado_em timestamptz,\n  motivo_encerramento text,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  updated_at timestamptz NOT NULL DEFAULT now()\n);\n\nALTER TABLE public.follow_ups_temporary\n  ADD COLUMN IF NOT EXISTS follow_up_config_id text,\n  ADD COLUMN IF NOT EXISTS clinica_id integer NOT NULL DEFAULT 1,\n  ADD COLUMN IF NOT EXISTS paciente_id text,\n  ADD COLUMN IF NOT EXISTS lead_id text,\n  ADD COLUMN IF NOT EXISTS titulo text NOT NULL DEFAULT 'Follow-up de atendimento',\n  ADD COLUMN IF NOT EXISTS descricao text,\n  ADD COLUMN IF NOT EXISTS scheduled_at timestamptz NOT NULL DEFAULT now(),\n  ADD COLUMN IF NOT EXISTS crm_atendimento_id text,\n  ADD COLUMN IF NOT EXISTS crm_paciente_id text,\n  ADD COLUMN IF NOT EXISTS regra_followup_nome text,\n  ADD COLUMN IF NOT EXISTS lead_ultima_mensagem_em timestamptz,\n  ADD COLUMN IF NOT EXISTS lead_ultima_mensagem_chave text NOT NULL DEFAULT 'SEM_RESPOSTA_LEAD',\n  ADD COLUMN IF NOT EXISTS ultima_mensagem_base_em timestamptz,\n  ADD COLUMN IF NOT EXISTS mensagem_enviada text,\n  ADD COLUMN IF NOT EXISTS whatsapp_message_id text,\n  ADD COLUMN IF NOT EXISTS crm_mensagem_id text,\n  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'ENVIADO',\n  ADD COLUMN IF NOT EXISTS enviado_em timestamptz,\n  ADD COLUMN IF NOT EXISTS encerrado_em timestamptz,\n  ADD COLUMN IF NOT EXISTS motivo_encerramento text,\n  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now(),\n  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();\n\nCREATE UNIQUE INDEX IF NOT EXISTS follow_ups_temporary_ev_idempotencia_idx\nON public.follow_ups_temporary (crm_atendimento_id, follow_up_config_id, lead_ultima_mensagem_chave);\n\nCREATE INDEX IF NOT EXISTS follow_ups_temporary_ev_atendimento_idx\nON public.follow_ups_temporary (crm_atendimento_id, enviado_em DESC);\n\nCREATE TABLE IF NOT EXISTS public.follow_up_opt_outs (\n  lead_id text PRIMARY KEY,\n  wa_id text,\n  atendimento_id text,\n  recusado_em timestamptz NOT NULL DEFAULT now(),\n  origem text NOT NULL DEFAULT 'BOTAO_NAO',\n  updated_at timestamptz NOT NULL DEFAULT now()\n);\n\nCREATE INDEX IF NOT EXISTS follow_up_opt_outs_wa_idx\nON public.follow_up_opt_outs (wa_id);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3056,
+        8128
+      ],
+      "id": "08d8cd65-202f-4ef8-8f22-a93929539ab5",
+      "name": "Garantir tabela anti-repeticao",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Garante a trava anti-repeticao e a lista permanente de leads que recusaram follow-up pelo botao Nao."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(array_agg(follow_up_config_id), ARRAY[]::text[]) AS followups_enviados\nFROM public.follow_ups_temporary\nWHERE crm_atendimento_id = $1\n  AND lead_ultima_mensagem_chave = COALESCE(NULLIF($2, ''), $5)\n  AND (\n    status = $3\n    OR (status = $4 AND updated_at >= now() - ($6::text || ' minutes')::interval)\n  );",
+        "options": {
+          "queryReplacement": "={{ $('Avaliar follow-up por regra').item.json.atendimento_id }},{{ $('Avaliar follow-up por regra').item.json.followup_ciclo_chave }},{{ $('Variaveis follow-up').first().json.status_enviado_followup }},{{ $('Variaveis follow-up').first().json.status_reservado_followup }},{{ $('Variaveis follow-up').first().json.lead_ultima_mensagem_chave_padrao }},{{ $('Variaveis follow-up').first().json.reserva_expira_minutos }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4640,
+        7696
+      ],
+      "id": "04d680cd-962c-4f5e-b948-46b782935ea9",
+      "name": "Verificar follow-ups ja enviados no ciclo",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Consulta regras ja enviadas ou reservadas recentemente para este atendimento no ciclo atual. Reservas antigas podem ser reaproveitadas em nova tentativa."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Escolhe a proxima regra vencida que ainda nao foi enviada neste ciclo.\n// O ciclo muda quando o lead responde. Follow-up enviado nao abre novo ciclo.\nconst atendimento = $('Avaliar follow-up por regra').item.json;\nconst variaveis = $('Variaveis follow-up').first().json;\nconst historico = $('Verificar follow-ups ja enviados no ciclo').item.json;\nconst enviadosRaw = historico.followups_enviados ?? [];\nconst enviadosLista = Array.isArray(enviadosRaw)\n  ? enviadosRaw.map(String)\n  : String(enviadosRaw).replace(/[{}]/g, '').split(',').filter(Boolean);\nconst enviados = new Set(enviadosLista);\nconst regrasVencidas = Array.isArray(atendimento.regras_vencidas) ? atendimento.regras_vencidas : [];\nconst regra = regrasVencidas.find((item) => !enviados.has(String(item.id)));\nconst nomeLead = String(atendimento.lead_nome ?? '').trim();\nconst nomePadrao = String(variaveis.nome_padrao_followup ?? '').trim();\nif (!nomePadrao) throw new Error('NOME_PADRAO_FOLLOWUP_NAO_CONFIGURADO');\nconst aplicarVariaveis = (texto) => String(texto ?? '')\n  .replace(/\\{nome\\}/gi, nomeLead || nomePadrao);\n\nlet motivo = String(atendimento.motivo_followup ?? '');\nlet enviar = Boolean(atendimento.enviar_followup);\nif (enviar && !regra) {\n  motivo = 'FOLLOWUPS_JA_ENVIADOS_SEM_RESPOSTA';\n  enviar = false;\n}\n\nreturn [{\n  json: {\n    ...atendimento,\n    followups_enviados_no_ciclo: [...enviados],\n    total_followups_enviados_sem_resposta: enviados.size,\n    regra_followup_id: regra?.id ?? '',\n    regra_followup_nome: regra?.nome ?? '',\n    regra_tempo_minutos: regra?.tempoMinutos ?? null,\n    texto_followup: regra ? aplicarVariaveis(regra.texto) : '',\n    texto_followup_original: regra?.texto ?? '',\n    variaveis_followup: {\n      nome: nomeLead || nomePadrao\n    },\n    motivo_followup: motivo,\n    enviar_followup: enviar\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4912,
+        7696
+      ],
+      "id": "358220a6-78c3-490f-a1d9-4e261449a8af",
+      "name": "Aplicar trava anti-repeticao",
+      "notesInFlow": true,
+      "notes": "Depois da elegibilidade, escolhe a menor regra vencida ainda nao enviada neste ciclo sem resposta do lead."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $('Preparar registro anti-repeticao').item.json.sql_registro_followup }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6944,
+        7728
+      ],
+      "id": "23d21c9a-2a0b-42e2-b8fc-8e4d25f3a3bc",
+      "name": "Registrar envio anti-repeticao",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Atualiza a reserva local para ENVIADO. Esta etapa vem antes do registro no CRM para evitar reenvio caso o CRM falhe depois da Meta."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Atualiza a reserva local depois que a Meta aceitou o envio.\n// A gravacao como ENVIADO acontece antes do registro no CRM para evitar duplicidade se o CRM falhar.\nconst atendimento = $('Aplicar trava anti-repeticao').item.json;\nconst variaveis = $('Variaveis follow-up').first().json;\nconst statusEnviado = String(variaveis.status_enviado_followup ?? '').trim();\nconst leadChavePadrao = String(variaveis.lead_ultima_mensagem_chave_padrao ?? '').trim();\nconst envio = $('Enviar follow-up pela Meta').item.json;\nconst sqlText = (valor) => String(valor ?? '').replace(/'/g, \"''\");\nconst leadChave = String(atendimento.lead_ultima_mensagem_chave || atendimento.ultima_mensagem_do_lead_em || leadChavePadrao);\nconst whatsappId = String(envio.messages?.[0]?.id ?? '');\nconst linhas = [\n  'UPDATE public.follow_ups_temporary',\n  'SET',\n  \"  whatsapp_message_id = '\" + sqlText(whatsappId) + \"',\",\n  \"  mensagem_enviada = '\" + sqlText(atendimento.texto_followup) + \"',\",\n  \"  status = '\" + sqlText(statusEnviado) + \"',\",\n  '  enviado_em = now(),',\n  '  updated_at = now()',\n  \"WHERE crm_atendimento_id = '\" + sqlText(atendimento.atendimento_id) + \"'\",\n  \"  AND follow_up_config_id = '\" + sqlText(atendimento.regra_followup_id) + \"'\",\n  \"  AND lead_ultima_mensagem_chave = '\" + sqlText(leadChave) + \"'\",\n  'RETURNING id, enviado_em, status;'\n];\nreturn [{ json: { ...atendimento, sql_registro_followup: linhas.join(String.fromCharCode(10)) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6672,
+        7728
+      ],
+      "id": "e3bffcc3-deac-49cb-878d-567325322a9b",
+      "name": "Preparar registro anti-repeticao",
+      "notesInFlow": true,
+      "notes": "Monta o UPDATE que transforma a reserva em ENVIADO logo depois do aceite da Meta."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Aplicar trava anti-repeticao').item.json.enviar_followup }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5184,
+        7696
+      ],
+      "id": "2128c264-7df2-43a5-874a-72a021372d92",
+      "name": "Enviar apos trava anti-repeticao?",
+      "notesInFlow": true,
+      "notes": "So segue para Meta quando existe uma regra vencida que ainda nao foi enviada neste ciclo sem resposta do lead."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reserva a chave de follow-up antes do envio pela Meta.\n// A chave anti-repeticao e a ultima mensagem do lead; a base do relogio continua sendo a ultima mensagem nossa.\nconst atendimento = $('Aplicar trava anti-repeticao').item.json;\nconst variaveis = $('Variaveis follow-up').first().json;\nconst statusReservado = String(variaveis.status_reservado_followup ?? '').trim();\nconst leadChavePadrao = String(variaveis.lead_ultima_mensagem_chave_padrao ?? '').trim();\nconst tituloPadrao = String(variaveis.titulo_followup_padrao ?? '').trim();\nconst reservaExpiraMinutos = Number(variaveis.reserva_expira_minutos);\nif (!Number.isFinite(reservaExpiraMinutos) || reservaExpiraMinutos <= 0) throw new Error('RESERVA_EXPIRA_MINUTOS_INVALIDO');\nconst sqlText = (valor) => String(valor ?? '').replace(/'/g, \"''\");\nconst sqlTimestamp = (valor) => {\n  const texto = String(valor ?? '').trim();\n  return texto ? \"'\" + sqlText(texto) + \"'::timestamptz\" : 'NULL';\n};\nconst leadUltima = String(atendimento.ultima_mensagem_do_lead_em ?? '').trim();\nconst baseUltima = String(atendimento.ultima_mensagem_em ?? '').trim();\nconst leadChave = String(atendimento.followup_ciclo_chave || leadUltima || leadChavePadrao);\nconst titulo = atendimento.regra_followup_nome || tituloPadrao;\nconst linhas = [\n  'WITH tentativa AS (',\n  '  INSERT INTO public.follow_ups_temporary (',\n  '    follow_up_config_id, clinica_id, paciente_id, lead_id, titulo, scheduled_at, crm_atendimento_id, crm_paciente_id,',\n  '    regra_followup_nome, lead_ultima_mensagem_em, lead_ultima_mensagem_chave, ultima_mensagem_base_em,',\n  '    mensagem_enviada, status, enviado_em, updated_at',\n  '  ) VALUES (',\n  \"    '\" + sqlText(atendimento.regra_followup_id) + \"',\",\n  '    1,',\n  \"    '\" + sqlText(atendimento.lead_id) + \"',\",\n  \"    '\" + sqlText(atendimento.lead_id) + \"',\",\n  \"    '\" + sqlText(titulo) + \"',\",\n  '    now(),',\n  \"    '\" + sqlText(atendimento.atendimento_id) + \"',\",\n  \"    '\" + sqlText(atendimento.lead_id) + \"',\",\n  \"    '\" + sqlText(atendimento.regra_followup_nome) + \"',\",\n  '    ' + sqlTimestamp(leadUltima) + ',',\n  \"    '\" + sqlText(leadChave) + \"',\",\n  '    ' + sqlTimestamp(baseUltima) + ',',\n  \"    '\" + sqlText(atendimento.texto_followup) + \"',\",\n  \"    '\" + sqlText(statusReservado) + \"', NULL, now()\",\n  '  )',\n  '  ON CONFLICT (crm_atendimento_id, follow_up_config_id, lead_ultima_mensagem_chave)',\n  '  DO UPDATE SET',\n  \"    status = '\" + sqlText(statusReservado) + \"',\",\n  '    mensagem_enviada = EXCLUDED.mensagem_enviada,',\n  '    ultima_mensagem_base_em = EXCLUDED.ultima_mensagem_base_em,',\n  '    updated_at = now()',\n  \"  WHERE public.follow_ups_temporary.status = '\" + sqlText(statusReservado) + \"'\",\n  \"    AND public.follow_ups_temporary.updated_at < now() - interval '\" + reservaExpiraMinutos + \" minutes'\",\n  '  RETURNING id, status, updated_at',\n  ')',\n  'SELECT',\n  '  EXISTS(SELECT 1 FROM tentativa) AS reserva_criada,',\n  '  (SELECT id FROM tentativa LIMIT 1) AS id,',\n  '  (SELECT status FROM tentativa LIMIT 1) AS status,',\n  '  (SELECT updated_at FROM tentativa LIMIT 1) AS reservado_em;'\n];\nreturn [{ json: { ...atendimento, lead_ultima_mensagem_chave: leadChave, sql_reserva_followup: linhas.join(String.fromCharCode(10)) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5392,
+        7696
+      ],
+      "id": "3ed56fd7-85dd-4ee4-907d-86a7c2971029",
+      "name": "Preparar reserva anti-repeticao",
+      "notesInFlow": true,
+      "notes": "Monta uma reserva idempotente antes do envio pela Meta. Se outra execucao ja reservou/enviou, este item nao segue."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $('Preparar reserva anti-repeticao').item.json.sql_reserva_followup }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5616,
+        7696
+      ],
+      "id": "980ffb13-bcb5-46de-824e-2d2ce37c6589",
+      "name": "Reservar envio anti-repeticao",
+      "notesInFlow": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Tenta reservar atendimento + regra + ciclo antes de enviar. Retorna reserva_criada=true apenas para a execucao autorizada a enviar."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Reservar envio anti-repeticao').item.json.reserva_criada }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5856,
+        7696
+      ],
+      "id": "4e504eb4-8106-401d-962d-57fab1876d10",
+      "name": "Reserva anti-repeticao criada?",
+      "notesInFlow": true,
+      "notes": "Se a reserva nao foi criada, outra execucao ja enviou/reservou esta regra neste ciclo e o loop segue para o proximo atendimento."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ev06-config-crm-base-url",
+              "name": "crm_base_url",
+              "value": "https://crm-teste.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-meta-graph-base-url",
+              "name": "meta_graph_base_url",
+              "value": "https://evolution-hml.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-meta-graph-version",
+              "name": "meta_graph_version",
+              "value": "evolution",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-meta-phone-number-id",
+              "name": "meta_phone_number_id",
+              "value": "instancia_numero_teste",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-atendimentos-visao",
+              "name": "atendimentos_visao",
+              "value": "TODOS",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-status-bloqueados-followup",
+              "name": "status_bloqueados_followup",
+              "value": "FINALIZADO,CANCELADO,ARQUIVADO",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-status-enviado-followup",
+              "name": "status_enviado_followup",
+              "value": "ENVIADO",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-status-reservado-followup",
+              "name": "status_reservado_followup",
+              "value": "RESERVADO",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-reserva-expira-minutos",
+              "name": "reserva_expira_minutos",
+              "value": 15,
+              "type": "number"
+            },
+            {
+              "id": "ev06-config-lead-ultima-mensagem-chave-padrao",
+              "name": "lead_ultima_mensagem_chave_padrao",
+              "value": "SEM_RESPOSTA_LEAD",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-titulo-followup-padrao",
+              "name": "titulo_followup_padrao",
+              "value": "Follow-up de atendimento",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-nome-padrao-followup",
+              "name": "nome_padrao_followup",
+              "value": "cliente",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-janela-texto-livre-minutos",
+              "name": "janela_texto_livre_minutos",
+              "value": 1430,
+              "type": "number"
+            },
+            {
+              "id": "ev06-config-encerrar-pos-followup-minutos",
+              "name": "encerrar_pos_followup_minutos",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "ev06-config-followup-botao-sim-id",
+              "name": "followup_botao_sim_id",
+              "value": "ev06_followup_sim",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-followup-botao-nao-id",
+              "name": "followup_botao_nao_id",
+              "value": "ev06_followup_nao",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-followup-botao-sim-titulo",
+              "name": "followup_botao_sim_titulo",
+              "value": "Sim",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-followup-botao-nao-titulo",
+              "name": "followup_botao_nao_titulo",
+              "value": "Nao",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-lead-id-teste-followup-inativo",
+              "name": "lead_id_teste_followup_inativo",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-regra-teste-id",
+              "name": "regra_teste_followup_inativo_id",
+              "value": "ev06_teste_followup_inativo_10m",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-regra-teste-nome",
+              "name": "regra_teste_followup_inativo_nome",
+              "value": "Teste exclusivo: 10 minutos sem resposta",
+              "type": "string"
+            },
+            {
+              "id": "ev06-config-regra-teste-tempo-minutos",
+              "name": "regra_teste_followup_inativo_tempo_minutos",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "ev06-config-regra-teste-texto",
+              "name": "regra_teste_followup_inativo_texto",
+              "value": "Olá, deseja continuar seu atendimento?",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f20c625f-4bfa-45f8-9de8-911296d3c503",
+      "name": "Variaveis follow-up",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2288,
+        8128
+      ],
+      "notesInFlow": true,
+      "notes": "Centraliza variaveis de producao. Se o CRM nao devolver regras ativas, habilita uma regra de teste somente para o lead configurado; com regras ativas, processa todos normalmente."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH ultimo_followup AS (\n  SELECT id, crm_atendimento_id, enviado_em\n  FROM public.follow_ups_temporary\n  WHERE crm_atendimento_id = $1\n    AND status = $2\n    AND enviado_em <= now() - ($3::text || ' minutes')::interval\n    AND NULLIF($4, '') IS NOT NULL\n    AND lead_ultima_mensagem_em = $4::timestamptz\n    AND UPPER($5) IN ('EM_IA', 'EM_ATENDIMENTO')\n  ORDER BY enviado_em DESC\n  LIMIT 1\n)\nSELECT\n  EXISTS(SELECT 1 FROM ultimo_followup) AS deve_finalizar,\n  COALESCE((SELECT id FROM ultimo_followup LIMIT 1), 0) AS followup_id,\n  (SELECT crm_atendimento_id FROM ultimo_followup LIMIT 1) AS atendimento_id,\n  (SELECT enviado_em FROM ultimo_followup LIMIT 1) AS followup_enviado_em;",
+        "options": {
+          "queryReplacement": "={{ $('Avaliar follow-up por regra').item.json.atendimento_id }},{{ $('Variaveis follow-up').first().json.status_enviado_followup }},{{ $('Variaveis follow-up').first().json.encerrar_pos_followup_minutos }},{{ $('Avaliar follow-up por regra').item.json.ultima_mensagem_do_lead_em }},{{ $('Avaliar follow-up por regra').item.json.status_atendimento }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4944,
+        8048
+      ],
+      "id": "3f6b679b-cf77-434e-a733-3610ce2f7ef7",
+      "name": "Verificar encerramento pos-follow-up",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Localiza o ultimo follow-up ENVIADO ha pelo menos 30 minutos. So retorna elegivel quando o lead ainda esta na mesma ultima mensagem e o atendimento continua aberto."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Verificar encerramento pos-follow-up').item.json.deve_finalizar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "leftValue": "={{ $('Avaliar follow-up por regra').item.json.ultima_mensagem_eh_followup }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5216,
+        8048
+      ],
+      "id": "0b0a8330-23b8-40d0-bb0a-64b6e7e4c4ca",
+      "name": "Deve finalizar apos follow-up?",
+      "notesInFlow": true,
+      "notes": "Exige que o follow-up ainda seja a ultima mensagem. Se um atendente falou depois dele, o fluxo nao fecha a conversa por engano."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH finalizado AS (\n  UPDATE public.atendimento\n  SET status = 'FINALIZADO'::status_atendimento,\n      finalizado_em = COALESCE(finalizado_em, now())\n  WHERE id = $1::uuid\n    AND status IN ('EM_IA'::status_atendimento, 'EM_ATENDIMENTO'::status_atendimento)\n  RETURNING id, status, finalizado_em\n)\nSELECT\n  EXISTS(SELECT 1 FROM finalizado) AS atendimento_finalizado,\n  (SELECT id FROM finalizado LIMIT 1) AS atendimento_id,\n  (SELECT finalizado_em FROM finalizado LIMIT 1) AS finalizado_em;",
+        "options": {
+          "queryReplacement": "={{ $('Avaliar follow-up por regra').item.json.atendimento_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5536,
+        8032
+      ],
+      "id": "8414c19b-bcca-4291-ba4f-0c10b13a8190",
+      "name": "Finalizar atendimento sem resposta ao follow-up",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "IprZddvnhajgbwdx",
+          "name": "HML PostgreSQL CRM"
+        }
+      },
+      "notes": "Finaliza somente o atendimento processado neste item e somente se ele ainda estiver EM_IA ou EM_ATENDIMENTO."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH marcado AS (\n  UPDATE public.follow_ups_temporary\n  SET encerrado_em = now(),\n      motivo_encerramento = 'SEM_RESPOSTA_POS_FOLLOWUP',\n      updated_at = now()\n  WHERE id = $1::bigint\n    AND $2::boolean\n  RETURNING id, encerrado_em\n)\nSELECT EXISTS(SELECT 1 FROM marcado) AS encerramento_registrado;",
+        "options": {
+          "queryReplacement": "={{ $('Verificar encerramento pos-follow-up').item.json.followup_id }},{{ $('Finalizar atendimento sem resposta ao follow-up').item.json.atendimento_finalizado }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5776,
+        8048
+      ],
+      "id": "a2101c21-03e7-46c6-ac3a-acce878798e4",
+      "name": "Registrar encerramento pos-follow-up",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Registra no historico local que o atendimento foi fechado por 30 minutos sem resposta ao follow-up, sem alterar o status ENVIADO usado pela idempotencia."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT EXISTS (\n  SELECT 1\n  FROM public.follow_up_opt_outs\n  WHERE lead_id = $1\n) AS followup_bloqueado;",
+        "options": {
+          "queryReplacement": "={{ $('Avaliar follow-up por regra').item.json.lead_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4384,
+        8016
+      ],
+      "id": "05ba056d-7db6-4e47-b274-7fcfb5d09f2c",
+      "name": "Verificar bloqueio permanente de follow-up",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Consulta se o lead recusou follow-ups pelo botao Nao em qualquer atendimento anterior."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Verificar bloqueio permanente de follow-up').item.json.followup_bloqueado }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4656,
+        8016
+      ],
+      "id": "0b487c6f-a6ac-4485-a31c-95aecd8ace6a",
+      "name": "Lead bloqueou follow-up?",
+      "notesInFlow": true,
+      "notes": "Se o cliente escolheu Nao anteriormente, pula o atendimento sem avaliar regras, enviar mensagens ou acionar a IA."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mantem as regras do CRM quando o recurso geral esta ativo.\n// Quando o CRM devolve vazio, cria uma unica regra local e marca a execucao como teste exclusivo.\n// O filtro pelo lead acontece no proximo node, antes do loop.\nconst variaveis = $('Variaveis follow-up').first().json;\nconst respostas = $('Buscar regras de follow-up').all();\nconst bruto = respostas.flatMap((item) => {\n  const json = item.json ?? {};\n  if (Array.isArray(json)) return json;\n  return json.regras ?? json.content ?? json.data ?? json.items ?? [json];\n});\nconst regras = bruto\n  .map((regra) => ({\n    id: String(regra.id ?? ''),\n    nome: String(regra.nome ?? ''),\n    tempoMinutos: Number(regra.tempoMinutos ?? regra.tempo_minutos ?? 0),\n    texto: String(regra.texto ?? regra.mensagem ?? '').trim()\n  }))\n  .filter((regra) => regra.id && regra.tempoMinutos > 0 && regra.texto);\n\nif (regras.length > 0) {\n  return [{ json: { regras, modo_teste_exclusivo: false, origem_regras: 'CRM' } }];\n}\n\nconst leadIdTeste = String(variaveis.lead_id_teste_followup_inativo ?? '').trim();\nif (!leadIdTeste) throw new Error('LEAD_ID_TESTE_FOLLOWUP_INATIVO_NAO_CONFIGURADO');\nconst regraTeste = {\n  id: String(variaveis.regra_teste_followup_inativo_id ?? '').trim(),\n  nome: String(variaveis.regra_teste_followup_inativo_nome ?? '').trim(),\n  tempoMinutos: Number(variaveis.regra_teste_followup_inativo_tempo_minutos ?? 0),\n  texto: String(variaveis.regra_teste_followup_inativo_texto ?? '').trim()\n};\nif (!regraTeste.id || !regraTeste.nome || !Number.isFinite(regraTeste.tempoMinutos) || regraTeste.tempoMinutos <= 0 || !regraTeste.texto) {\n  throw new Error('REGRA_TESTE_FOLLOWUP_INATIVO_INVALIDA');\n}\nreturn [{ json: {\n  regras: [regraTeste],\n  modo_teste_exclusivo: true,\n  lead_id_teste_followup_inativo: leadIdTeste,\n  origem_regras: 'TESTE_COM_FOLLOWUP_GERAL_INATIVO'\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2784,
+        8128
+      ],
+      "id": "f4435f35-3696-4828-a5a4-8392b22ca250",
+      "name": "Preparar regras para execucao",
+      "notesInFlow": true,
+      "notes": "Usa as regras reais quando existirem. Sem regras ativas, gera a regra local de teste e limita todo o restante do fluxo ao lead configurado."
+    },
+    {
+      "id": "c5647730-3df3-4266-aa54-dbcf7d7aac40",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-06 Follow-up de teste — relógio persistente\nCRM de teste / Evolution.\n- Variaveis follow-up: CONFIGURAR_lead_id_teste_followup_inativo\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "Buscar regras de follow-up": {
+      "main": [
+        [
+          {
+            "node": "Preparar regras para execucao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar atendimentos no CRM": {
+      "main": [
+        [
+          {
+            "node": "Normalizar atendimentos do CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar atendimentos do CRM": {
+      "main": [
+        [
+          {
+            "node": "Loop follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar dados do lead no CRM": {
+      "main": [
+        [
+          {
+            "node": "Enviar follow-up pela Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar follow-ups a cada minuto": {
+      "main": [
+        [
+          {
+            "node": "Variaveis follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atendimento tem regra vencida?": {
+      "main": [
+        [
+          {
+            "node": "Verificar follow-ups ja enviados no ciclo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar follow-up pela Meta": {
+      "main": [
+        [
+          {
+            "node": "Preparar registro anti-repeticao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar follow-up no CRM": {
+      "main": [
+        [
+          {
+            "node": "Confirmar follow-up enviado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar follow-up enviado": {
+      "main": [
+        [
+          {
+            "node": "Loop follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop follow-ups": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Avaliar follow-up por regra",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avaliar follow-up por regra": {
+      "main": [
+        [
+          {
+            "node": "Verificar bloqueio permanente de follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Garantir tabela anti-repeticao": {
+      "main": [
+        [
+          {
+            "node": "Buscar atendimentos no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar follow-ups ja enviados no ciclo": {
+      "main": [
+        [
+          {
+            "node": "Aplicar trava anti-repeticao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aplicar trava anti-repeticao": {
+      "main": [
+        [
+          {
+            "node": "Enviar apos trava anti-repeticao?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar envio anti-repeticao": {
+      "main": [
+        [
+          {
+            "node": "Registrar follow-up no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar registro anti-repeticao": {
+      "main": [
+        [
+          {
+            "node": "Registrar envio anti-repeticao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar apos trava anti-repeticao?": {
+      "main": [
+        [
+          {
+            "node": "Preparar reserva anti-repeticao",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar reserva anti-repeticao": {
+      "main": [
+        [
+          {
+            "node": "Reservar envio anti-repeticao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reservar envio anti-repeticao": {
+      "main": [
+        [
+          {
+            "node": "Reserva anti-repeticao criada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reserva anti-repeticao criada?": {
+      "main": [
+        [
+          {
+            "node": "Buscar dados do lead no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Variaveis follow-up": {
+      "main": [
+        [
+          {
+            "node": "Buscar regras de follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar encerramento pos-follow-up": {
+      "main": [
+        [
+          {
+            "node": "Deve finalizar apos follow-up?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deve finalizar apos follow-up?": {
+      "main": [
+        [
+          {
+            "node": "Finalizar atendimento sem resposta ao follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atendimento tem regra vencida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalizar atendimento sem resposta ao follow-up": {
+      "main": [
+        [
+          {
+            "node": "Registrar encerramento pos-follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar encerramento pos-follow-up": {
+      "main": [
+        [
+          {
+            "node": "Loop follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar bloqueio permanente de follow-up": {
+      "main": [
+        [
+          {
+            "node": "Lead bloqueou follow-up?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead bloqueou follow-up?": {
+      "main": [
+        [
+          {
+            "node": "Loop follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Verificar encerramento pos-follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar regras para execucao": {
+      "main": [
+        [
+          {
+            "node": "Garantir tabela anti-repeticao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}

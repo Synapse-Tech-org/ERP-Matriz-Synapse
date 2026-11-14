@@ -13,6 +13,7 @@ import { Composer, type ComposerHandle } from "@/components/atendimentos/compose
 import { DialogoEncaminhar } from "@/components/atendimentos/dialogo-encaminhar";
 import { DialogoNovoContato } from "@/components/atendimentos/dialogo-novo-contato";
 import { ListaConversas } from "@/components/atendimentos/lista-conversas";
+import { TrilhoEquipe } from "@/components/atendimentos/trilho-equipe";
 import { PainelOperacional } from "@/components/atendimentos/painel-operacional";
 import { useAcessoPainelOperacional, type FiltroOperacional } from "@/lib/atendimento/painel-operacional";
 import { EVENTO_VOLTAR_PAINEL, voltarAoPainelOperacional } from "@/lib/atendimento/navegacao-painel";
@@ -47,7 +48,7 @@ import {
   statusHttpDoErro,
 } from "@/lib/atendimento/abertura-atendimento";
 import { TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO } from "@/lib/atendimento/arquivos-do-composer";
-import { modoDaGrade, type ModoDaGrade } from "@/lib/atendimento/modo-da-grade";
+import { GRADE_LEGADA, GRADE_V2, modoDaGrade, type ModoDaGrade } from "@/lib/atendimento/modo-da-grade";
 import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/falhas-de-midia";
 import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
 import { ReconciliadorEstadoAtendimento } from "@/lib/atendimento/reconciliar-estado-atendimento";
@@ -80,6 +81,8 @@ import { listarContatosChat, abrirConversaDireta, criarGrupoChat } from "@/lib/c
 import { useConversaEmTelaCheia } from "@/lib/navegacao/conversa-em-tela-cheia";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn } from "@/lib/utils";
+
+import estilosV2 from "./atendimentos-v2.module.css";
 
 interface Props {
   leadInicialId: string | null;
@@ -161,6 +164,7 @@ export function PaginaAtendimentosCliente({
   const [painelDetalhesAberto, setPainelDetalhesAberto] = useState<boolean | null>(null);
   const gradeRef = useRef<HTMLDivElement>(null);
   const [modoGrade, setModoGrade] = useState<ModoDaGrade>("ampla");
+  const [trilhoCabe, setTrilhoCabe] = useState(false);
   const [respostaAlvo, setRespostaAlvo] = useState<{
     leadId: string;
     mensagem: MensagemResposta;
@@ -172,13 +176,27 @@ export function PaginaAtendimentosCliente({
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
   // Perda de acesso causada pela transferência que o próprio usuário fez: confirmação, não alerta.
   const [avisoTransferencia, setAvisoTransferencia] = useState<string | null>(null);
+  // A mesma consulta já alimenta o chat interno; o rollout não adiciona requisição nem polling.
+  const { data: flags } = useQuery({ queryKey: ["config", "features"], queryFn: () => apiFetch<string[]>("/api/v1/config/features") });
+  const layoutV2 = flags?.includes("atendimentos_layout_v2") ?? false;
+  const dimensoesGrade = layoutV2 ? GRADE_V2 : GRADE_LEGADA;
   const telaEstreita = useTelaEstreita();
   useLayoutEffect(() => {
     const grade = gradeRef.current;
     if (!grade) return;
     const atualizar = () => {
-      const largura = grade.getBoundingClientRect().width;
-      if (largura > 0) setModoGrade(modoDaGrade(largura));
+      const estilo = getComputedStyle(grade);
+      // O novo layout separa as superfícies. Descontar a moldura e os dois vãos evita
+      // comprimir a conversa abaixo de 320px na transição entre três e duas colunas.
+      const moldura = layoutV2
+        ? (parseFloat(estilo.paddingLeft) || 0) + (parseFloat(estilo.paddingRight) || 0)
+          + 2 * (parseFloat(estilo.columnGap) || 0)
+        : 0;
+      const largura = grade.getBoundingClientRect().width - moldura;
+      if (largura > 0) {
+        setModoGrade(modoDaGrade(largura, dimensoesGrade));
+        setTrilhoCabe(layoutV2 && modoDaGrade(largura - 62 - (parseFloat(estilo.columnGap) || 0), dimensoesGrade) === "ampla");
+      }
     };
     atualizar();
     if (typeof ResizeObserver === "undefined") {
@@ -188,16 +206,23 @@ export function PaginaAtendimentosCliente({
     const observador = new ResizeObserver(atualizar);
     observador.observe(grade);
     return () => observador.disconnect();
-  }, []);
+  }, [dimensoesGrade, layoutV2]);
   const { definir: definirConversaEmTelaCheia } = useConversaEmTelaCheia();
   const { data: configuracao } = useConfiguracaoComposer();
-  const { data: flags } = useQuery({ queryKey: ["config", "features"], queryFn: () => apiFetch<string[]>("/api/v1/config/features") });
   const chatInternoHabilitado = flags?.includes("chat_interno") ?? false;
   const contatosInternos = useQuery({ queryKey: ["chat-interno", "contatos"], queryFn: listarContatosChat, enabled: chatInternoHabilitado });
+  const selecionarConversaInterna = useCallback((conversaId: string) => {
+    setConversaInternaId(conversaId);
+    setAtendimentoSelecionadoId(null);
+    setSincronizacaoLiberada(null);
+    setAvisoRevogacao(false);
+    setAvisoTransferencia(null);
+    setBuscaAberta(false);
+  }, []);
   const abrirConversaInterna = useMutation({
     mutationFn: abrirConversaDireta,
     onSuccess: (resposta) => {
-      setConversaInternaId(resposta.id);
+      selecionarConversaInterna(resposta.id);
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   });
@@ -205,7 +230,7 @@ export function PaginaAtendimentosCliente({
     mutationFn: ({ nome, participantes }: { nome: string; participantes: string[] }) =>
       criarGrupoChat(nome, participantes),
     onSuccess: (resposta) => {
-      setConversaInternaId(resposta.id);
+      selecionarConversaInterna(resposta.id);
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   });
@@ -286,16 +311,13 @@ export function PaginaAtendimentosCliente({
   const selecionarAtendimento = useCallback(
     (cartao: ItemInbox, origem: "lista" | "rota" = "lista") => {
       if (cartao.tipo === "EQUIPE_INTERNA") {
-        setConversaInternaId(cartao.conversaId);
-        setAtendimentoSelecionadoId(null);
-        setSincronizacaoLiberada(null);
-        setAvisoRevogacao(false);
-        setAvisoTransferencia(null);
-        setBuscaAberta(false);
+        selecionarConversaInterna(cartao.conversaId);
         return;
       }
       if (!acessoClientes) return;
-      const idParaAbrir = cartao.atendimentoAtivoId ?? cartao.atendimentoId;
+      const idParaAbrir = origem === "rota"
+        ? cartao.atendimentoId
+        : cartao.atendimentoAtivoId ?? cartao.atendimentoId;
       if (origem === "lista" && acessoPainel.permitido) {
         window.history.pushState(null, "", `/atendimentos?atendimentoId=${encodeURIComponent(idParaAbrir)}`);
       }
@@ -318,7 +340,7 @@ export function PaginaAtendimentosCliente({
         cartaoSelecionadoId: idParaAbrir,
       });
     },
-    [marcarLeituraDaConversa, sessao.papel, sessao.usuarioId, visaoAtendimento, acessoPainel.permitido, acessoClientes],
+    [marcarLeituraDaConversa, selecionarConversaInterna, sessao.papel, sessao.usuarioId, visaoAtendimento, acessoPainel.permitido, acessoClientes],
   );
 
   useEffect(() => {
@@ -977,19 +999,23 @@ export function PaginaAtendimentosCliente({
     substituirReacoesDoHistorico(cache, ["mensagens", historicoId], mensagem.id, resposta.reacoes);
   }
 
+  const mostrarTrilho = layoutV2 && chatInternoHabilitado && trilhoCabe && !conversaEmColunaUnica;
   const colunasDoPainel = conversaEmColunaUnica
-    ? "grid-cols-1"
+    ? "minmax(0, 1fr)"
     : listaOcultaComPainel
-      ? "grid-cols-[minmax(0,1fr)_344px]"
+      ? `minmax(0, 1fr) ${dimensoesGrade.ficha}px`
     : conversa && painelVisivel
-      ? "grid-cols-[346px_minmax(0,1fr)_344px]"
-      : "grid-cols-[346px_minmax(0,1fr)]";
+      ? `${dimensoesGrade.lista}px minmax(0, 1fr) ${dimensoesGrade.ficha}px`
+      : `${dimensoesGrade.lista}px minmax(0, 1fr)`;
 
   return (
     <ProvedorDeAberturaDeConversa valor={aberturaDeConversaDoContato}>
     <div
       ref={gradeRef}
-      className={`relative grid h-full min-h-0 flex-1 ${colunasDoPainel} grid-rows-[minmax(0,1fr)] overflow-hidden`}
+      data-slot="pagina-atendimentos"
+      data-layout={layoutV2 ? "v2" : "legado"}
+      className={cn("relative grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)] overflow-hidden", layoutV2 && estilosV2.pagina)}
+      style={{ gridTemplateColumns: mostrarTrilho ? `${colunasDoPainel} 62px` : colunasDoPainel }}
     >
       {(falhasDeMidia.length > 0 || notificacao || erroDeAbertura) && (
         <div className="pointer-events-none absolute right-4 top-4 z-30 flex w-80 max-w-[calc(100%-2rem)] flex-col gap-2">
@@ -1097,6 +1123,7 @@ export function PaginaAtendimentosCliente({
         </div>
       )}
       <ListaConversas
+        layoutV2={layoutV2}
         painelOperacionalPermitido={acessoPainel.permitido}
         filtroOperacional={acessoPainel.permitido ? filtroOperacional : null}
         nomeFiltroOperacional={nomeFiltroOperacional}
@@ -1128,7 +1155,7 @@ export function PaginaAtendimentosCliente({
         className={cn((listaOculta || (acessoPainel.permitido && conversaEmColunaUnica && !conversaAberta && !filtroOperacional)) && "hidden")}
       />
 
-      <div className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden", conversaEmColunaUnica && !conversaAberta && (!acessoPainel.permitido || filtroOperacional) && "hidden")}>
+      <div data-slot="coluna-conversa" className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden", conversaEmColunaUnica && !conversaAberta && (!acessoPainel.permitido || filtroOperacional) && "hidden")}>
         {atendimentoSelecionadoId && (estadoSelecionadoQuery.isError || falhaDeSincronizacao === atendimentoSelecionadoId) && (
           <div role="alert" className="flex items-center justify-between gap-2 bg-cor-atencao/10 px-3 py-2 text-sm text-foreground">
             <span>{textos.tempoReal.sincronizacaoFalhou}</span>
@@ -1271,7 +1298,7 @@ export function PaginaAtendimentosCliente({
             {estadoSelecionadoQuery.isError ? textos.tempoReal.sincronizacaoFalhou : textos.tempoReal.sincronizacaoCarregando}
           </div>
         ) : acessoPainel.permitido ? (
-          <PainelOperacional onFiltrar={filtrarOperacional} onAbrir={abrirFilaOperacional} conectado={estado === "conectado"} usuarioAtualId={sessao.usuarioId ?? undefined} />
+          <PainelOperacional layoutV2={layoutV2} onFiltrar={filtrarOperacional} onAbrir={abrirFilaOperacional} conectado={estado === "conectado"} usuarioAtualId={sessao.usuarioId ?? undefined} />
         ) : (
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
             {textosGerais.estados.vazio}
@@ -1280,7 +1307,7 @@ export function PaginaAtendimentosCliente({
       </div>
 
       {conversa && painelVisivel && (
-        <div className={cn("h-full min-h-0 overflow-hidden", conversaEmColunaUnica && "absolute inset-0 z-20 bg-background")}>
+        <div data-slot="coluna-detalhes" className={cn("h-full min-h-0 overflow-hidden", conversaEmColunaUnica && "absolute inset-0 z-20 bg-background")}>
           <PainelDaConversa
             leadId={conversa.leadId}
             atendimentoId={conversa.atendimentoId}
@@ -1288,6 +1315,12 @@ export function PaginaAtendimentosCliente({
             onRetrair={() => setPainelDetalhesAberto(false)}
           />
         </div>
+      )}
+
+      {mostrarTrilho && (
+        <TrilhoEquipe contatos={contatosInternos.data ?? []} carregando={contatosInternos.isLoading}
+          erro={contatosInternos.isError} abrindo={abrirConversaInterna.isPending}
+          onRecarregar={() => void contatosInternos.refetch()} onAbrir={abrirConversaInterna.mutateAsync} />
       )}
 
       <DialogoNovoContato

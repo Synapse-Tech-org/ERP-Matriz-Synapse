@@ -300,20 +300,30 @@ Sem os cinco, o agregado fica protegido só pela camada 2.
 ### Stack de homologação no Dokploy
 
 O arquivo [`docker/dokploy-stack.yml`](docker/dokploy-stack.yml) descreve os sete serviços da
-instância: PostgreSQL, Redis, RabbitMQ, MinIO, backend, frontend e n8n. Ele é para **Docker Stack
-(Swarm)** e referencia somente imagens pré-compiladas. O CI publica backend e frontend no GHCR do
-proprietário atual do repositório, com as tags `latest` e SHA curto. Use o SHA em
-`SYNAPSE_IMAGE_TAG` para identificar uma versão exata e permitir rollback sem rebuild.
-O n8n usa sua imagem oficial, sempre com versão exata
+instância: PostgreSQL, Redis, RabbitMQ, MinIO, backend, frontend e n8n, além da automação
+TypeScript e do provisionamento do seu banco, ambos opcionais. A stack usa imagens
+pré-compiladas no Docker Swarm. O CI publica as imagens no GHCR do proprietário atual do
+repositório. A `main` publica o SHA curto e `latest`. As branches de teste publicam `br-<sha curto>`.
+Use a tag exata em `SYNAPSE_IMAGE_TAG` para permitir rollback. O n8n usa sua imagem oficial,
+sempre com versão exata
 informada em `N8N_IMAGE_TAG`.
+
+Veja [a configuração da automação](automacao/README.md) para habilitar o serviço e
+provisionar seu banco na homologação. Para usar as três imagens de um mesmo build, configure
+`SYNAPSE_IMAGE_NAMESPACE=synapse-tech-org` e
+`AUTOMACAO_IMAGE_REPOSITORIO=ghcr.io/synapse-tech-org/erp-matriz-synapse-automacao`.
+Um digest explícito em `AUTOMACAO_IMAGE_DIGEST` seleciona uma imagem específica de automação,
+independentemente da tag do CRM.
 
 Backend e frontend usam `start-first`, healthcheck em `/health/liveness` e rollback automático. Os
 cinco serviços com volume mantêm uma réplica no nó manager e não usam `start-first`: duas cópias
 do PostgreSQL, RabbitMQ ou MinIO escrevendo simultaneamente no mesmo volume local corromperiam os
-dados; no n8n, duas instâncias executariam os mesmos gatilhos. Todos os sete têm limite de memória.
+dados; no n8n, duas instâncias executariam os mesmos gatilhos. Todos os servicos têm limite de memória.
 Os defaults provisórios somam 5,25 GiB em regime e podem chegar a 7,25 GiB se backend e frontend
 sobrepuserem as versões ao mesmo tempo; reserve ainda memória para
 o sistema, Docker, Dokploy e Traefik ao dimensionar a VPS.
+Ativar uma replica TypeScript acrescenta um teto provisorio de 768 MiB e 1 CPU para
+o servico inteiro; os outros filhos continuam sem esse processo por padrao.
 
 O Traefik recebe as rotas pelas labels versionadas em `deploy.labels`:
 
@@ -349,7 +359,7 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 
 | Variável | Descrição |
 |---|---|
-| `SYNAPSE_IMAGE_TAG` | SHA curto publicado pelo CI; use a mesma tag no backend e frontend. |
+| `SYNAPSE_IMAGE_TAG` | Tag exata publicada pelo CI, como `br-<sha curto>` na homologação. Backend e frontend usam a mesma tag. |
 | `SYNAPSE_IMAGE_NAMESPACE` | Proprietário das imagens no GHCR, em minúsculas. O padrão `synapse-auto` mantém acesso às tags históricas. Use `synapse-tech-org` para tags publicadas pela nova organização. |
 | `N8N_IMAGE_TAG` | Versão exata da imagem oficial do n8n; nunca use `latest`. |
 | `TRAEFIK_ROUTER_PREFIX` | Identificador curto e único no servidor, sem espaços, por exemplo `estrutural-hml`. |
@@ -513,6 +523,11 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `RABBITMQ_MEMORY_LIMIT` | `512M` | Limite do broker. |
 | `MINIO_MEMORY_LIMIT` | `512M` | Limite do storage de mídia. |
 | `N8N_MEMORY_LIMIT` | `1G` | Limite provisório da Automação; revisar na E14a com a capacidade contratada. |
+| `AUTOMACAO_REPLICAS` | `0` | Zero nao inicia o servico TypeScript. Usar `1` somente na instancia autorizada para validar a base. |
+| `AUTOMACAO_HABILITADA` | `false` | Chave geral da automacao TypeScript; nao controla o n8n. |
+| `AUTOMACAO_FOLLOWUP_HABILITADO` | `false` | Depende tambem da chave geral; nesta entrega nao ha fluxo implementado. |
+| `AUTOMACAO_CPU_LIMIT` | `1.0` | Orcamento unico provisorio de CPU do servico TypeScript. |
+| `AUTOMACAO_MEMORY_LIMIT` | `768M` | Teto provisorio do servico inteiro; validar antes de adicionar workers/painel. |
 | `JAVA_TOOL_OPTIONS` | heap em 70% do cgroup + exit em OOM | Ajuste fino da JVM sem reconstruir a imagem. |
 
 Roteiro no Dokploy:

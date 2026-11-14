@@ -1,0 +1,107 @@
+.corpo {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.listas {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+}
+
+.listas h2 {
+  padding: 4px 10px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.listas button {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 10px;
+  color: var(--foreground);
+  font-size: 13px;
+  text-align: start;
+}
+
+.listas button > span:last-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listas button small { margin-inline-start: auto; }
+.listas button[aria-pressed="true"] { background: var(--accent); color: var(--accent-foreground); }
+.listas button:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+
+.listas p {
+  margin-top: auto;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--background);
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.conteudo { min-height: 0; overflow: auto; padding-inline-end: 8px; }
+
+.busca {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.busca label { position: relative; width: min(400px, 75%); }
+.busca label > svg { position: absolute; top: 11px; left: 12px; pointer-events: none; }
+.busca input { height: 38px; padding-inline-start: 38px; border-radius: 12px; background: var(--card); }
+
+.grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  gap: 12px;
+}
+
+.cartao {
+  min-width: 0;
+  min-height: 150px;
+  border-radius: 18px;
+  box-shadow: var(--sombra-sm);
+}
+
+.cartao > div:first-child > span { border: 0; border-radius: 8px; background: var(--accent); }
+.cartao p { color: var(--foreground); overflow-wrap: anywhere; }
+
+.rodape {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .corpo { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .listas { flex-direction: row; padding: 5px; }
+  .listas h2, .listas p { display: none; }
+  .listas button { flex: none; white-space: nowrap; }
+}

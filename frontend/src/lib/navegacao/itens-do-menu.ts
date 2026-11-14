@@ -9,6 +9,7 @@ export interface ItemDeMenuBase {
 
 export const ITENS_MENU: readonly ItemDeMenuBase[] = [
   { chave: "atendimentos", rota: "/atendimentos" },
+  { chave: "agendaConsultas", rota: "/agenda-consultas", flag: "variante_clinica" },
   { chave: "dashboard", rota: "/dashboard", flag: "dashboard" },
   { chave: "agenda", rota: "/agenda" },
   { chave: "cancelamentos", rota: "/cancelamentos", flag: "cancelamentos" },
@@ -34,4 +35,8 @@ export const CHAVES_ABA_INFERIOR = ["atendimentos", "dashboard", "agenda"] as co
 
 export function itemEstaNaAbaInferior(chave: string): boolean {
   return (CHAVES_ABA_INFERIOR as readonly string[]).includes(chave);
+}
+
+export function rotaDoItemAtiva(pathname: string, rota: string): boolean {
+  return pathname === rota || pathname.startsWith(rota + "/");
 }

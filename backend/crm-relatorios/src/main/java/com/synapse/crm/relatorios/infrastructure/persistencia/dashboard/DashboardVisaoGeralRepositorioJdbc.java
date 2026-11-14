@@ -6,6 +6,7 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -68,7 +69,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
         long vendasAcumuladas =
                 vendas.contarAte(filtro.fimDoPeriodoAtual(), filtro.periodoDeOriginacao());
 
-        ResultadoMensal<Long> leadsMensais = leadsMensais(filtro);
+        LeadsMensais leadsMensais = leadsMensais(filtro);
         long novosLeadsAtual = leadsMensais.total();
         long novosLeadsAnterior = contarLeads(List.of(filtro.periodoAnterior()));
         long leadsDaOriginacao = filtro.periodoDeOriginacao() == null
@@ -143,7 +144,12 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                         avaliacoesMensais.porMes(),
                         resolucoesMensais.porMes(),
                         vendasComSerie.porMes()),
-                resultadosComerciais(filtro));
+                resultadosComerciais(filtro),
+                new VisaoGeralDashboard.Nps(
+                        avaliacaoAtual.nps(),
+                        avaliacaoAtual.respostasNps(),
+                        Comparativo.pontos(avaliacaoAtual.nps(), avaliacaoAnterior.nps())),
+                leadsMensais.parados());
     }
 
     private VisaoGeralDashboard.ResultadosComerciais resultadosComerciais(FiltroTemporalDashboard filtro) {
@@ -188,17 +194,15 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                        avg(a.nota) AS media,
                        count(*) FILTER (WHERE a.nota BETWEEN 9 AND 10) AS otimo,
                        count(*) FILTER (WHERE a.nota BETWEEN 7 AND 8) AS bom,
-                       count(*) FILTER (WHERE a.nota BETWEEN 0 AND 6) AS ruim
+                       count(*) FILTER (WHERE a.nota BETWEEN 0 AND 6) AS ruim,
+                       count(a.nota_recomendacao) AS respostas_nps,
+                       count(*) FILTER (WHERE a.nota_recomendacao >= 9)
+                           - count(*) FILTER (WHERE a.nota_recomendacao <= 6) AS saldo_nps
                   FROM avaliacao a
                   JOIN usuario_visivel u ON u.id = a.atendente_id
                  WHERE %s
                 """.formatted(filtro.clausula()),
-                (linha, indice) -> new AgregadoAvaliacao(
-                        linha.getLong("quantidade"),
-                        linha.getBigDecimal("media"),
-                        linha.getLong("otimo"),
-                        linha.getLong("bom"),
-                        linha.getLong("ruim")),
+                (linha, indice) -> lerAgregadoAvaliacao(linha),
                 filtro.parametros().toArray());
     }
 
@@ -471,12 +475,13 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 .map(mes -> {
                     if (mes.isAfter(mesAtual)) {
                         return new VisaoGeralDashboard.PontoMensal(
-                                mes, false, false, null, null, null, null, null, null, null);
+                                mes, false, false, null, null, null, null, null, null, null, null);
                     }
                     AgregadoAtendimento atendimento =
                             atendimentos.getOrDefault(mes, new AgregadoAtendimento(0, null));
                     AgregadoResolucaoIa resolucao =
                             resolucoes.getOrDefault(mes, new AgregadoResolucaoIa(0, 0));
+                    AgregadoAvaliacao avaliacao = avaliacoes.getOrDefault(mes, AgregadoAvaliacao.vazio());
                     long novos = leads.getOrDefault(mes, 0L);
                     long fechadas = vendasMensais.getOrDefault(mes, 0L);
                     long denominador = filtro.periodoDeOriginacao() == null
@@ -494,8 +499,9 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                             segundos(atendimento.mediaSegundos()),
                             fechadas,
                             percentual(fechadas, denominador),
-                            escala(avaliacoes.containsKey(mes) ? avaliacoes.get(mes).media() : null),
-                            percentual(resolucao.semTransferencia(), resolucao.finalizados()));
+                            escala(avaliacao.media()),
+                            percentual(resolucao.semTransferencia(), resolucao.finalizados()),
+                            avaliacao.nps());
                 })
                 .toList();
     }
@@ -533,34 +539,63 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 comFusoAntes(filtro, temporal));
     }
 
-    private ResultadoMensal<Long> leadsMensais(FiltroTemporalDashboard filtro) {
+    private LeadsMensais leadsMensais(FiltroTemporalDashboard filtro) {
         FiltroSql temporal = periodos("criado_em", filtro.periodoAtual());
+        List<Object> parametros = new ArrayList<>();
+        parametros.add(filtro.fusoHorario().getId());
+        parametros.addAll(temporal.parametros());
+        parametros.add(Timestamp.from(ZonedDateTime.now(filtro.fusoHorario()).minusMonths(2).toInstant()));
         return jdbc.query(
                 """
                 WITH recorte AS (
                     SELECT date_trunc('month', criado_em AT TIME ZONE ?)::date AS mes
                       FROM lead WHERE %s
+                ),
+                parados AS (
+                    SELECT count(*) AS quantidade
+                      FROM lead l
+                      JOIN etapa_atendimento e ON e.id = l.etapa_atendimento_id
+                     CROSS JOIN (SELECT CAST(? AS timestamptz) AS corte) limite
+                     WHERE e.resultado = 'EM_ANDAMENTO'
+                       AND l.status_basico <> 'FINALIZADO'
+                       AND l.criado_em < limite.corte
+                       AND NOT EXISTS (
+                           SELECT 1 FROM evento_timeline t
+                            WHERE t.lead_id = l.id AND t.tipo = 'ETAPA_ALTERADA'
+                              AND t.origem = 'USUARIO' AND t.criado_em >= limite.corte
+                       )
+                       AND NOT EXISTS (
+                           SELECT 1 FROM atendimento a
+                             JOIN mensagem m ON m.atendimento_id = a.id
+                            WHERE a.lead_id = l.id AND m.enviado_em >= limite.corte
+                              AND (m.remetente_tipo = 'LEAD' OR (
+                                   m.remetente_tipo = 'ATENDENTE'
+                                   AND m.status_entrega IN ('ENVIADO', 'ENTREGUE', 'LIDO')))
+                       )
                 )
                 SELECT mes,
-                       count(*) AS quantidade
+                       count(*) AS quantidade,
+                       (SELECT quantidade FROM parados) AS parados
                   FROM recorte
                  GROUP BY ROLLUP(mes)
                 """.formatted(temporal.clausula()),
                 linha -> {
                     Map<YearMonth, Long> porMes = new LinkedHashMap<>();
                     long total = 0;
+                    long parados = 0;
                     while (linha.next()) {
                         if (linha.getDate("mes") == null) {
                             total = linha.getLong("quantidade");
+                            parados = linha.getLong("parados");
                         } else {
                             porMes.put(
                                     YearMonth.from(linha.getDate("mes").toLocalDate()),
                                     linha.getLong("quantidade"));
                         }
                     }
-                    return new ResultadoMensal<>(total, porMes);
+                    return new LeadsMensais(total, porMes, parados);
                 },
-                comFusoAntes(filtro, temporal));
+                parametros.toArray());
     }
 
     private ResultadoMensal<AgregadoAvaliacao> avaliacoesMensais(FiltroTemporalDashboard filtro) {
@@ -569,7 +604,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 """
                 WITH recorte AS (
                     SELECT date_trunc('month', a.criado_em AT TIME ZONE ?)::date AS mes,
-                           a.nota
+                           a.nota, a.nota_recomendacao
                       FROM avaliacao a
                       JOIN usuario_visivel u ON u.id = a.atendente_id
                      WHERE %s
@@ -577,19 +612,17 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 SELECT mes, count(*) AS quantidade, avg(nota) AS media,
                        count(*) FILTER (WHERE nota BETWEEN 9 AND 10) AS otimo,
                        count(*) FILTER (WHERE nota BETWEEN 7 AND 8) AS bom,
-                       count(*) FILTER (WHERE nota BETWEEN 0 AND 6) AS ruim
+                       count(*) FILTER (WHERE nota BETWEEN 0 AND 6) AS ruim,
+                       count(nota_recomendacao) AS respostas_nps,
+                       count(*) FILTER (WHERE nota_recomendacao >= 9)
+                           - count(*) FILTER (WHERE nota_recomendacao <= 6) AS saldo_nps
                   FROM recorte GROUP BY ROLLUP(mes)
                 """.formatted(temporal.clausula()),
                 linha -> {
                     Map<YearMonth, AgregadoAvaliacao> porMes = new LinkedHashMap<>();
-                    AgregadoAvaliacao total = new AgregadoAvaliacao(0, null, 0, 0, 0);
+                    AgregadoAvaliacao total = AgregadoAvaliacao.vazio();
                     while (linha.next()) {
-                        AgregadoAvaliacao agregado = new AgregadoAvaliacao(
-                                linha.getLong("quantidade"),
-                                linha.getBigDecimal("media"),
-                                linha.getLong("otimo"),
-                                linha.getLong("bom"),
-                                linha.getLong("ruim"));
+                        AgregadoAvaliacao agregado = lerAgregadoAvaliacao(linha);
                         if (linha.getDate("mes") == null) {
                             total = agregado;
                         } else {
@@ -699,7 +732,23 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
 
     private record AgregadoAtendimento(long quantidade, BigDecimal mediaSegundos) {}
 
-    private record AgregadoAvaliacao(long quantidade, BigDecimal media, long otimo, long bom, long ruim) {}
+    private static AgregadoAvaliacao lerAgregadoAvaliacao(java.sql.ResultSet linha) throws java.sql.SQLException {
+        return new AgregadoAvaliacao(
+                linha.getLong("quantidade"), linha.getBigDecimal("media"),
+                linha.getLong("otimo"), linha.getLong("bom"), linha.getLong("ruim"),
+                linha.getLong("respostas_nps"), linha.getLong("saldo_nps"));
+    }
+
+    private record AgregadoAvaliacao(
+            long quantidade, BigDecimal media, long otimo, long bom, long ruim, long respostasNps, long saldoNps) {
+        static AgregadoAvaliacao vazio() {
+            return new AgregadoAvaliacao(0, null, 0, 0, 0, 0, 0);
+        }
+
+        BigDecimal nps() {
+            return percentual(saldoNps, respostasNps);
+        }
+    }
 
     private record AgregadoResolucaoIa(long finalizados, long semTransferencia) {}
 
@@ -711,4 +760,6 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
     private record LinhaDeAtendimentoPorAtendente(UUID id, String nome, long quantidade) {}
 
     private record ResultadoMensal<T>(T total, Map<YearMonth, T> porMes) {}
+
+    private record LeadsMensais(long total, Map<YearMonth, Long> porMes, long parados) {}
 }

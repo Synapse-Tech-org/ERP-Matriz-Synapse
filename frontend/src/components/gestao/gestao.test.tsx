@@ -112,6 +112,26 @@ beforeEach(() => {
 });
 
 describe("Gestão", () => {
+  it("expande, busca e grava ações no painel V2 sem trocar o perfil selecionado", () => {
+    render(<AbaPermissoes layoutV2 textos={TEXTOS} minhas={minhas} onSujoChange={vi.fn()} />);
+
+    expect(screen.getByRole("heading", { name: "Permissões do perfil Atendente" })).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: TEXTOS.capacidades["tags.aplicar"] })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Expandir tudo" }));
+    expect(screen.getByRole("switch", { name: TEXTOS.capacidades["tags.aplicar"] })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Recolher tudo" }));
+    expect(screen.queryByRole("switch", { name: TEXTOS.capacidades["tags.aplicar"] })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(TEXTOS.v2.buscaPermissao), { target: { value: "tags.aplicar" } });
+    fireEvent.click(screen.getByRole("switch", { name: TEXTOS.capacidades["tags.aplicar"] }));
+    fireEvent.click(screen.getByRole("button", { name: TEXTOS.barra.salvar }));
+    expect(salvarPerfil.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ papel: "ATENDENTE", revisao: 3,
+        rascunho: expect.objectContaining({ acoes: expect.objectContaining({ "tags.aplicar": false }) }) }),
+      expect.anything(),
+    );
+  });
+
   it("Operador é configurável, sem acesso próprio à Gestão", () => {
     perfis.push(perfil("OPERADOR"));
     render(<AbaPermissoes textos={TEXTOS} minhas={minhas} papelInicial="OPERADOR" onSujoChange={vi.fn()} />);

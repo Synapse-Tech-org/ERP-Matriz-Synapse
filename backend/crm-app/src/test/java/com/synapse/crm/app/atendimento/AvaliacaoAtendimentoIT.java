@@ -220,6 +220,29 @@ class AvaliacaoAtendimentoIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("Automação coleta recomendação separada e mantém a primeira resposta em reenvios")
+    void automacao_coletaNpsSeparado() {
+        UUID atendimentoId = finalizarComoAna();
+        HttpHeaders internos = new HttpHeaders();
+        internos.set("X-Synapse-Token", TOKEN);
+        internos.setContentType(MediaType.APPLICATION_JSON);
+        String url = "/internal/v1/atendimentos/" + atendimentoId + "/avaliacao";
+
+        assertThat(http.postForEntity(url, new HttpEntity<>(Map.of("nota", 3, "notaRecomendacao", 11), internos),
+                        String.class).getStatusCode())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        var resposta = new HttpEntity<>(Map.of("nota", 3, "notaRecomendacao", 9), internos);
+        assertThat(http.postForEntity(url, resposta, String.class).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(http.postForEntity(url, resposta, String.class).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(http.postForEntity(url, new HttpEntity<>(Map.of("nota", 3, "notaRecomendacao", 0), internos),
+                        String.class).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jdbc.queryForObject(
+                        "SELECT nota_recomendacao FROM avaliacao WHERE atendimento_id = ?", Integer.class, atendimentoId))
+                .isEqualTo(9);
+    }
+
+    @Test
     @DisplayName("Automacao grava CSAT com X-Synapse-Token; JWT humano nao abre o interno")
     void automacao_gravaEJwtNaoAbreInterno() {
         UUID atendimentoId = finalizarComoAna();

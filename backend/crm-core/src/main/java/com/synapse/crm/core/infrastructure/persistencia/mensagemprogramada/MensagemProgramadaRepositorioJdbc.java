@@ -38,25 +38,56 @@ class MensagemProgramadaRepositorioJdbc implements MensagemProgramadaRepositorio
         this.chat = new JdbcTemplate(chatDataSource);
     }
 
-    @Override public PaginaMensagensProgramadas listar(FiltroMensagensProgramadas filtro) {
+    @Override
+    public PaginaMensagensProgramadas listar(FiltroMensagensProgramadas filtro, boolean incluirResumo) {
         TransacaoObrigatoria.exigir("listar mensagens programadas");
-        StringBuilder sql = new StringBuilder("""
-                SELECT m.id,m.lead_id,l.nome lead_nome,m.atendente_id,u.nome atendente_nome,
-                       m.conteudo,m.data_envio,m.status::text
-                  FROM mensagem_programada m JOIN lead l ON l.id=m.lead_id JOIN usuario u ON u.id=m.atendente_id
-                 WHERE TRUE
-                """);
-        List<Object> p = new ArrayList<>();
-        if (filtro.inicio()!=null) { sql.append(" AND m.data_envio>=?"); p.add(Timestamp.from(filtro.inicio())); }
-        if (filtro.fim()!=null) { sql.append(" AND m.data_envio<=?"); p.add(Timestamp.from(filtro.fim())); }
-        if (filtro.status()!=null) { sql.append(" AND m.status=CAST(? AS status_msg_prog)"); p.add(filtro.status().name()); }
-        if (filtro.leadId()!=null) { sql.append(" AND m.lead_id=?"); p.add(filtro.leadId()); }
-        sql.append(" ORDER BY m.data_envio,m.id LIMIT ? OFFSET ?");
-        p.add(filtro.tamanho()+1); p.add(Math.multiplyExact(filtro.pagina(), filtro.tamanho()));
-        List<MensagemProgramada> itens=jdbc.query(sql.toString(), MensagemProgramadaRepositorioJdbc::mapear,p.toArray());
-        boolean mais=itens.size()>filtro.tamanho();
-        if(mais) itens=new ArrayList<>(itens.subList(0,filtro.tamanho()));
-        return new PaginaMensagensProgramadas(itens,filtro.pagina(),mais);
+        var recorte = new StringBuilder(" WHERE TRUE");
+        List<Object> parametros = new ArrayList<>();
+        if (filtro.inicio() != null) {
+            recorte.append(" AND m.data_envio >= ?");
+            parametros.add(Timestamp.from(filtro.inicio()));
+        }
+        if (filtro.fim() != null) {
+            recorte.append(" AND m.data_envio <= ?");
+            parametros.add(Timestamp.from(filtro.fim()));
+        }
+        if (filtro.leadId() != null) {
+            recorte.append(" AND m.lead_id = ?");
+            parametros.add(filtro.leadId());
+        }
+        if (filtro.atendenteId() != null) {
+            recorte.append(" AND m.atendente_id = ?");
+            parametros.add(filtro.atendenteId());
+        }
+        PaginaMensagensProgramadas.Resumo resumo = incluirResumo
+                ? resumir(recorte.toString(), parametros) : null;
+        var sql = new StringBuilder(BASE).append(recorte);
+        if (filtro.status() != null) {
+            sql.append(" AND m.status = CAST(? AS status_msg_prog)");
+            parametros.add(filtro.status().name());
+        }
+        sql.append(incluirResumo && filtro.status() == StatusMensagemProgramada.ENVIADA
+                ? " ORDER BY m.data_envio DESC, m.id DESC LIMIT ? OFFSET ?"
+                : " ORDER BY m.data_envio, m.id LIMIT ? OFFSET ?");
+        parametros.add(filtro.tamanho() + 1);
+        parametros.add(Math.multiplyExact(filtro.pagina(), filtro.tamanho()));
+        List<MensagemProgramada> itens = jdbc.query(sql.toString(), MensagemProgramadaRepositorioJdbc::mapear,
+                parametros.toArray());
+        boolean mais = itens.size() > filtro.tamanho();
+        if (mais) itens = new ArrayList<>(itens.subList(0, filtro.tamanho()));
+        return new PaginaMensagensProgramadas(itens, filtro.pagina(), mais, resumo);
+    }
+
+    private PaginaMensagensProgramadas.Resumo resumir(String recorte, List<Object> parametros) {
+        return jdbc.queryForObject("""
+                SELECT count(*) FILTER (WHERE m.status = 'AGENDADA') AS agendadas,
+                       count(*) FILTER (WHERE m.status = 'ENVIADA') AS enviadas,
+                       count(*) FILTER (WHERE m.status = 'CANCELADA') AS canceladas,
+                       count(*) AS total
+                  FROM mensagem_programada m JOIN lead l ON l.id = m.lead_id JOIN usuario u ON u.id = m.atendente_id
+                """ + recorte, (linha, indice) -> new PaginaMensagensProgramadas.Resumo(
+                        linha.getLong("agendadas"), linha.getLong("enviadas"),
+                        linha.getLong("canceladas"), linha.getLong("total")), parametros.toArray());
     }
 
     @Override public MensagemProgramada criar(UUID leadId, UUID atendenteId, String conteudo, Instant dataEnvio) {
@@ -70,6 +101,16 @@ class MensagemProgramadaRepositorioJdbc implements MensagemProgramadaRepositorio
         int n=jdbc.update("UPDATE mensagem_programada SET conteudo=?,data_envio=? WHERE id=? AND status='AGENDADA'",conteudo,Timestamp.from(dataEnvio),id);
         return n==0?Optional.empty():porIdVisivel(id);
     }
+    @Override
+    public Optional<MensagemProgramada> anteciparAgendada(UUID id, Instant agora) {
+        TransacaoObrigatoria.exigir("antecipar mensagem programada");
+        int alteradas = jdbc.update("""
+                UPDATE mensagem_programada SET data_envio = LEAST(data_envio, ?)
+                 WHERE id = ? AND status = 'AGENDADA'
+                """, Timestamp.from(agora), id);
+        return alteradas == 0 ? Optional.empty() : porIdVisivel(id);
+    }
+
     @Override public Optional<MensagemProgramada> cancelarAgendada(UUID id) {
         TransacaoObrigatoria.exigir("cancelar mensagem programada");
         int n=jdbc.update("UPDATE mensagem_programada SET status='CANCELADA' WHERE id=? AND status='AGENDADA'",id);

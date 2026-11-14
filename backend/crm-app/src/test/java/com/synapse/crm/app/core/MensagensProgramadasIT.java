@@ -63,17 +63,41 @@ class MensagensProgramadasIT extends PostgresIT {
         assertThat(chamar(EMAIL_ANA,SENHA_ATENDENTE,HttpMethod.PUT,"/api/v1/mensagens-programadas/"+mensagemBruno,Map.of("conteudo","Tentativa","dataEnvio",futuro.plusSeconds(3600).toString())).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(chamar(EMAIL_ANA,SENHA_ATENDENTE,HttpMethod.POST,"/api/v1/mensagens-programadas/"+mensagemBruno+"/cancelar",null).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(chamar(EMAIL_ANA,SENHA_ATENDENTE,HttpMethod.POST,"/api/v1/mensagens-programadas",Map.of("leadId",leadBruno,"conteudo","Invadir","dataEnvio",futuro.toString())).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(chamar(EMAIL_ANA,SENHA_ATENDENTE,HttpMethod.POST,"/api/v1/mensagens-programadas/"+mensagemBruno+"/enviar-agora",null).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(jdbc.queryForObject("SELECT status::text FROM mensagem_programada WHERE id=?",String.class,mensagemBruno)).isEqualTo("AGENDADA");
     }
+    @Test
+    void filtroDeAtendenteRespeitaPermissaoDaLista() {
+        String rota = "/api/v1/mensagens-programadas?leadId=" + leadBruno + "&atendenteId=";
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET, rota + bruno, null).getBody())
+                .contains(mensagemBruno.toString()).doesNotContain("resumo");
+        String resumo = rota + bruno + "&status=ENVIADA&incluirResumo=true";
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET, resumo, null).getBody())
+                .doesNotContain(mensagemBruno.toString()).contains("\"agendadas\":1");
+        assertThat(chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET, resumo, null).getBody())
+                .contains("\"agendadas\":0");
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET, rota + ana, null).getBody())
+                .doesNotContain(mensagemBruno.toString());
+        assertThat(chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET, rota + bruno, null).getBody())
+                .doesNotContain(mensagemBruno.toString());
+    }
+
     @Test @DisplayName("gestor ve mensagens de todos com coluna do atendente") void gestor(){String corpo=chamar(EMAIL_GESTOR,SENHA_GESTOR,HttpMethod.GET,"/api/v1/mensagens-programadas",null).getBody();assertThat(corpo).contains(mensagemBruno.toString()).contains("Bruno Atendente");}
     @Test @DisplayName("programada vencida entra uma vez na outbox e chega ao canal") void vencidaProcessadaUmaVez(){
         canal.limpar();
         UUID lead = UUID.randomUUID();
         UUID id = UUID.randomUUID();
         jdbc.update("INSERT INTO lead(id,nome,telefone,atendente_responsavel_id,status_basico,ultima_interacao_em,ultima_mensagem_do_lead_em) VALUES(?,?,?,?,'EM_ATENDIMENTO',now(),now())", lead, "E60 agendada", "5561999888777", ana);
-        jdbc.update("INSERT INTO mensagem_programada(id,lead_id,atendente_id,conteudo,data_envio) VALUES(?,?,?,?,?)", id, lead, ana, "Lembrete vencido", Timestamp.from(Instant.now().minusSeconds(30)));
+        jdbc.update("INSERT INTO mensagem_programada(id,lead_id,atendente_id,conteudo,data_envio) VALUES(?,?,?,?,?)", id, lead, ana, "Lembrete vencido", Timestamp.from(futuro));
 
+        String envioImediato = "/api/v1/mensagens-programadas/" + id + "/enviar-agora";
+        assertThat(chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.POST, envioImediato, null).getStatusCode())
+                .isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.POST, envioImediato, null).getStatusCode())
+                .isEqualTo(HttpStatus.ACCEPTED);
         agendador.processarPendentes();
+        assertThat(chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.POST, envioImediato, null).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
         assertThat(jdbc.queryForObject("SELECT status::text FROM mensagem_programada WHERE id=?", String.class, id)).isEqualTo("ENVIADA");
         // E219: o job grava a origem PROGRAMADA, ligada ao agendamento que a gerou.
         assertThat(jdbc.queryForObject("SELECT tipo FROM mensagem_origem_automacao WHERE lead_id=? AND regra_id=?", String.class, lead, id.toString())).isEqualTo("PROGRAMADA");

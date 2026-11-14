@@ -316,6 +316,7 @@ export function ListaMensagens({
               </div>
             )}
             <div
+              data-slot="mensagens-virtualizadas"
               style={{
                 height: virtualizador.getTotalSize(),
                 position: "relative",

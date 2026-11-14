@@ -8,12 +8,14 @@ import { TextosProvider } from "@/lib/config/textos-provider";
 import { ErroDeApi } from "@/lib/api/errors";
 import type { UsuarioEquipe } from "@/lib/equipe/types";
 import { DialogoUsuario } from "./dialogo-usuario";
+import { VisaoGeralIntegranteV2 } from "./visao-geral-integrante-v2";
 import { DialogoClassificacaoTeste } from "./dialogo-classificacao-teste";
 
 const textos=TextosSchema.parse(JSON.parse(readFileSync(resolve(process.cwd(),"../backend/crm-app/src/main/resources/textos.json"),"utf8")));
 const criar={mutate:vi.fn(),isPending:false,error:null};
+const editar={mutate:vi.fn(),reset:vi.fn(),isPending:false,isError:false,error:null};
 const classificar={mutate:vi.fn(),isPending:false,isError:false,error:null as unknown};
-vi.mock("@/lib/equipe/use-equipe",()=>({useCriarUsuario:()=>criar,useEditarUsuario:()=>({isPending:false,error:null}),useClassificarUsuarioTeste:()=>classificar}));
+vi.mock("@/lib/equipe/use-equipe",()=>({useCriarUsuario:()=>criar,useEditarUsuario:()=>editar,useClassificarUsuarioTeste:()=>classificar}));
 const usuario:UsuarioEquipe={id:"id-tecnico",nome:"Pessoa sintetica",email:"pessoa@example.invalid",papel:"ATENDENTE",ativo:true,statusPresenca:"OFFLINE",usuarioTeste:false};
 function montar(elemento:React.ReactNode) {
   return render(<QueryClientProvider client={new QueryClient()}><TextosProvider textos={textos}>{elemento}</TextosProvider></QueryClientProvider>);
@@ -63,5 +65,40 @@ describe("classificacao explicita de teste",()=>{
     montar(<DialogoClassificacaoTeste usuario={usuario} onFechar={vi.fn()} onSalvo={vi.fn()}/>);
     expect(screen.getByRole("switch")).toHaveAttribute("aria-disabled","true");
     expect(screen.getByRole("button",{name:textos.usuariosTeste.confirmar})).toBeDisabled();
+  });
+});
+
+describe("diálogos V2 de Gestão", () => {
+  it("exige dados e senha inicial antes de criar com uma função permitida", () => {
+    montar(<DialogoUsuario layoutV2 textos={textos.gestao} funcoesPermitidas={["ATENDENTE", "OPERADOR"]} podeAlterarFuncao onFechar={vi.fn()} />);
+    const salvar = screen.getByRole("button", { name: textos.gestao.v2.criarUsuario });
+    expect(salvar).toBeDisabled();
+    expect(screen.queryByRole("radio", { name: /^Gestor/ })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(textos.gestao.formulario.nome), { target: { value: "Pessoa de teste" } });
+    fireEvent.change(screen.getByLabelText(textos.gestao.formulario.email), { target: { value: "pessoa@example.invalid" } });
+    expect(salvar).toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText(textos.gestao.v2.senhaExemplo), { target: { value: "senha-sintetica-123" } });
+    fireEvent.click(screen.getByRole("radio", { name: /^Operador/ }));
+    fireEvent.click(salvar);
+    expect(criar.mutate).toHaveBeenCalledWith(expect.objectContaining({ papel: "OPERADOR", senha: "senha-sintetica-123" }), expect.anything());
+  });
+
+  it("edita dados mantendo a função e grava a troca de função somente no painel", () => {
+    const { unmount } = montar(<DialogoUsuario layoutV2 existente={usuario} textos={textos.gestao} funcoesPermitidas={["ATENDENTE", "OPERADOR"]} podeAlterarFuncao onFechar={vi.fn()} />);
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(textos.gestao.v2.senhaExemplo)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(textos.gestao.formulario.nome), { target: { value: "Nome alterado" } });
+    fireEvent.click(screen.getByRole("button", { name: textos.gestao.v2.salvarDados }));
+    expect(editar.mutate).toHaveBeenCalledWith({ id: usuario.id, dados: { nome: "Nome alterado", email: usuario.email, papel: "ATENDENTE" } }, expect.anything());
+    unmount();
+    editar.mutate.mockClear();
+    const onSujoChange = vi.fn();
+    montar(<VisaoGeralIntegranteV2 usuario={usuario} textos={textos.gestao} funcoes={["ATENDENTE", "OPERADOR"]}
+      podeAlterarFuncao quantidadeExcecoes={0} podeAlterarIa={false} onIa={vi.fn()} onSujoChange={onSujoChange} />);
+    fireEvent.click(screen.getByRole("radio", { name: /^Operador/ }));
+    expect(onSujoChange).toHaveBeenCalledWith(true);
+    expect(editar.mutate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: textos.gestao.v2.salvarFuncao }));
+    expect(editar.mutate).toHaveBeenCalledWith({ id: usuario.id, dados: { nome: usuario.nome, email: usuario.email, papel: "OPERADOR" } }, expect.anything());
   });
 });

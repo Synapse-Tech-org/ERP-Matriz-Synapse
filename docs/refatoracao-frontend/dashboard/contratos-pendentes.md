@@ -1,0 +1,42 @@
+# Contratos pendentes do Dashboard V2
+
+## Coleta de NPS e snapshot de leads parados
+
+A migration V117 adiciona `nota_recomendacao` opcional à avaliação pós-atendimento e disponibiliza `avaliacao_atendimento.nps_habilitado` e `avaliacao_atendimento.nps_pergunta` em `GET /internal/v1/automation-config`. A chave começa desligada. O workflow EV-08 deve apresentar a pergunta própria de recomendação após a pergunta de satisfação e coletar as duas respostas antes de registrar a avaliação. Quem responder apenas à satisfação pode ser registrado sem recomendação. [Migration](../../../backend/crm-app/src/main/resources/db/migration/V117__coleta_nps_pos_atendimento.sql)
+
+O envio de ambas as respostas usa o endpoint interno existente, com o mesmo token e atendimento finalizado. Exemplo de corpo para `POST /internal/v1/atendimentos/{id}/avaliacao`:
+
+```json
+{"nota": 7, "notaRecomendacao": 9}
+```
+
+O reenvio idêntico é idempotente e uma nota de recomendação diferente recebe 409. As respostas antigas com apenas `nota` seguem aceitas. Uma avaliação já registrada não é sobrescrita para acrescentar recomendação depois. A automação deve manter a correlação com o atendimento e enviar a resposta real do cliente, sem inferi-la da satisfação. O workflow externo EV-08 precisa dessa adaptação antes da ativação da chave.
+
+O Dashboard retorna `nps.valor`, `nps.respostas`, `nps.comparativo` e `seriesMensais[].nps`. O valor é a diferença entre promotores (9–10) e detratores (0–6) como proporção das respostas, multiplicada por 100. O snapshot `leadsParados` usa a regra confirmada, sem recorte do período selecionado. Apenas etapas abertas e leads não finalizados entram na população. Mensagens do cliente, respostas humanas enviadas e mudanças manuais de etapa reiniciam a contagem. [Agregação](../../../backend/crm-relatorios/src/main/java/com/synapse/crm/relatorios/infrastructure/persistencia/dashboard/DashboardVisaoGeralRepositorioJdbc.java)
+
+## Levantamento anterior à implementação
+
+O endpoint atual entrega sete KPIs, cinco contadores ao vivo e os agregados do funil e da equipe. As tabelas da Etapa 4 reservam as posições de tempo parado, conversão e primeira resposta por atendente. Os valores desses campos e dos seis indicadores já marcados no V2 continuam indisponíveis. [Contrato atual](../../../backend/crm-relatorios/src/main/java/com/synapse/crm/relatorios/domain/dashboard/VisaoGeralDashboard.java) · [Referência visual](../mockup/fonte/DashboardV2.dc.html)
+
+As regras abaixo são propostas para implementação posterior. Os eventos e colunas citados foram verificados no código, sem medir a cobertura de históricos nas instâncias. Cada cálculo precisa devolver `null` quando faltar fonte ou amostra. Zero representa uma contagem observada em uma fonte com cobertura conhecida.
+
+| Campo | Definição proposta | Fonte e lacuna verificada |
+|---|---|---|
+| 1ª resposta humana | Média em segundos entre o início da espera por atendimento humano e a primeira resposta externa de um atendente naquele ciclo. Usar a entrada na fila após uma mensagem do cliente, ou a primeira mensagem do cliente se ela for posterior. Coorte pela entrada na fila, atribuição ao autor da primeira resposta e quantidade de amostras no payload. | A tabela `mensagem` tem remetente, autor, entrega e instante. O payload atual carece de uma marca de entrada na fila humana associada ao ciclo. [Mensagens](../../../backend/crm-app/src/main/resources/db/migration/V5__atendimento.sql#L37) · [DTO](../../../backend/crm-relatorios/src/main/java/com/synapse/crm/relatorios/domain/dashboard/VisaoGeralDashboard.java) |
+| NPS | Pergunta própria de recomendação, escala 0–10, com respostas distintas por solicitação. Percentual de notas 9–10 menos percentual de notas 0–6, com amostra e janela de resposta. | A coleta existente é de avaliação do atendimento. A mesma escala numérica permite desenhar a satisfação, mas a pergunta tem outra finalidade. [ADR](../../../docs/04-adrs-e-api.md#L272) |
+| Transferências IA → humano | Contagem de transições efetivas de IA para humano pelo instante do evento. Retornos à IA e trocas entre humanos têm classificação separada. Repetição de publicação do mesmo fato conta uma vez. | A transferência explícita guarda `deIa` e `paraIa`. A assunção por envio guarda o dono anterior, cuja ausência também pode representar um lead sem responsável. O histórico precisa distinguir essas origens. [Eventos](../../../backend/crm-atendimento/src/main/java/com/synapse/crm/atendimento/infrastructure/reacao/TimelineDeAtendimentoListener.java#L69) |
+| Leads parados +2 meses | Snapshot de leads elegíveis cuja última interação precede a data local de referência em mais de dois meses de calendário. Lead sem interação usa a criação. O conjunto de etapas elegíveis precisa refletir a finalidade de fidelização. | O CRM já mantém `ultima_interacao_em` e indexa o fallback para criação. O Dashboard carece da contagem e do recorte de etapas elegíveis. [Última interação](../../../backend/crm-app/src/main/resources/db/migration/V14__lead_ultima_interacao.sql#L22) |
+| Aguardando 1ª resposta | Snapshot de ciclos abertos, na fila humana, com mensagem de cliente e nenhuma resposta humana válida desde o início da espera. Excluir contato iniciado ativamente até haver mensagem do cliente. | Pode compartilhar a projeção da primeira resposta. O read model ao vivo não registra esse estado. [Contadores atuais](../../../backend/crm-relatorios/src/main/java/com/synapse/crm/relatorios/domain/dashboard/VisaoGeralDashboard.java#L67) |
+| Esquecidos +1 hora | Snapshot de ciclos humanos abertos com mensagem de cliente pendente de resposta há mais de uma hora. A espera começa na primeira mensagem pendente e encerra na próxima resposta humana válida. O contador pode sobrepor o de primeira resposta. | `ultima_mensagem_do_lead_em` ajuda a localizar atividade recebida, mas não indica o início de uma sequência pendente nem se houve resposta depois. [Última mensagem do cliente](../../../backend/crm-app/src/main/resources/db/migration/V53__ultima_mensagem_do_lead_em.sql#L17) |
+
+## Campos das tabelas e da satisfação
+
+- **Parado por etapa.** Medir tempo desde a última entrada observável na etapa atual, para o mesmo conjunto de leads contado pelo funil. Informar tamanho da amostra. O histórico começa na V22, portanto uma etapa sem entrada observada fica fora da média. [Histórico de etapa](../../../backend/crm-app/src/main/resources/db/migration/V22__indice_historico_etapa.sql)
+- **Primeira resposta por atendente.** Agregar as mesmas amostras do KPI pelo autor da resposta. **Conversão por atendente.** Definir uma regra histórica de atribuição comum para leads recebidos e vendas fechadas. O ranking já credita a venda ao responsável no evento de ganho, enquanto o responsável atual pode mudar depois. [Agregação de vendas](../../../backend/crm-relatorios/src/main/java/com/synapse/crm/relatorios/infrastructure/persistencia/vendas/AgregacaoDeVendasRepositorioJdbc.java)
+- **Taxa de resposta à avaliação.** Proposta de avaliações registradas entre atendimentos elegíveis finalizados na mesma coorte, com política explícita para respostas tardias. A contagem de avaliações por data da nota e o total finalizado por data do encerramento são recortes distintos. [Regras atuais do Dashboard](../../../docs/04-adrs-e-api.md#L255)
+
+## Integração e aceite
+
+O backend deve agregar essas medidas no read model sob a autorização existente, usando a mesma janela de fim exclusivo e fuso do filtro. Uma extensão aditiva do payload preserva consumidores legados. Séries mensais e comparativos precisam seguir a mesma definição do valor principal. Contadores de snapshot exigem histórico de snapshots para expor séries. [Filtro temporal](../../../backend/crm-relatorios/src/main/java/com/synapse/crm/relatorios/domain/dashboard/FiltroTemporalDashboard.java)
+
+Antes de escolher a consulta ou projeção, verificar cobertura dos eventos e custo no volume realista. O caminho de envio de mensagens tem prioridade. A validação deve cobrir reabertura, troca de responsável, resposta da IA, reenvio, limites do período e recorte por permissões. O relógio corrido ou comercial, a elegibilidade para fidelização e a pergunta de NPS são decisões de produto.

@@ -1,5 +1,8 @@
 package com.synapse.crm.core.application.mensagemrapida;
 
+import java.util.Locale;
+
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,8 +22,12 @@ public class CriarMensagemRapidaUseCase {
 
     @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR','OPERADOR') and @capacidades.permite('mensagens_rapidas.criar')")
     @Transactional
-    public MensagemRapida executar(String chave, String conteudo) {
+    public MensagemRapida executar(String chave, String conteudo, boolean geral) {
+        var atual = usuario.atual();
+        if (geral && !atual.papel().enxergaTodosOsLeads()) {
+            throw new AccessDeniedException("Somente a gestão pode publicar mensagens gerais.");
+        }
         return repo.criar(
-                usuario.atual().id(), chave.trim().toLowerCase(), conteudo.trim());
+                atual.id(), chave.trim().toLowerCase(Locale.ROOT), conteudo.trim(), geral);
     }
 }

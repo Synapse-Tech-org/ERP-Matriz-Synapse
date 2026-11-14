@@ -1,0 +1,1069 @@
+{
+  "name": "HML - EV-00 Entrada Webhook",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        4800
+      ],
+      "id": "03e75e08-ac58-4961-9f37-937813be42d5",
+      "name": "Calcular HMAC do corpo bruto",
+      "notesInFlow": true,
+      "notes": "Calcula HMAC-SHA256 sobre o binário data preservado pelo Webhook. Associe a credencial Crypto com o App Secret da Meta no campo Hmac Secret."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Header Auth foi validado no Webhook. Subfluxo so aceita o normalizador local.\nreturn [{json:{assinatura_valida: $('Normalizar Evolution para contrato legado').first().json.hml_evolution_validado === true}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        4800
+      ],
+      "id": "14f22a39-5a79-4291-bc3c-05bbe8560dd8",
+      "name": "Validar assinatura da Meta",
+      "notesInFlow": true,
+      "notes": "Aceita somente se X-Hub-Signature-256 corresponder exatamente ao HMAC-SHA256 do corpo bruto."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Validar assinatura da Meta').first().json.assinatura_valida }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -64,
+        4800
+      ],
+      "id": "7a075a3d-6c2f-4b6e-ae13-af2052bd4704",
+      "name": "Assinatura Meta é válida?",
+      "notesInFlow": true,
+      "notes": "Barreira de segurança: somente a saída verdadeira alcança os fluxos da Estrutural."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Primeiro filtro funcional: confere para qual número da empresa a mensagem foi enviada.\n// Este node apenas lê metadata.display_phone_number; não altera o payload recebido.\nconst entrada = $('Normalizar Evolution para contrato legado').first().json;\nconst corpo = entrada.body ?? entrada;\nconst displayPhoneNumber = String(\n  corpo.entry?.[0]?.changes?.[0]?.value?.metadata?.display_phone_number ?? ''\n).trim();\n\n// Comparamos apenas os dígitos para aceitar o valor com ou sem espaços, hífen e sinal de +.\nconst numeroRecebido = displayPhoneNumber.replace(/\\D/g, '');\nconst variaveis = $('Variaveis de producao').first().json;\nconst numeroAutorizado = String(variaveis.numero_destinatario_autorizado ?? '').replace(/\\D/g, '');\nconst permitido = numeroRecebido === numeroAutorizado;\n\nreturn [{\n  json: {\n    permitido,\n    display_phone_number: displayPhoneNumber,\n    numero_normalizado: numeroRecebido,\n    codigo: permitido ? 'NUMERO_DESTINATARIO_AUTORIZADO' : 'NUMERO_DESTINATARIO_IGNORADO'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        4784
+      ],
+      "id": "94844bd0-8f07-4734-b6c5-cf9e35176f4f",
+      "name": "Identificar número destinatário",
+      "notesInFlow": true,
+      "notes": "Normaliza metadata.display_phone_number e permite exclusivamente +55 61 3199-1947. Número ausente ou diferente é encerrado antes da IA e dos subworkflows."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4ab492b3-ed7e-4c4d-814c-acad386fcbd5",
+              "leftValue": "={{ $('Identificar número destinatário').first().json.permitido }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        512,
+        4784
+      ],
+      "id": "52e79df1-c3b0-4b8e-815e-f7936fb89f29",
+      "name": "Número é da Estrutural?",
+      "notesInFlow": true,
+      "notes": "A saída verdadeira continua para o processamento. A falsa responde 202 e encerra o evento sem chamar a IA."
+    },
+    {
+      "parameters": {
+        "jsCode": "// O CRM repassa o JSON da Meta sem alterar seu conteudo.\n// Esta etapa aceita texto, audio, imagem, documento e respostas de botao/lista; a interpretacao de midia fica no EV-13.\nconst entrada = $('Normalizar Evolution para contrato legado').first().json;\nconst corpo = entrada.body ?? entrada;\nconst headers = entrada.headers ?? {};\nconst variaveis = $('Variaveis de producao').first().json;\nconst avaliacaoBotaoPrefixo = String(variaveis.avaliacao_botao_prefixo ?? '').trim();\nconst transferenciaListaPrefixo = String(variaveis.transferencia_lista_atendente_prefixo ?? '').trim();\nconst followupBotaoSimId = String(variaveis.followup_botao_sim_id ?? '').trim();\nconst followupBotaoNaoId = String(variaveis.followup_botao_nao_id ?? '').trim();\n\nconst value = corpo.entry?.[0]?.changes?.[0]?.value ?? {};\nconst mensagem = value.messages?.[0] ?? null;\nconst contato = value.contacts?.[0] ?? {};\nconst atendimentoId = headers['x-crm-atendimento-id'] ?? headers['X-CRM-Atendimento-Id'] ?? '';\nconst leadId = headers['x-crm-lead-id'] ?? headers['X-CRM-Lead-Id'] ?? '';\n\nif (!mensagem?.id) {\n  return [{ json: { processar: false, resposta: { aceito: true, codigo: 'EVENTO_META_SEM_MENSAGEM' } } }];\n}\n\nconst tipoMeta = String(mensagem.type ?? '').toLowerCase();\nconst interactive = mensagem.interactive ?? {};\nconst buttonReply = interactive.button_reply ?? {};\nconst listReply = interactive.list_reply ?? {};\nconst legacyButton = mensagem.button ?? {};\nconst respostaBotao = tipoMeta === 'interactive' && interactive.type === 'button_reply'\n  ? { id: String(buttonReply.id ?? '').trim(), titulo: String(buttonReply.title ?? '').trim(), origem: 'interactive.button_reply' }\n  : (tipoMeta === 'button'\n    ? { id: String(legacyButton.payload ?? '').trim(), titulo: String(legacyButton.text ?? '').trim(), origem: 'button' }\n    : null);\nconst respostaLista = tipoMeta === 'interactive' && interactive.type === 'list_reply'\n  ? { id: String(listReply.id ?? '').trim(), titulo: String(listReply.title ?? '').trim(), descricao: String(listReply.description ?? '').trim(), origem: 'interactive.list_reply' }\n  : null;\nconst transferenciaListaResposta = respostaLista && transferenciaListaPrefixo && respostaLista.id.startsWith(transferenciaListaPrefixo)\n  ? {\n    atendente_id: respostaLista.id.slice(transferenciaListaPrefixo.length),\n    titulo: respostaLista.titulo,\n    descricao: respostaLista.descricao,\n    origem: respostaLista.origem\n  }\n  : null;\nconst followupResposta = respostaBotao && [followupBotaoSimId, followupBotaoNaoId].filter(Boolean).includes(respostaBotao.id)\n  ? {\n    decisao: respostaBotao.id === followupBotaoNaoId ? 'NAO' : 'SIM',\n    id: respostaBotao.id,\n    titulo: respostaBotao.titulo,\n    origem: respostaBotao.origem\n  }\n  : null;\n\nconst mapaTipos = { text: 'TEXTO', conversation: 'TEXTO', interactive: 'TEXTO', button: 'TEXTO', audio: 'AUDIO', image: 'IMAGEM', document: 'DOCUMENTO' };\nconst tipo = mapaTipos[tipoMeta] ?? String(tipoMeta).toUpperCase();\nconst conteudo = mensagem[tipoMeta] ?? {};\nconst textoInterativo = respostaBotao ? (respostaBotao.titulo || respostaBotao.id) : (respostaLista ? (respostaLista.titulo || respostaLista.id) : '');\nconst texto = String(textoInterativo || mensagem.text?.body || conteudo.caption || '').replace(/\\s+/g, ' ').trim();\nconst mediaId = String(conteudo.id ?? '').trim();\nconst tipoSuportado = ['TEXTO', 'AUDIO', 'IMAGEM', 'DOCUMENTO'].includes(tipo);\n\nif (!tipoSuportado) {\n  return [{ json: { processar: false, resposta: { aceito: true, codigo: 'MENSAGEM_TIPO_NAO_SUPORTADO', tipo } } }];\n}\nif (tipo === 'TEXTO' && !texto) {\n  return [{ json: { processar: false, resposta: { aceito: true, codigo: 'MENSAGEM_TEXTO_VAZIA' } } }];\n}\nif (tipo !== 'TEXTO' && !mediaId) {\n  return [{ json: { processar: false, resposta: { aceito: true, codigo: 'MIDIA_SEM_MEDIA_ID', tipo } } }];\n}\n\nreturn [{\n  json: {\n    processar: true,\n    payload: {\n      mensagem_id: String(mensagem.id),\n      wa_id: String(contato.wa_id ?? mensagem.from ?? ''),\n      nome_contato: String(contato.profile?.name ?? ''),\n      phone_number_id: String(value.metadata?.phone_number_id ?? ''),\n      atendimento_id: String(atendimentoId),\n      lead_id: String(leadId),\n      texto,\n      tipo,\n      tipo_meta: tipoMeta,\n      avaliacao_resposta: respostaBotao && avaliacaoBotaoPrefixo && respostaBotao.id.startsWith(avaliacaoBotaoPrefixo) ? respostaBotao : null,\n      transferencia_lista_resposta: transferenciaListaResposta,\n      followup_resposta: followupResposta,\n      media: {\n        id: mediaId,\n        mime_type: String(conteudo.mime_type ?? ''),\n        sha256: String(conteudo.sha256 ?? ''),\n        filename: String(conteudo.filename ?? ''),\n        caption: String(conteudo.caption ?? '')\n      },\n      recebido_em: mensagem.timestamp ? new Date(Number(mensagem.timestamp) * 1000).toISOString() : new Date().toISOString(),\n      assinatura_meta_recebida: Boolean(headers['x-hub-signature-256'] ?? headers['X-Hub-Signature-256'])\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        5056
+      ],
+      "id": "290b09c8-51a3-4b60-9fff-b40843d948a0",
+      "name": "Ler payload Meta",
+      "notesInFlow": true,
+      "notes": "Extrai a primeira mensagem Meta e identifica botao de avaliacao, transferencia ou follow-up. A recusa de follow-up e tratada antes de Redis, buffer e IA."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a2ebba0d-ddb7-44ae-a6e7-29d60639a248",
+              "leftValue": "={{ $('Ler payload Meta').first().json.processar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        688,
+        5056
+      ],
+      "id": "4db23b07-e4e6-475f-8e66-90d2ffdd9b30",
+      "name": "Mensagem processavel recebida?",
+      "notesInFlow": true,
+      "notes": "Se houver texto, audio, imagem ou documento suportado, chama o EV-13 para devolver texto normalizado ao EV-01."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mantem o payload Meta como fonte principal e acrescenta somente contexto confirmado do CRM.\n// O texto ja pode ter sido normalizado pelo EV-13 quando a mensagem original era midia.\nconst entrada = $('Normalizar Evolution para contrato legado').first().json;\nconst headers = entrada.headers ?? {};\nconst payload = $('Executar buffer mensagens').first().json.payload;\n\nconst lerHeader = (nome) => headers[nome] ?? headers[nome.toLowerCase()] ?? '';\nconst lerBooleano = (valor) => {\n  const texto = String(valor ?? '').trim().toLowerCase();\n  if (['true', '1', 'sim'].includes(texto)) return true;\n  if (['false', '0', 'nao', 'não'].includes(texto)) return false;\n  return null;\n};\n\nreturn [{\n  json: {\n    ...payload,\n    atendimento_id: String(payload.atendimento_id || lerHeader('x-crm-atendimento-id')),\n    lead_id: String(payload.lead_id || lerHeader('x-crm-lead-id')),\n    crm_evento: String(lerHeader('x-crm-event')),\n    atendimento_modo: String(lerHeader('x-crm-atendimento-modo')),\n    dentro_horario_humano: lerBooleano(lerHeader('x-crm-dentro-horario')),\n    ia_ativa: lerBooleano(lerHeader('x-crm-ia-ativa'))\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2800,
+        5232
+      ],
+      "id": "c441bb78-a9d6-4d10-bd4d-53354462a1f4",
+      "name": "Adicionar contexto CRM recebido",
+      "notesInFlow": true,
+      "notes": "Preserva somente headers opcionais do CRM que já existem no contrato local de integração. Não tenta identificar primeiro contato: o payload Meta e o contrato interno atual não fornecem essa informação."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "4DP8BA2hcSS80fMc"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "evento": "={{ $('Adicionar contexto CRM recebido').first().json }}"
+          },
+          "matchingColumns": [
+            "evento"
+          ],
+          "schema": [
+            {
+              "id": "evento",
+              "displayName": "evento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        3120,
+        5232
+      ],
+      "id": "c9629781-30ec-45bd-947f-f74028ca24f7",
+      "name": "Executar orquestrador",
+      "notesInFlow": true,
+      "notes": "Entrega o evento Meta normalizado ao EV-01. O EV-01 consulta o status real no EV-12 e pode encerrar silenciosamente quando o atendimento nao estiver com IA."
+    },
+    {
+      "parameters": {
+        "content": "## Segurança da entrada\n\n1. O Webhook preserva o corpo bruto como binário data.\n2. O node Crypto calcula HMAC-SHA256 com o App Secret da Meta guardado em credencial.\n3. O fluxo compara esse resultado com X-Hub-Signature-256 e devolve 403 se divergir.\n4. Depois disso, aplica o filtro do número autorizado.\n\nCrie/associe a credencial Crypto Meta WhatsApp Webhook Secret. Nunca cole WHATSAPP_WEBHOOK_SECRET em node ou JSON.",
+        "height": 331,
+        "width": 560,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        4352
+      ],
+      "id": "865d57d9-ea8c-4ffc-90c4-56303b1d1ebc",
+      "name": "Pendência de segurança"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "Xz6N2UVfLL3UyEDw"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "evento": "={{ $('Ler payload Meta').first().json.payload }}"
+          },
+          "matchingColumns": [
+            "evento"
+          ],
+          "schema": [
+            {
+              "id": "evento",
+              "displayName": "evento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        944,
+        5056
+      ],
+      "id": "d5cd04cc-73b8-445d-a452-87f642667792",
+      "name": "Interpretar midia ou texto",
+      "notesInFlow": true,
+      "notes": "Chama o EV-13 para transformar texto/audio/imagem/documento em texto antes do orquestrador principal."
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "avaliacao_pendente",
+        "key": "={{ $('Variaveis de producao').first().json.redis_key_prefixo_avaliacao_wa + $('Interpretar midia ou texto').first().json.payload.wa_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1728,
+        5184
+      ],
+      "id": "03726306-bfff-4684-a72a-3c5f10296c51",
+      "name": "Buscar avaliacao pendente no Redis",
+      "credentials": {
+        "redis": {
+          "id": "N4u9OnuUpXg5ceKw",
+          "name": "HML Redis CRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ (() => {\n  // A existência da chave não basta: chaves antigas podem ainda ter TTL de sete dias.\n  const valor = $('Buscar avaliacao pendente no Redis').first().json.avaliacao_pendente;\n  if (!valor) return false;\n  const segundos = $('Variaveis de producao').first().json.avaliacao_pendente_ttl_segundos;\n  if (!Number.isInteger(segundos) || segundos <= 0) throw new Error('EV00_VALIDADE_AVALIACAO_INVALIDA');\n  let pendencia;\n  try { pendencia = typeof valor === 'string' ? JSON.parse(valor) : valor; }\n  catch { return false; }\n  // Sem início confiável, não consumir a mensagem do cliente como avaliação.\n  const inicio = typeof pendencia?.iniciado_em === 'string' ? Date.parse(pendencia.iniciado_em) : NaN;\n  const idade = Date.now() - inicio;\n  // Aos 180 minutos exatos já está expirada. A mensagem segue para o buffer/IA.\n  return Number.isFinite(inicio) && idade >= 0 && idade < segundos * 1000;\n})() }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2048,
+        5184
+      ],
+      "id": "fce6fcce-dffb-44b3-bc8b-c18c5889d4f2",
+      "name": "Resposta de avaliacao pendente?",
+      "notesInFlow": true,
+      "notes": "Avaliação só fica pendente por três horas desde iniciado_em. Depois disso, inclusive para chaves antigas com TTL de sete dias, seguir pela saída falsa para Executar buffer mensagens. Não apaga Redis por API nem muda o tratamento de mensagens dentro da janela. Manter avaliacao_pendente_ttl_segundos do Set em 10800, igual ao redis_ttl_segundos do EV-08."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "HR34x2ZAN8vyI9Yi"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "evento": "={{ { modo: 'REGISTRAR_RESPOSTA', payload: $('Interpretar midia ou texto').first().json.payload, avaliacao_cache_json: $('Buscar avaliacao pendente no Redis').first().json.avaliacao_pendente } }}"
+          },
+          "matchingColumns": [
+            "evento"
+          ],
+          "schema": [
+            {
+              "id": "evento",
+              "displayName": "evento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2336,
+        5040
+      ],
+      "id": "86095d4c-8c9b-4843-81eb-ac498e3ec685",
+      "name": "Registrar avaliacao recebida"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ev00-config-numero-destinatario-autorizado",
+              "name": "numero_destinatario_autorizado",
+              "value": "556198897431",
+              "type": "string"
+            },
+            {
+              "id": "ev00-config-avaliacao-botao-prefixo",
+              "name": "avaliacao_botao_prefixo",
+              "value": "ev08_avaliacao_",
+              "type": "string"
+            },
+            {
+              "id": "ev00-config-redis-key-prefixo-avaliacao-wa",
+              "name": "redis_key_prefixo_avaliacao_wa",
+              "value": "hml:avaliacao:wa:",
+              "type": "string"
+            },
+            {
+              "id": "ev00-config-avaliacao-pendente-ttl-segundos",
+              "name": "avaliacao_pendente_ttl_segundos",
+              "value": 10800,
+              "type": "number"
+            },
+            {
+              "id": "ev00-config-transferencia-lista-atendente-prefixo",
+              "name": "transferencia_lista_atendente_prefixo",
+              "value": "ev03_atendente_",
+              "type": "string"
+            },
+            {
+              "id": "ev00-config-followup-botao-sim-id",
+              "name": "followup_botao_sim_id",
+              "value": "ev06_followup_sim",
+              "type": "string"
+            },
+            {
+              "id": "ev00-config-followup-botao-nao-id",
+              "name": "followup_botao_nao_id",
+              "value": "ev06_followup_nao",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "a3ff40a1-46b5-4a55-972f-44a8b7693ca3",
+      "name": "Variaveis de producao",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -832,
+        4800
+      ],
+      "notesInFlow": true,
+      "notes": "Centraliza variaveis de producao deste workflow, incluindo IDs dos botoes de avaliacao, transferencia e follow-up."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Executar buffer mensagens').first().json.processar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2576,
+        5328
+      ],
+      "id": "816a853c-42d2-4c4a-88c1-ed5834a7d353",
+      "name": "Buffer deve processar?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Outra mensagem chegou dentro da janela do buffer.\n// Esta execucao encerra sem chamar a IA; a execucao mais recente respondera com o texto agregado.\nconst buffer = $('Executar buffer mensagens').first().json;\nreturn [{ json: {\n  aceito: true,\n  processado: false,\n  codigo: String(buffer.codigo ?? 'BUFFER_AGUARDANDO'),\n  motivo: String(buffer.motivo ?? 'Execucao substituida por mensagem mais recente.')\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2800,
+        5472
+      ],
+      "id": "89f8e0e4-2373-403b-8de8-b33f7eb74b7b",
+      "name": "Encerrar buffer aguardando",
+      "notesInFlow": true,
+      "notes": "Finaliza silenciosamente quando a execucao nao e a ultima mensagem da janela."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "F0SbW4OCb8CoIGSM"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "evento": "={{ $('Interpretar midia ou texto').first().json.payload }}"
+          },
+          "matchingColumns": [
+            "evento"
+          ],
+          "schema": [
+            {
+              "id": "evento",
+              "displayName": "evento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        2336,
+        5296
+      ],
+      "id": "47df5dfa-4234-48c0-b686-b286d3f5f37b",
+      "name": "Executar buffer mensagens"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ String($('Interpretar midia ou texto').first().json.payload.followup_resposta?.decisao ?? '') }}",
+              "rightValue": "NAO",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1248,
+        5040
+      ],
+      "id": "372feb27-3927-4662-8cff-c595b48822f8",
+      "name": "Resposta negativa de follow-up?",
+      "notesInFlow": true,
+      "notes": "Interrompe o caminho antes de avaliacao, buffer e IA quando o cliente toca no botao Nao do follow-up."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS public.follow_up_opt_outs (\n  lead_id text PRIMARY KEY,\n  wa_id text,\n  atendimento_id text,\n  recusado_em timestamptz NOT NULL DEFAULT now(),\n  origem text NOT NULL DEFAULT 'BOTAO_NAO',\n  updated_at timestamptz NOT NULL DEFAULT now()\n);\n\nWITH bloqueio AS (\n  INSERT INTO public.follow_up_opt_outs (lead_id, wa_id, atendimento_id, recusado_em, origem, updated_at)\n  SELECT NULLIF($1, ''), NULLIF($2, ''), NULLIF($3, ''), now(), 'BOTAO_NAO', now()\n  WHERE NULLIF($1, '') IS NOT NULL\n  ON CONFLICT (lead_id) DO UPDATE\n  SET wa_id = EXCLUDED.wa_id,\n      atendimento_id = EXCLUDED.atendimento_id,\n      recusado_em = EXCLUDED.recusado_em,\n      origem = EXCLUDED.origem,\n      updated_at = now()\n  RETURNING lead_id\n)\nSELECT EXISTS(SELECT 1 FROM bloqueio) AS bloqueio_registrado;",
+        "options": {
+          "queryReplacement": "={{ $('Resolver lead da recusa de follow-up').first().json.crm.lead_id }},{{ $('Interpretar midia ou texto').first().json.payload.wa_id }},{{ $('Resolver lead da recusa de follow-up').first().json.crm.atendimento_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1728,
+        4928
+      ],
+      "id": "ed683a73-dc61-44e4-b0bc-1907daf496cc",
+      "name": "Bloquear follow-up por recusa",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Grava a recusa usando o lead localizado pelo EV-12. O node termina aqui, portanto o clique Nao nunca chega ao buffer ou a IA."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "fyUbmjnzl1DChOq1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "evento": "={{ { contato: { wa_id: $('Interpretar midia ou texto').first().json.payload.wa_id } } }}"
+          },
+          "matchingColumns": [
+            "evento"
+          ],
+          "schema": [
+            {
+              "id": "evento",
+              "displayName": "evento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1488,
+        4928
+      ],
+      "id": "9c3d7d2b-7a59-45c0-b159-de4a52c1a37f",
+      "name": "Resolver lead da recusa de follow-up",
+      "notesInFlow": true,
+      "notes": "Reutiliza o EV-12 para encontrar o lead pelo wa_id antes de gravar a recusa. O clique Nao continua sem passar por IA."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.atendimento\nSET status = 'FINALIZADO'\nWHERE id = $1::uuid\n  AND status <> 'FINALIZADO'\nRETURNING id, status, atendente_id;",
+        "options": {
+          "queryReplacement": "={{ $('Resolver lead da recusa de follow-up').first().json.crm.atendimento_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2048,
+        4928
+      ],
+      "id": "f651a570-1043-4fd3-bfe3-64c588a544d5",
+      "name": "Finalizar atendimento apos recusa de follow-up",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "IprZddvnhajgbwdx",
+          "name": "HML PostgreSQL CRM"
+        }
+      },
+      "notes": "Depois de registrar a recusa permanente de follow-up, finaliza somente o atendimento localizado para esse WhatsApp."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "24e6eeea-d86d-447e-8e0f-91680c5b6656",
+              "leftValue": "={{ $json.body.entry[0].changes[0].value.contacts[0].wa_id }}",
+              "rightValue": "555491082498",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "f4c42e41-2dc1-4fe3-807b-9e7ea73c11fd",
+              "leftValue": "={{ $json.body.entry[0].changes[0].value.contacts[0].wa_id }}",
+              "rightValue": "556198430401",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1168,
+        4592
+      ],
+      "id": "76d5d69a-b409-46ac-9694-070f0add9fe5",
+      "name": "homologacao?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "rA0U0yYqqP9WCGMZ"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "body": "={{ $('Receber evento').first().json.body }}",
+            "headers": "={{ $('Receber evento').first().json.headers }}"
+          },
+          "schema": [
+            {
+              "id": "body",
+              "displayName": "body",
+              "type": "object"
+            },
+            {
+              "id": "headers",
+              "displayName": "headers",
+              "type": "object"
+            }
+          ],
+          "matchingColumns": [],
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -832,
+        4576
+      ],
+      "id": "23d83070-9c3c-4a23-93ed-dff86da4b99c",
+      "name": "webhook teste",
+      "notesInFlow": true,
+      "notes": "Entrega o evento Meta normalizado ao EV-01. O EV-01 consulta o status real no EV-12 e pode encerrar silenciosamente quando o atendimento nao estiver com IA."
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hml/FNCKnkLKsvU2qMKL/estrutural-vidros/eventos",
+        "options": {
+          "rawBody": false
+        },
+        "authentication": "headerAuth"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        4768
+      ],
+      "id": "7f439418-c9f7-412a-ad7b-64810f3e69f8",
+      "name": "Receber evento",
+      "webhookId": "90b3fb8a-2892-4d57-853d-64505e010612",
+      "notesInFlow": true,
+      "notes": "Recebe o payload cru da Meta repassado pelo CRM. O CRM deve apontar AUTOMACAO_WEBHOOK_EVENTOS_URL para a URL interna deste caminho. PENDENTE: configurar a Credential Header Auth que valida o token CRM -> n8n e confirmar o nome do header no contrato.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "V5MNFVq0BgptO9rR",
+          "name": "HML Repasse CRM"
+        }
+      }
+    },
+    {
+      "id": "654e0487-c0b5-453d-86cb-b83b059e9c9e",
+      "name": "Normalizar Evolution para contrato legado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1180,
+        4768
+      ],
+      "parameters": {
+        "jsCode": "// Traduz o evento Evolution recebido do CRM para o contrato dos subfluxos legados.\n// A autenticacao e feita pelo node Webhook com Header Auth, nao pelo corpo enviado.\nconst entrada = $('Receber evento').first().json;\nconst corpo = entrada.body ?? entrada;\nconst data = corpo.data;\nconst ignorar = codigo => [{ json: { headers: entrada.headers || {}, body: { entry: [] }, hml_evolution_validado: true, codigo } }];\nif (corpo.event !== 'messages.upsert' || corpo.instance !== 'instancia_numero_teste') return ignorar('EVENTO_OU_INSTANCIA_IGNORADO');\nif (!data || Array.isArray(data) || !data.key?.id || data.key.fromMe !== false) return ignorar('SEM_MENSAGEM_RECEBIDA');\nconst candidatos = [data.key.remoteJid, data.key.remoteJidAlt];\nif (candidatos.some(j => String(j || '').endsWith('@g.us'))) return ignorar('GRUPO_IGNORADO');\nconst jid = candidatos.find(j => /^\\d+@s\\.whatsapp\\.net$/.test(String(j || '')));\nif (!jid) return ignorar('TELEFONE_NAO_RESOLVIDO');\nlet conteudo = data.message || {};\nfor (let i = 0; i < 3; i++) conteudo = conteudo.ephemeralMessage?.message || conteudo.viewOnceMessage?.message || conteudo.viewOnceMessageV2?.message || conteudo;\nconst m = { id: String(data.key.id), from: jid.split('@')[0], timestamp: String(data.messageTimestamp || Math.floor(Date.now()/1000)) };\nconst texto = conteudo.conversation || conteudo.extendedTextMessage?.text;\nconst botao = conteudo.buttonsResponseMessage || conteudo.templateButtonReplyMessage;\nconst lista = conteudo.listResponseMessage;\nif (botao) {\n  m.type = 'interactive'; m.interactive = { type: 'button_reply', button_reply: { id: botao.selectedButtonId || botao.selectedId, title: botao.selectedDisplayText || '' } };\n} else if (lista) {\n  m.type = 'interactive'; m.interactive = { type: 'list_reply', list_reply: { id: lista.singleSelectReply?.selectedRowId, title: lista.title || '', description: lista.description || '' } };\n} else if (conteudo.interactiveResponseMessage?.nativeFlowResponseMessage) {\n  let p; try { p = JSON.parse(conteudo.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson); }\n  catch { return ignorar('RESPOSTA_INTERATIVA_INVALIDA'); }\n  const row = p.selectedRowId || p.selected_row_id;\n  m.type = 'interactive'; m.interactive = row\n    ? { type: 'list_reply', list_reply: { id: row, title: p.title || p.display_text || '' } }\n    : { type: 'button_reply', button_reply: { id: p.id || p.selected_id, title: p.display_text || p.title || '' } };\n} else if (texto) { m.type = 'text'; m.text = { body: texto }; }\nelse {\n  const formato = [['audioMessage','audio'],['imageMessage','image'],['documentMessage','document']].find(([key]) => conteudo[key]);\n  if (!formato) return ignorar('FORMATO_NAO_SUPORTADO');\n  const media = conteudo[formato[0]]; m.type = formato[1];\n  m[m.type] = { id: m.id, mime_type: media.mimetype || '', filename: media.fileName || '', caption: media.caption || '' };\n}\nreturn [{ json: { headers: entrada.headers || {}, hml_evolution_validado: true,\n  body: { entry: [{ changes: [{ value: { metadata: { display_phone_number: '556198897431', phone_number_id: 'instancia_numero_teste' },\n    contacts: [{ wa_id: m.from, profile: { name: data.pushName || '' } }], messages: [m] } }] }] } } }];\n"
+      }
+    },
+    {
+      "id": "1d475d11-5ea2-4dc4-acd1-6f2eb82ed38c",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-00 Entrada Webhook\nCRM de teste / Evolution.\nVer pendencias gerais no manifesto local.\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "Calcular HMAC do corpo bruto": {
+      "main": [
+        [
+          {
+            "node": "Validar assinatura da Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar assinatura da Meta": {
+      "main": [
+        [
+          {
+            "node": "Assinatura Meta é válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assinatura Meta é válida?": {
+      "main": [
+        [
+          {
+            "node": "Identificar número destinatário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identificar número destinatário": {
+      "main": [
+        [
+          {
+            "node": "Número é da Estrutural?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Número é da Estrutural?": {
+      "main": [
+        [
+          {
+            "node": "Ler payload Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler payload Meta": {
+      "main": [
+        [
+          {
+            "node": "Mensagem processavel recebida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem processavel recebida?": {
+      "main": [
+        [
+          {
+            "node": "Interpretar midia ou texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Adicionar contexto CRM recebido": {
+      "main": [
+        [
+          {
+            "node": "Executar orquestrador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpretar midia ou texto": {
+      "main": [
+        [
+          {
+            "node": "Resposta negativa de follow-up?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar avaliacao pendente no Redis": {
+      "main": [
+        [
+          {
+            "node": "Resposta de avaliacao pendente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resposta de avaliacao pendente?": {
+      "main": [
+        [
+          {
+            "node": "Registrar avaliacao recebida",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Executar buffer mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Variaveis de producao": {
+      "main": [
+        [
+          {
+            "node": "Calcular HMAC do corpo bruto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buffer deve processar?": {
+      "main": [
+        [
+          {
+            "node": "Adicionar contexto CRM recebido",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Encerrar buffer aguardando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar buffer mensagens": {
+      "main": [
+        [
+          {
+            "node": "Buffer deve processar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resposta negativa de follow-up?": {
+      "main": [
+        [
+          {
+            "node": "Resolver lead da recusa de follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar avaliacao pendente no Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bloquear follow-up por recusa": {
+      "main": [
+        [
+          {
+            "node": "Finalizar atendimento apos recusa de follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver lead da recusa de follow-up": {
+      "main": [
+        [
+          {
+            "node": "Bloquear follow-up por recusa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "homologacao?": {
+      "main": [
+        [
+          {
+            "node": "webhook teste",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Variaveis de producao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Receber evento": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Evolution para contrato legado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Evolution para contrato legado": {
+      "main": [
+        [
+          {
+            "node": "homologacao?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}

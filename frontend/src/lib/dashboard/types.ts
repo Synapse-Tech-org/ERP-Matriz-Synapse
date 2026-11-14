@@ -9,6 +9,8 @@ export interface VisaoGeralDashboard {
   periodo: { ano: number; meses: number[]; inicio: string | null; fim: string | null };
   atendimentos: { noPeriodo: number; acumulado: number; comparativo: Comparativo | null };
   novosLeads: { noPeriodo: number; comparativo: Comparativo | null };
+  nps?: { valor: number | null; respostas: number; comparativo: Comparativo | null };
+  leadsParados?: number;
   tempoMedioAtendimento: { segundos: number | null; comparativo: Comparativo | null };
   avaliacaoMedia: {
     media: number | null;
@@ -72,6 +74,7 @@ export interface VisaoGeralDashboard {
   /** Null representa ausencia de amostra ou mes futuro; zero representa contagem real. */
   seriesMensais?: Array<{
     mes: string;
+    nps?: number | null;
     parcial: boolean;
     disponivel: boolean;
     atendimentos: number | null;

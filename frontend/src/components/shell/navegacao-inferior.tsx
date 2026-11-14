@@ -49,6 +49,7 @@ import {
   ITENS_GESTAO,
   ITENS_MENU,
   itemEstaNaAbaInferior,
+  rotaDoItemAtiva,
   type ItemDeMenuBase,
 } from "@/lib/navegacao/itens-do-menu";
 import { itemDeMenuVisivel } from "@/lib/navegacao/visibilidade-do-menu";
@@ -62,6 +63,7 @@ const ICONES: Record<string, React.ComponentType<{ className?: string }>> = {
   atendimentos: Headset,
   dashboard: TrendingUp,
   agenda: BookUser,
+  agendaConsultas: CalendarClock,
   cancelamentos: CalendarClock,
   tags: Tag,
   mensagensRapidas: Zap,
@@ -100,6 +102,11 @@ export function NavegacaoInferior() {
   // Gestão (docs/47): efetivas do backend; revalidadas no foco e no aviso ACESSO_ALTERADO.
   const minhasPermissoes = useMinhasPermissoes(sessaoPronta);
   const { data: flags } = useFuncionalidadesHabilitadas();
+  const rotulosMenu = flags?.includes("variante_clinica") ? {
+    ...textos.menu.itens,
+    agenda: textos.agendaConsultas.pacientes,
+    agendaConsultas: textos.agendaConsultas.titulo,
+  } as Record<string, string> : textos.menu.itens;
   const { data: contagens } = useContagemDeAtendimentos();
   const { data: capacidadeDoCanal } = useQuery({
     queryKey: ["capacidade-do-canal"],
@@ -136,7 +143,7 @@ export function NavegacaoInferior() {
   const extras = [...ITENS_MENU, ...ITENS_GESTAO].filter(
     (item) => visivel(item) && !itemEstaNaAbaInferior(item.chave),
   );
-  const maisAtivo = extras.some((item) => pathname.startsWith(item.rota))
+  const maisAtivo = extras.some((item) => rotaDoItemAtiva(pathname, item.rota))
     || pathname.startsWith("/configuracoes")
     || pathname.startsWith("/trocar-senha");
   const statusAtual = meuUsuario.data?.presenca ?? "OFFLINE";
@@ -157,8 +164,8 @@ export function NavegacaoInferior() {
         <ul className="flex items-stretch">
           {abas.map((item) => {
             const Icone = ICONES[item.chave];
-            const ativo = pathname.startsWith(item.rota);
-            const rotulo = textos.menu.itens[item.chave] ?? item.chave;
+            const ativo = rotaDoItemAtiva(pathname, item.rota);
+            const rotulo = rotulosMenu[item.chave] ?? item.chave;
             return (
               <li key={item.chave} className="min-w-0 flex-1">
                 <Link
@@ -259,8 +266,8 @@ export function NavegacaoInferior() {
           <ul className="grid gap-0.5">
             {extras.map((item) => {
               const Icone = ICONES[item.chave];
-              const rotulo = textos.menu.itens[item.chave] ?? item.chave;
-              const ativo = pathname.startsWith(item.rota);
+              const rotulo = rotulosMenu[item.chave] ?? item.chave;
+              const ativo = rotaDoItemAtiva(pathname, item.rota);
               return (
                 <li key={item.chave}>
                   <Link

@@ -1,5 +1,12 @@
 "use client";
 
+import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
+import { OpcoesListaV2 } from "@/components/shell/opcoes-lista-v2";
+import Link from "next/link";
+import listaV2 from "@/components/shell/lista-v2.module.css";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
+
+
 import { useState } from "react";
 import type { ComponentType, CSSProperties } from "react";
 
@@ -140,6 +147,7 @@ function IconeDaTag({
 type TextosTags = ReturnType<typeof useTextos>["tags"];
 
 export function PaginaTags() {
+  const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("recursos_layout_v2") ?? false;
   const t = useTextos().tags;
   const tags = useTags();
   const agregacao = useAgregacaoDeTags();
@@ -148,22 +156,25 @@ export function PaginaTags() {
   const podeCriar = capacidades.pode("tags.criar");
   const podeEditarExcluir = capacidades.pode("tags.editar_excluir");
   const [busca, setBusca] = useState("");
+  const [ordem, setOrdem] = useState<"nome" | "uso">("uso");
   const [novaAberta, setNovaAberta] = useState(false);
   const [edicao, setEdicao] = useState<Tag | null>(null);
 
   const todas = tags.data ?? [];
-  const filtradas = todas.filter((tag) =>
-    tag.nome.toLowerCase().includes(busca.trim().toLowerCase()),
-  );
-
   const contagemPorTagId = new Map(
     (agregacao.data?.porTag ?? []).map((item) => [item.id, item.quantidade]),
   );
+  const buscadas = todas.filter((tag) => tag.nome.toLowerCase().includes(busca.trim().toLowerCase()));
+  const filtradas = layoutV2 ? buscadas.toSorted((a, b) => {
+    const porUso = ordem === "uso" ? (contagemPorTagId.get(b.id) ?? 0) - (contagemPorTagId.get(a.id) ?? 0) : 0;
+    return porUso || a.nome.localeCompare(b.nome, "pt-BR");
+  }) : buscadas;
   const maiorContagem = Math.max(1, ...Array.from(contagemPorTagId.values()));
   const totalVisivel = agregacao.data?.totalLeadsVisiveis ?? 0;
 
   return (
-    <div className="space-y-5 p-6">
+    <div data-layout={layoutV2 ? "v2" : "legado"} className={layoutV2 ? `${listaV2.pagina} ${listaV2.modulo}` : "space-y-5 p-6"}>
+      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} />}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">{t.titulo}</h1>
@@ -180,6 +191,8 @@ export function PaginaTags() {
         </div>
       </header>
 
+      {layoutV2 && <OpcoesListaV2<"nome" | "uso"> rotulo={t.v2.ordenar} valor={ordem} onChange={setOrdem}
+        opcoes={[{ valor: "uso", rotulo: t.v2.maisUsadas }, { valor: "nome", rotulo: t.v2.alfabetica }]} />}
       {tags.isLoading ? (
         <p>{t.carregando}</p>
       ) : tags.isError ? (
@@ -211,6 +224,7 @@ export function PaginaTags() {
                     maiorContagem={maiorContagem}
                     totalVisivel={totalVisivel}
                     textos={t}
+                    verContatos={layoutV2 && capacidades.pode("clientes.acessar")}
                     onEditar={podeEditarExcluir ? () => setEdicao(tag) : undefined}
                     onRemover={podeEditarExcluir ? () => remover.mutate(tag.id) : undefined}
                   />
@@ -314,6 +328,7 @@ function CartaoDeTag({
   textos,
   onEditar,
   onRemover,
+  verContatos = false,
 }: {
   tag: Tag;
   contagem: number;
@@ -322,12 +337,13 @@ function CartaoDeTag({
   textos: TextosTags;
   onEditar?: () => void;
   onRemover?: () => void;
+  verContatos?: boolean;
 }) {
   const percentualDaBase = totalVisivel > 0 ? Math.round((contagem / totalVisivel) * 100) : 0;
   const larguraDaBarra = Math.round((contagem / maiorContagem) * 100);
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div data-slot="recursos-painel" className="rounded-lg border bg-card p-4">
       <div className="flex items-center gap-3">
         <div
           className="flex size-11 shrink-0 items-center justify-center rounded-lg"
@@ -379,7 +395,11 @@ function CartaoDeTag({
           <IconeDaTag nome={tag.icone} className="size-[calc(var(--tamanho-icone-interface)*0.75)]" />
           {tag.nome}
         </Badge>
-        <span className="text-xs font-medium text-muted-foreground">{textos.grade.previa}</span>
+        {verContatos ? (
+          <Link href={`/agenda?tag=${encodeURIComponent(tag.id)}`} className="rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:bg-accent">
+            {textos.v2.verContatos}
+          </Link>
+        ) : <span className="text-xs font-medium text-muted-foreground">{textos.grade.previa}</span>}
       </div>
     </div>
   );

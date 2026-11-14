@@ -1,0 +1,360 @@
+{
+  "name": "HML - EV-15 Limpar Follow-ups Fim Expediente",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "id": "1f970eff-c42e-42df-8a1c-c8ac5c91d357",
+      "name": "Checar fim de expediente a cada 10 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        144,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH horario AS (\n  SELECT id, nome, pergunta, resposta\n  FROM public.faq\n  WHERE lower(nome) LIKE '%' || lower($1) || '%'\n  ORDER BY id ASC\n  LIMIT 1\n)\nSELECT id, nome, pergunta, resposta\nFROM horario\nUNION ALL\nSELECT NULL::integer AS id, ''::text AS nome, ''::text AS pergunta, ''::text AS resposta\nWHERE NOT EXISTS (SELECT 1 FROM horario);",
+        "options": {
+          "queryReplacement": "={{ $('Variaveis limpeza follow-ups').first().json.faq_nome_busca_horario }}"
+        }
+      },
+      "id": "86c2ea49-bc92-43b5-8b10-e27166d98d6c",
+      "name": "Buscar horario na FAQ",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        592,
+        496
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Busca somente o registro de horario na public.faq. O horario de expediente nao deve ficar hardcoded no fluxo."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Decide se este disparo do cron caiu na janela de limpeza.\n// A regra de negocio vem do texto cadastrado na FAQ.\nconst faq = $('Buscar horario na FAQ').first().json;\nconst variaveis = $('Variaveis limpeza follow-ups').first().json;\nconst timezone = String(variaveis.timezone ?? '').trim();\nif (!timezone) throw new Error('TIMEZONE_LIMPEZA_FOLLOWUPS_NAO_CONFIGURADO');\nconst resposta = String(faq.resposta ?? '').trim();\nconst textoNormalizado = resposta\n  .normalize('NFD')\n  .replace(/[\\u0300-\\u036f]/g, '')\n  .toLowerCase();\n\nconst agoraPartes = new Intl.DateTimeFormat('pt-BR', {\n  timeZone: timezone,\n  weekday: 'long',\n  hour: '2-digit',\n  minute: '2-digit',\n  hour12: false,\n}).formatToParts(new Date());\n\nconst parte = (tipo) => agoraPartes.find((item) => item.type === tipo)?.value ?? '';\nconst diaSemana = parte('weekday').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();\nconst horaAtualMinutos = Number(parte('hour')) * 60 + Number(parte('minute'));\nconst cronMinutos = Number(variaveis.intervalo_cron_minutos);\nconst atrasoLimpezaMinutos = Number(variaveis.atraso_limpeza_minutos);\nif (![cronMinutos, atrasoLimpezaMinutos].every(Number.isFinite)) throw new Error('CONFIG_LIMPEZA_FOLLOWUPS_INVALIDA');\n\nconst ehDiaUtil = ['segunda-feira', 'terca-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira'].includes(diaSemana);\nconst ehSabado = diaSemana === 'sabado';\nconst ehDomingo = diaSemana === 'domingo';\n\nconst extrairFim = (regex) => {\n  const match = textoNormalizado.match(regex);\n  if (!match) return null;\n  const hora = Number(match[3]);\n  const minuto = Number(match[4] ?? 0);\n  if (!Number.isFinite(hora) || !Number.isFinite(minuto)) return null;\n  return hora * 60 + minuto;\n};\n\nlet fimExpedienteMinutos = null;\nif (ehDiaUtil) {\n  fimExpedienteMinutos = extrairFim(/segunda\\s+a\\s+sexta\\s+(\\d{1,2})(?::(\\d{2}))?\\s*(?:as|a|-)\\s*(\\d{1,2})(?::(\\d{2}))?/);\n}\nif (ehSabado) {\n  fimExpedienteMinutos = extrairFim(/sabado\\s+(\\d{1,2})(?::(\\d{2}))?\\s*(?:as|a|-)\\s*(\\d{1,2})(?::(\\d{2}))?/);\n}\n\nconst inicioJanela = fimExpedienteMinutos === null ? null : fimExpedienteMinutos + atrasoLimpezaMinutos;\nconst fimJanela = inicioJanela === null ? null : inicioJanela + cronMinutos;\nconst dentroJanelaLimpeza = !ehDomingo\n  && inicioJanela !== null\n  && horaAtualMinutos >= inicioJanela\n  && horaAtualMinutos < fimJanela;\n\nreturn [{\n  json: {\n    faq_horario_id: faq.id ?? null,\n    faq_horario_nome: faq.nome ?? '',\n    faq_horario_resposta: resposta,\n    dia_semana: diaSemana,\n    hora_atual_minutos: horaAtualMinutos,\n    fim_expediente_minutos: fimExpedienteMinutos,\n    limpar_followups: dentroJanelaLimpeza,\n    motivo: dentroJanelaLimpeza\n      ? 'FIM_EXPEDIENTE_MAIS_5_MINUTOS'\n      : 'FORA_DA_JANELA_DE_LIMPEZA'\n  }\n}];"
+      },
+      "id": "9030e3bc-b1d8-403e-b6df-ed31c482e3bd",
+      "name": "Calcular janela de limpeza",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        496
+      ],
+      "notesInFlow": true,
+      "notes": "Usa a FAQ para descobrir o fim do expediente. O cron e a tolerancia tecnica sao do workflow; o horario real vem do Postgres."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8185375b-66cd-449c-a9ac-4e7a03304e72",
+              "leftValue": "={{ $('Calcular janela de limpeza').first().json.limpar_followups }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d555fc1c-9504-46b4-a08c-162fb47dd15f",
+      "name": "Esta na hora de limpar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH cancelados AS (\n  UPDATE public.follow_ups_temporary\n  SET\n    status = $1,\n    updated_at = now(),\n    descricao = COALESCE(descricao, '') || CASE\n      WHEN COALESCE(descricao, '') = '' THEN $2\n      ELSE E'\n' || $2\n    END\n  WHERE enviado_em IS NULL\n    AND status NOT IN ($3, $1)\n  RETURNING id, crm_atendimento_id, follow_up_config_id, status, updated_at\n)\nSELECT\n  count(*)::integer AS registros_cancelados,\n  COALESCE(jsonb_agg(to_jsonb(cancelados)), '[]'::jsonb) AS registros\nFROM cancelados;",
+        "options": {
+          "queryReplacement": "={{ $('Variaveis limpeza follow-ups').first().json.status_cancelado_fim_expediente }},{{ $('Variaveis limpeza follow-ups').first().json.texto_descricao_cancelamento }},{{ $('Variaveis limpeza follow-ups').first().json.status_enviado_followup }}"
+        }
+      },
+      "id": "79132e5f-3f48-41a8-abe7-6aa4693d16ce",
+      "name": "Cancelar follow-ups nao enviados",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1264,
+        400
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "MBtGRUG6fBBBLnjp",
+          "name": "HML PostgreSQL tecnico - validar tabelas"
+        }
+      },
+      "notes": "Nao apaga fisicamente. Apenas troca o status dos registros ainda nao enviados para manter rastreabilidade."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "656b17c0-4729-44c1-a6eb-42d06627c730",
+              "name": "executado",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "b82f2b30-f098-496a-aa64-2201ffdd6d63",
+              "name": "motivo",
+              "value": "={{ $('Calcular janela de limpeza').first().json.motivo }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a0986274-3e7e-44d1-bb86-c86b67edd918",
+      "name": "Encerrar sem limpeza",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1264,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cd646f48-b54f-49e0-9be0-19dd6d1c7982",
+              "name": "executado",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "ec8430bd-d5eb-4f87-a1b6-94e20d0d3f61",
+              "name": "status_aplicado",
+              "value": "={{ $('Variaveis limpeza follow-ups').first().json.status_cancelado_fim_expediente }}",
+              "type": "string"
+            },
+            {
+              "id": "c8b3102f-24c7-4a64-80c7-3aa87ef75604",
+              "name": "registros_cancelados",
+              "value": "={{ $('Cancelar follow-ups nao enviados').all().length }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e9bbb9bb-8d2e-4db3-a7b8-282a6c3f1aea",
+      "name": "Resumo limpeza",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1488,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## EV-15 Limpeza de follow-ups no fim do expediente\n\nRoda pelo Schedule nativo e usa o node `Variaveis limpeza follow-ups` para parametrizar timezone, atraso da limpeza, intervalo esperado do cron e status aplicado.\n\n1. Busca o horario de funcionamento na `public.faq` pela chave configurada.\n2. Calcula se o horario atual caiu na janela de limpeza apos o fim do expediente.\n3. Se nao caiu, encerra sem acao.\n4. Se caiu, troca o status dos follow-ups ainda nao enviados para o status configurado.\n\nNao existe horario hardcoded de expediente neste fluxo. O horario vem da FAQ.",
+        "height": 436,
+        "width": 420,
+        "color": 5
+      },
+      "id": "c15a5a2f-4ed0-46c7-9268-34d8cb9b6499",
+      "name": "Notas do fluxo",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        128,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ev15-config-timezone",
+              "name": "timezone",
+              "value": "America/Sao_Paulo",
+              "type": "string"
+            },
+            {
+              "id": "ev15-config-faq-nome-busca-horario",
+              "name": "faq_nome_busca_horario",
+              "value": "horario",
+              "type": "string"
+            },
+            {
+              "id": "ev15-config-intervalo-cron-minutos",
+              "name": "intervalo_cron_minutos",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "ev15-config-atraso-limpeza-minutos",
+              "name": "atraso_limpeza_minutos",
+              "value": 5,
+              "type": "number"
+            },
+            {
+              "id": "ev15-config-status-enviado-followup",
+              "name": "status_enviado_followup",
+              "value": "ENVIADO",
+              "type": "string"
+            },
+            {
+              "id": "ev15-config-status-cancelado-fim-expediente",
+              "name": "status_cancelado_fim_expediente",
+              "value": "CANCELADO_FIM_EXPEDIENTE",
+              "type": "string"
+            },
+            {
+              "id": "ev15-config-texto-descricao-cancelamento",
+              "name": "texto_descricao_cancelamento",
+              "value": "Cancelado automaticamente no fim do expediente.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "647facaa-a339-4bb0-9a1a-92cb25ed6653",
+      "name": "Variaveis limpeza follow-ups",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        368,
+        496
+      ],
+      "notesInFlow": true,
+      "notes": "Centraliza variaveis de producao deste workflow."
+    },
+    {
+      "id": "08bcde34-02d2-4c03-a043-7c9af35efe72",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-15 Limpar Follow-ups Fim Expediente\nCRM de teste / Evolution.\nVer pendencias gerais no manifesto local.\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "Checar fim de expediente a cada 10 minutos": {
+      "main": [
+        [
+          {
+            "node": "Variaveis limpeza follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar horario na FAQ": {
+      "main": [
+        [
+          {
+            "node": "Calcular janela de limpeza",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular janela de limpeza": {
+      "main": [
+        [
+          {
+            "node": "Esta na hora de limpar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esta na hora de limpar?": {
+      "main": [
+        [
+          {
+            "node": "Cancelar follow-ups nao enviados",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Encerrar sem limpeza",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancelar follow-ups nao enviados": {
+      "main": [
+        [
+          {
+            "node": "Resumo limpeza",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Variaveis limpeza follow-ups": {
+      "main": [
+        [
+          {
+            "node": "Buscar horario na FAQ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}

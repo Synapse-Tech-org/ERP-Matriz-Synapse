@@ -11,7 +11,8 @@ import com.synapse.crm.core.domain.lembrete.StatusLembrete;
  * nova; a visibilidade continua vindo do JOIN com o lead do usuario, nunca deste parametro sozinho.
  */
 public record FiltroLembretes(
-        Instant inicio, Instant fim, StatusLembrete status, UUID leadId, int pagina, int tamanho) {
+        Instant inicio, Instant fim, StatusLembrete status, UUID leadId, UUID atendenteId, String busca,
+        Boolean origemAutomatica, int pagina, int tamanho) {
     public FiltroLembretes {
         if (pagina < 0 || tamanho < 1) {
             throw new IllegalArgumentException("pagina e tamanho devem ser positivos");

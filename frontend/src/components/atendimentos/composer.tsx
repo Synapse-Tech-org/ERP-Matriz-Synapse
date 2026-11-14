@@ -1,5 +1,7 @@
 "use client";
 
+import { enterEnviaMensagem } from "@/lib/atendimento/preferencia-de-envio";
+
 import { type ChangeEvent, type ClipboardEvent, type KeyboardEvent, type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -171,8 +173,12 @@ export function Composer({
   const podeVerTemplates = capacidades.pode("templates.ver");
   const podeAgendar = capacidades.pode("mensagens_programadas.criar");
   const rapidas = useQuery({
-    queryKey: ["mensagens-rapidas", "minhas"],
-    queryFn: () => listarMensagensRapidas(true),
+    queryKey: ["mensagens-rapidas", "minhas", "gerais"],
+    queryFn: async () => {
+      const mensagens = await listarMensagensRapidas(true, true);
+      const pessoais = new Set(mensagens.filter(({ geral }) => !geral).map(({ palavraChave }) => palavraChave.toLowerCase()));
+      return mensagens.filter(({ geral, palavraChave }) => !geral || !pessoais.has(palavraChave.toLowerCase()));
+    },
     enabled: podeUsarRapidas,
   });
   const lead = useLead(conversa.leadId);
@@ -536,7 +542,7 @@ export function Composer({
       onCancelarResposta?.();
       return;
     }
-    if (evento.key === "Enter" && !evento.shiftKey) {
+    if (evento.key === "Enter" && !evento.shiftKey && !evento.nativeEvent.isComposing && enterEnviaMensagem()) {
       evento.preventDefault();
       enviarConteudo();
     }

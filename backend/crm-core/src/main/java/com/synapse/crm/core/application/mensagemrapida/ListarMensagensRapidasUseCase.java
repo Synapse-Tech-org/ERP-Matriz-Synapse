@@ -21,9 +21,10 @@ public class ListarMensagensRapidasUseCase {
 
     @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR','OPERADOR') and @capacidades.permite('mensagens_rapidas.usar')")
     @Transactional(readOnly = true)
-    public List<MensagemRapida> executar(boolean somenteMinhas) {
+    public List<MensagemRapida> executar(boolean somenteMinhas, boolean incluirGerais) {
         var atual = usuario.atual();
         return repo.listar(new EscopoMensagensRapidas(
-                atual.id(), !somenteMinhas && atual.papel().enxergaTodosOsLeads()));
+                atual.id(), !somenteMinhas && atual.papel().enxergaTodosOsLeads()),
+                !somenteMinhas || incluirGerais);
     }
 }

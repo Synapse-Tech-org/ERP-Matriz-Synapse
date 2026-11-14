@@ -163,7 +163,7 @@ class AtendimentosAutomacaoInternalController {
                 "registrar-avaliacao-automacao",
                 () -> {
                     RegistrarAvaliacaoUseCase.Resultado resultado = avaliacoes.executarPelaAutomacao(
-                            id, requisicao.nota(), requisicao.comentario());
+                            id, requisicao.nota(), requisicao.comentario(), requisicao.notaRecomendacao());
                     HttpStatus status = resultado.recemCriada() ? HttpStatus.CREATED : HttpStatus.OK;
                     return ResponseEntity.status(status).body(AvaliacaoResposta.de(resultado.avaliacao()));
                 });
@@ -233,7 +233,9 @@ class AtendimentosAutomacaoInternalController {
             @Schema(description = "Nota de 0 a 10.", example = "7", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotNull Integer nota,
             @Schema(description = "Comentário opcional.", example = "Atendimento rápido")
-                    @Size(max = 2000) String comentario) {}
+                    @Size(max = 2000) String comentario,
+            @Schema(description = "Resposta opcional de 0 a 10 à pergunta própria de recomendação.", example = "9")
+                    Integer notaRecomendacao) {}
 
     record AvaliacaoResposta(
             UUID id, UUID atendimentoId, UUID atendenteId, int nota, String comentario, Instant criadoEm) {

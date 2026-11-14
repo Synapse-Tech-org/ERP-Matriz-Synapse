@@ -30,8 +30,11 @@ import {
 } from "@/components/ui/dialog";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Seletor } from "@/components/ui/seletor";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
+import { fonteFrontendV2 } from "@/lib/config/fonte-frontend-v2";
 import {
   faixaDaHora,
   resumoDoHorario,
@@ -39,12 +42,29 @@ import {
 } from "@/lib/dashboard/horario-de-pico";
 import { useVisaoGeralDashboard } from "@/lib/dashboard/use-dashboard";
 import type { Comparativo, VisaoGeralDashboard } from "@/lib/dashboard/types";
+import { useMinhasPermissoes } from "@/lib/gestao/use-gestao";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn, iniciaisDoNome } from "@/lib/utils";
 
 import { GraficoKpi, type CampoSerie } from "./grafico-kpi";
+import { BuscaDoDashboard } from "./busca-do-dashboard";
+import { CentralDeAvisos } from "@/components/notificacoes/central-de-avisos";
+import estilosV2 from "./dashboard-v2.module.css";
+import { IconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
+
 
 const ANOS_DISPONIVEIS = 7;
+const ICONES_KPI_V2 = {
+  atendimentos: "customer-service-2-fill",
+  novosLeads: "user-add-fill",
+  tempoMedioSegundos: "hourglass-fill",
+  vendasFechadas: "shopping-bag-3-fill",
+  taxaConversao: "percent-fill",
+  avaliacaoMedia: "star-fill",
+  nps: "emotion-happy-fill",
+  resolucaoPorIa: "robot-2-fill",
+} as const satisfies Record<CampoSerie, React.ComponentProps<typeof IconeFrontendV2>["nome"]>;
+
 const HORAS_DO_DIA = Array.from({ length: 24 }, (_, hora) => hora);
 type PeriodoEnxuto = "hoje" | "seteDias" | "mes" | "ano";
 type ModoDashboard = "compacta" | "expandida";
@@ -62,6 +82,20 @@ const TOM_AVALIACAO = "var(--cor-atencao)";
 const TOM_IA = "var(--cor-ia)";
 const TOM_NOVOS_LEADS = "var(--cor-destaque-2)";
 const TOM_VENDAS = "var(--cor-destaque-3)";
+
+const TONS_KPI_V2 = {
+  atendimentos: "var(--v2-azul)",
+  novosLeads: "var(--v2-azul)",
+  tempoMedioSegundos: "var(--v2-turquesa)",
+  vendasFechadas: "var(--v2-verde)",
+  taxaConversao: "var(--v2-verde)",
+  avaliacaoMedia: "var(--v2-dourado)",
+  resolucaoPorIa: "var(--v2-violeta)",
+  primeiraResposta: "var(--v2-turquesa)",
+  nps: "var(--v2-indigo)",
+  transferencias: "var(--v2-violeta)",
+  leadsParados: "var(--v2-vermelho)",
+} as const;
 
 /*
  * Ouro / prata / bronze do pódio. Não existe token de "prata" nem de "bronze" no tema; o mais
@@ -128,7 +162,10 @@ function fracaoPercentual(parte: number, total: number): number {
 }
 
 export function PaginaDashboard() {
-  const textos = useTextos().dashboard;
+  const catalogo = useTextos();
+  const textos = catalogo.dashboard;
+  const funcionalidades = useFuncionalidadesHabilitadas();
+  const layoutV2 = funcionalidades.data?.includes("dashboard_layout_v2") ?? false;
   const telaEstreita = useTelaEstreita();
   const anoAtual = new Date().getFullYear();
   const [ano, setAno] = useState(anoAtual);
@@ -140,6 +177,7 @@ export function PaginaDashboard() {
   const [periodo, setPeriodo] = useState<PeriodoEnxuto>("mes");
   const [avisoComputadorAberto, setAvisoComputadorAberto] = useState(false);
   const [modo, setModo] = useState<ModoDashboard>("compacta");
+  const [filtrosAvancadosAbertos, setFiltrosAvancadosAbertos] = useState(false);
 
   const filtro = useMemo(
     () => ({
@@ -209,9 +247,28 @@ export function PaginaDashboard() {
   return (
     <div
       data-testid="dashboard-conteudo"
-      className="flex min-h-full flex-col gap-5 bg-background p-6 lg:p-7 max-sm:gap-4 max-sm:p-4"
+      data-layout={layoutV2 ? "v2" : "legado"}
+      data-modo={modo}
+      className={cn("flex min-h-full flex-col gap-5 bg-background p-6 lg:p-7 max-sm:gap-4 max-sm:p-4", layoutV2 && [estilosV2.pagina, fonteFrontendV2.variable])}
     >
-      <header className="-mx-6 -mt-6 border-b bg-card px-6 pt-7 lg:-mx-7 lg:-mt-7 lg:px-7 max-sm:-mx-4 max-sm:-mt-4 max-sm:px-4">
+      {layoutV2 && (
+        <div data-slot="dashboard-topo">
+          <nav data-slot="dashboard-caminho" aria-label={textos.titulo}>
+            <a href="/atendimentos" aria-label={catalogo.menu.itens.atendimentos}>
+              <IconeFrontendV2 nome="home-5-line" />
+            </a>
+            <span aria-hidden>/</span>
+            <span>{catalogo.menu.grupoGestao}</span>
+            <span aria-hidden>/</span>
+            <span aria-current="page">{textos.titulo}</span>
+          </nav>
+          <div data-slot="dashboard-acoes-topo">
+            <BuscaDoDashboard dados={consulta.data} />
+            <CentralDeAvisos />
+          </div>
+        </div>
+      )}
+      <header data-slot="dashboard-cabecalho" className="-mx-6 -mt-6 border-b bg-card px-6 pt-7 lg:-mx-7 lg:-mt-7 lg:px-7 max-sm:-mx-4 max-sm:-mt-4 max-sm:px-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-foreground">{textos.titulo}</h1>
@@ -223,25 +280,42 @@ export function PaginaDashboard() {
               variant="outline"
               size="sm"
               className="rounded-full"
-              onClick={() => setAvisoComputadorAberto(true)}
+              aria-expanded={layoutV2 ? filtrosAvancadosAbertos : undefined}
+              aria-controls={layoutV2 ? "dashboard-filtros" : undefined}
+              onClick={() => layoutV2
+                ? setFiltrosAvancadosAbertos((abertos) => !abertos)
+                : setAvisoComputadorAberto(true)}
             >
-              <Lock className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+              {layoutV2
+                ? <ListFilter className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+                : <Lock className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />}
               {textos.filtros.rotulo}
             </Button>
           )}
         </div>
         {/* As abas futuras continuam desabilitadas até terem dados e comportamento reais. */}
-        <nav className="mt-3 flex flex-wrap items-end gap-1" aria-label={textos.abas.rotulo}>
-          <Aba ativa>{textos.abas.visaoGeral}</Aba>
-          {[textos.abas.operacional, textos.abas.comercial].map((aba) => (
-            <Aba key={aba}>{`${aba} · ${textos.abas.depois}`}</Aba>
+        <nav data-slot="dashboard-areas" className="mt-3 flex flex-wrap items-end gap-1" aria-label={textos.abas.rotulo}>
+          <Aba ativa icone={layoutV2 ? "layout-grid-line" : undefined}>{textos.abas.visaoGeral}</Aba>
+          {([
+            [textos.abas.operacional, "pulse-line"],
+            [textos.abas.comercial, "funds-line"],
+            [textos.abas.iaAutomacao, "sparkling-2-line"],
+          ] as const).map(([aba, icone]) => (
+            <Aba
+              key={aba}
+              icone={layoutV2 ? icone : undefined}
+              emBreve={textos.abas.depois}
+              className={icone === "sparkling-2-line" ? "max-sm:hidden" : undefined}
+            >
+              {aba}
+            </Aba>
           ))}
-          <Aba className="max-sm:hidden">{`${textos.abas.iaAutomacao} · ${textos.abas.depois}`}</Aba>
         </nav>
       </header>
 
+      <div data-slot="dashboard-corpo" className={layoutV2 ? estilosV2.corpo : "contents"}>
       {telaEstreita && (
-        <div className="flex flex-wrap gap-2" role="group" aria-label={textos.periodos.rotulo}>
+        <div data-slot="dashboard-periodos" className="flex flex-wrap gap-2" role="group" aria-label={textos.periodos.rotulo}>
           {(["hoje", "seteDias", "mes", "ano"] as const).map((item) => (
             <Button
               key={item}
@@ -262,24 +336,39 @@ export function PaginaDashboard() {
       )}
 
       <section
-        className="hidden rounded-2xl border bg-card p-4 sm:block"
+        id="dashboard-filtros"
+        data-slot="dashboard-filtros"
+        hidden={layoutV2 && telaEstreita && !filtrosAvancadosAbertos ? true : undefined}
+        className={cn("rounded-2xl border bg-card p-4", !layoutV2 && "hidden sm:block")}
         aria-label={textos.filtros.rotulo}
       >
         <div className="flex flex-wrap items-center gap-2">
-          <div className="w-20 shrink-0">
+          <div data-slot="dashboard-ano" className="w-20 shrink-0">
             <label
               className="sr-only"
               htmlFor="dashboard-ano"
             >
               {textos.filtros.ano}
             </label>
-            <Seletor
-              id="dashboard-ano"
-              valor={String(ano)}
-              opcoes={opcoesDeAno}
-              onChange={(valor) => setAno(Number(valor))}
-              placeholder={textos.filtros.ano}
-            />
+            {layoutV2 ? (
+              <Select value={String(ano)} onValueChange={(valor) => { if (valor) setAno(Number(valor)); }}>
+                <SelectTrigger id="dashboard-ano">
+                  <IconeFrontendV2 nome="calendar-2-line" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false}>
+                  {opcoesDeAno.map(({ valor, rotulo }) => <SelectItem key={valor} value={valor}>{rotulo}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Seletor
+                id="dashboard-ano"
+                valor={String(ano)}
+                opcoes={opcoesDeAno}
+                onChange={(valor) => setAno(Number(valor))}
+                placeholder={textos.filtros.ano}
+              />
+            )}
           </div>
           <div className="min-w-0 flex flex-1 flex-wrap items-center gap-2">
             <span className="sr-only">
@@ -289,7 +378,7 @@ export function PaginaDashboard() {
               Pílulas suaves com contorno: só o que está selecionado ganha destaque. Doze pílulas
               azuis sólidas liam como "tudo selecionado" e viravam parede de azul.
             */}
-            <div className="flex flex-wrap gap-1">
+            <div data-slot="dashboard-meses" className="flex flex-wrap gap-1">
               <Button
                 type="button"
                 size="sm"
@@ -304,6 +393,7 @@ export function PaginaDashboard() {
               >
                 {textos.filtros.anoInteiro}
               </Button>
+              {layoutV2 && <span data-slot="dashboard-meses-divisor" aria-hidden="true" />}
               {textos.meses.map((mes, indice) => {
                 const valor = indice + 1;
                 const ativo = meses.includes(valor);
@@ -327,6 +417,7 @@ export function PaginaDashboard() {
             </div>
           </div>
           <div
+            data-slot="dashboard-modos"
             className="flex shrink-0 items-center rounded-xl bg-muted p-1"
             role="group"
             aria-label={textos.modos.rotulo}
@@ -339,7 +430,7 @@ export function PaginaDashboard() {
               onClick={() => setModo("compacta")}
               className={cn("h-8 gap-1.5 px-2 text-xs", modo === "compacta" && "text-primary shadow-sm")}
             >
-              <LayoutGrid className="size-3.5" aria-hidden />
+              {layoutV2 ? <IconeFrontendV2 nome="layout-grid-fill" /> : <LayoutGrid className="size-3.5" aria-hidden />}
               {textos.modos.compacta}
             </Button>
             <Button
@@ -350,15 +441,17 @@ export function PaginaDashboard() {
               onClick={() => setModo("expandida")}
               className={cn("h-8 gap-1.5 px-2 text-xs", modo === "expandida" && "text-primary shadow-sm")}
             >
-              <ChartColumn className="size-3.5" aria-hidden />
+              {layoutV2 ? <IconeFrontendV2 nome="bar-chart-box-fill" /> : <ChartColumn className="size-3.5" aria-hidden />}
               {textos.modos.expandida}
             </Button>
           </div>
-          <div className="w-48 shrink-0 text-xs">
+          <div data-slot="dashboard-originacao" className="w-48 shrink-0 text-xs">
             <span className="sr-only">
               {textos.filtros.originacao}
             </span>
             <SeletorDeOriginacao
+              layoutV2={layoutV2}
+              telaEstreita={telaEstreita}
               inicio={origemInicio}
               fim={origemFim}
               onChange={(novoInicio, novoFim) => {
@@ -368,7 +461,7 @@ export function PaginaDashboard() {
             />
           </div>
         </div>
-        {meses.length === 0 && (
+        {meses.length === 0 && !(inicio && fim) && (
           <p role="alert" className="mt-3 text-sm text-destructive">
             {textos.filtros.selecioneMes}
           </p>
@@ -380,7 +473,7 @@ export function PaginaDashboard() {
         )}
       </section>
 
-      {consulta.isLoading && <p className="text-sm text-muted-foreground">{textos.carregando}</p>}
+      {consulta.isLoading && <p role="status" className="text-sm text-muted-foreground">{textos.carregando}</p>}
       {consulta.isError && (
         <ErroDeCarregamento mensagem={textos.erro} onTentarNovamente={() => consulta.refetch()} />
       )}
@@ -390,8 +483,10 @@ export function PaginaDashboard() {
           modo={modo}
           telaEstreita={telaEstreita}
           atualizadoEm={consulta.dataUpdatedAt ?? 0}
+          layoutV2={layoutV2}
         />
       )}
+      </div>
       <Dialog open={avisoComputadorAberto} onOpenChange={setAvisoComputadorAberto}>
         <DialogContent>
           <DialogHeader>
@@ -408,10 +503,14 @@ function Aba({
   children,
   ativa = false,
   className,
+  icone,
+  emBreve,
 }: {
   children: React.ReactNode;
   ativa?: boolean;
   className?: string;
+  icone?: React.ComponentProps<typeof IconeFrontendV2>["nome"];
+  emBreve?: string;
 }) {
   return (
     <Button
@@ -426,7 +525,9 @@ function Aba({
         className,
       )}
     >
+      {icone && <IconeFrontendV2 nome={icone} />}
       {children}
+      {emBreve && (icone ? <span data-slot="dashboard-em-breve">{emBreve}</span> : ` · ${emBreve}`)}
     </Button>
   );
 }
@@ -437,10 +538,14 @@ function Aba({
  * fecha o de fora ao clicar no calendário de dentro.
  */
 function SeletorDeOriginacao({
+  layoutV2,
+  telaEstreita,
   inicio,
   fim,
   onChange,
 }: {
+  layoutV2: boolean;
+  telaEstreita: boolean;
   inicio: string;
   fim: string;
   onChange: (inicio: string, fim: string) => void;
@@ -465,12 +570,14 @@ function SeletorDeOriginacao({
           />
         }
       >
+        {layoutV2 && <IconeFrontendV2 nome="calendar-line" />}
         <span className="truncate">{rotulo}</span>
-        <CalendarDays className="size-(--tamanho-icone-interface)" aria-hidden />
+        {layoutV2 ? <IconeFrontendV2 nome="arrow-down-s-line" /> : <CalendarDays className="size-(--tamanho-icone-interface)" aria-hidden />}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-auto p-0">
         <Calendar
           mode="range"
+          numberOfMonths={layoutV2 && !telaEstreita ? 2 : 1}
           locale={ptBR}
           weekStartsOn={0}
           selected={{ from: paraDataLocal(inicio), to: paraDataLocal(fim) }}
@@ -498,11 +605,13 @@ function ConteudoDashboard({
   modo,
   telaEstreita,
   atualizadoEm,
+  layoutV2,
 }: {
   dados: VisaoGeralDashboard;
   modo: ModoDashboard;
   telaEstreita: boolean;
   atualizadoEm: number;
+  layoutV2: boolean;
 }) {
   const textos = useTextos().dashboard;
   const duracao = dados.tempoMedioAtendimento.segundos;
@@ -510,10 +619,10 @@ function ConteudoDashboard({
 
   return (
     <>
-      <FaixaAoVivo status={dados.statusAoVivo} atualizadoEm={atualizadoEm} />
+      <FaixaAoVivo status={dados.statusAoVivo} atualizadoEm={atualizadoEm} layoutV2={layoutV2} />
 
-      {/* Indicadores com fonte confirmada; NPS continua sem coleta própria. */}
       <section
+        data-slot="dashboard-indicadores"
         className={cn(
           "grid grid-cols-1 sm:grid-cols-2",
           modo === "compacta" ? "gap-3" : "gap-4",
@@ -534,6 +643,7 @@ function ConteudoDashboard({
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="atendimentos"
+          layoutV2={layoutV2}
         />
         <Kpi
           titulo={textos.kpis.novosLeads}
@@ -545,7 +655,14 @@ function ConteudoDashboard({
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="novosLeads"
+          layoutV2={layoutV2}
         />
+        {layoutV2 && (
+          <KpiSemSerie
+            chave="primeiraResposta"
+            icone="user-voice-fill"
+          />
+        )}
         <Kpi
           titulo={textos.kpis.tempoMedio}
           valor={valorDuracao}
@@ -557,6 +674,7 @@ function ConteudoDashboard({
           quedaPositiva
           serie={dados.seriesMensais ?? []}
           campoSerie="tempoMedioSegundos"
+          layoutV2={layoutV2}
         />
         <Kpi
           titulo={textos.kpis.vendas}
@@ -570,6 +688,7 @@ function ConteudoDashboard({
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="vendasFechadas"
+          layoutV2={layoutV2}
         />
         <Kpi
           titulo={textos.kpis.conversao}
@@ -588,7 +707,22 @@ function ConteudoDashboard({
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="taxaConversao"
+          layoutV2={layoutV2}
         />
+        {layoutV2 && (dados.nps?.valor != null ? (
+          <Kpi
+            titulo={textos.v2.nps}
+            valor={numero(dados.nps.valor)}
+            apoio={preencher(textos.v2.npsApoio, { total: numero(dados.nps.respostas) })}
+            comparativo={dados.nps.comparativo}
+            Icone={Star}
+            tom={TOM_NOVOS_LEADS}
+            modo={modo}
+            serie={dados.seriesMensais ?? []}
+            campoSerie="nps"
+            layoutV2
+          />
+        ) : <KpiSemSerie chave="nps" icone="emotion-happy-fill" />)}
         <Kpi
           titulo={textos.kpis.csat}
           valor={
@@ -603,6 +737,7 @@ function ConteudoDashboard({
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="avaliacaoMedia"
+          layoutV2={layoutV2}
         />
         <Kpi
           titulo={textos.kpis.resolucaoIa}
@@ -618,20 +753,29 @@ function ConteudoDashboard({
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="resolucaoPorIa"
+          layoutV2={layoutV2}
         />
+        {layoutV2 && (
+          <>
+            <KpiSemSerie chave="transferencias" icone="arrow-left-right-line" />
+            <KpiSemSerie chave="leadsParados" icone="user-unfollow-fill"
+              valor={dados.leadsParados == null ? undefined : numero(dados.leadsParados)}
+              apoio={textos.v2.leadsParadosApoio} />
+          </>
+        )}
       </section>
 
-      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-12">
+      <div data-slot="dashboard-analises" className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-12">
         <div className="min-w-0 xl:col-span-7">
-          <Funil dados={dados} />
+          {layoutV2 ? <FunilV2 dados={dados} /> : <Funil dados={dados} />}
         </div>
         <div className="min-w-0 xl:col-span-5">
           <ResumoSatisfacao dados={dados.avaliacaoMedia} />
         </div>
       </div>
-      <Equipe dados={dados} />
+      <Equipe dados={dados} layoutV2={layoutV2} />
       <HorarioDePico dados={dados} />
-      {telaEstreita && (
+      {telaEstreita && !layoutV2 && (
         <p className="flex items-start gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 px-3 py-3 text-xs text-muted-foreground">
           <Monitor className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" aria-hidden />
           {textos.avisoComputador}
@@ -642,6 +786,7 @@ function ConteudoDashboard({
 }
 
 interface KpiProps {
+  layoutV2: boolean;
   titulo: string;
   valor: string;
   apoio: string;
@@ -655,6 +800,7 @@ interface KpiProps {
 }
 
 function Kpi({
+  layoutV2,
   titulo,
   valor,
   apoio,
@@ -674,7 +820,7 @@ function Kpi({
     return numero(valorSerie);
   };
   const amostras = serie
-    .filter((ponto) => ponto.disponivel && ponto[campoSerie] !== null)
+    .filter((ponto) => ponto.disponivel && ponto[campoSerie] != null)
     .map((ponto) => ({ mes: ponto.mes, valor: Number(ponto[campoSerie]) }));
   const resumoSerie = amostras.length === 0 ? textos.semDado : (() => {
     const minimo = amostras.reduce((atual, ponto) => ponto.valor < atual.valor ? ponto : atual);
@@ -691,8 +837,9 @@ function Kpi({
   // O mesmo agregado mensal alimenta a sparkline compacta e o gráfico detalhado expandido.
   return (
     <Card
+      data-dashboard-kpi={campoSerie}
       className={cn(modo === "compacta" ? "min-h-22 gap-1 py-2" : "min-h-60 gap-1.5 py-5")}
-      style={{ "--tom": tom } as React.CSSProperties}
+      style={{ "--tom": layoutV2 ? TONS_KPI_V2[campoSerie] : tom } as React.CSSProperties}
     >
       <CardHeader className="flex items-center gap-3 px-4">
         <span
@@ -702,7 +849,9 @@ function Kpi({
               "size-10 rounded-xl bg-[color-mix(in_oklab,var(--tom)_10%,transparent)]",
           )}
         >
-          <Icone className="size-(--tamanho-icone-interface)" />
+          {layoutV2
+            ? <IconeFrontendV2 nome={ICONES_KPI_V2[campoSerie]} />
+            : <Icone className="size-(--tamanho-icone-interface)" aria-hidden />}
         </span>
         <div className="min-w-0 flex-1">
           <CardTitle className="truncate text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
@@ -710,7 +859,7 @@ function Kpi({
           </CardTitle>
           {modo === "expandida" && (
             <div className="mt-0.5 flex items-center gap-2">
-              <p className="text-2xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>
+              <p data-slot="dashboard-kpi-valor" className="text-2xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>
                 {valor}
               </p>
               {comparativo && (
@@ -718,16 +867,18 @@ function Kpi({
                   comparativo={comparativo}
                   quedaPositiva={quedaPositiva}
                   sufixo={textos.kpis.periodoAnterior}
+                  layoutV2={layoutV2}
                 />
               )}
             </div>
           )}
         </div>
+        {layoutV2 && campoSerie === "nps" && <span data-slot="dashboard-selo-novo">{textos.v2.seloNovo}</span>}
         {/*
           Sem comparativo, sem selo. A API só devolve variação quando existe período anterior
           comparável; calcular no cliente daria selo inventado em painel executivo.
         */}
-        {modo === "compacta" && comparativo && (
+        {modo === "compacta" && !layoutV2 && comparativo && (
           <SeloDeTendencia
             comparativo={comparativo}
             quedaPositiva={quedaPositiva}
@@ -736,6 +887,19 @@ function Kpi({
         )}
       </CardHeader>
       <CardContent className="px-4">
+        {modo === "compacta" && layoutV2 ? (
+          <div data-slot="dashboard-kpi-leitura" className="flex min-w-0 items-end justify-between gap-3.5">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <p data-slot="dashboard-kpi-valor" className="font-semibold" data-testid={`kpi-${titulo}`}>{valor}</p>
+                {comparativo && <SeloDeTendencia comparativo={comparativo} quedaPositiva={quedaPositiva} sufixo={textos.kpis.periodoAnterior} layoutV2 />}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">{apoio}</p>
+            </div>
+            <GraficoKpi pontos={serie} campo={campoSerie} compacto layoutV2 titulo={titulo}
+              meses={textos.meses} semDado={textos.semDado} formatar={formatarValor} />
+          </div>
+        ) : <>
         {modo === "compacta" && (
           <div className="float-right mt-0.5 ml-2">
             <GraficoKpi pontos={serie} campo={campoSerie} compacto titulo={titulo}
@@ -743,7 +907,7 @@ function Kpi({
           </div>
         )}
         {modo === "compacta" && (
-          <p className="text-2xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>
+          <p data-slot="dashboard-kpi-valor" className="text-2xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>
             {valor}
           </p>
         )}
@@ -754,6 +918,37 @@ function Kpi({
           <GraficoKpi pontos={serie} campo={campoSerie} compacto={false} titulo={titulo}
             meses={textos.meses} semDado={textos.semDado} formatar={formatarValor} />
         )}
+        </>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function KpiSemSerie({
+  chave,
+  icone,
+  valor,
+  apoio,
+}: {
+  chave: "primeiraResposta" | "nps" | "transferencias" | "leadsParados";
+  icone: React.ComponentProps<typeof IconeFrontendV2>["nome"];
+  valor?: string;
+  apoio?: string;
+}) {
+  const textos = useTextos().dashboard;
+  return (
+    <Card data-dashboard-kpi={chave} data-indisponivel={valor == null ? "true" : undefined}
+      style={{ "--tom": TONS_KPI_V2[chave] } as React.CSSProperties}>
+      <CardHeader>
+        <span className="shrink-0 text-[var(--tom)]"><IconeFrontendV2 nome={icone} /></span>
+        <CardTitle>{textos.v2[chave]}</CardTitle>
+        {chave !== "transferencias" && <span data-slot="dashboard-selo-novo">{textos.v2.seloNovo}</span>}
+      </CardHeader>
+      <CardContent data-slot="dashboard-kpi-leitura">
+        <div>
+          <span data-slot="dashboard-kpi-valor" aria-hidden={valor == null ? true : undefined}>{valor ?? textos.v2.valorIndisponivel}</span>
+          <p className="text-xs text-muted-foreground">{valor == null ? textos.v2.indisponivel : apoio}</p>
+        </div>
       </CardContent>
     </Card>
   );
@@ -763,10 +958,12 @@ function SeloDeTendencia({
   comparativo,
   quedaPositiva,
   sufixo,
+  layoutV2 = false,
 }: {
   comparativo: Comparativo;
   quedaPositiva: boolean;
   sufixo: string;
+  layoutV2?: boolean;
 }) {
   const subiu = comparativo.valor >= 0;
   const positivo = quedaPositiva ? !subiu : subiu;
@@ -783,8 +980,10 @@ function SeloDeTendencia({
           : "bg-destructive/10 text-destructive",
       )}
       title={`${texto} ${sufixo}`}
+      data-slot="dashboard-tendencia"
       data-testid="selo-tendencia"
     >
+      {layoutV2 && <IconeFrontendV2 nome={subiu ? "arrow-up-line" : "arrow-down-line"} />}
       {texto}
       <span className="sr-only"> {sufixo}</span>
     </span>
@@ -792,16 +991,18 @@ function SeloDeTendencia({
 }
 
 /**
- * Faixa "AGORA": só os quatro itens do mockup com critério real hoje (ver Javadoc de
- * StatusAoVivo). "Atualizado há Ns" ticka a cada segundo via efeito — `Date.now()` só é chamado
+ * A faixa usa os cinco contadores do contrato de StatusAoVivo.
+ * "Atualizado há Ns" ticka a cada segundo via efeito — `Date.now()` só é chamado
  * dentro do `setInterval`, nunca durante o render, que precisa ficar puro.
  */
 function FaixaAoVivo({
   status,
   atualizadoEm,
+  layoutV2,
 }: {
   status: VisaoGeralDashboard["statusAoVivo"];
   atualizadoEm: number;
+  layoutV2: boolean;
 }) {
   const textos = useTextos().dashboard;
   const [agora, setAgora] = useState(atualizadoEm);
@@ -817,20 +1018,26 @@ function FaixaAoVivo({
         ? preencher(textos.agora.atualizadoSegundos, { segundos })
         : preencher(textos.agora.atualizadoMinutos, { minutos: Math.round(segundos / 60) });
 
-  // Mesmo desenho do mockup: rótulo pequeno em cima, número grande embaixo, itens distribuídos
-  // em colunas iguais pela largura. São quatro colunas, não sete, pelo motivo do Javadoc acima.
+  const rotulo = layoutV2 ? textos.v2.aoVivo : textos.agora.rotulo;
   return (
     <section
-      aria-label={textos.agora.rotulo}
+      data-slot="dashboard-agora"
+      aria-label={rotulo}
       className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl bg-sidebar px-5 py-4 text-sidebar-foreground"
     >
-      <span className="inline-flex shrink-0 items-center gap-2 border-sidebar-foreground/15 pr-5 text-xs font-bold tracking-wider uppercase sm:border-r">
+      <span data-slot="dashboard-agora-rotulo" className="inline-flex shrink-0 items-center gap-2 border-sidebar-foreground/15 pr-5 text-xs font-bold tracking-wider uppercase sm:border-r">
         <span className="size-2 rounded-full bg-[var(--cor-sucesso)]" aria-hidden />
-        {textos.agora.rotulo}
+        {rotulo}
       </span>
-      <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 xl:grid-cols-5">
+      <div data-slot="dashboard-agora-contagens" className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 xl:grid-cols-5">
         <ItemAoVivo rotulo={textos.agora.emIa} valor={status.emIa} />
         <ItemAoVivo rotulo={textos.agora.emAtendimento} valor={status.emAtendimento} />
+        {layoutV2 && (
+          <>
+            <ItemAoVivo rotulo={textos.v2.aguardandoResposta} valor={textos.v2.valorIndisponivel} indisponivel={textos.v2.indisponivel} />
+            <ItemAoVivo rotulo={textos.v2.esquecidos} valor={textos.v2.valorIndisponivel} indisponivel={textos.v2.indisponivel} />
+          </>
+        )}
         <ItemAoVivo rotulo={textos.agora.leadsNovosHoje} valor={status.leadsNovosHoje} />
         <ItemAoVivo rotulo={textos.agora.vendasHoje} valor={status.vendasHoje} />
         <ItemAoVivo
@@ -838,17 +1045,22 @@ function FaixaAoVivo({
           valor={`${status.atendentesOnline.online}/${status.atendentesOnline.total}`}
         />
       </div>
-      <span className="shrink-0 text-[11px] text-sidebar-foreground/70">{rotuloAtualizado}</span>
+      <span data-slot="dashboard-atualizacao" className="shrink-0 text-[11px] text-sidebar-foreground/70">{rotuloAtualizado}</span>
     </section>
   );
 }
 
-function ItemAoVivo({ rotulo, valor }: { rotulo: string; valor: number | string }) {
+function ItemAoVivo({ rotulo, valor, indisponivel }: {
+  rotulo: string;
+  valor: number | string;
+  indisponivel?: string;
+}) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0" data-indisponivel={indisponivel ? "true" : undefined}>
       <p className="truncate text-[11px] font-medium text-sidebar-foreground/75">{rotulo}</p>
-      <p className="text-lg leading-tight font-bold tabular-nums">
-        {typeof valor === "number" ? numero(valor) : valor}
+      <p className="text-lg leading-tight font-bold tabular-nums" title={indisponivel}>
+        <span aria-hidden={indisponivel ? true : undefined}>{typeof valor === "number" ? numero(valor) : valor}</span>
+        {indisponivel && <span className="sr-only">{indisponivel}</span>}
       </p>
     </div>
   );
@@ -867,10 +1079,13 @@ function ResumoSatisfacao({
   const percentualRuim = total === 0 ? 0 : (ruim / total) * 100;
   const fimOtimo = percentualOtimo;
   const fimBom = percentualOtimo + percentualBom;
+  const tomOtimo = "var(--satisfacao-otimo, var(--cor-sucesso))";
+  const tomBom = "var(--satisfacao-bom, var(--cor-atencao))";
+  const tomRuim = "var(--satisfacao-ruim, var(--destructive))";
   const grafico: React.CSSProperties = {
     background: total === 0
       ? "var(--muted)"
-      : `conic-gradient(var(--cor-sucesso) 0% ${fimOtimo}%, var(--cor-atencao) ${fimOtimo}% ${fimBom}%, var(--destructive) ${fimBom}% 100%)`,
+      : `conic-gradient(${tomOtimo} 0% ${fimOtimo}%, ${tomBom} ${fimOtimo}% ${fimBom}%, ${tomRuim} ${fimBom}% 100%)`,
   };
   const apoio = preencher(textos.satisfacao.apoio, { total: dados.quantidade });
   const media = dados.media === null
@@ -878,7 +1093,7 @@ function ResumoSatisfacao({
     : `${percentual(dados.media)}/${dados.escalaMaxima}`;
 
   return (
-    <Card className="h-full min-w-0">
+    <Card id="dashboard-satisfacao" data-dashboard-satisfacao className="h-full min-w-0">
       <CardHeader>
         <CardTitle>{textos.satisfacao.titulo}</CardTitle>
         <p className="text-xs font-normal text-muted-foreground">{apoio}</p>
@@ -889,9 +1104,10 @@ function ResumoSatisfacao({
           style={grafico}
           role="img"
           aria-label={`${textos.satisfacao.titulo}: ${apoio}`}
+          data-slot="dashboard-satisfacao-anel"
           data-testid="grafico-distribuicao-avaliacoes"
         >
-          <div className="grid size-24 place-content-center rounded-full bg-card text-center">
+          <div data-slot="dashboard-satisfacao-media" className="grid size-24 place-content-center rounded-full bg-card text-center">
             <span className="text-2xl font-bold tabular-nums">{media}</span>
             <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
               {textos.satisfacao.media}
@@ -899,9 +1115,9 @@ function ResumoSatisfacao({
           </div>
         </div>
         <ul className="space-y-3 text-xs">
-          <FaixaSatisfacao rotulo={textos.satisfacao.otimo} quantidade={otimo} percentual={percentualOtimo} tom="bg-[var(--cor-sucesso)]" />
-          <FaixaSatisfacao rotulo={textos.satisfacao.bom} quantidade={bom} percentual={percentualBom} tom="bg-[var(--cor-atencao)]" />
-          <FaixaSatisfacao rotulo={textos.satisfacao.ruim} quantidade={ruim} percentual={percentualRuim} tom="bg-destructive" />
+          <FaixaSatisfacao rotulo={textos.satisfacao.otimo} quantidade={otimo} percentual={percentualOtimo} tom={tomOtimo} />
+          <FaixaSatisfacao rotulo={textos.satisfacao.bom} quantidade={bom} percentual={percentualBom} tom={tomBom} />
+          <FaixaSatisfacao rotulo={textos.satisfacao.ruim} quantidade={ruim} percentual={percentualRuim} tom={tomRuim} />
           {dados.quantidade === 0 && (
             <li className="text-muted-foreground">{textos.satisfacao.vazio}</li>
           )}
@@ -924,7 +1140,7 @@ function FaixaSatisfacao({
 }) {
   return (
     <li className="flex min-w-0 items-center gap-2">
-      <span className={cn("size-2.5 shrink-0 rounded-sm", tom)} aria-hidden />
+      <span className="size-2.5 shrink-0 rounded-sm" style={{ backgroundColor: tom }} aria-hidden />
       <span className="min-w-0 flex-1 truncate">{rotulo}</span>
       <span className="shrink-0 tabular-nums text-muted-foreground">
         {quantidade} · {percentual(valorPercentual)}%
@@ -938,23 +1154,26 @@ function FaixaSatisfacao({
  * (`equipeDesempenho`), ordenados por vendas conforme o mockup. Conversão e 1ª resposta por
  * atendente ficam fora — ver relatório da E197.
  */
-function Equipe({ dados }: { dados: VisaoGeralDashboard }) {
+function Equipe({ dados, layoutV2 }: { dados: VisaoGeralDashboard; layoutV2: boolean }) {
   const textos = useTextos().dashboard;
   const linhas = dados.equipeDesempenho;
   return (
-    <Card>
+    <Card id={layoutV2 ? "dashboard-equipe" : undefined} data-dashboard-tabela={layoutV2 ? "equipe" : undefined}>
       <CardHeader>
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <div>
             <CardTitle className="flex items-center gap-2 font-semibold">
-              <UsersRound className="size-(--tamanho-icone-interface) text-primary" aria-hidden />
+              {!layoutV2 && <UsersRound className="size-(--tamanho-icone-interface) text-primary" aria-hidden />}
               {textos.secoes.equipe}
             </CardTitle>
             <p className="text-xs font-normal text-muted-foreground">{textos.secoes.equipeApoio}</p>
           </div>
-          <span className="text-[11px] font-medium text-muted-foreground">
-            {textos.secoes.equipeOrdenadoPor}
-          </span>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span data-slot="dashboard-equipe-ordenacao" className="text-[11px] font-medium text-muted-foreground">
+              {textos.secoes.equipeOrdenadoPor}
+            </span>
+            {layoutV2 && <LinkParaEquipe />}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -962,22 +1181,28 @@ function Equipe({ dados }: { dados: VisaoGeralDashboard }) {
           <p className="text-sm text-muted-foreground">{textos.equipe.vazio}</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[480px] text-sm">
+            <table className="w-full min-w-[480px] text-sm" aria-label={textos.secoes.equipe}>
               <thead>
                 <tr className="border-b text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                  <th className="py-2 pr-3 font-semibold">{textos.equipe.colunaAtendente}</th>
-                  <th className="px-3 py-2 text-right font-semibold">
+                  <th scope="col" className="py-2 pr-3 font-semibold">{textos.equipe.colunaAtendente}</th>
+                  <th scope="col" className="px-3 py-2 text-right font-semibold">
                     {textos.equipe.colunaAtendimentos}
                   </th>
-                  <th className="px-3 py-2 text-right font-semibold">{textos.equipe.colunaVendas}</th>
-                  <th className="py-2 pl-3 text-right font-semibold">{textos.equipe.colunaNota}</th>
+                  <th scope="col" className="px-3 py-2 text-right font-semibold">{textos.equipe.colunaVendas}</th>
+                  {layoutV2 && (
+                    <>
+                      <th scope="col" className="text-right">{textos.kpis.conversao}</th>
+                      <th scope="col" className="text-right">{textos.v2.colunaPrimeiraResposta}</th>
+                    </>
+                  )}
+                  <th scope="col" className="py-2 pl-3 text-right font-semibold">{textos.equipe.colunaNota}</th>
                 </tr>
               </thead>
               <tbody>
                 {linhas.map((atendente, indice) => {
                   const medalha = MEDALHAS[indice];
                   return (
-                    <tr key={atendente.id} className="border-b last:border-0">
+                    <tr key={atendente.id} id={layoutV2 ? `dashboard-atendente-${atendente.id}` : undefined} className="border-b last:border-0">
                       <td className="py-3 pr-3">
                         <div className="flex items-center gap-2.5">
                           {/* Pódio do mockup: 1º a 3º em cor cheia; do 4º em diante, neutro. */}
@@ -1006,8 +1231,17 @@ function Equipe({ dados }: { dados: VisaoGeralDashboard }) {
                       <td className="px-3 py-3 text-right font-bold tabular-nums">
                         {numero(atendente.vendas)}
                       </td>
+                      {layoutV2 && (
+                        <>
+                          <td className="text-right"><ValorDeMetricaIndisponivel /></td>
+                          <td className="text-right"><ValorDeMetricaIndisponivel /></td>
+                        </>
+                      )}
                       <td className="py-3 pl-3 text-right font-semibold text-[var(--cor-atencao-escura)] tabular-nums">
-                        {atendente.nota === null ? textos.equipe.semNota : percentual(atendente.nota)}
+                        <span className={cn(layoutV2 && "inline-flex items-center gap-1")}>
+                          {layoutV2 && atendente.nota !== null && <IconeFrontendV2 nome="star-fill" />}
+                          {atendente.nota === null ? textos.equipe.semNota : percentual(atendente.nota)}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -1026,6 +1260,89 @@ function Equipe({ dados }: { dados: VisaoGeralDashboard }) {
             )}
           </p>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function LinkParaEquipe() {
+  const textos = useTextos().dashboard.v2;
+  const permissoes = useMinhasPermissoes();
+  if (!permissoes.data?.acessaGestao || !permissoes.data.capacidades["equipe.ver"]?.permitido) return null;
+
+  return (
+    <a href="/gestao" data-slot="dashboard-equipe-link" className="focus-visible:ring-2 focus-visible:ring-ring">
+      {textos.verEquipe}
+      <IconeFrontendV2 nome="arrow-right-up-line" />
+    </a>
+  );
+}
+
+function ValorDeMetricaIndisponivel() {
+  const textos = useTextos().dashboard.v2;
+  return (
+    <span className="relative text-muted-foreground" title={textos.indisponivel}>
+      <span aria-hidden="true">{textos.valorIndisponivel}</span>
+      <span className="sr-only">{textos.indisponivel}</span>
+    </span>
+  );
+}
+
+function FunilV2({ dados }: { dados: VisaoGeralDashboard }) {
+  const textos = useTextos().dashboard;
+  const maximo = Math.max(...dados.funil.map((etapa) => etapa.quantidade), 0);
+  return (
+    <Card id="dashboard-funil" data-dashboard-tabela="funil">
+      <CardHeader>
+        <CardTitle>{textos.secoes.funil}</CardTitle>
+        <p className="text-xs text-muted-foreground">{textos.funilApoio}</p>
+      </CardHeader>
+      <CardContent>
+        {dados.funil.length === 0 && <p className="mb-3 text-sm text-muted-foreground">{textos.funil.vazio}</p>}
+        <div className="overflow-x-auto">
+          <table className="w-full" aria-label={textos.secoes.funil}>
+            <thead>
+              <tr>
+                <th scope="col">{textos.funil.colunaEtapa}</th>
+                <td aria-hidden="true" />
+                <th scope="col" className="text-right">{textos.v2.colunaLeads}</th>
+                <th scope="col" className="text-right">{textos.funil.colunaPassa}</th>
+                <th scope="col" className="text-right">{textos.v2.colunaParado}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dados.funil.map((etapa) => (
+                <tr key={etapa.id}>
+                  <th scope="row" className="truncate text-left" title={etapa.nome}>{etapa.nome}</th>
+                  <td aria-hidden="true">
+                    <div data-slot="dashboard-funil-trilho">
+                      <div
+                        data-testid="barra-funil"
+                        style={{ width: `${fracaoPercentual(etapa.quantidade, maximo)}%` }}
+                      />
+                    </div>
+                  </td>
+                  <td className="text-right font-semibold">{numero(etapa.quantidade)}</td>
+                  <td className="text-right font-semibold text-primary">
+                    {etapa.percentualDePassagem === null
+                      ? textos.funil.semPassagem
+                      : `${percentual(etapa.percentualDePassagem)}%`}
+                  </td>
+                  <td className="text-right"><ValorDeMetricaIndisponivel /></td>
+                </tr>
+              ))}
+              <tr>
+                <th scope="row" className="text-left">{textos.funil.perdido}</th>
+                <td aria-hidden="true" />
+                <td className="text-right font-semibold text-destructive" data-testid="quantidade-perdidos">
+                  {numero(dados.leadsPerdidos)}
+                </td>
+                <td className="text-right text-muted-foreground">{textos.funil.semPassagem}</td>
+                <td className="text-right"><ValorDeMetricaIndisponivel /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </CardContent>
     </Card>
   );
@@ -1123,7 +1440,7 @@ function HorarioDePico({ dados }: { dados: VisaoGeralDashboard }) {
   const maximo = Math.max(...dados.horarioDePico.map((item) => item.quantidade), 0);
   const resumo = textoDoResumo(resumoDoHorario(porHora), textos.horario);
   return (
-    <Card>
+    <Card id="dashboard-horario">
       <CardHeader>
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <div>

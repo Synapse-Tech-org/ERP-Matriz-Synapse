@@ -538,6 +538,36 @@ function emitirNotificacao(notificacao: NotificacaoTempoReal) {
 }
 
 describe("PaginaAtendimentosCliente", () => {
+  it("mantém o layout legado quando a instância não habilitou a nova apresentação", async () => {
+    const pagina = renderPagina();
+    const grade = pagina.container.querySelector('[data-slot="pagina-atendimentos"]');
+    expect(grade).toHaveAttribute("data-layout", "legado");
+    act(() => pagina.queryClient.setQueryData(["config", "features"], ["chat_interno"]));
+    await waitFor(() => expect(grade).toHaveAttribute("data-layout", "legado"));
+  });
+
+  it("habilita e reverte o visual sem remontar conversa, composer ou conexão", async () => {
+    const pagina = renderPagina();
+    act(() => callbacks.abrir?.(cartaoInicial));
+    const historico = await screen.findByTestId("historico");
+    const composer = screen.getByTestId("composer");
+    const grade = pagina.container.querySelector('[data-slot="pagina-atendimentos"]');
+    const clientes = [...stomp.clientes];
+
+    act(() => pagina.queryClient.setQueryData(["config", "features"], ["atendimentos_layout_v2"]));
+    await waitFor(() => expect(grade).toHaveAttribute("data-layout", "v2"));
+    expect(screen.getByTestId("historico")).toBe(historico);
+    expect(screen.getByTestId("composer")).toBe(composer);
+    expect(callbacks.mensagens?.historico).toBe("atendimento-1");
+    expect(stomp.clientes).toEqual(clientes);
+
+    act(() => pagina.queryClient.setQueryData(["config", "features"], []));
+    await waitFor(() => expect(grade).toHaveAttribute("data-layout", "legado"));
+    expect(screen.getByTestId("historico")).toBe(historico);
+    expect(screen.getByTestId("composer")).toBe(composer);
+    expect(stomp.clientes).toEqual(clientes);
+  });
+
   it("uma resposta 404 atrasada de A não fecha B nem apresenta revogação de B", async () => {
     renderPagina();
     act(() => callbacks.abrir?.(cartaoInicial));
@@ -916,6 +946,27 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("composer")).toBeInTheDocument();
   });
 
+  it("abre o histórico exato da rota mesmo quando o lead tem outro atendimento ativo", async () => {
+    const finalizado: CartaoAtendimento = {
+      ...cartaoInicial,
+      atendimentoId: "atendimento-finalizado",
+      atendimentoAtivoId: "atendimento-ativo",
+      status: "FINALIZADO",
+    };
+    obterCartao.mockImplementation(async (id: string) => id === finalizado.atendimentoId
+      ? finalizado
+      : { ...cartaoInicial, atendimentoId: id });
+
+    renderPagina(finalizado.atendimentoId);
+
+    await waitFor(() => expect(screen.getByText("Atendimento finalizado.")).toBeInTheDocument());
+    expect(callbacks.mensagens).toEqual({
+      historico: finalizado.atendimentoId,
+      assinatura: finalizado.atendimentoId,
+    });
+    expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
+  });
+
   it("abre quando o cartão chega depois da resposta e não troca a seleção em refetch atrasado", async () => {
     let resolver: (cartao: CartaoAtendimento) => void;
     obterCartao.mockImplementationOnce(
@@ -1135,8 +1186,8 @@ describe("PaginaAtendimentosCliente", () => {
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
     act(() => callbacks.abrir?.(cartaoInicial));
 
+    expect(pagina.container.firstElementChild).toHaveStyle({ gridTemplateColumns: "346px minmax(0, 1fr) 344px" });
     expect(pagina.container.firstElementChild).toHaveClass(
-      "grid-cols-[346px_minmax(0,1fr)_344px]",
       "grid-rows-[minmax(0,1fr)]",
       "min-h-0",
       "overflow-hidden",
@@ -1151,9 +1202,7 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("responsavel-painel")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Retrair detalhes do lead" }));
 
-    expect(pagina.container.firstElementChild).toHaveClass(
-      "grid-cols-[346px_minmax(0,1fr)]",
-    );
+    expect(pagina.container.firstElementChild).toHaveStyle({ gridTemplateColumns: "346px minmax(0, 1fr)" });
     expect(screen.queryByTestId("responsavel-painel")).not.toBeInTheDocument();
     expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Ana Atendente");
     expect(screen.getByTestId("composer")).toBeInTheDocument();
@@ -1492,7 +1541,7 @@ describe("PaginaAtendimentosCliente", () => {
 
     expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
     expect(screen.getByTestId("composer")).toBeInTheDocument();
-    expect(pagina.container.firstElementChild).toHaveClass("grid-cols-1");
+    expect(pagina.container.firstElementChild).toHaveStyle({ gridTemplateColumns: "minmax(0, 1fr)" });
     expect(screen.queryByTestId("responsavel-painel")).not.toBeInTheDocument();
   });
 });

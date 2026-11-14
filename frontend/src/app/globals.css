@@ -254,3 +254,43 @@
     font-weight: 400;
   }
 }
+[data-cor-destaque="azul"] { --cor-destaque: #1f5fd6; }
+[data-cor-destaque="indigo"] { --cor-destaque: #4f46e5; }
+[data-cor-destaque="petroleo"] { --cor-destaque: #0f766e; }
+[data-cor-destaque="verde"] { --cor-destaque: #12855a; }
+[data-cor-destaque="ambar"] { --cor-destaque: #a35e0d; }
+
+html[data-tamanho-texto="compacto"] { font-size: 93.75%; }
+html[data-tamanho-texto="grande"] { font-size: 106.25%; }
+
+html[data-cor-destaque]:not([data-cor-destaque="azul"]) {
+  --primary: var(--cor-destaque);
+  --primary-foreground: white;
+  --ring: var(--cor-destaque);
+}
+
+html.dark[data-cor-destaque] {
+  color-scheme: dark;
+  --crm-v2-fundo: #0e1220;
+  --crm-v2-cartao: #171c2b;
+  --crm-v2-suave: #20263a;
+  --crm-v2-texto: #f2f4f8;
+  --crm-v2-texto-suave: #a4adbf;
+  --crm-v2-borda: #32394d;
+  --background: var(--crm-v2-fundo);
+  --card: var(--crm-v2-cartao);
+  --popover: var(--crm-v2-cartao);
+  --muted: var(--crm-v2-suave);
+}
+
+.previa-de-tema {
+  --previa-claro: #f4f5f7;
+  --previa-escuro: #171c2b;
+  background: var(--previa-claro);
+}
+.previa-de-tema[data-tema="escuro"] { background: var(--previa-escuro); }
+.previa-de-tema[data-tema="sistema"] {
+  background: linear-gradient(115deg, var(--previa-claro) 50%, var(--previa-escuro) 50%);
+}
+.previa-de-tema > :first-child { background: var(--cor-destaque, var(--primary)); }
+.previa-de-tema > :last-child { background: color-mix(in srgb, var(--card) 65%, transparent); }

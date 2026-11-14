@@ -1,11 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  NOME_COOKIE_PERSISTENCIA_SESSAO,
-  NOME_COOKIE_REFRESH,
-} from "@/lib/auth/constants";
-import { opcoesCookieRefresh } from "@/lib/auth/cookie-refresh";
+import { cadastrarConta } from "@/lib/auth/sessoes-servidor";
 import { obterUrlApiServidor } from "@/lib/api/server-api-url";
 
 /**
@@ -15,6 +11,9 @@ import { obterUrlApiServidor } from "@/lib/api/server-api-url";
  * voltam na resposta, para o Zustand guardar em memória.
  */
 export async function POST(requisicao: NextRequest) {
+  if (["cross-site", "same-site"].includes(requisicao.headers.get("sec-fetch-site") ?? "")) {
+    return new NextResponse(null, { status: 403 });
+  }
   const corpo = (await requisicao.json()) as Record<string, unknown>;
   const { manterSessaoAtiva, ...credenciais } = corpo;
   const sessaoPersistente = manterSessaoAtiva === true;
@@ -39,12 +38,8 @@ export async function POST(requisicao: NextRequest) {
   };
 
   const cookieStore = await cookies();
-  cookieStore.set(NOME_COOKIE_REFRESH, sessao.refreshToken, opcoesCookieRefresh(sessaoPersistente));
-  cookieStore.set(
-    NOME_COOKIE_PERSISTENCIA_SESSAO,
-    sessaoPersistente ? "1" : "0",
-    opcoesCookieRefresh(sessaoPersistente),
-  );
+  await cadastrarConta(cookieStore, sessao, sessaoPersistente,
+    typeof credenciais.email === "string" ? credenciais.email : undefined);
 
   return NextResponse.json({
     accessToken: sessao.accessToken,

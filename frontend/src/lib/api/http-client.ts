@@ -1,5 +1,6 @@
 "use client";
 
+import { comSessaoExclusiva } from "@/lib/auth/sessao-navegador";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { ErroDeApi, ProblemaHttp } from "./errors";
@@ -21,7 +22,16 @@ export async function renovarAccessToken(): Promise<boolean> {
   if (!renovacaoEmCurso) {
     renovacaoEmCurso = (async () => {
       try {
-        const resposta = await fetch("/api/auth/refresh", { method: "POST" });
+        const usuario = useAuthStore.getState().usuarioId;
+        const resposta = await comSessaoExclusiva(() => fetch("/api/auth/refresh", {
+          method: "POST",
+          ...(usuario ? { headers: { "X-Synapse-Conta": usuario } } : {}),
+        }));
+        if (resposta.status === 409 && usuario) {
+          useAuthStore.getState().limparSessao();
+          window.location.reload();
+          throw new ErroDeApi(409, null, "");
+        }
         if ([401, 403].includes(resposta.status)) return false;
         if (!resposta.ok) throw new ErroDeApi(resposta.status, null, "");
         const sessao = (await resposta.json()) as SessaoResposta;

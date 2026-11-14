@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -116,6 +117,21 @@ class FiltroModularIT extends PostgresIT {
             int noResultado = quantidadeDeLeads(filtrar(token, filtroDoEnunciado()).getBody());
 
             assertThat(total).isEqualTo(noResultado);
+        }
+
+        @Test
+        @DisplayName("contagem por etapa usa o mesmo recorte da Agenda e agrega no banco")
+        void contagemPorEtapa_bateComContagemDaAgenda() throws Exception {
+            String token = ana();
+            var filtro = simples("etapa", "IGUAL", List.of(QUALIFICACAO));
+            long total = contar(token, filtro);
+            var resposta = postar(token, "/api/v1/leads/filtrar/contagem?porEtapa=true", filtro);
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            var corpo = new ObjectMapper().readTree(resposta.getBody());
+            assertThat(corpo.path("total").asLong()).isEqualTo(total);
+            assertThat(corpo.path("etapas").size()).isEqualTo(1);
+            assertThat(corpo.path("etapas").get(0).path("etapaId").asText()).isEqualTo(QUALIFICACAO);
+            assertThat(corpo.path("etapas").get(0).path("total").asLong()).isEqualTo(total);
         }
 
         /** A tag mora em lead_tag: com JOIN, um lead de duas tags casadas contaria duas vezes. */

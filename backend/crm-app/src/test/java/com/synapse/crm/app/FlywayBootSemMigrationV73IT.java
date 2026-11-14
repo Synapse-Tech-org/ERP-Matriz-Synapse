@@ -18,8 +18,10 @@ import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
 
-/** Prova o boot sem V73/backfill, com a coluna aditiva exigida pelo mapeamento atual de Usuario. */
+/** Prova o boot sem V73/backfill, com as estruturas aditivas exigidas pelo mapeamento atual. */
 class FlywayBootSemMigrationV73IT extends PostgresIT {
 
     private static final String BANCO = "synapse_v73_boot_it";
@@ -108,9 +110,11 @@ class FlywayBootSemMigrationV73IT extends PostgresIT {
     private static void inserirLeadsSinteticos() throws Exception {
         try (Connection conexao = DriverManager.getConnection(URL_BANCO, POSTGRES.getUsername(), POSTGRES.getPassword());
                 Statement comando = conexao.createStatement()) {
-            // Fixture de compatibilidade: nao aplica V73 nem V107. O Hibernate atual exige esta
-            // coluna aditiva; a prova aqui continua sendo exclusivamente o boot sem backfill V73.
+            // Fixture de compatibilidade: o Hibernate atual valida estas estruturas aditivas.
+            // O schema continua sem V73 e o teste continua provando que o boot nao executa o backfill.
             comando.executeUpdate("ALTER TABLE usuario ADD COLUMN usuario_teste boolean NOT NULL DEFAULT false");
+            ScriptUtils.executeSqlScript(conexao,
+                    new ClassPathResource("db/migration/V124__agenda_de_agendamentos.sql"));
             comando.executeUpdate("INSERT INTO lead (id, nome, telefone) VALUES "
                     + "('" + LEAD_IMPORTADO + "', 'lead sintetico importado', '061999999999'), "
                     + "('" + LEAD_COM_CONVERSA + "', 'lead sintetico com conversa', '5561999999999')");

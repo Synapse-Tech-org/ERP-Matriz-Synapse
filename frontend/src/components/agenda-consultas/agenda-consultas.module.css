@@ -1,0 +1,67 @@
+.indicador, .status {
+  --tom: var(--primary);
+  --fundo-tom: var(--accent);
+}
+
+[data-tom="ambar"].indicador, [data-tom="ambar"].status { --tom: var(--agenda-ambar); --fundo-tom: var(--agenda-ambar-fundo); }
+[data-tom="roxo"].indicador, [data-tom="roxo"].status { --tom: var(--agenda-roxo); --fundo-tom: var(--agenda-roxo-fundo); }
+[data-tom="verde"].indicador, [data-tom="verde"].status { --tom: var(--agenda-verde); --fundo-tom: var(--agenda-verde-fundo); }
+[data-tom="vermelho"].status { --tom: var(--agenda-vermelho); --fundo-tom: var(--agenda-vermelho-fundo); }
+
+.indicador {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 12px;
+  padding: 13px 15px 14px;
+  border: 1px solid var(--agenda-borda-cartao);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--agenda-sombra);
+  color: var(--foreground);
+  cursor: pointer;
+  text-align: start;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.indicador:hover { border-color: var(--tom); }
+.indicador[aria-pressed="true"] { border-color: var(--tom); outline: 2px solid var(--fundo-tom); }
+.indicador:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+.icone {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--fundo-tom);
+  color: var(--tom);
+}
+
+.status {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--fundo-tom);
+  color: var(--tom);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status::before { width: 5px; height: 5px; border-radius: 50%; background: currentColor; content: ""; }
+.profissionais { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); align-items: start; }
+
+@media (max-width: 639px) {
+  .indicador { gap: 6px; padding: 9px 10px; }
+  .indicador strong { font-size: 22px; }
+  .icone { width: 26px; height: 26px; }
+}
+
+:global(html.dark) .indicador { border-color: var(--border); }
+:global(html.dark) .indicador[aria-pressed="true"] { border-color: var(--ring); }
+:global(html.dark) :is(.icone, .status) { color: var(--foreground); background: color-mix(in srgb, var(--tom) 22%, var(--card)); }

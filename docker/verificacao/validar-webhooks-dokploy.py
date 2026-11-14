@@ -24,8 +24,12 @@ DOMAIN = "crm.example.test"
 def renderizar(override: Path | None = None) -> dict:
     texto = STACK.read_text(encoding="utf-8")
     ambiente = os.environ.copy()
-    for nome, operador in re.findall(r"\$\{([A-Z0-9_]+)([^}]*)}", texto):
+    expressoes = re.findall(r"\$\{([A-Z0-9_]+)([^}]*)}", texto)
+    # Um nome pode ser obrigatorio no backend e opcional na automacao.
+    # Limpar tudo antes evita que a segunda ocorrencia apague o valor de teste.
+    for nome, _ in expressoes:
         ambiente.pop(nome, None)
+    for nome, operador in expressoes:
         if operador.startswith(":?"):
             ambiente[nome] = "valor-sintetico-ci"
     ambiente.update(

@@ -16,12 +16,13 @@ const authMock = vi.hoisted(() => ({
 }));
 const fetchMock = vi.hoisted(() => vi.fn());
 const contagemMock = vi.hoisted(() => vi.fn());
+const rotaAtual = vi.hoisted(() => ({ pathname: "/atendimentos" }));
 const textosNovidades = vi.hoisted(() => ({ titulo: undefined as string | undefined }));
 
 const ROTULO_NOVIDADES_TESTE = "O que há de novo";
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/atendimentos",
+  usePathname: () => rotaAtual.pathname,
 }));
 
 vi.mock("@/lib/auth/auth-store", () => ({
@@ -48,6 +49,7 @@ vi.mock("@/lib/atendimento/use-atendimentos", () => ({
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
+    agendaConsultas: { titulo: "Agenda de consultas", pacientes: "Pacientes" },
     app: { marca: "Estrutural Vidros", subtitulo: "CRM · Atendimento" },
     estados: {
       carregando: "Carregando...",
@@ -138,6 +140,7 @@ describe("sidebar", () => {
   });
 
   beforeEach(() => {
+    rotaAtual.pathname = "/atendimentos";
     authMock.papel = "ATENDENTE";
     textosNovidades.titulo = undefined;
     fetchMock.mockReset();
@@ -149,6 +152,14 @@ describe("sidebar", () => {
     );
     contagemMock.mockReturnValue({ data: { PENDENTES: 7 } });
     vi.stubGlobal("fetch", fetchMock);
+  });
+
+  it("marca somente Agenda de consultas como atual, sem marcar Pacientes pelo prefixo", async () => {
+    rotaAtual.pathname = "/agenda-consultas";
+    fetchMock.mockResolvedValue(new Response(JSON.stringify(["variante_clinica"]), { status: 200 }));
+    renderSidebar();
+    expect(await screen.findByRole("link", { name: "Agenda de consultas" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Pacientes" })).not.toHaveAttribute("aria-current");
   });
 
   it("mostra a marca, os grupos MENU/GESTÃO na ordem do protótipo, e some com o que a flag desliga", async () => {
@@ -332,6 +343,13 @@ describe("sidebar", () => {
     expect(sidebar.className).toMatch(/\babsolute\b/);
     expect(sidebar.className).toMatch(/inset-y-0/);
     expect(sidebar.className).toMatch(/\bz-40\b/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Status de presença: Online" }));
+    expect(screen.getByRole("button", { name: "Trocar conta" })).toBeVisible();
+    fireEvent.mouseLeave(sidebar);
+    act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.atrasoFecharMs));
+    expect(screen.queryByRole("button", { name: "Trocar conta" })).not.toBeInTheDocument();
+    expect(sidebar).toHaveAttribute("data-state", "collapsed");
   });
 
   it("mostra Dashboard para ADMINISTRADOR quando a feature está habilitada", async () => {

@@ -1,0 +1,1036 @@
+{
+  "name": "HML - EV-08 Avaliacao de Atendimento copy",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hml/QJzvVGiwCB9vVQUT/1a2cf5a1-6c54-4106-baed-ced8d61ea0ed",
+        "options": {
+          "rawBody": false
+        },
+        "authentication": "headerAuth"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -3824,
+        400
+      ],
+      "id": "e1aa3e13-9f80-4e80-af0f-1bb76e00ad62",
+      "name": "Receber finalizacao do CRM",
+      "notesInFlow": true,
+      "webhookId": "00778581-bbb0-4918-81be-3c3789572851",
+      "notes": "Webhook para o CRM chamar assim que um atendimento for Finalizado ou Venda Concluida.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kyTPGYM6IYtCVQN4",
+          "name": "HML Avaliacao entrada"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "evento",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -3824,
+        640
+      ],
+      "id": "7db41217-b8e0-4cc4-998b-934cd56b71b5",
+      "name": "When Executed by Another Workflow",
+      "notesInFlow": true,
+      "notes": "Usado pelo EV-00 para registrar resposta de botao antes de rodar a IA."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ev08-phone-number-id-meta",
+              "name": "phone_number_id_meta",
+              "value": "instancia_numero_teste",
+              "type": "string"
+            },
+            {
+              "id": "ev08-texto-pergunta",
+              "name": "texto_pergunta_avaliacao",
+              "value": "Como foi seu atendimento? Toque em uma opcao para avaliar.",
+              "type": "string"
+            },
+            {
+              "id": "ev08-texto-rodape",
+              "name": "texto_rodape_avaliacao",
+              "value": "Sua resposta ajuda a melhorar nosso atendimento.",
+              "type": "string"
+            },
+            {
+              "id": "ev08-botao-ruim",
+              "name": "botao_ruim",
+              "value": "Ruim",
+              "type": "string"
+            },
+            {
+              "id": "ev08-botao-bom",
+              "name": "botao_bom",
+              "value": "Bom",
+              "type": "string"
+            },
+            {
+              "id": "ev08-botao-otimo",
+              "name": "botao_otimo",
+              "value": "Otimo",
+              "type": "string"
+            },
+            {
+              "id": "ev08-agradecimento",
+              "name": "texto_agradecimento",
+              "value": "Obrigado pela avaliacao. Sua resposta ajuda a melhorar nosso atendimento.",
+              "type": "string"
+            },
+            {
+              "id": "ev08-sem-nota",
+              "name": "texto_sem_nota",
+              "value": "Obrigado pelo retorno. Ficamos a disposicao.",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-crm-base-url",
+              "name": "crm_base_url",
+              "value": "https://crm-teste.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-meta-graph-base-url",
+              "name": "meta_graph_base_url",
+              "value": "https://evolution-hml.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-meta-graph-version",
+              "name": "meta_graph_version",
+              "value": "evolution",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-redis-ttl-segundos",
+              "name": "redis_ttl_segundos",
+              "value": 604800,
+              "type": "number"
+            },
+            {
+              "id": "ev08-config-redis-key-prefixo-wa",
+              "name": "redis_key_prefixo_wa",
+              "value": "hml:avaliacao:wa:",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-redis-key-prefixo-lead",
+              "name": "redis_key_prefixo_lead",
+              "value": "hml:avaliacao:lead:",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-redis-key-prefixo-lead-sem-id",
+              "name": "redis_key_prefixo_lead_sem_id",
+              "value": "hml:avaliacao:lead-sem-id:",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-avaliacao-botao-prefixo",
+              "name": "avaliacao_botao_prefixo",
+              "value": "ev08_avaliacao_",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-botao-ruim-id",
+              "name": "botao_ruim_id",
+              "value": "ev08_avaliacao_ruim",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-botao-bom-id",
+              "name": "botao_bom_id",
+              "value": "ev08_avaliacao_bom",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-botao-otimo-id",
+              "name": "botao_otimo_id",
+              "value": "ev08_avaliacao_otimo",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-status-finalizacao-elegiveis",
+              "name": "status_finalizacao_elegiveis",
+              "value": "FINALIZADO,VENDA_CONCLUIDA,VENDA CONCLUIDA",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-operacoes-finalizacao-massa",
+              "name": "operacoes_finalizacao_massa",
+              "value": "FINALIZAR_TODOS,FINALIZACAO_EM_MASSA,FINALIZAR TODOS",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-toggle-avaliacao-chaves",
+              "name": "toggle_avaliacao_chaves",
+              "value": "avaliacao_atendimento.habilitada,avaliacao.habilitada,rf_aut_27.habilitado",
+              "type": "string"
+            },
+            {
+              "id": "ev08-config-nota-ruim",
+              "name": "nota_ruim",
+              "value": 2,
+              "type": "number"
+            },
+            {
+              "id": "ev08-config-nota-bom",
+              "name": "nota_bom",
+              "value": 7,
+              "type": "number"
+            },
+            {
+              "id": "ev08-config-nota-otimo",
+              "name": "nota_otimo",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "ev08-config-comentario-sem-nota",
+              "name": "comentario_sem_nota",
+              "value": "Sem nota explicita",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3568,
+        528
+      ],
+      "id": "890d6a97-590d-429c-b914-85f941e23b01",
+      "name": "Textos da avaliacao"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normaliza tanto chamadas do webhook do CRM quanto chamadas internas do EV-00.\n// O fluxo usa dois modos: iniciar a avaliacao ou registrar a resposta do botao.\nconst entrada = $input.first().json ?? {};\nconst textos = $('Textos da avaliacao').first().json;\nconst evento = entrada.evento ?? entrada.body ?? entrada;\nconst payload = evento.payload ?? evento;\nconst modoInformado = String(evento.modo ?? evento.acao ?? '').trim().toUpperCase();\nconst respostaBotao = payload.avaliacao_resposta ?? evento.avaliacao_resposta ?? {};\nconst modo = modoInformado || (respostaBotao.id ? 'REGISTRAR_RESPOSTA' : 'INICIAR_AVALIACAO');\n\nconst somenteDigitos = (valor) => String(valor ?? '').replace(/\\D/g, '');\nconst normalizarTexto = (valor) => String(valor ?? '').trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toUpperCase();\nconst lerBooleano = (valor) => {\n  if (typeof valor === 'boolean') return valor;\n  const texto = String(valor ?? '').trim().toLowerCase();\n  if (['true', '1', 'sim', 's', 'yes'].includes(texto)) return true;\n  if (['false', '0', 'nao', 'não', 'n', 'no'].includes(texto)) return false;\n  return null;\n};\nconst listarConfiguracao = (valor) => String(valor ?? '').split(',').map((item) => normalizarTexto(item)).filter(Boolean);\nconst statusElegiveis = listarConfiguracao(textos.status_finalizacao_elegiveis);\nconst operacoesMassa = listarConfiguracao(textos.operacoes_finalizacao_massa);\nconst statusFinalizacao = normalizarTexto(payload.status_finalizacao ?? payload.status ?? evento.status_finalizacao ?? evento.status);\nconst operacao = normalizarTexto(payload.operacao ?? payload.tipo_operacao ?? evento.operacao ?? evento.tipo_operacao);\nconst statusElegivel = statusElegiveis.includes(statusFinalizacao);\nconst finalizacaoEmMassa = lerBooleano(payload.finalizacao_em_massa ?? payload.finalizacaoEmMassa ?? evento.finalizacao_em_massa ?? evento.finalizacaoEmMassa) === true\n  || operacoesMassa.includes(operacao);\n\nreturn [{ json: {\n  modo,\n  status_finalizacao: statusFinalizacao,\n  status_elegivel: statusElegivel,\n  operacao,\n  finalizacao_em_massa: finalizacaoEmMassa,\n  atendimento_id: String(payload.atendimento_id ?? payload.atendimentoId ?? evento.atendimento_id ?? evento.atendimentoId ?? '').trim(),\n  lead_id: String(payload.lead_id ?? payload.leadId ?? evento.lead_id ?? evento.leadId ?? '').trim(),\n  atendente_id: String(payload.atendente_id ?? payload.atendenteId ?? evento.atendente_id ?? evento.atendenteId ?? '').trim(),\n  wa_id: somenteDigitos(payload.wa_id ?? payload.waId ?? payload.telefone ?? evento.wa_id ?? evento.waId ?? evento.telefone),\n  phone_number_id: String($('Textos da avaliacao').first().json.phone_number_id_meta ?? '').trim(),\n  mensagem_id: String(payload.mensagem_id ?? payload.mensagemId ?? evento.mensagem_id ?? evento.mensagemId ?? '').trim(),\n  avaliacao_resposta: {\n    id: String(respostaBotao.id ?? '').trim(),\n    titulo: String(respostaBotao.titulo ?? respostaBotao.title ?? '').trim()\n  },\n  avaliacao_cache_json: String(evento.avaliacao_cache_json ?? '').trim()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3312,
+        528
+      ],
+      "id": "8934d061-1994-4c13-98ee-8c32e972fffe",
+      "name": "Normalizar evento avaliacao"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Normalizar evento avaliacao').first().json.modo }}",
+                    "rightValue": "INICIAR_AVALIACAO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "iniciar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Normalizar evento avaliacao').first().json.modo }}",
+                    "rightValue": "REGISTRAR_RESPOSTA",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "registrar"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -3056,
+        528
+      ],
+      "id": "d2e3113c-1eb4-4ed0-8d22-e9211c2af81a",
+      "name": "Tipo de acao avaliacao"
+    },
+    {
+      "parameters": {
+        "url": "={{ \"http://synapse-backend-internal:8080\".replace(/\\/$/, '') + '/internal/v1/automation-config' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2800,
+        336
+      ],
+      "id": "edfd98a2-e697-4f1c-aa48-f009b697816c",
+      "name": "Buscar configuracao automacao",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tX82rJjL3QrFOAee",
+          "name": "HML CRM interno"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// A avaliacao so inicia quando o CRM liberar o toggle na configuracao.\n// Tambem bloqueia finalizacao em massa e atendimentos sem responsavel humano.\nconst evento = $('Normalizar evento avaliacao').first().json;\nconst textos = $('Textos da avaliacao').first().json;\nconst config = $('Buscar configuracao automacao').first().json ?? {};\nconst parametros = Array.isArray(config.parametros) ? config.parametros : [];\nconst lerBooleano = (valor) => {\n  const texto = String(valor ?? '').trim().toLowerCase();\n  if (['true', '1', 'sim', 'ativo', 'habilitado', 'on'].includes(texto)) return true;\n  if (['false', '0', 'nao', 'não', 'inativo', 'desabilitado', 'off'].includes(texto)) return false;\n  return null;\n};\nconst chavesAceitas = String(textos.toggle_avaliacao_chaves ?? '').split(',').map((item) => item.trim()).filter(Boolean);\nconst parametro = parametros.find((item) => chavesAceitas.includes(String(item.chave ?? '').trim()));\nconst habilitada = lerBooleano(parametro?.valor) === true;\nconst temResponsavelHumano = Boolean(evento.atendente_id);\nconst camposObrigatoriosOk = Boolean(evento.status_elegivel && evento.atendimento_id && temResponsavelHumano && evento.wa_id);\nlet motivoBloqueio = '';\nif (!habilitada) motivoBloqueio = 'AVALIACAO_DESABILITADA_OU_TOGGLE_AUSENTE';\nelse if (evento.finalizacao_em_massa) motivoBloqueio = 'FINALIZAR_TODOS_NAO_DISPARA_AVALIACAO';\nelse if (!temResponsavelHumano) motivoBloqueio = 'SEM_RESPONSAVEL_HUMANO_NAO_DISPARA_AVALIACAO';\nelse if (!camposObrigatoriosOk) motivoBloqueio = 'DADOS_OBRIGATORIOS_AUSENTES';\n\nreturn [{ json: {\n  ...evento,\n  avaliacao_habilitada: habilitada,\n  toggle_chave: String(parametro?.chave ?? ''),\n  tem_responsavel_humano: temResponsavelHumano,\n  pode_enviar: Boolean(habilitada && !evento.finalizacao_em_massa && camposObrigatoriosOk),\n  motivo_bloqueio: motivoBloqueio\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2544,
+        336
+      ],
+      "id": "06ca3556-eeea-458a-8c26-f5f06140f74e",
+      "name": "Checar toggle avaliacao"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Checar toggle avaliacao').first().json.pode_enviar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2288,
+        336
+      ],
+      "id": "db6a2b9b-4efb-487c-aa91-33009822e266",
+      "name": "Avaliacao pode ser enviada?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Monta os botoes da Meta e o contexto que ficara no Redis ate a resposta do lead.\nconst evento = $('Checar toggle avaliacao').first().json;\nconst textos = $('Textos da avaliacao').first().json;\nconst phoneNumberId = String(textos.phone_number_id_meta ?? '').trim();\nif (!phoneNumberId) throw new Error('PHONE_NUMBER_ID_META_NAO_CONFIGURADO');\nconst contexto = {\n  atendimento_id: evento.atendimento_id,\n  lead_id: evento.lead_id,\n  atendente_id: evento.atendente_id,\n  wa_id: evento.wa_id,\n  phone_number_id: phoneNumberId,\n  iniciado_em: new Date().toISOString()\n};\n\nreturn [{ json: {\n  ...evento,\n  phone_number_id: phoneNumberId,\n  redis_key_wa: String(textos.redis_key_prefixo_wa ?? '') + evento.wa_id,\n  redis_key_lead: evento.lead_id ? String(textos.redis_key_prefixo_lead ?? '') + evento.lead_id : String(textos.redis_key_prefixo_lead_sem_id ?? '') + evento.wa_id,\n  redis_valor: JSON.stringify(contexto),\n  payload_meta: {\n    messaging_product: 'whatsapp',\n    recipient_type: 'individual',\n    to: evento.wa_id,\n    type: 'interactive',\n    interactive: {\n      type: 'button',\n      body: { text: String(textos.texto_pergunta_avaliacao ?? '') },\n      footer: { text: String(textos.texto_rodape_avaliacao ?? '') },\n      action: {\n        buttons: [\n          { type: 'reply', reply: { id: String(textos.botao_ruim_id ?? ''), title: String(textos.botao_ruim ?? '') } },\n          { type: 'reply', reply: { id: String(textos.botao_bom_id ?? ''), title: String(textos.botao_bom ?? '') } },\n          { type: 'reply', reply: { id: String(textos.botao_otimo_id ?? ''), title: String(textos.botao_otimo ?? '') } }\n        ]\n      }\n    }\n  }\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2016,
+        256
+      ],
+      "id": "24d984d8-beea-43ca-a04c-c40ac3be51fe",
+      "name": "Preparar botoes avaliacao"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "j9vBXDJ8Xn91uGmp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "payload": "={{ $('Preparar botoes avaliacao').first().json.payload_meta }}",
+            "destinatario": "={{ $('When Executed by Another Workflow').first().json.evento?.wa_id || '' }}"
+          },
+          "schema": [
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "type": "object",
+              "required": true
+            },
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "type": "string"
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -1760,
+        256
+      ],
+      "id": "568ad657-9916-4e7c-9ce6-8077ce68bfe1",
+      "name": "Enviar botoes avaliacao pela Meta",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $('Preparar botoes avaliacao').first().json.redis_key_wa }}",
+        "value": "={{ $('Preparar botoes avaliacao').first().json.redis_valor }}",
+        "expire": true,
+        "ttl": "={{ $('Textos da avaliacao').first().json.redis_ttl_segundos }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1504,
+        256
+      ],
+      "id": "e0a92b2d-c760-4132-ab7c-ed5e2cbd0be4",
+      "name": "Marcar avaliacao no Redis por WhatsApp",
+      "credentials": {
+        "redis": {
+          "id": "N4u9OnuUpXg5ceKw",
+          "name": "HML Redis CRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $('Preparar botoes avaliacao').first().json.redis_key_lead }}",
+        "value": "={{ $('Preparar botoes avaliacao').first().json.redis_valor }}",
+        "expire": true,
+        "ttl": "={{ $('Textos da avaliacao').first().json.redis_ttl_segundos }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1248,
+        256
+      ],
+      "id": "c2909aae-7d3b-4c96-b4d0-f725bf95ac2e",
+      "name": "Marcar avaliacao no Redis por Lead",
+      "credentials": {
+        "redis": {
+          "id": "N4u9OnuUpXg5ceKw",
+          "name": "HML Redis CRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $('Preparar botoes avaliacao').first().json;\nconst meta = $('Enviar botoes avaliacao pela Meta').first().json;\nreturn [{ json: {\n  executado: true,\n  codigo: 'AVALIACAO_SOLICITADA',\n  atendimento_id: dados.atendimento_id,\n  lead_id: dados.lead_id,\n  atendente_id: dados.atendente_id,\n  whatsapp_message_id: String(meta.messages?.[0]?.id ?? '')\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -992,
+        256
+      ],
+      "id": "8da57f65-5a2c-4bb1-8232-9d79101d2139",
+      "name": "Retornar avaliacao solicitada"
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $('Checar toggle avaliacao').first().json;\nreturn [{ json: {\n  executado: false,\n  codigo: dados.motivo_bloqueio || 'AVALIACAO_NAO_ENVIADA',\n  atendimento_id: dados.atendimento_id,\n  lead_id: dados.lead_id,\n  status_finalizacao: dados.status_finalizacao\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2016,
+        432
+      ],
+      "id": "968f4f66-4345-41bb-a2dd-571ad6191765",
+      "name": "Retornar avaliacao nao enviada"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Confere a resposta do botao e recupera do Redis o atendimento/atendente corretos.\n// Se o cliente responder texto livre durante a avaliacao, encerramos sem gravar nota.\nconst evento = $('Normalizar evento avaliacao').first().json;\nconst cache = JSON.parse(evento.avaliacao_cache_json || '{}');\nconst textos = $('Textos da avaliacao').first().json;\nconst notaRuim = Number(textos.nota_ruim);\nconst notaBom = Number(textos.nota_bom);\nconst notaOtimo = Number(textos.nota_otimo);\nif (![notaRuim, notaBom, notaOtimo].every(Number.isFinite)) throw new Error('NOTAS_AVALIACAO_NAO_CONFIGURADAS');\nconst mapaNotas = {\n  [String(textos.botao_ruim_id ?? '')]: { nota: notaRuim, comentario: String(textos.botao_ruim ?? '') },\n  [String(textos.botao_bom_id ?? '')]: { nota: notaBom, comentario: String(textos.botao_bom ?? '') },\n  [String(textos.botao_otimo_id ?? '')]: { nota: notaOtimo, comentario: String(textos.botao_otimo ?? '') }\n};\nconst escolha = mapaNotas[evento.avaliacao_resposta.id] ?? null;\n\nconst atendimentoId = String(cache.atendimento_id ?? evento.atendimento_id ?? '').trim();\nconst atendenteId = String(cache.atendente_id ?? evento.atendente_id ?? '').trim();\nconst leadId = String(cache.lead_id ?? evento.lead_id ?? '').trim();\nconst waId = String(cache.wa_id ?? evento.wa_id ?? '').trim();\nconst phoneNumberId = String(cache.phone_number_id ?? textos.phone_number_id_meta ?? '').trim();\nconst uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\nif (escolha && !uuid.test(atendimentoId)) throw new Error('ATENDIMENTO_ID_INVALIDO_PARA_AVALIACAO');\nif (escolha && !uuid.test(atendenteId)) throw new Error('ATENDENTE_ID_INVALIDO_PARA_AVALIACAO');\n\nreturn [{ json: {\n  resposta_valida: Boolean(escolha),\n  atendimento_id: atendimentoId,\n  atendente_id: atendenteId,\n  lead_id: leadId,\n  wa_id: waId,\n  phone_number_id: phoneNumberId,\n  nota: escolha?.nota ?? null,\n  comentario: escolha?.comentario ?? String(textos.comentario_sem_nota ?? ''),\n  redis_key_wa: String(textos.redis_key_prefixo_wa ?? '') + waId,\n  redis_key_lead: leadId ? String(textos.redis_key_prefixo_lead ?? '') + leadId : String(textos.redis_key_prefixo_lead_sem_id ?? '') + waId\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2800,
+        704
+      ],
+      "id": "c9ba13bf-974a-4955-ad1f-dbba7a386ca2",
+      "name": "Validar resposta avaliacao"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inserida AS (\n  INSERT INTO public.avaliacao (atendimento_id, atendente_id, nota, comentario)\n  SELECT '{{ $('Validar resposta avaliacao').first().json.atendimento_id }}'::uuid, '{{ $('Validar resposta avaliacao').first().json.atendente_id }}'::uuid, {{ $('Validar resposta avaliacao').first().json.nota }}::smallint, '{{ $('Validar resposta avaliacao').first().json.comentario }}'\n  WHERE NOT EXISTS (\n    SELECT 1 FROM public.avaliacao WHERE atendimento_id = '{{ $('Validar resposta avaliacao').first().json.atendimento_id }}'::uuid\n  )\n  RETURNING id, atendimento_id, atendente_id, nota, comentario, criado_em\n), existente AS (\n  SELECT id, atendimento_id, atendente_id, nota, comentario, criado_em\n  FROM public.avaliacao\n  WHERE atendimento_id = '{{ $('Validar resposta avaliacao').first().json.atendimento_id }}'::uuid\n)\nSELECT true AS criado, id, atendimento_id, atendente_id, nota, comentario, criado_em FROM inserida\nUNION ALL\nSELECT false AS criado, id, atendimento_id, atendente_id, nota, comentario, criado_em FROM existente\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2272,
+        688
+      ],
+      "id": "2dc9a1cc-3f98-41d7-9a05-bc4ca20b2153",
+      "name": "Salvar avaliacao no Postgres",
+      "credentials": {
+        "postgres": {
+          "id": "IprZddvnhajgbwdx",
+          "name": "HML PostgreSQL CRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "j9vBXDJ8Xn91uGmp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "payload": "={{ { messaging_product: 'whatsapp', recipient_type: 'individual', to: $('Validar resposta avaliacao').first().json.wa_id, type: 'text', text: { preview_url: false, body: $('Textos da avaliacao').first().json.texto_agradecimento } } }}",
+            "destinatario": "={{ $('When Executed by Another Workflow').first().json.evento?.wa_id || '' }}"
+          },
+          "schema": [
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "type": "object",
+              "required": true
+            },
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "type": "string"
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -2016,
+        688
+      ],
+      "id": "acca648e-08cd-441b-8f79-be4c592d5a40",
+      "name": "Enviar agradecimento avaliacao",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "={{ $('Validar resposta avaliacao').first().json.redis_key_wa }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1760,
+        688
+      ],
+      "id": "2b772f32-2071-4d42-9816-a5738c7a4d14",
+      "name": "Apagar avaliacao Redis WhatsApp",
+      "credentials": {
+        "redis": {
+          "id": "N4u9OnuUpXg5ceKw",
+          "name": "HML Redis CRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "={{ $('Validar resposta avaliacao').first().json.redis_key_lead }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1504,
+        688
+      ],
+      "id": "41ceb342-4ee6-42c0-90f9-8f9edc8e8bc3",
+      "name": "Apagar avaliacao Redis Lead",
+      "credentials": {
+        "redis": {
+          "id": "N4u9OnuUpXg5ceKw",
+          "name": "HML Redis CRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const validada = $('Validar resposta avaliacao').first().json;\nconst registro = $('Salvar avaliacao no Postgres').first().json;\nreturn [{ json: {\n  executado: true,\n  codigo: 'AVALIACAO_REGISTRADA',\n  atendimento_id: validada.atendimento_id,\n  atendente_id: validada.atendente_id,\n  nota: validada.nota,\n  registro_criado: Boolean(registro.criado),\n  avaliacao_id: String(registro.id ?? '')\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1248,
+        688
+      ],
+      "id": "f413c912-dec0-47a5-af54-8227c066d903",
+      "name": "Retornar avaliacao registrada"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Validar resposta avaliacao').first().json.resposta_valida }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2544,
+        704
+      ],
+      "id": "71e5de45-aabc-4695-9635-4d368fcd274d",
+      "name": "Resposta de avaliacao valida?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "j9vBXDJ8Xn91uGmp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "payload": "={{ { messaging_product: 'whatsapp', recipient_type: 'individual', to: $('Validar resposta avaliacao').first().json.wa_id, type: 'text', text: { preview_url: false, body: $('Textos da avaliacao').first().json.texto_sem_nota } } }}",
+            "destinatario": "={{ $('When Executed by Another Workflow').first().json.evento?.wa_id || '' }}"
+          },
+          "schema": [
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "type": "object",
+              "required": true
+            },
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "type": "string"
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -2016,
+        880
+      ],
+      "id": "db7a4947-fa7d-4677-8b22-dc7fe7c81329",
+      "name": "Enviar encerramento avaliacao sem nota",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "={{ $('Validar resposta avaliacao').first().json.redis_key_wa }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1760,
+        880
+      ],
+      "id": "19a6e58d-1825-404f-a6ff-01a6cb4c845c",
+      "name": "Apagar avaliacao sem nota Redis WhatsApp",
+      "credentials": {
+        "redis": {
+          "id": "N4u9OnuUpXg5ceKw",
+          "name": "HML Redis CRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "={{ $('Validar resposta avaliacao').first().json.redis_key_lead }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1504,
+        880
+      ],
+      "id": "1df80b1f-68d8-4742-a4b1-9b1932581fe5",
+      "name": "Apagar avaliacao sem nota Redis Lead",
+      "credentials": {
+        "redis": {
+          "id": "N4u9OnuUpXg5ceKw",
+          "name": "HML Redis CRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $('Validar resposta avaliacao').first().json;\nreturn [{ json: {\n  executado: true,\n  codigo: 'AVALIACAO_ENCERRADA_SEM_NOTA',\n  atendimento_id: dados.atendimento_id,\n  atendente_id: dados.atendente_id,\n  nota: null\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1248,
+        880
+      ],
+      "id": "56c27741-00dd-430f-b6f8-0eada1e9dd0b",
+      "name": "Retornar avaliacao sem nota"
+    },
+    {
+      "id": "ea7edb4d-c08d-4656-9141-66a9c973378c",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-08 Avaliacao de Atendimento copy\nCRM de teste / Evolution.\nVer pendencias gerais no manifesto local.\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "Receber finalizacao do CRM": {
+      "main": [
+        [
+          {
+            "node": "Textos da avaliacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Textos da avaliacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Textos da avaliacao": {
+      "main": [
+        [
+          {
+            "node": "Normalizar evento avaliacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar evento avaliacao": {
+      "main": [
+        [
+          {
+            "node": "Tipo de acao avaliacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo de acao avaliacao": {
+      "main": [
+        [
+          {
+            "node": "Buscar configuracao automacao",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validar resposta avaliacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar configuracao automacao": {
+      "main": [
+        [
+          {
+            "node": "Checar toggle avaliacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checar toggle avaliacao": {
+      "main": [
+        [
+          {
+            "node": "Avaliacao pode ser enviada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avaliacao pode ser enviada?": {
+      "main": [
+        [
+          {
+            "node": "Preparar botoes avaliacao",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Retornar avaliacao nao enviada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar botoes avaliacao": {
+      "main": [
+        [
+          {
+            "node": "Enviar botoes avaliacao pela Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar botoes avaliacao pela Meta": {
+      "main": [
+        [
+          {
+            "node": "Marcar avaliacao no Redis por WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar avaliacao no Redis por WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Marcar avaliacao no Redis por Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar avaliacao no Redis por Lead": {
+      "main": [
+        [
+          {
+            "node": "Retornar avaliacao solicitada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar resposta avaliacao": {
+      "main": [
+        [
+          {
+            "node": "Resposta de avaliacao valida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar avaliacao no Postgres": {
+      "main": [
+        [
+          {
+            "node": "Enviar agradecimento avaliacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar agradecimento avaliacao": {
+      "main": [
+        [
+          {
+            "node": "Apagar avaliacao Redis WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar avaliacao Redis WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Apagar avaliacao Redis Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar avaliacao Redis Lead": {
+      "main": [
+        [
+          {
+            "node": "Retornar avaliacao registrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resposta de avaliacao valida?": {
+      "main": [
+        [
+          {
+            "node": "Salvar avaliacao no Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar encerramento avaliacao sem nota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar encerramento avaliacao sem nota": {
+      "main": [
+        [
+          {
+            "node": "Apagar avaliacao sem nota Redis WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar avaliacao sem nota Redis WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Apagar avaliacao sem nota Redis Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar avaliacao sem nota Redis Lead": {
+      "main": [
+        [
+          {
+            "node": "Retornar avaliacao sem nota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}

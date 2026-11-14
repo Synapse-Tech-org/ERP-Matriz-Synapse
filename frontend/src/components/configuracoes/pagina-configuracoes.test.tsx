@@ -6,7 +6,10 @@ const mutate = vi.fn();
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
+    menu: { itens: {} },
     configuracoes: {
+      dadosPessoais: "Dados pessoais", acessoConta: "Acesso à conta", alteracoesPendentes: "Alterações não salvas", descartar: "Descartar",
+      abaNotificacoes: "Notificações", abaInterface: "Interface", abaAjuda: "Ajuda",
       titulo: "Configurações", descricao: "Conta e sistema", abrir: "Abrir configurações",
       perfil: "Perfil do usuário", perfilDescricao: "Nome, e-mail e senha", nome: "Nome", email: "E-mail",
       emailAjuda: "A troca do e-mail deve ser solicitada ao administrador.", telefone: "Telefone", cargo: "Cargo",
@@ -51,6 +54,8 @@ vi.mock("@/lib/equipe/use-equipe", () => ({
   useRemoverMinhaFoto: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
 }));
 
+vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () => null }));
+
 vi.mock("next/link", () => ({ default: ({ children, ...props }: { children: ReactNode; href: string }) => <a {...props}>{children}</a> }));
 
 import { PaginaConfiguracoes } from "./pagina-configuracoes";
@@ -60,6 +65,8 @@ describe("pagina de configurações", () => {
     render(<PaginaConfiguracoes />);
 
     expect(screen.getByDisplayValue("ana@example.invalid")).not.toBeDisabled();
+    expect(screen.queryByLabelText("Senha atual")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Salvar perfil" })).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("Consultora")).not.toBeDisabled();
     expect(screen.getByText("ATENDENTE")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Alterar senha" })).toHaveAttribute("href", "/trocar-senha");
@@ -73,9 +80,26 @@ describe("pagina de configurações", () => {
     );
   });
 
+  it("pede a senha só ao mudar o e-mail e descarta o rascunho", () => {
+    render(<PaginaConfiguracoes />);
+    const email = screen.getByLabelText("E-mail");
+    fireEvent.change(email, { target: { value: "novo@empresa.invalid" } });
+    expect(screen.getByLabelText("Senha atual")).toBeRequired();
+    const notificacoes = screen.getByRole("button", { name: "Notificações" });
+    fireEvent.click(notificacoes);
+    expect(notificacoes).toHaveAttribute("aria-current", "location");
+    expect(screen.getByRole("heading", { name: "Notificações" }).parentElement).toHaveFocus();
+    expect(email).toHaveValue("novo@empresa.invalid");
+    fireEvent.click(screen.getByRole("button", { name: "Descartar" }));
+    expect(email).toHaveValue("ana@example.invalid");
+    expect(screen.queryByLabelText("Senha atual")).not.toBeInTheDocument();
+    expect(screen.queryByText("Alterações não salvas")).not.toBeInTheDocument();
+  });
+
   it("exibe e grava as quatro novas preferências", () => {
     render(<PaginaConfiguracoes />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Notificações" }));
     expect(screen.getByRole("switch", { name: "Notificações visuais" })).toBeChecked();
     expect(screen.getByRole("switch", { name: "Notificações do chat interno" })).toBeChecked();
     expect(screen.getByRole("combobox", { name: "Duração dos avisos" })).toHaveTextContent("3 segundos");

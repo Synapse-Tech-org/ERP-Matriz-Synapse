@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
+import { avisarAlteracaoDeConta, comSessaoExclusiva } from "@/lib/auth/sessao-navegador";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 
@@ -28,13 +29,14 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
     evento.preventDefault();
     setErro(null);
     setEnviando(true);
+    const adicionandoConta = useAuthStore.getState().status === "autenticado";
 
     try {
-      const resposta = await fetch("/api/auth/login", {
+      const resposta = await comSessaoExclusiva(() => fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, senha, manterSessaoAtiva }),
-      });
+      }));
 
       if (!resposta.ok) {
         setErro(resposta.status === 401 ? textos.erroCredenciais : textos.erroGenerico);
@@ -42,7 +44,14 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
       }
 
       const sessao = (await resposta.json()) as { accessToken: string; expiraEmSegundos: number };
+      if (adicionandoConta) {
+        useAuthStore.getState().limparSessao();
+        avisarAlteracaoDeConta();
+        window.location.replace("/");
+        return;
+      }
       definirSessao({ ...sessao, email });
+      avisarAlteracaoDeConta();
       if (useAuthStore.getState().precisaTrocarSenha) {
         router.push("/trocar-senha");
         return;

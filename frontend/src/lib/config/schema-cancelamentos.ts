@@ -64,6 +64,17 @@ export const TEXTOS_CANCELAMENTOS = {
   identificacaoAjuda: "Dados do contato vinculado, não do momento do cancelamento.",
   cpf: "CPF/CNPJ",
   telefone: "Telefone",
+  agendaContatos: "Ir para a agenda de contatos",
+  exportar: "Exportar CSV",
+  exportando: "Exportando…",
+  exportacaoErro: "Não foi possível exportar os cancelamentos.",
+  exportacaoLimite: "Refine os filtros para exportar todos os resultados.",
+  diasRecentes: "Últimos {dias} dias",
+  hoje: "Hoje",
+  esteMes: "Este mês",
+  mesPassado: "Mês passado",
+  nestaPagina: "{total} nesta página",
+  removerFiltro: "Remover filtro de {campo}",
 } as const;
 
 export const CancelamentosTextosSchema = z.object(

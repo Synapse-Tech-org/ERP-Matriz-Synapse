@@ -70,6 +70,10 @@ vi.mock("@/lib/config/textos-provider", () => ({
   }),
 }));
 
+vi.mock("@/lib/config/use-funcionalidades", () => ({
+  useFuncionalidadesHabilitadas: () => ({ data: [] }),
+}));
+
 vi.mock("@/lib/tags/use-tags", () => ({
   useTags: () => ({ data: TAGS, isLoading: false, isError: false }),
   useAgregacaoDeTags: () => ({ data: AGREGACAO, isLoading: false, isError: false }),

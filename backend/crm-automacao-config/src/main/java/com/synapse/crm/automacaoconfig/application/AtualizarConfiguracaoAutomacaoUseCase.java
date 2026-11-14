@@ -41,7 +41,8 @@ public class AtualizarConfiguracaoAutomacaoUseCase {
         this.relogio = relogio;
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.editar_parametros')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.editar_parametros')"
+            + " and (!#chave.startsWith('clinica.') or @featureService.habilitadas().contains('variante_clinica'))")
     @Transactional
     public ConfiguracaoAutomacao executar(String chave, String novoValor) {
         if (ConfiguracaoFidelizacaoUseCase.eChaveDeFidelizacao(chave)

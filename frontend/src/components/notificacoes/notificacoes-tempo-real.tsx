@@ -39,6 +39,7 @@ import {
 } from "@/lib/finalizacao-em-massa/aviso";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useCentralDeAvisos } from "@/lib/atendimento/central-de-avisos";
 
 import { AvisoDeFinalizacaoEmMassaCard } from "./aviso-de-finalizacao-em-massa";
 
@@ -102,6 +103,7 @@ export function NotificacoesTempoReal() {
       return;
     }
     if (ehAvisoDeAcessoAlterado(bruto)) {
+      useCentralDeAvisos.getState().limpar();
       revogarCacheDeClientes(cache);
       setAvisos([]);
       setAvisosDeFinalizacao([]);
@@ -138,6 +140,18 @@ export function NotificacoesTempoReal() {
       void cache.invalidateQueries({ queryKey: ["chat-interno"] });
     }
     if (decisao.tocar) tocarSomDeNotificacao();
+    if (decisao.exibir && usuarioId && useAuthStore.getState().usuarioId === usuarioId) {
+      const href = destinoDoAviso(notificacao);
+      if (href) {
+        useCentralDeAvisos.getState().receber(usuarioId, {
+          id: decisao.chave,
+          href,
+          titulo: tituloDoAviso(notificacao, textos, textosAtendimentos.tempoReal),
+          origem: notificacao.tipo === "CHAT_INTERNO_MENSAGEM" ? "chatInterno" : "atendimentos",
+          recebidoEm: Date.now(),
+        });
+      }
+    }
     const avisoJaApresentadoPelaTelaDeAtendimentos = pathname.startsWith("/atendimentos")
       && (notificacao.tipo === "TRANSFERENCIA_RECEBIDA" || notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA");
     if (decisao.exibir && !avisoJaApresentadoPelaTelaDeAtendimentos) {
@@ -146,7 +160,7 @@ export function NotificacoesTempoReal() {
         ...atuais.filter((atual) => chaveTecnicaDaNotificacao(atual) !== decisao.chave),
       ].slice(0, MAXIMO_DE_AVISOS_VISUAIS));
     }
-  }, [acessoClientes, cache, chatInternoHabilitado, pathname, somHabilitado, usuarioId, visualHabilitado]);
+  }, [acessoClientes, cache, chatInternoHabilitado, pathname, somHabilitado, textos, textosAtendimentos.tempoReal, usuarioId, visualHabilitado]);
 
   const { ciclo } = useConexaoTempoReal(() => accessToken, undefined, aoReceber);
 
@@ -161,6 +175,7 @@ export function NotificacoesTempoReal() {
   }, [ciclo, cache, acessoClientes]);
 
   useEffect(() => registrarDesbloqueioDeAudio(), []);
+  useEffect(() => () => useCentralDeAvisos.getState().limpar(), [usuarioId]);
   useEffect(() => {
     if (avisos.length === 0) return;
     const timer = window.setTimeout(() => setAvisos([]), duracaoSegundos * 1000);
@@ -173,18 +188,9 @@ export function NotificacoesTempoReal() {
   }, [avisosDeFinalizacao, duracaoSegundos]);
 
   function abrirAviso(notificacao: NotificacaoTempoReal) {
-    if (notificacao.tipo === "NOVA_MENSAGEM") {
-      const { leadId, atendimentoId } = notificacao.dados;
-      router.push(`/atendimentos?leadId=${encodeURIComponent(leadId)}&atendimentoId=${encodeURIComponent(atendimentoId)}&visao=ATIVOS`);
-    } else if (notificacao.tipo === "CHAT_INTERNO_MENSAGEM") {
-      router.push(`/chat-interno?conversaId=${encodeURIComponent(notificacao.dados.conversaId)}`);
-    } else if (notificacao.tipo === "TRANSFERENCIA_RECEBIDA") {
-      router.push(`/atendimentos?leadId=${encodeURIComponent(notificacao.dados.leadId)}&atendimentoId=${encodeURIComponent(notificacao.dados.atendimentoId)}&visao=ATIVOS`);
-    } else if (notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA") {
-      router.push(`/atendimentos?leadId=${encodeURIComponent(notificacao.dados.leadId)}&atendimentoId=${encodeURIComponent(notificacao.dados.atendimentoId)}&visao=ATIVOS`);
-    } else if (notificacao.tipo === "CONVITE_ATENDIMENTO") {
-      router.push(`/atendimentos?leadId=${encodeURIComponent(notificacao.dados.leadId)}&atendimentoId=${encodeURIComponent(notificacao.dados.atendimentoId)}&visao=PENDENTES`);
-    }
+    const destino = destinoDoAviso(notificacao);
+    if (destino) router.push(destino);
+    useCentralDeAvisos.getState().marcarLidos(chaveTecnicaDaNotificacao(notificacao));
     setAvisos((atuais) => atuais.filter((atual) => chaveTecnicaDaNotificacao(atual) !== chaveTecnicaDaNotificacao(notificacao)));
   }
 
@@ -259,6 +265,20 @@ export function NotificacoesTempoReal() {
       ))}
     </div>
   ) : null;
+}
+
+function destinoDoAviso(notificacao: NotificacaoTempoReal): string | null {
+  if (notificacao.tipo === "CHAT_INTERNO_MENSAGEM") {
+    return `/chat-interno?conversaId=${encodeURIComponent(notificacao.dados.conversaId)}`;
+  }
+  if (notificacao.tipo !== "NOVA_MENSAGEM"
+    && notificacao.tipo !== "TRANSFERENCIA_RECEBIDA"
+    && notificacao.tipo !== "ATENDIMENTO_DEVOLVIDO_PARA_IA"
+    && notificacao.tipo !== "CONVITE_ATENDIMENTO") return null;
+
+  const { leadId, atendimentoId } = notificacao.dados;
+  const visao = notificacao.tipo === "CONVITE_ATENDIMENTO" ? "PENDENTES" : "ATIVOS";
+  return `/atendimentos?leadId=${encodeURIComponent(leadId)}&atendimentoId=${encodeURIComponent(atendimentoId)}&visao=${visao}`;
 }
 
 function useAuthStoreId(): string | null {

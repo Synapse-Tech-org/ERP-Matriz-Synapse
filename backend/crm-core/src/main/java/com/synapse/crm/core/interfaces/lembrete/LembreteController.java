@@ -7,7 +7,9 @@ import java.util.UUID;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -62,7 +64,7 @@ class LembreteController {
 
     @Operation(
             summary = "Listar lembretes",
-            description = "Filtra lembretes por período e status. A página é baseada em zero e o tamanho vem da configuração da instância.",
+            description = "Filtra lembretes por período, status, responsável, origem e busca. A página é baseada em zero e o tamanho vem da configuração da instância.",
             responses = @ApiResponse(responseCode = "200", description = "Página de lembretes."))
     @GetMapping
     PaginaResposta listar(
@@ -73,15 +75,20 @@ class LembreteController {
             @Parameter(description = "Status do lembrete.") @RequestParam(required = false) StatusLembrete status,
             @Parameter(description = "Lembretes de um lead só — usada pela seção do painel de atendimento (E17).")
                     @RequestParam(required = false) UUID leadId,
+            @RequestParam(required = false) UUID atendenteId,
+            @RequestParam(required = false) @Size(max = 150) String busca,
+            @RequestParam(required = false) Boolean origemAutomatica,
+            @RequestParam(defaultValue = "false") boolean incluirResumo,
             @Parameter(description = "Índice da página, começando em zero.", example = "0")
                     @RequestParam(defaultValue = "0") int pagina) {
         return PaginaResposta.de(
-                listar.executar(new FiltroLembretes(inicio, fim, status, leadId, pagina, tamanhoPagina)));
+                listar.executar(new FiltroLembretes(inicio, fim, status, leadId, atendenteId, busca,
+                        origemAutomatica, pagina, tamanhoPagina), incluirResumo));
     }
 
     @Operation(
             summary = "Criar lembrete",
-            description = "Cria um lembrete manual para um lead dentro do recorte de visibilidade do usuário.",
+            description = "Cria um lembrete. O lead deve estar visível e gestores com acesso à equipe podem indicar um responsável ativo.",
             responses = {
                 @ApiResponse(responseCode = "201", description = "Lembrete criado."),
                 @ApiResponse(responseCode = "404", description = "Lead não encontrado ou não visível.")
@@ -89,7 +96,7 @@ class LembreteController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     Resposta criar(@Valid @RequestBody Criacao requisicao) {
-        return criar.executar(requisicao.leadId(), requisicao.texto(), requisicao.dataHora())
+        return criar.executar(requisicao.leadId(), requisicao.texto(), requisicao.dataHora(), requisicao.responsavelId())
                 .map(Resposta::de).orElseThrow(LembreteController::naoEncontrado);
     }
 
@@ -104,13 +111,13 @@ class LembreteController {
     Resposta atualizar(
             @Parameter(description = "Identificador do lembrete.", required = true) @PathVariable UUID id,
             @Valid @RequestBody Alteracao requisicao) {
-        return atualizar.executar(id, requisicao.texto(), requisicao.dataHora(), requisicao.status())
+        return atualizar.executar(id, requisicao.texto(), requisicao.dataHora(), requisicao.status(), requisicao.responsavelId())
                 .map(Resposta::de).orElseThrow(LembreteController::naoEncontrado);
     }
 
     @Operation(
             summary = "Remover lembrete",
-            description = "Remove um lembrete acessível ao usuário autenticado.",
+            description = "Remove um lembrete acessível e pode habilitar a restauração temporária.",
             responses = {
                 @ApiResponse(responseCode = "204", description = "Lembrete removido."),
                 @ApiResponse(responseCode = "404", description = "Lembrete não encontrado ou não visível.")
@@ -118,8 +125,21 @@ class LembreteController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void remover(
-            @Parameter(description = "Identificador do lembrete.", required = true) @PathVariable UUID id) {
-        if (!remover.executar(id)) throw naoEncontrado();
+            @Parameter(description = "Identificador do lembrete.", required = true) @PathVariable UUID id,
+            @Parameter(description = "Identificador da exclusão, quando se deseja permitir desfazer por até 30 segundos.")
+            @RequestParam(required = false) UUID chaveExclusao) {
+        if (!remover.executar(id, chaveExclusao)) throw naoEncontrado();
+    }
+
+    @Operation(summary = "Desfazer exclusão de lembrete",
+            description = "Restaura o mesmo registro, dentro do prazo e para o autor da exclusão.",
+            responses = {@ApiResponse(responseCode = "204", description = "Lembrete restaurado."),
+                    @ApiResponse(responseCode = "404", description = "Lembrete indisponível para restauração.")})
+    @PostMapping("/{id}/restaurar")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void restaurar(@Parameter(description = "Identificador do lembrete.", required = true) @PathVariable UUID id,
+            @Parameter(description = "Identificador da exclusão a restaurar.", required = true) @RequestParam UUID chaveExclusao) {
+        if (!remover.restaurar(id, chaveExclusao)) throw naoEncontrado();
     }
 
     private static ResponseStatusException naoEncontrado() {
@@ -127,19 +147,20 @@ class LembreteController {
     }
 
     record Criacao(
-            @Schema(description = "Lead visível ao qual o lembrete pertence.", requiredMode = Schema.RequiredMode.REQUIRED)
-                    @NotNull UUID leadId,
+            @Schema(description = "Lead visível ao qual o lembrete pertence, quando vinculado.") UUID leadId,
             @Schema(description = "Texto do lembrete.", example = "Retornar com o orçamento", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotBlank String texto,
             @Schema(description = "Data e hora em UTC.", example = "2026-08-06T13:00:00Z", requiredMode = Schema.RequiredMode.REQUIRED)
-                    @NotNull Instant dataHora) {}
+                    @NotNull Instant dataHora,
+            @Schema(description = "Responsável ativo, quando atribuído pela gestão.") UUID responsavelId) {}
     record Alteracao(
             @Schema(description = "Texto do lembrete.", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotBlank String texto,
             @Schema(description = "Data e hora em UTC.", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotNull Instant dataHora,
             @Schema(description = "Novo status.", requiredMode = Schema.RequiredMode.REQUIRED)
-                    @NotNull StatusLembrete status) {}
+                    @NotNull StatusLembrete status,
+            @Schema(description = "Novo responsável ativo, quando alterado pela gestão.") UUID responsavelId) {}
     record Resposta(UUID id, UUID leadId, String leadNome, UUID atendenteId, String atendenteNome,
             String texto, Instant dataHora, boolean origemAutomatica, StatusLembrete status) {
         static Resposta de(Lembrete l) {
@@ -147,9 +168,10 @@ class LembreteController {
                     l.texto(), l.dataHora(), l.origemAutomatica(), l.status());
         }
     }
-    record PaginaResposta(List<Resposta> lembretes, int pagina, boolean temMais) {
+    record PaginaResposta(List<Resposta> lembretes, int pagina, boolean temMais,
+            @JsonInclude(JsonInclude.Include.NON_NULL) PaginaLembretes.Resumo resumo) {
         static PaginaResposta de(PaginaLembretes p) {
-            return new PaginaResposta(p.lembretes().stream().map(Resposta::de).toList(), p.pagina(), p.temMais());
+            return new PaginaResposta(p.lembretes().stream().map(Resposta::de).toList(), p.pagina(), p.temMais(), p.resumo());
         }
     }
 }

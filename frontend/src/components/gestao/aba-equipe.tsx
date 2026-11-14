@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Ban, KeyRound, Pencil, ShieldCheck, Star, UserCheck, UserRoundCog } from "lucide-react";
+import { Activity, ArrowRight, Ban, ChevronRight, KeyRound, Pencil, ShieldCheck, Search, Star, UserCheck, UserRoundCog, Users, X } from "lucide-react";
 
 import { MiniDashboard, SenhaProvisoriaDialog } from "@/components/equipe/pagina-equipe";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -16,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
+import { Input } from "@/components/ui/input";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { Switch } from "@/components/ui/switch";
 import { Seletor } from "@/components/ui/seletor";
@@ -33,10 +35,14 @@ import {
 } from "@/lib/equipe/use-equipe";
 import { FLAG_SETORES, useSetores } from "@/lib/gestao/setores";
 import type { MinhasPermissoes, Papel, Perfil } from "@/lib/gestao/types";
+import { normalizar } from "@/lib/gestao/rascunho";
 import { CHAVE_GESTAO, usePerfis, usePermissoesDaEquipe } from "@/lib/gestao/use-gestao";
 import { cn } from "@/lib/utils";
 
-import { ICONE_DO_PAPEL, perfilFixoDoAtor, pode, preencher, type TextosGestao } from "./apoio";
+import { ICONE_DO_PAPEL, perfilFixoDoAtor, pode, preencher, useConfirmacaoDeDescarte, type TextosGestao } from "./apoio";
+import visual from "./gestao-v2.module.css";
+import { VisaoGeralIntegranteV2 } from "./visao-geral-integrante-v2";
+import { AbaExcecoes } from "./aba-excecoes";
 import { DialogoUsuario } from "./dialogo-usuario";
 import { PainelDeSetores, SetorDoIntegrante } from "./painel-de-setores";
 import { DialogoClassificacaoTeste } from "./dialogo-classificacao-teste";
@@ -59,12 +65,14 @@ const TOM_DO_PAPEL = { GESTOR: "info", SUBGESTOR: "info", ATENDENTE: "neutro", O
 export function AbaEquipe({
   textos,
   minhas,
+  layoutV2 = false,
   novoAberto,
   onFecharNovo,
   onAbrirPerfil,
   onAbrirExcecoes,
 }: {
   textos: TextosGestao;
+  layoutV2?: boolean;
   minhas: MinhasPermissoes;
   novoAberto: boolean;
   onFecharNovo: () => void;
@@ -87,6 +95,12 @@ export function AbaEquipe({
   const desativar = useDesativarUsuario();
   const gerarSenha = useGerarSenhaProvisoria();
   const disponibilidade = useAtualizarDisponibilidadeParaIa();
+  const [busca, setBusca] = useState("");
+  const [filtroPapel, setFiltroPapel] = useState<Papel | "">("");
+  const [detalheId, setDetalheId] = useState<string | null>(null);
+  const [abaDetalhe, setAbaDetalhe] = useState<"geral" | "permissoes">("geral");
+  const [detalheSujo, setDetalheSujo] = useState(false);
+  const confirmarDetalhe = useConfirmacaoDeDescarte(detalheSujo, textos);
   const [edicao, setEdicao] = useState<UsuarioEquipe | null>(null);
   const [paraDesativar, setParaDesativar] = useState<UsuarioEquipe | null>(null);
   const [senhaPara, setSenhaPara] = useState<UsuarioEquipe | null>(null);
@@ -101,11 +115,15 @@ export function AbaEquipe({
     return <ErroDeCarregamento mensagem={textos.erro} onTentarNovamente={() => void Promise.all([equipe.refetch(), perfis.refetch()])} />;
   }
 
-  const usuarios = (equipe.data ?? [])
+  const todosUsuarios = (equipe.data ?? [])
     .filter((u) => visivelNaEquipe(u.papel) || (adm&&u.usuarioTeste))
     .filter((u) => !adm || filtroTeste==="todos" || (u.usuarioTeste===true)===(filtroTeste==="testes"))
     .sort((a, b) => ORDEM_DO_PAPEL[a.papel] - ORDEM_DO_PAPEL[b.papel]
       || Number(b.ativo) - Number(a.ativo) || a.nome.localeCompare(b.nome));
+  const termo = normalizar(busca);
+  const usuarios = layoutV2 ? todosUsuarios.filter((u) => (!filtroPapel || u.papel === filtroPapel)
+    && (!termo || normalizar(u.nome + " " + u.email).includes(termo))) : todosUsuarios;
+  const detalhe = todosUsuarios.find((u) => u.id === detalheId);
   // O filtro administrativo altera a grade, nao a equipe operacional medida pelos indicadores.
   const integrantesOperacionais=(equipe.data??[]).filter(u=>visivelNaEquipe(u.papel)&&!u.usuarioTeste);
   const excecoesPorId = new Map((permissoes.data ?? []).map((p) => [p.id, p.excecoes]));
@@ -118,13 +136,100 @@ export function AbaEquipe({
     return u.papel === "ATENDENTE" && u.id !== minhas.usuarioId;
   }
 
+  function abrirPessoa(id: string, abaInicial: "geral" | "permissoes" = "geral") {
+    setAbaDetalhe(abaInicial);
+    setDetalheSujo(false);
+    setDetalheId(id);
+  }
+
+  function fecharPessoa() {
+    confirmarDetalhe.executar(() => { setDetalheSujo(false); setDetalheId(null); });
+  }
+
+  function trocarAbaDetalhe(aba: "geral" | "permissoes") {
+    if (aba === abaDetalhe) return;
+    confirmarDetalhe.executar(() => { setDetalheSujo(false); setAbaDetalhe(aba); });
+  }
+
+  function acaoNoDetalhe(acao: () => void) {
+    confirmarDetalhe.executar(() => { setDetalheSujo(false); setDetalheId(null); acao(); });
+  }
+
+  function acoesDaPessoa(u: UsuarioEquipe) {
+    const podeGerenciar = gerenciavel(u);
+    return (
+      <div className={layoutV2 ? visual.acoesPessoa : "ml-auto flex max-w-[4.75rem] flex-wrap justify-end gap-1.5 sm:max-w-none sm:flex-nowrap"}>
+                      {(!layoutV2 || !onAbrirExcecoes) && visiveisNasExcecoes.has(u.id) && (
+                        <AcaoDaLinha rotulo={preencher(textos.equipe.acoes.permissoes, { nome: u.nome })} onClick={() => acaoNoDetalhe(() => { if (onAbrirExcecoes) onAbrirExcecoes(u.id); else onAbrirPerfil(u.papel); })}>
+                          <ShieldCheck className="size-4" />
+                        </AcaoDaLinha>
+                      )}
+                      {podeGerenciar && pode(minhas, "equipe.editar") && (
+                        <AcaoDaLinha rotulo={preencher(textos.equipe.acoes.editar, { nome: u.nome })} texto={layoutV2 ? textos.v2.editar : undefined} onClick={() => {
+                          if (layoutV2) confirmarDetalhe.executar(() => { setDetalheSujo(false); setAbaDetalhe("geral"); setEdicao(u); });
+                          else acaoNoDetalhe(() => setEdicao(u));
+                        }}>
+                          <Pencil className="size-4" />
+                        </AcaoDaLinha>
+                      )}
+                      {adm&&u.id!==minhas.usuarioId&&pode(minhas,"equipe.editar")&&<AcaoDaLinha rotulo={`${usuariosTeste.alterar}: ${u.nome}`} onClick={() => acaoNoDetalhe(() => { setClassificacaoSalva(false); setClassificar(u); })}><UserRoundCog className="size-4"/></AcaoDaLinha>}
+                      {podeGerenciar && pode(minhas, "equipe.senha_provisoria") && (
+                        <AcaoDaLinha
+                          rotulo={preencher(textos.equipe.acoes.senha, { nome: u.nome })}
+                          texto={layoutV2 ? textos.v2.senhaProvisoria : undefined}
+                          onClick={() => acaoNoDetalhe(() => {
+                            setSenhaPara(u);
+                            setSenha(null);
+                            gerarSenha.mutate(u.id, { onSuccess: (r) => setSenha(r.senha) });
+                          })}
+                        >
+                          <KeyRound className="size-4" />
+                        </AcaoDaLinha>
+                      )}
+                      {podeGerenciar && u.ativo && pode(minhas, "equipe.desativar") && (
+                        <AcaoDaLinha perigo rotulo={preencher(textos.equipe.acoes.desativar, { nome: u.nome })} texto={layoutV2 ? textos.v2.desativar : undefined} onClick={() => acaoNoDetalhe(() => setParaDesativar(u))}>
+                          <Ban className="size-4" />
+                        </AcaoDaLinha>
+                      )}
+                    </div>
+    );
+  }
+
+  const ativos = integrantesOperacionais.filter((u) => u.ativo);
+  const online = ativos.filter((u) => u.statusPresenca === "ONLINE");
+  const personalizados = integrantesOperacionais.filter((u) => (excecoesPorId.get(u.id) ?? 0) > 0);
+  const opcoesPapel: (Papel | "")[] = ["", "GESTOR", "SUBGESTOR", "ATENDENTE", "OPERADOR"];
+  if (todosUsuarios.some((u) => u.papel === "ADMINISTRADOR")) opcoesPapel.splice(1, 0, "ADMINISTRADOR");
   return (
-    <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-3">
+    <div className={layoutV2 ? visual.equipe : "space-y-5"}>
+      {layoutV2 ? <div className={visual.indicadores}>
+        <div className={visual.indicador}>
+          <div><i><Users aria-hidden className="size-5" /></i>{textos.v2.equipeAtiva}</div>
+          <strong>{ativos.length}</strong>
+          <p>{preencher(textos.v2.usuariosAtivos, { total: integrantesOperacionais.length, inativos: integrantesOperacionais.length - ativos.length })}</p>
+        </div>
+        <div className={visual.indicador} data-tom="verde">
+          <div><i><Activity aria-hidden className="size-5" /></i>{textos.v2.online}</div>
+          <div className={visual.resumoOnline}>
+            <strong>{online.length}</strong>
+            <span>{online.slice(0, 4).map((u) => <AvatarIniciais key={u.id} id={u.id} nome={u.nome} fotoUrl={u.fotoUrl} className="grid size-7 place-items-center rounded-full border-2 border-white text-[9px] font-semibold text-white" />)}</span>
+          </div>
+          <p>{preencher(textos.v2.presencaResumo, { ausentes: ativos.filter((u) => u.statusPresenca === "AUSENTE").length, offline: ativos.filter((u) => u.statusPresenca === "OFFLINE").length })}</p>
+        </div>
+        <button type="button" className={visual.indicador} data-tom="ambar" onClick={() => {
+          const primeira = personalizados[0];
+          if (primeira && onAbrirExcecoes) abrirPessoa(primeira.id, "permissoes");
+          else onAbrirPerfil(primeira?.papel ?? "ATENDENTE");
+        }}>
+          <div><i><UserRoundCog aria-hidden className="size-5" /></i>{textos.v2.personalizadas}<ArrowRight aria-hidden className="ml-auto size-4" /></div>
+          <strong>{permissoes.data ? personalizados.length : "—"}</strong>
+          {permissoes.data && <p>{personalizados.length ? textos.v2.comPersonalizadas : textos.v2.semPersonalizadas}</p>}
+        </button>
+      </div> : <div className="grid gap-4 md:grid-cols-3">
         {(perfis.data ?? []).map((p) => (
           <ResumoDoPerfil key={p.papel} perfil={p} textos={textos} onAbrir={() => onAbrirPerfil(p.papel)} />
         ))}
-      </div>
+      </div>}
 
       {setoresLigados && setores.data && (
         <PainelDeSetores
@@ -134,20 +239,32 @@ export function AbaEquipe({
         />
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className={layoutV2 ? visual.painelEquipe : "overflow-hidden rounded-2xl border border-border bg-card"}>
+        {layoutV2 && <div className={visual.topoPainel}>
+          <div className={visual.tituloPainel}><h2>{textos.v2.membros}</h2><p>{preencher(textos.v2.membrosResumo, { total: usuarios.length })}</p></div>
+          <label className={visual.busca}>
+            <span className="sr-only">{textos.v2.buscaEquipe}</span><Search aria-hidden className="size-4" />
+            <Input placeholder={textos.v2.buscaEquipe} value={busca} onChange={(e) => setBusca(e.target.value)} />
+          </label>
+          <div role="group" aria-label={textos.v2.filtroFuncao} className={visual.filtrosPapel}>
+            {opcoesPapel.map((papel) => <button key={papel} type="button" aria-pressed={filtroPapel === papel} onClick={() => setFiltroPapel(papel)}>
+              {papel ? textos.papeis[papel] : textos.v2.todos}<small>{papel ? todosUsuarios.filter((u) => u.papel === papel).length : todosUsuarios.length}</small>
+            </button>)}
+          </div>
+        </div>}
         {adm&&<div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
           <div className="w-full max-w-xs"><Seletor valor={filtroTeste} onChange={setFiltroTeste} ariaLabel={usuariosTeste.filtro} placeholder={usuariosTeste.filtro}
             opcoes={[{valor:"todos",rotulo:usuariosTeste.todos},{valor:"comuns",rotulo:usuariosTeste.comuns},{valor:"testes",rotulo:usuariosTeste.testes}]}/></div>
           {classificacaoSalva&&<p role="status" className="text-sm text-foreground">{usuariosTeste.salvo}</p>}
         </div>}
-        <table className="w-full table-fixed text-sm sm:table-auto">
+        <table className={layoutV2 ? visual.tabelaEquipe : "w-full table-fixed text-sm sm:table-auto"}>
           <thead className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
             <tr className="border-b border-border">
               <th scope="col" className="w-2/3 px-5 py-3.5 text-left sm:w-auto">{textos.equipe.colunas.usuario}</th>
               <th scope="col" className="hidden px-3 py-3.5 text-left md:table-cell">{textos.equipe.colunas.funcao}</th>
               {setoresLigados && <th scope="col" className="hidden px-3 py-3.5 text-left lg:table-cell">{textosSetores.colunaSetor}</th>}
               <th scope="col" className="hidden px-3 py-3.5 text-left sm:table-cell">{textos.equipe.colunas.presenca}</th>
-              <th scope="col" className="hidden px-3 py-3.5 text-left lg:table-cell">{textos.equipe.colunas.ia}</th>
+              <th scope="col" className="hidden px-3 py-3.5 text-left lg:table-cell">{layoutV2 ? textos.v2.rodizioIa : textos.equipe.colunas.ia}</th>
               {atorFixo && <th scope="col" className="hidden px-3 py-3.5 text-left xl:table-cell">{textos.equipe.colunas.avaliacao}</th>}
               <th scope="col" className="hidden px-3 py-3.5 text-left md:table-cell">{textos.equipe.colunas.permissoes}</th>
               <th scope="col" className="px-5 py-3.5 text-right">{textos.equipe.colunas.acoes}</th>
@@ -156,7 +273,7 @@ export function AbaEquipe({
           <tbody>
             {usuarios.length === 0 && (
               <tr>
-                <td colSpan={setoresLigados ? 8 : 7} className="px-5 py-10 text-center text-muted-foreground">{textos.equipe.vazio}</td>
+                <td colSpan={setoresLigados ? 8 : 7} className="px-5 py-10 text-center text-muted-foreground">{textos.equipe.vazio}{layoutV2 && <span className="mt-1 block">{textos.v2.vazioEquipe}</span>}</td>
               </tr>
             )}
             {usuarios.map((u) => {
@@ -177,10 +294,13 @@ export function AbaEquipe({
                 <tr key={u.id} className={cn("border-b border-border last:border-b-0", !u.ativo && "opacity-60")}>
                   <td className="px-5 py-3.5">
                     <div className="flex min-w-0 items-center gap-3">
-                      <AvatarIniciais id={u.id} nome={u.nome} fotoUrl={u.fotoUrl} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white" />
+                      <span className={layoutV2 ? visual.avatarPessoa : "shrink-0"} data-presenca={layoutV2 ? u.statusPresenca : undefined}>
+                        <AvatarIniciais id={u.id} nome={u.nome} fotoUrl={u.fotoUrl} className={cn("flex size-10 shrink-0 items-center justify-center text-xs font-bold text-white", layoutV2 ? "rounded-full" : "rounded-xl")} />
+                      </span>
                       <div className="min-w-0">
                         <p className="flex items-center gap-2">
-                          <span className="truncate font-bold text-foreground">{u.nome}</span>
+                          {layoutV2 ? <button type="button" className={visual.nomePessoa} onClick={() => abrirPessoa(u.id)}>{u.nome}</button>
+                            : <span className="truncate font-bold text-foreground">{u.nome}</span>}
                           {adm&&u.usuarioTeste&&<PillDeStatus tom="neutro">{usuariosTeste.selo}</PillDeStatus>}
                           {!u.ativo && (
                             <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
@@ -246,36 +366,9 @@ export function AbaEquipe({
                   )}
                   <td className="hidden px-3 py-3.5 md:table-cell">{permissao}</td>
                   <td className="px-5 py-3.5">
-                    <div className="ml-auto flex max-w-[4.75rem] flex-wrap justify-end gap-1.5 sm:max-w-none sm:flex-nowrap">
-                      {visiveisNasExcecoes.has(u.id) && (
-                        <AcaoDaLinha rotulo={preencher(textos.equipe.acoes.permissoes, { nome: u.nome })} onClick={() => (onAbrirExcecoes ? onAbrirExcecoes(u.id) : onAbrirPerfil(u.papel))}>
-                          <ShieldCheck className="size-4" />
-                        </AcaoDaLinha>
-                      )}
-                      {podeGerenciar && pode(minhas, "equipe.editar") && (
-                        <AcaoDaLinha rotulo={preencher(textos.equipe.acoes.editar, { nome: u.nome })} onClick={() => setEdicao(u)}>
-                          <Pencil className="size-4" />
-                        </AcaoDaLinha>
-                      )}
-                      {adm&&u.id!==minhas.usuarioId&&pode(minhas,"equipe.editar")&&<AcaoDaLinha rotulo={`${usuariosTeste.alterar}: ${u.nome}`} onClick={()=>{setClassificacaoSalva(false);setClassificar(u);}}><UserRoundCog className="size-4"/></AcaoDaLinha>}
-                      {podeGerenciar && pode(minhas, "equipe.senha_provisoria") && (
-                        <AcaoDaLinha
-                          rotulo={preencher(textos.equipe.acoes.senha, { nome: u.nome })}
-                          onClick={() => {
-                            setSenhaPara(u);
-                            setSenha(null);
-                            gerarSenha.mutate(u.id, { onSuccess: (r) => setSenha(r.senha) });
-                          }}
-                        >
-                          <KeyRound className="size-4" />
-                        </AcaoDaLinha>
-                      )}
-                      {podeGerenciar && u.ativo && pode(minhas, "equipe.desativar") && (
-                        <AcaoDaLinha perigo rotulo={preencher(textos.equipe.acoes.desativar, { nome: u.nome })} onClick={() => setParaDesativar(u)}>
-                          <Ban className="size-4" />
-                        </AcaoDaLinha>
-                      )}
-                    </div>
+                    {layoutV2 ? <AcaoDaLinha rotulo={preencher(textos.v2.verPessoa, { nome: u.nome })} onClick={() => abrirPessoa(u.id)}>
+                      <ChevronRight className="size-5" />
+                    </AcaoDaLinha> : acoesDaPessoa(u)}
                   </td>
                 </tr>
               );
@@ -284,7 +377,7 @@ export function AbaEquipe({
         </table>
       </div>
 
-      {atorFixo && avaliacoes.data && desempenho.data && (
+      {!layoutV2 && atorFixo && avaliacoes.data && desempenho.data && (
         <section className="space-y-3" aria-label={textos.equipe.indicadores}>
           <p className="px-0.5 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">{textos.equipe.indicadores}</p>
           <MiniDashboard
@@ -300,10 +393,52 @@ export function AbaEquipe({
         </section>
       )}
 
+      {layoutV2 && detalhe && <Dialog open onOpenChange={(aberto) => !aberto && fecharPessoa()}>
+        <DialogContent className={visual.detalhePessoa} overlayClassName={visual.fundoDetalhe} showCloseButton={false}>
+          <DialogHeader className={visual.topoDetalhe}>
+            <div className={visual.identidadePessoa}>
+              <span className={visual.avatarPessoa} data-presenca={detalhe.statusPresenca}>
+                <AvatarIniciais id={detalhe.id} nome={detalhe.nome} fotoUrl={detalhe.fotoUrl} className="grid size-12 place-items-center rounded-full font-semibold text-white" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <DialogTitle>{detalhe.nome}</DialogTitle>
+                  <PillDeStatus tom={TOM_DO_PAPEL[detalhe.papel]}>{textos.papeis[detalhe.papel]}</PillDeStatus>
+                  {!detalhe.ativo && <PillDeStatus tom="neutro">{textos.equipe.desativado}</PillDeStatus>}
+                </div>
+                <DialogDescription>{detalhe.email}</DialogDescription>
+              </div>
+              <DialogClose aria-label={textos.v2.fechar} className={visual.fechar}><X aria-hidden className="size-[18px]" /></DialogClose>
+            </div>
+            <div className={visual.barraDetalhe}>
+              {onAbrirExcecoes && visiveisNasExcecoes.has(detalhe.id) && <div className={visual.filtrosPapel}>
+                <button type="button" aria-pressed={abaDetalhe === "geral"} onClick={() => trocarAbaDetalhe("geral")}>{textos.v2.visaoGeral}</button>
+                <button type="button" aria-pressed={abaDetalhe === "permissoes"} onClick={() => trocarAbaDetalhe("permissoes")}>{textos.abas.permissoes}</button>
+              </div>}
+              {acoesDaPessoa(detalhe)}
+            </div>
+          </DialogHeader>
+          <div className={visual.corpoDetalhe}>
+            {abaDetalhe === "permissoes" && onAbrirExcecoes && visiveisNasExcecoes.has(detalhe.id) ? <AbaExcecoes
+              embutida textos={textos} minhas={minhas} usuarioInicial={detalhe.id} onSujoChange={setDetalheSujo} />
+              : <VisaoGeralIntegranteV2 key={detalhe.id + (edicao ? "-edicao" : "")} usuario={detalhe} textos={textos}
+                funcoes={funcoesPermitidas} podeAlterarFuncao={gerenciavel(detalhe) && pode(minhas, "equipe.editar") && pode(minhas, "equipe.alterar_papel")}
+                avaliacao={avaliacaoPorId.get(detalhe.id)} atendimentos={desempenho.data?.porAtendente.find((u) => u.atendenteId === detalhe.id)?.atendimentos}
+                quantidadeExcecoes={excecoesPorId.get(detalhe.id) ?? 0}
+                podeAlterarIa={detalhe.ativo && !detalhe.usuarioTeste && pode(minhas, "equipe.disponibilidade_ia") && !disponibilidade.isPending}
+                onIa={(disponivelParaIa) => disponibilidade.mutate({ id: detalhe.id, disponivelParaIa })}
+                onPermissoes={onAbrirExcecoes && visiveisNasExcecoes.has(detalhe.id) ? () => trocarAbaDetalhe("permissoes") : undefined}
+                onSujoChange={setDetalheSujo} />}
+          </div>
+        </DialogContent>
+        {edicao && <DialogoUsuario layoutV2 textos={textos} existente={edicao} funcoesPermitidas={funcoesPermitidas}
+          podeAlterarFuncao={false} onFechar={() => setEdicao(null)} />}
+        {confirmarDetalhe.dialogo}
+      </Dialog>}
       {novoAberto && (
-        <DialogoUsuario textos={textos} funcoesPermitidas={funcoesPermitidas} podeAlterarFuncao podeClassificarTeste={adm} onFechar={onFecharNovo} />
+        <DialogoUsuario layoutV2={layoutV2} textos={textos} funcoesPermitidas={funcoesPermitidas} podeAlterarFuncao podeClassificarTeste={adm} onFechar={onFecharNovo} />
       )}
-      {edicao && (
+      {!layoutV2 && edicao && (
         <DialogoUsuario
           textos={textos}
           existente={edicao}
@@ -379,25 +514,27 @@ function ResumoDoPerfil({ perfil, textos, onAbrir }: { perfil: Perfil; textos: T
 function AcaoDaLinha({
   rotulo,
   perigo,
+  texto,
   onClick,
   children,
 }: {
   rotulo: string;
   perigo?: boolean;
+  texto?: string;
   onClick: () => void;
   children: React.ReactNode;
 }) {
   return (
     <Button
       type="button"
-      size="icon"
+      size={texto ? "sm" : "icon"}
       variant="outline"
       aria-label={rotulo}
       title={rotulo}
       onClick={onClick}
-      className={cn("size-8 rounded-lg text-muted-foreground", perigo && "hover:text-destructive")}
+      className={cn(texto ? visual.botaoDetalhe : "size-8 rounded-lg text-muted-foreground", perigo && "hover:text-destructive")}
     >
-      {children}
+      {children}{texto}
     </Button>
   );
 }

@@ -19,9 +19,10 @@ public class AtualizarLembreteUseCase {
         this.lembretes = lembretes;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR','OPERADOR') and @capacidades.permite('lembretes.editar_excluir')")
+    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR','OPERADOR') and @capacidades.permite('lembretes.editar_excluir') and (#responsavelId == null or (hasAnyRole('SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('equipe.ver')))")
     @Transactional
-    public Optional<Lembrete> executar(UUID id, String texto, Instant dataHora, StatusLembrete status) {
-        return lembretes.atualizar(id, texto.trim(), dataHora, status);
+    public Optional<Lembrete> executar(UUID id, String texto, Instant dataHora, StatusLembrete status, UUID responsavelId) {
+        if (responsavelId != null && !lembretes.reservarResponsavelAtivo(responsavelId)) return Optional.empty();
+        return lembretes.atualizar(id, texto.trim(), dataHora, status, responsavelId);
     }
 }

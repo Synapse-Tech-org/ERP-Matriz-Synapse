@@ -1,0 +1,681 @@
+{
+  "name": "HML - EV-13 Processar Midias",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "evento",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -32,
+        816
+      ],
+      "id": "a3e182e7-bfef-4327-a36c-27a407fd3c1f",
+      "name": "When Executed by Another Workflow",
+      "notesInFlow": true,
+      "notes": "Recebe do EV-00 uma mensagem Meta ja validada e normalizada de forma minima."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normaliza os campos de texto e midia para os proximos nodes.\n// Este workflow devolve sempre um payload textual para o EV-01.\nconst evento = $('When Executed by Another Workflow').first().json.evento ?? {};\nconst tipo = String(evento.tipo ?? '').toUpperCase();\nconst media = evento.media ?? {};\nconst mediaId = String(media.id ?? evento.media_id ?? '').trim();\n\nreturn [{\n  json: {\n    ...evento,\n    tipo,\n    texto_original: String(evento.texto ?? '').trim(),\n    media_id: mediaId,\n    media: {\n      id: mediaId,\n      mime_type: String(media.mime_type ?? '').trim(),\n      sha256: String(media.sha256 ?? '').trim(),\n      filename: String(media.filename ?? '').trim(),\n      caption: String(media.caption ?? evento.texto ?? '').trim()\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        816
+      ],
+      "id": "5e14e437-817d-4ff6-9dcd-35d5e9674a04",
+      "name": "Preparar entrada midia",
+      "notesInFlow": true,
+      "notes": "Centraliza tipo, texto original e media_id. Textos seguem direto; midias passam por Meta/OpenAI."
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Preparar entrada midia').first().json.tipo }}",
+                    "rightValue": "TEXTO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Preparar entrada midia').first().json.tipo }}",
+                    "rightValue": "AUDIO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Preparar entrada midia').first().json.tipo }}",
+                    "rightValue": "IMAGEM",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "imagem"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Preparar entrada midia').first().json.tipo }}",
+                    "rightValue": "DOCUMENTO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "documento"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        624,
+        816
+      ],
+      "id": "564e8100-2190-48cd-b8fb-1f90092e8379",
+      "name": "Tipo de mensagem"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retorna texto comum sem chamar modelos de midia.\nconst entrada = $('Preparar entrada midia').first().json;\nreturn [{\n  json: {\n    processar: true,\n    payload: {\n      ...entrada,\n      texto: entrada.texto_original,\n      tipo: 'TEXTO',\n      midia_processada: { processada: false, origem: 'TEXTO' }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        624
+      ],
+      "id": "b47784f0-0474-4ecd-a1fe-2704f0f58dc3",
+      "name": "Retornar texto normalizado"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evolution-hml.187.77.47.30.sslip.io/chat/getBase64FromMediaMessage/instancia_numero_teste",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {message:{key:{id:$('Preparar entrada midia').first().json.media_id}},convertToMp4:false} }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        896,
+        944
+      ],
+      "id": "0119a47f-79e5-4538-910f-f893f79ab556",
+      "name": "Consultar URL da midia Meta",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "notesInFlow": true,
+      "notes": "Consulta a URL temporaria oficial da midia pelo media_id recebido no webhook Meta.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "s1xd4bsOnaxZAu2n",
+          "name": "HML Evolution"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "base64",
+        "binaryPropertyName": "data",
+        "options": {
+          "fileName": "={{ $('Preparar entrada midia').first().json.media.filename || 'arquivo' }}",
+          "mimeType": "={{ $('Consultar URL da midia Meta').first().json.mimetype || $('Preparar entrada midia').first().json.media.mime_type }}"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1136,
+        944
+      ],
+      "id": "249323d0-5cff-446e-91cb-f7bd4451e5c2",
+      "name": "Baixar arquivo da Meta",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "notesInFlow": true,
+      "notes": "Baixa o arquivo binario usando a URL temporaria da Meta. O binario fica em data para OpenAI/Extract."
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Preparar entrada midia').first().json.tipo }}",
+                    "rightValue": "AUDIO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Preparar entrada midia').first().json.tipo }}",
+                    "rightValue": "IMAGEM",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "imagem"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Preparar entrada midia').first().json.tipo }}",
+                    "rightValue": "DOCUMENTO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "documento"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1376,
+        944
+      ],
+      "id": "8cc590dc-0378-4bfc-9e40-628cf7e36ae5",
+      "name": "Tipo de arquivo baixado"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "id": "c28e30c8-2ab1-49ea-80cb-46933719f91a",
+      "name": "Transcrever audio",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.6,
+      "position": [
+        1632,
+        784
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "EuQ2s5gSYoU9fyXg",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "text": "={{ $('Variaveis processamento midias').first().json.prompt_descrever_imagem }}",
+        "inputType": "base64",
+        "options": {}
+      },
+      "id": "d771fd79-1a11-4eb3-8aaa-36818902c129",
+      "name": "Descrever imagem",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.6,
+      "position": [
+        1632,
+        944
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "EuQ2s5gSYoU9fyXg",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "98e6ff53-2d8b-48ea-8597-bb665ddba873",
+      "name": "Extrair texto documento",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1632,
+        1104
+      ],
+      "notesInFlow": true,
+      "notes": "Primeira versao cobre PDF. Outros tipos de documento podem exigir regra propria depois."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Devolve a transcricao de audio como mensagem textual para o EV-01.\nconst entrada = $('Preparar entrada midia').first().json;\nconst variaveis = $('Variaveis processamento midias').first().json;\nconst transcricao = String($('Transcrever audio').first().json.text ?? '').trim();\nconst texto = transcricao || String(variaveis.texto_audio_falha ?? '').trim();\nreturn [{\n  json: {\n    processar: true,\n    payload: {\n      ...entrada,\n      texto,\n      tipo: 'AUDIO',\n      midia_processada: { processada: Boolean(transcricao), origem: 'AUDIO', transcricao }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1888,
+        784
+      ],
+      "id": "449a2aab-3c22-46f8-9432-f7341350d365",
+      "name": "Retornar audio transcrito"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Devolve a descricao da imagem junto da legenda, se existir.\nconst entrada = $('Preparar entrada midia').first().json;\nconst variaveis = $('Variaveis processamento midias').first().json;\nconst descricao = String($('Descrever imagem').first().json.content ?? '').trim();\nconst legenda = String(entrada.media?.caption ?? '').trim();\nconst partes = [String(variaveis.texto_imagem_prefixo ?? '').trim()].filter(Boolean);\nif (legenda) partes.push(String(variaveis.texto_imagem_legenda_prefixo ?? '') + legenda);\nif (descricao) partes.push(String(variaveis.texto_imagem_descricao_prefixo ?? '') + descricao);\nconst texto = partes.join(String.fromCharCode(10));\nreturn [{\n  json: {\n    processar: true,\n    payload: {\n      ...entrada,\n      texto,\n      tipo: 'IMAGEM',\n      midia_processada: { processada: Boolean(descricao), origem: 'IMAGEM', descricao, legenda }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1888,
+        944
+      ],
+      "id": "1f90bbe2-07cb-4bac-bcc1-a6df210dd46e",
+      "name": "Retornar imagem descrita"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Devolve o texto extraido do documento como mensagem textual.\nconst entrada = $('Preparar entrada midia').first().json;\nconst variaveis = $('Variaveis processamento midias').first().json;\nconst textoExtraido = String($('Extrair texto documento').first().json.text ?? '').trim();\nconst nomeArquivo = String(entrada.media?.filename ?? '').trim();\nconst partes = [String(variaveis.texto_documento_prefixo ?? '').trim()].filter(Boolean);\nif (nomeArquivo) partes.push(String(variaveis.texto_documento_arquivo_prefixo ?? '') + nomeArquivo);\nif (textoExtraido) partes.push(String(variaveis.texto_documento_extraido_prefixo ?? '') + textoExtraido);\nconst texto = textoExtraido\n  ? partes.join(String.fromCharCode(10))\n  : String(variaveis.texto_documento_falha ?? '').trim();\nreturn [{\n  json: {\n    processar: true,\n    payload: {\n      ...entrada,\n      texto,\n      tipo: 'DOCUMENTO',\n      midia_processada: { processada: Boolean(textoExtraido), origem: 'DOCUMENTO', texto_extraido: textoExtraido, arquivo: nomeArquivo }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1888,
+        1104
+      ],
+      "id": "ee1b2d8c-32f5-4af7-ba0f-70484ef56ac4",
+      "name": "Retornar documento extraido"
+    },
+    {
+      "parameters": {
+        "content": "## Processamento de midias\n\nRecebe texto/audio/imagem/documento do EV-00 e devolve sempre um payload textual para o EV-01.\n\nAudio: baixa da Meta e transcreve.\nImagem: baixa da Meta e descreve.\nDocumento: baixa da Meta e tenta extrair PDF.\n\nA Meta e a OpenAI usam credenciais cadastradas, sem token fixo no JSON.",
+        "height": 340,
+        "width": 560,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        144,
+        368
+      ],
+      "id": "ee3f2351-6904-49db-8384-55e470260166",
+      "name": "Como funciona EV-13"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ev13-config-meta-graph-base-url",
+              "name": "meta_graph_base_url",
+              "value": "https://evolution-hml.187.77.47.30.sslip.io",
+              "type": "string"
+            },
+            {
+              "id": "ev13-config-meta-graph-version",
+              "name": "meta_graph_version",
+              "value": "evolution",
+              "type": "string"
+            },
+            {
+              "id": "ev13-config-prompt-descrever-imagem",
+              "name": "prompt_descrever_imagem",
+              "value": "Descreva de forma objetiva tudo que aparece na imagem. Se houver texto, medidas, nomes ou numeros, transcreva. Responda em portugues brasileiro.",
+              "type": "string"
+            },
+            {
+              "id": "ev13-config-texto-audio-falha",
+              "name": "texto_audio_falha",
+              "value": "O cliente enviou um audio, mas nao foi possivel transcrever o conteudo.",
+              "type": "string"
+            },
+            {
+              "id": "ev13-config-texto-imagem-prefixo",
+              "name": "texto_imagem_prefixo",
+              "value": "Imagem enviada pelo cliente.",
+              "type": "string"
+            },
+            {
+              "id": "ev13-config-texto-imagem-legenda-prefixo",
+              "name": "texto_imagem_legenda_prefixo",
+              "value": "Legenda: ",
+              "type": "string"
+            },
+            {
+              "id": "ev13-config-texto-imagem-descricao-prefixo",
+              "name": "texto_imagem_descricao_prefixo",
+              "value": "Descricao da imagem: ",
+              "type": "string"
+            },
+            {
+              "id": "ev13-config-texto-documento-prefixo",
+              "name": "texto_documento_prefixo",
+              "value": "Documento enviado pelo cliente.",
+              "type": "string"
+            },
+            {
+              "id": "ev13-config-texto-documento-arquivo-prefixo",
+              "name": "texto_documento_arquivo_prefixo",
+              "value": "Arquivo: ",
+              "type": "string"
+            },
+            {
+              "id": "ev13-config-texto-documento-extraido-prefixo",
+              "name": "texto_documento_extraido_prefixo",
+              "value": "Texto extraido: ",
+              "type": "string"
+            },
+            {
+              "id": "ev13-config-texto-documento-falha",
+              "name": "texto_documento_falha",
+              "value": "O cliente enviou um documento, mas nao foi possivel extrair texto automaticamente.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "dc7a537f-c3b8-46b2-8c88-800806281706",
+      "name": "Variaveis processamento midias",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        176,
+        816
+      ],
+      "notesInFlow": true,
+      "notes": "Centraliza variaveis de producao deste workflow."
+    },
+    {
+      "id": "0f1bebd7-cd73-46ae-b190-0e84a4bfd2bd",
+      "name": "Notas da copia HML",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        -400
+      ],
+      "parameters": {
+        "content": "## Homologacao - nao ativar sem revisar\nCopia de EV-13 Processar Midias\nCRM de teste / Evolution.\nVer pendencias gerais no manifesto local.\nCredenciais PostgreSQL dependem das tabelas tecnicas ainda nao validadas.",
+        "width": 650,
+        "height": 350
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Variaveis processamento midias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar entrada midia": {
+      "main": [
+        [
+          {
+            "node": "Tipo de mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo de mensagem": {
+      "main": [
+        [
+          {
+            "node": "Retornar texto normalizado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Consultar URL da midia Meta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Consultar URL da midia Meta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Consultar URL da midia Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar URL da midia Meta": {
+      "main": [
+        [
+          {
+            "node": "Baixar arquivo da Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar arquivo da Meta": {
+      "main": [
+        [
+          {
+            "node": "Tipo de arquivo baixado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo de arquivo baixado": {
+      "main": [
+        [
+          {
+            "node": "Transcrever audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Descrever imagem",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extrair texto documento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcrever audio": {
+      "main": [
+        [
+          {
+            "node": "Retornar audio transcrito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descrever imagem": {
+      "main": [
+        [
+          {
+            "node": "Retornar imagem descrita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair texto documento": {
+      "main": [
+        [
+          {
+            "node": "Retornar documento extraido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Variaveis processamento midias": {
+      "main": [
+        [
+          {
+            "node": "Preparar entrada midia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}

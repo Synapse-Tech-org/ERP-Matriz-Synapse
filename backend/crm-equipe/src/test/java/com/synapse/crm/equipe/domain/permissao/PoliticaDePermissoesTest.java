@@ -18,7 +18,7 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 class PoliticaDePermissoesTest {
 
-    private static final Set<String> FLAGS = Set.of("dashboard", "campanhas", "cancelamentos");
+    private static final Set<String> FLAGS = Set.of("dashboard", "campanhas", "cancelamentos", "relatorios");
     private static final ConfiguracaoDePermissoes VAZIA = ConfiguracaoDePermissoes.vazia();
 
     @ParameterizedTest

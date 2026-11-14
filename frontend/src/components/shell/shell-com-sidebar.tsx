@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { SinalizadorShellPronto } from "@/components/auth/sinalizador-shell-pronto";
@@ -10,8 +10,17 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { ProvedorConversaEmTelaCheia, useConversaEmTelaCheia } from "@/lib/navegacao/conversa-em-tela-cheia";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn } from "@/lib/utils";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
+import { useDensidadeDasListas } from "@/lib/config/preferencia-densidade";
+import { usePreferenciasAparencia } from "@/lib/config/preferencias-aparencia";
+import { fonteFrontendV2 } from "@/lib/config/fonte-frontend-v2";
+import estilosV2 from "./shell-v2.module.css";
 
 import { estiloDaLarguraDoSlot, useExpansaoDaSidebar } from "./expansao-da-sidebar";
+
+const ROTAS_RECURSOS_V2 = new Set(["/templates-whatsapp", "/tags", "/mensagens-programadas", "/lembretes"]);
+
+const ROTAS_GESTAO_V2 = new Set(["/gestao", "/campanhas", "/automacao", "/administracao", "/feedbacks", "/cancelamentos"]);
 
 export function ShellComSidebar({ children }: { children: React.ReactNode }) {
   return (
@@ -24,12 +33,38 @@ export function ShellComSidebar({ children }: { children: React.ReactNode }) {
 function ShellInterno({ children }: { children: React.ReactNode }) {
   const expansao = useExpansaoDaSidebar();
   const pathname = usePathname();
-  const [dashboardFixada, setDashboardFixada] = useState(true);
+  const { compacta } = useDensidadeDasListas();
+  const { escuro, cor, tamanho } = usePreferenciasAparencia();
+  useEffect(() => {
+    const raiz = document.documentElement;
+    raiz.classList.toggle("dark", escuro);
+    raiz.dataset.corDestaque = cor.valor;
+    raiz.dataset.tamanhoTexto = tamanho.valor;
+    return () => {
+      raiz.classList.remove("dark");
+      delete raiz.dataset.corDestaque;
+      delete raiz.dataset.tamanhoTexto;
+    };
+  }, [escuro, cor.valor, tamanho.valor]);
+  const funcionalidades = useFuncionalidadesHabilitadas();
+  const dashboardV2 = funcionalidades.data?.includes("dashboard_layout_v2") ?? false;
+  const atendimentosV2 = funcionalidades.data?.includes("atendimentos_layout_v2") ?? false;
+  const [dashboardFixada, setDashboardFixada] = useState<boolean | null>(null);
   const noDashboard = pathname === "/dashboard";
-  const fixada = noDashboard ? dashboardFixada : expansao.fixada;
-  const expandida = noDashboard ? dashboardFixada || expansao.expandida : expansao.expandida;
+  const secao = "/" + pathname.split("/")[1];
+  const visualV2 = pathname === "/configuracoes" || pathname === "/trocar-senha"
+    || (noDashboard && dashboardV2)
+    || ((pathname === "/atendimentos" || pathname === "/chat-interno") && atendimentosV2)
+    || (pathname === "/relatorios" && funcionalidades.data?.includes("relatorios"))
+    || (["/cancelamentos", "/automacao", "/agenda", "/agenda-consultas"].includes(pathname) && funcionalidades.data?.includes("variante_clinica"))
+    || (pathname === "/agenda" && funcionalidades.data?.includes("agenda_layout_v2"))
+    || (pathname === "/mensagens-rapidas" && funcionalidades.data?.includes("mensagens_rapidas_layout_v2"))
+    || (ROTAS_RECURSOS_V2.has(pathname) && funcionalidades.data?.includes("recursos_layout_v2"))
+    || (ROTAS_GESTAO_V2.has(secao) && funcionalidades.data?.includes("gestao_layout_v2"));
+  const fixada = noDashboard ? dashboardFixada ?? !dashboardV2 : expansao.fixada;
+  const expandida = noDashboard ? fixada || expansao.expandida : expansao.expandida;
   const alternarFixacao = noDashboard
-    ? () => setDashboardFixada((atual) => !atual)
+    ? () => setDashboardFixada((atual) => !(atual ?? !dashboardV2))
     : expansao.alternarFixacao;
   const telaEstreita = useTelaEstreita();
   const { ativa: conversaEmTelaCheia } = useConversaEmTelaCheia();
@@ -37,19 +72,23 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="flex min-h-0 flex-1 overflow-hidden bg-[var(--fundo-canvas)]"
+      className={cn("flex min-h-0 flex-1 overflow-hidden bg-[var(--fundo-canvas)]", visualV2 && [estilosV2.canvas, fonteFrontendV2.variable])}
       data-slot="page-canvas"
+      data-densidade={visualV2 && compacta ? "compacta" : undefined}
     >
       {!telaEstreita && (
         <div
           className="relative h-full shrink-0"
-          style={estiloDaLarguraDoSlot(fixada)}
+          style={visualV2
+            ? { ...estiloDaLarguraDoSlot(fixada), width: fixada ? 288 : 88 }
+            : estiloDaLarguraDoSlot(fixada)}
           data-slot="sidebar-slot"
           data-fixada={fixada ? "true" : "false"}
           data-expandida={expandida ? "true" : "false"}
           data-sobreposta={expandida && !fixada ? "true" : "false"}
         >
           <Sidebar
+            visualV2={visualV2}
             retraida={!expandida}
             fixada={fixada}
             onAlternar={alternarFixacao}

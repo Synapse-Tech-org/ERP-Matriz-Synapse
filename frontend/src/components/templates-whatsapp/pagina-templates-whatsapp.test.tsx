@@ -1,11 +1,21 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ErroDeApi } from "@/lib/api/errors";
 import type { MinhasPermissoes } from "@/lib/gestao/types";
 import { usarCapacidadesReais } from "@/test/capacidades-de-teste";
+
+const layoutMock = vi.hoisted(() => ({ v2: false }));
+vi.mock("@/lib/config/use-funcionalidades", () => ({
+  useFuncionalidadesHabilitadas: () => ({ data: layoutMock.v2 ? ["recursos_layout_v2"] : [] }),
+}));
+vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () => null }));
+beforeEach(() => {
+  layoutMock.v2 = false;
+  vi.mocked(criarTemplateWhatsApp).mockClear();
+});
 
 const capacidadeMock = vi.hoisted(() => ({ gerenciaTemplates: true }));
 const gestaoApi = vi.hoisted(() => ({ obterMinhasPermissoes: vi.fn() }));
@@ -48,7 +58,11 @@ vi.mock("@/lib/auth/auth-store", () => ({
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
+    menu: { grupoRecursos: "Recursos" },
     templatesWhatsApp: {
+      v2: { estado: "Status", todos: "Todos", todasCategorias: "Todas as categorias",
+        criar: "Crie o modelo", analisar: "Meta analisa", analisarDescricao: "Aguarde", usar: "Use no chat",
+        usarDescricao: "Depois da aprovação", duplicar: "Duplicar", previa: "Prévia", variaveis: "{total} variáveis" },
       titulo: "Templates do WhatsApp",
       descricao: "Crie modelos na Meta.",
       novo: "Novo template",
@@ -150,6 +164,28 @@ describe("pagina de templates WhatsApp", () => {
     });
     expect(screen.getByText("promo_agosto")).toBeInTheDocument();
     expect(screen.queryByText("retorno_orcamento")).not.toBeInTheDocument();
+  });
+
+  it("filtra a lista V2 e duplica o conteúdo somente após confirmar o novo modelo", async () => {
+    layoutMock.v2 = true;
+    vi.mocked(criarTemplateWhatsApp).mockResolvedValueOnce({ status: "PENDENTE" } as never);
+    renderizar();
+    await screen.findByText("retorno_orcamento");
+    fireEvent.click(screen.getByRole("button", { name: /^Utilidade/ }));
+    expect(screen.queryByText("promo_agosto")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Duplicar: retorno_orcamento" }));
+    const formulario = within(await screen.findByRole("dialog"));
+    expect(formulario.getByRole("textbox", { name: "Nome" })).toHaveValue("retorno_orcamento_copia");
+    expect(formulario.getByRole("textbox", { name: "Corpo" })).toHaveValue("Olá {{1}}, o orçamento ficou pronto.");
+    expect(criarTemplateWhatsApp).not.toHaveBeenCalled();
+    fireEvent.click(formulario.getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(vi.mocked(criarTemplateWhatsApp).mock.calls[0]?.[0]).toEqual({
+      nome: "retorno_orcamento_copia",
+      idioma: "pt_BR",
+      categoria: "UTILIDADE",
+      corpo: "Olá {{1}}, o orçamento ficou pronto.",
+    }));
   });
 
   it("lista todas as variaveis presentes no corpo", async () => {

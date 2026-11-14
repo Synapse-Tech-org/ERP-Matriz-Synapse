@@ -8,6 +8,7 @@ import { TelaDeErro } from "@/components/erros/tela-de-erro";
 import { useOnline } from "@/lib/erros/conexao";
 
 import { useAuthStore } from "./auth-store";
+import { observarAlteracaoDeConta } from "./sessao-navegador";
 
 /** Renova 30s antes de expirar — margem para a chamada de renovação em si não perder a janela. */
 const MARGEM_REFRESH_MS = 30_000;
@@ -28,6 +29,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [indisponivel, setIndisponivel] = useState(false);
   const online = useOnline();
+
+  useEffect(() => observarAlteracaoDeConta(() => {
+    useAuthStore.getState().limparSessao();
+    window.location.reload();
+  }), []);
 
   // E29: à prova de digitar a rota. O bloqueio de verdade é no backend (SenhaProvisoriaFilter);
   // isto só evita que o usuário veja uma tela protegida por um instante antes do redirect.

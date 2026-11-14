@@ -2,6 +2,7 @@
 
 import { ErroDeApi, ProblemaHttp } from "@/lib/api/errors";
 
+import { comSessaoExclusiva } from "./sessao-navegador";
 import { useAuthStore } from "./auth-store";
 
 interface SessaoResposta {
@@ -18,14 +19,14 @@ interface SessaoResposta {
  */
 export async function trocarSenha(senhaAtual: string, novaSenha: string): Promise<void> {
   const accessToken = useAuthStore.getState().accessToken;
-  const resposta = await fetch("/api/auth/trocar-senha", {
+  const resposta = await comSessaoExclusiva(() => fetch("/api/auth/trocar-senha", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
     body: JSON.stringify({ senhaAtual, novaSenha }),
-  });
+  }));
 
   if (!resposta.ok) {
     const problema = (await resposta.json().catch(() => null)) as ProblemaHttp | null;

@@ -3,14 +3,15 @@
  * conversa precisa continuar utilizavel; o ResizeObserver aplica estes cortes sobre o espaco
  * efetivo da pagina, depois da sidebar, e nao sobre window.innerWidth.
  */
-const LARGURA_LISTA = 346;
-const LARGURA_FICHA = 344;
 const LARGURA_MINIMA_CONVERSA = 320;
 
 export type ModoDaGrade = "ampla" | "dupla" | "unica";
 
-export function modoDaGrade(largura: number): ModoDaGrade {
-  if (largura < LARGURA_LISTA + LARGURA_MINIMA_CONVERSA) return "unica";
-  if (largura < LARGURA_LISTA + LARGURA_FICHA + LARGURA_MINIMA_CONVERSA) return "dupla";
+export const GRADE_LEGADA = { lista: 346, ficha: 344 };
+export const GRADE_V2 = { lista: 360, ficha: 340 };
+
+export function modoDaGrade(largura: number, dimensoes = GRADE_LEGADA): ModoDaGrade {
+  if (largura < dimensoes.lista + LARGURA_MINIMA_CONVERSA) return "unica";
+  if (largura < dimensoes.lista + dimensoes.ficha + LARGURA_MINIMA_CONVERSA) return "dupla";
   return "ampla";
 }
