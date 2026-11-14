@@ -402,11 +402,11 @@ function ListaConversasBase({
   return (
     <div data-slot="lista-conversas" className={cn("flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background", painelOperacionalPermitido && "bg-card", className)}>
       <div data-slot="lista-conversas-cabecalho" className="px-4 pt-4">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className={cn("text-lg font-bold tracking-tight text-foreground", painelOperacionalPermitido && "text-sm text-primary")}>{onVoltarPainel
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <h1 className={cn("min-w-0 break-words text-lg font-bold tracking-tight text-foreground", painelOperacionalPermitido && "text-sm text-primary")}>{onVoltarPainel
             ? <button type="button" onClick={onVoltarPainel} className="rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={catalogo.painelOperacional.voltar}>{catalogo.menu.itens.atendimentos}</button>
             : catalogo.menu.itens.atendimentos}</h1>
-          <div data-slot="lista-conversas-acoes" className="flex items-center gap-1">
+          <div data-slot="lista-conversas-acoes" className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1">
             {layoutV2 && <CentralDeAvisos mostrarContagem />}
             {layoutV2 && botaoFiltros}
             {(!layoutV2 || !painelOperacionalPermitido || podeFinalizarEmLote) && <DropdownMenu>
