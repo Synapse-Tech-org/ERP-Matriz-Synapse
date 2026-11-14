@@ -36,3 +36,7 @@ export const CHAVES_ABA_INFERIOR = ["atendimentos", "dashboard", "agenda"] as co
 export function itemEstaNaAbaInferior(chave: string): boolean {
   return (CHAVES_ABA_INFERIOR as readonly string[]).includes(chave);
 }
+
+export function rotaDoItemAtiva(pathname: string, rota: string): boolean {
+  return pathname === rota || pathname.startsWith(rota + "/");
+}

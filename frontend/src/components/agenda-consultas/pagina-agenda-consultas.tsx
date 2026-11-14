@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, CalendarX2, ChevronLeft, ChevronRight, Plus, Search, Users } from "lucide-react";
+import { CalendarCheck, CalendarDays, CalendarX2, ChevronLeft, ChevronRight, CircleCheck, Clock3, Columns3, List, Plus, Search, Users } from "lucide-react";
 
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import listaV2 from "@/components/shell/lista-v2.module.css";
@@ -27,6 +27,7 @@ import { useTextos } from "@/lib/config/textos-provider";
 import type { Textos } from "@/lib/config/schema";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { cn } from "@/lib/utils";
+import estilos from "./agenda-consultas.module.css";
 
 const ROTA = "/api/v1/agenda-consultas";
 const ACOES = {
@@ -39,7 +40,13 @@ const ACOES = {
   CANCELADO: [],
 } as const;
 type Estado = keyof typeof ACOES;
-const DESTAQUES = ["AGENDADO", "CONFIRMADO", "CHEGOU", "EM_ATENDIMENTO", "ATENDIDO"] as const;
+const DESTAQUES = [
+  { estado: "AGENDADO", icone: Clock3, tom: "ambar" },
+  { estado: "CONFIRMADO", icone: CalendarCheck, tom: "azul" },
+  { estado: "CHEGOU", icone: Users, tom: "azul" },
+  { estado: "EM_ATENDIMENTO", icone: CalendarDays, tom: "roxo" },
+  { estado: "ATENDIDO", icone: CircleCheck, tom: "verde" },
+] as const;
 type Rotulos = Textos["agendaConsultas"];
 interface Consulta {
   id: string;
@@ -57,6 +64,16 @@ interface AgendaDia {
   hoje: string;
   fusoHorario: string;
   agenda: { itens: Consulta[]; limiteAtingido: boolean };
+}
+
+function agruparPorProfissional(itens: readonly Consulta[]) {
+  const grupos = new Map<string, Consulta[]>();
+  for (const item of itens) {
+    const grupo = grupos.get(item.profissional);
+    if (grupo) grupo.push(item);
+    else grupos.set(item.profissional, [item]);
+  }
+  return [...grupos].sort(([a], [b]) => a.localeCompare(b, "pt-BR"));
 }
 
 export function PaginaAgendaConsultas({ canceladas = false }: { canceladas?: boolean }) {
@@ -84,6 +101,7 @@ function Agenda({ permiteCancelamentos, canceladas }: { permiteCancelamentos: bo
   const [busca, setBusca] = useState("");
   const [buscaAplicada, setBuscaAplicada] = useState("");
   const [estado, setEstado] = useState<Estado | "">(canceladas ? "CANCELADO" : "");
+  const [porProfissional, setPorProfissional] = useState(false);
   const [aberto, setAberto] = useState<{ modo: "nova" } | { modo: "detalhe" | "reagendar"; id: string } | null>(null);
   const [confirmarCancelamento, setConfirmarCancelamento] = useState(false);
   const consulta = useQuery({
@@ -98,6 +116,8 @@ function Agenda({ permiteCancelamentos, canceladas }: { permiteCancelamentos: bo
     retry: false,
   });
   const dados = consulta.data;
+  const itens = dados?.agenda.itens;
+  const profissionais = porProfissional && itens ? agruparPorProfissional(itens) : [];
   const selecionada = aberto && aberto.modo !== "nova" ? dados?.agenda.itens.find((item) => item.id === aberto.id) : undefined;
   const podeEditar = pode("contatos.editar");
   const atualizar = () => cache.invalidateQueries({ queryKey: ["agenda-consultas", usuario] });
@@ -146,7 +166,8 @@ function Agenda({ permiteCancelamentos, canceladas }: { permiteCancelamentos: bo
       </header>
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto">
         {diasDaSemana.length > 0 && (
-          <div aria-label={t.dia} role="group" className="grid grid-cols-7 gap-1 rounded-xl bg-muted p-1 sm:w-fit">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div aria-label={t.dia} role="group" className="grid w-full grid-cols-7 gap-1 rounded-xl bg-muted p-1 sm:w-fit">
             {diasDaSemana.map((valor) => (
               <button key={valor} type="button" aria-pressed={valor === dataSelecionada}
                 aria-label={formatarData(valor, { dateStyle: "full" })} onClick={() => setDia(valor)}
@@ -156,6 +177,15 @@ function Agenda({ permiteCancelamentos, canceladas }: { permiteCancelamentos: bo
                 <strong className="text-sm tabular-nums">{valor.slice(8)}</strong>
               </button>
             ))}
+          </div>
+          <div className={listaV2.opcoes}>
+            <button type="button" aria-pressed={porProfissional} onClick={() => setPorProfissional(true)}>
+              <Columns3 aria-hidden className="size-4" />{t.porProfissional}
+            </button>
+            <button type="button" aria-pressed={!porProfissional} onClick={() => setPorProfissional(false)}>
+              <List aria-hidden className="size-4" />{t.lista}
+            </button>
+          </div>
           </div>
         )}
         <form className="flex flex-wrap items-center gap-2 rounded-[18px] border bg-card p-3 shadow-(--sombra-sm)"
@@ -179,14 +209,15 @@ function Agenda({ permiteCancelamentos, canceladas }: { permiteCancelamentos: bo
         </form>
         {dados && (
           <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
-            {DESTAQUES.map((chave) => (
+            {DESTAQUES.map(({ estado: chave, icone: Icone, tom }) => (
               <button type="button" key={chave} aria-pressed={estado === chave}
                 onClick={() => setEstado(estado === chave ? "" : chave)}
-                className="flex min-w-0 items-center gap-2 rounded-xl border bg-card p-3 text-left text-xs font-semibold
-                  shadow-(--sombra-sm) hover:border-primary aria-pressed:border-primary aria-pressed:bg-accent aria-pressed:text-accent-foreground">
-                <span className="size-2 shrink-0 rounded-full bg-primary" aria-hidden />
-                <span>{t.estados[chave]}</span>
-                {!estado && !dados.agenda.limiteAtingido && <strong className="ml-auto tabular-nums">
+                data-tom={tom} className={estilos.indicador}>
+                <span className="flex items-center gap-2">
+                  <span className={estilos.icone}><Icone className="size-4" aria-hidden /></span>
+                  <span>{t.estados[chave]}</span>
+                </span>
+                {!estado && !dados.agenda.limiteAtingido && <strong className="text-[28px] leading-none tracking-tight tabular-nums">
                   {dados.agenda.itens.filter((item) => item.estado === chave).length}
                 </strong>}
               </button>
@@ -201,7 +232,27 @@ function Agenda({ permiteCancelamentos, canceladas }: { permiteCancelamentos: bo
                 <div className="grid min-h-50 place-content-center gap-3 p-4 text-center text-sm text-muted-foreground" role="status">
                   <CalendarDays aria-hidden className="mx-auto size-7" />{t.vazio}
                 </div>
-              ) : <table className="hidden w-full min-w-[720px] text-left text-sm lg:table">
+              ) : porProfissional ? (
+                <div className={estilos.profissionais}>
+                  {profissionais.map(([profissional, consultas]) => (
+                    <section key={profissional} aria-label={profissional} className="min-w-0 rounded-xl border bg-card p-3">
+                      <h2 className="mb-3 break-words text-sm font-semibold">{profissional}</h2>
+                      <ul className="space-y-2">{consultas.map((item) => (
+                        <li key={item.id}>
+                          <button className="w-full space-y-1 rounded-lg border p-3 text-left text-sm hover:bg-muted/50"
+                            type="button" onClick={() => abrirDetalhe(item.id)}>
+                            <span className="block break-words font-semibold">{item.paciente}</span>
+                            <span className="block break-words text-xs text-muted-foreground">{hora(item.inicio)} · {item.tipo}</span>
+                            <EstadoConsulta estado={item.estado} rotulo={t.estados[item.estado]} />
+                          </button>
+                        </li>
+                      ))}</ul>
+                    </section>
+                  ))}
+                </div>
+              ) : (
+              <>
+              <table className="hidden w-full min-w-[720px] text-left text-sm lg:table">
                 <thead className="bg-muted/45 text-xs text-muted-foreground"><tr>
                   {[t.horario, t.paciente, t.procedimento, t.profissional, t.convenio, t.status, t.acoes].map((rotulo) =>
                     <th key={rotulo} scope="col" className="px-3 py-2.5 font-medium">{rotulo}</th>)}
@@ -214,13 +265,11 @@ function Agenda({ permiteCancelamentos, canceladas }: { permiteCancelamentos: bo
                     </span></td>
                     <td className="px-3 py-3">{item.tipo}</td><td className="px-3 py-3">{item.profissional}</td>
                     <td className="px-3 py-3">{item.cobertura ?? textos.cancelamentos.naoInformado}</td>
-                    <td className="px-3 py-3"><span className={cn("whitespace-nowrap rounded-full px-2 py-1 text-xs font-medium",
-                      item.estado === "CANCELADO" || item.estado === "FALTOU" ? "bg-destructive/10 text-destructive"
-                        : item.estado === "AGENDADO" ? "bg-muted text-muted-foreground" : "bg-accent text-accent-foreground")}>{t.estados[item.estado]}</span></td>
+                    <td className="px-3 py-3"><EstadoConsulta estado={item.estado} rotulo={t.estados[item.estado]} /></td>
                     <td className="px-3 py-3"><Button size="sm" variant="outline" onClick={() => abrirDetalhe(item.id)}>{t.abrir}</Button></td>
                   </tr>
                 ))}</tbody>
-              </table>}
+              </table>
               <div className="grid gap-2 lg:hidden">
                 {dados?.agenda.itens.map((item) => (
                   <article key={item.id} className="space-y-2 rounded-lg border p-3">
@@ -229,12 +278,13 @@ function Agenda({ permiteCancelamentos, canceladas }: { permiteCancelamentos: bo
                     </p>
                     <p className="text-sm text-muted-foreground">{hora(item.inicio)} · {item.tipo} · {item.profissional}</p>
                     <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                      <span>{t.estados[item.estado]}</span>
+                      <EstadoConsulta estado={item.estado} rotulo={t.estados[item.estado]} />
                       <Button size="sm" variant="outline" onClick={() => abrirDetalhe(item.id)}>{t.abrir}</Button>
                     </div>
                   </article>
                 ))}
               </div>
+              </>)}
             </section>}
       </div>
       {aberto?.modo === "detalhe" && selecionada && (
@@ -273,6 +323,11 @@ function Agenda({ permiteCancelamentos, canceladas }: { permiteCancelamentos: bo
       )}
     </div>
   );
+}
+
+function EstadoConsulta({ estado, rotulo }: { estado: Estado; rotulo: string }) {
+  const tom = DESTAQUES.find((item) => item.estado === estado)?.tom ?? "vermelho";
+  return <span className={estilos.status} data-tom={tom}>{rotulo}</span>;
 }
 
 function mensagemDeErro(erro: unknown, t: Rotulos) {

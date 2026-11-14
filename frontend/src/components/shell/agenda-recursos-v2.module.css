@@ -180,12 +180,12 @@
   box-shadow: var(--agenda-sombra);
   text-align: start;
 }
-.paleta :global([data-slot="dashboard-busca"]) span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.paleta :global([data-slot="dashboard-busca"]) > span:not(:first-child) { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .paleta :global([data-slot="dashboard-busca"]) kbd { padding: 4px 7px; border: 1px solid var(--border); border-radius: 7px; background: var(--background); color: var(--muted-foreground); }
 .cartao table { min-width: 690px; }
 @media (max-width: 639px) {
   .paleta :global([data-slot="dashboard-busca"]) { width: 38px; justify-content: center; padding: 0; }
-  .paleta :global([data-slot="dashboard-busca"]) span, .paleta :global([data-slot="dashboard-busca"]) kbd { display: none; }
+  .paleta :global([data-slot="dashboard-busca"]) > :not(:first-child) { display: none; }
 }
 
 .paleta > header { padding: 8px 0 4px; }

@@ -48,6 +48,7 @@ import { itemDeMenuVisivel } from "@/lib/navegacao/visibilidade-do-menu";
 import {
   ITENS_GESTAO as ITENS_GESTAO_BASE,
   ITENS_MENU as ITENS_MENU_BASE,
+  rotaDoItemAtiva,
   type ItemDeMenuBase,
 } from "@/lib/navegacao/itens-do-menu";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
@@ -562,7 +563,7 @@ function MenuGrupo({
       <ul className="flex flex-col gap-0.5">
         {itensVisiveis.map((item) => {
           const Icone = item.icone;
-          const ativo = pathname.startsWith(item.rota);
+          const ativo = rotaDoItemAtiva(pathname, item.rota);
           const iconeV2 = visualV2 ? ICONES_SIDEBAR_V2[item.chave]?.[ativo ? 1 : 0] : undefined;
           const rotulo = rotulos[item.chave] ?? item.chave;
           const rotuloAcessivel =

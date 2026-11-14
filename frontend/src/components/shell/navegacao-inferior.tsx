@@ -49,6 +49,7 @@ import {
   ITENS_GESTAO,
   ITENS_MENU,
   itemEstaNaAbaInferior,
+  rotaDoItemAtiva,
   type ItemDeMenuBase,
 } from "@/lib/navegacao/itens-do-menu";
 import { itemDeMenuVisivel } from "@/lib/navegacao/visibilidade-do-menu";
@@ -142,7 +143,7 @@ export function NavegacaoInferior() {
   const extras = [...ITENS_MENU, ...ITENS_GESTAO].filter(
     (item) => visivel(item) && !itemEstaNaAbaInferior(item.chave),
   );
-  const maisAtivo = extras.some((item) => pathname.startsWith(item.rota))
+  const maisAtivo = extras.some((item) => rotaDoItemAtiva(pathname, item.rota))
     || pathname.startsWith("/configuracoes")
     || pathname.startsWith("/trocar-senha");
   const statusAtual = meuUsuario.data?.presenca ?? "OFFLINE";
@@ -163,7 +164,7 @@ export function NavegacaoInferior() {
         <ul className="flex items-stretch">
           {abas.map((item) => {
             const Icone = ICONES[item.chave];
-            const ativo = pathname.startsWith(item.rota);
+            const ativo = rotaDoItemAtiva(pathname, item.rota);
             const rotulo = rotulosMenu[item.chave] ?? item.chave;
             return (
               <li key={item.chave} className="min-w-0 flex-1">
@@ -266,7 +267,7 @@ export function NavegacaoInferior() {
             {extras.map((item) => {
               const Icone = ICONES[item.chave];
               const rotulo = rotulosMenu[item.chave] ?? item.chave;
-              const ativo = pathname.startsWith(item.rota);
+              const ativo = rotaDoItemAtiva(pathname, item.rota);
               return (
                 <li key={item.chave}>
                   <Link

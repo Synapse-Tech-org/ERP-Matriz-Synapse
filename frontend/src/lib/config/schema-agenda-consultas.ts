@@ -10,6 +10,8 @@ export const AgendaConsultasTextosSchema = z.object({
   diaAnterior: z.string().default("Dia anterior"),
   diaSeguinte: z.string().default("Dia seguinte"),
   hoje: z.string().default("Hoje"),
+  lista: z.string().default("Lista"),
+  porProfissional: z.string().default("Por profissional"),
   busca: z.string().default("Paciente, profissional ou procedimento"),
   buscaPaciente: z.string().default("Digite o nome ou telefone do paciente"),
   escolhaPaciente: z.string().default("Selecione um paciente do cadastro."),

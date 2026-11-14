@@ -65,4 +65,16 @@ describe("Agenda de consultas pela rota real", () => {
     }));
     await waitFor(() => expect(api.mock.calls.filter(([url]) => url === "/api/v1/agenda-consultas?")).toHaveLength(2));
   });
+
+  it("separa os cartões por profissional e abre o detalhe da consulta selecionada", async () => {
+    const outra = { ...consulta, id: "consulta-2", paciente: "Outro paciente", profissional: "Equipe B" };
+    api.mockResolvedValue({ dia, hoje: dia, fusoHorario: "America/Sao_Paulo", agenda: { itens: [consulta, outra] } });
+    await montar();
+    fireEvent.click(await screen.findByRole("button", { name: t.porProfissional }));
+    const primeira = screen.getByRole("region", { name: consulta.profissional });
+    expect(within(primeira).queryByText(outra.paciente)).not.toBeInTheDocument();
+    const segunda = screen.getByRole("region", { name: outra.profissional });
+    fireEvent.click(within(segunda).getByRole("button", { name: /Outro paciente/ }));
+    expect(within(screen.getByRole("dialog")).getByRole("heading", { name: outra.paciente })).toBeInTheDocument();
+  });
 });
