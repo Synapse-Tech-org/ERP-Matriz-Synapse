@@ -24,7 +24,8 @@ public class CriarAgendamentoUseCase {
     public record Criado(UUID id) {}
 
     @PreAuthorize(AcessoAgenda.EDITAR)
-    @Auditable(acao = "CRIAR_AGENDAMENTO", entidadeTipo = "AGENDAMENTO", capturarDados = false)
+    // O retorno contém somente o ID público, que o aspecto usa como alvo da auditoria.
+    @Auditable(acao = "CRIAR_AGENDAMENTO", entidadeTipo = "AGENDAMENTO")
     @Transactional
     public Criado executar(NovaConsulta dados) {
         if (!agenda.leadVisivel(dados.leadId())) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
