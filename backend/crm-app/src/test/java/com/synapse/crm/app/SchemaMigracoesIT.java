@@ -120,6 +120,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     // V115: cache e reserva da coleta de foto por identidade de canal.
                     "lead_foto_captura",
                     "lead_tag",
+                    // V124: agenda de consultas vinculada ao cadastro do CRM.
+                    "agendamento",
                     "lembrete",
                     "marca_da_instancia",
                     // V88: classificacao observada nos statuses entregues da Meta e fila independente.
