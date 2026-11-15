@@ -249,7 +249,7 @@ export function PaginaTemplatesWhatsApp() {
                         className={layoutV2 ? estilos.cartao : "rounded-xl border border-border bg-card p-4 shadow-sm"}
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="min-w-0">
+                          <div className={layoutV2 ? "min-w-0 flex-1" : "min-w-0"}>
                             <p className={layoutV2 ? "break-all font-mono text-sm font-medium" : "font-semibold"}>{template.nome}</p>
                             <p className="mt-0.5 text-xs text-muted-foreground">{template.idioma}{layoutV2 && " · " + t.v2.variaveis.replace("{total}", String(template.quantidadeDeParametros))}</p>
                           </div>
@@ -262,7 +262,7 @@ export function PaginaTemplatesWhatsApp() {
                             </PillDeStatus>
                           </div>
                         </div>
-                        {layoutV2 ? <PreviaMensagem corpo={template.corpo} /> : (
+                        {layoutV2 ? <PreviaMensagem corpo={template.corpo} rotulo={`${t.v2.previa} — ${template.nome}`} /> : (
                           <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{template.corpo}</p>
                         )}
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -379,11 +379,15 @@ function agruparPorCategoria(
   );
 }
 
-function PreviaMensagem({ corpo }: { corpo: string }) {
-  return <div className={estilos.previa}><p className={estilos.balao}>
-    {corpo.split(/(\{\{\d+\}\})/).map((parte, indice) => parte.startsWith("{{")
-      ? <code key={indice}>{parte}</code> : parte)}
-  </p></div>;
+function PreviaMensagem({ corpo, rotulo }: { corpo: string; rotulo?: string }) {
+  return (
+    <div className={estilos.previa} role={rotulo ? "group" : undefined} aria-label={rotulo} tabIndex={rotulo ? 0 : undefined}>
+      <p className={estilos.balao}>
+        {corpo.split(/(\{\{\d+\}\})/).map((parte, indice) => parte.startsWith("{{")
+          ? <code key={indice}>{parte}</code> : parte)}
+      </p>
+    </div>
+  );
 }
 
 function FormularioTemplate({

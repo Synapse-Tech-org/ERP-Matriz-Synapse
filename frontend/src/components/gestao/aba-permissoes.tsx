@@ -394,7 +394,7 @@ function CartaoDePerfil({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-bold text-foreground">{textos.papeis[perfil.papel]}</span>
-          <span className="block truncate text-xs text-muted-foreground">
+          <span className={cn("block text-xs text-muted-foreground", layoutV2 ? visual.descricaoPerfil : "truncate")}>
             {usuarios}
             {layoutV2 ? " · " + textos.v2.perfisDescricaoCurta[perfil.papel] : perfil.fixo && " · " + textos.resumoPerfil.acessoTotal}
           </span>
