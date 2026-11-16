@@ -181,6 +181,12 @@ export const TextosSchema = z.object({
     presenca:z.object({rotulo:z.string(),online:z.string(),ausente:z.string(),offline:z.string()}),
   }),
   notificacoes: z.object({
+    painelCrmTitulo: z.string().default("No CRM"),
+    painelCrmDescricao: z.string().default("Enquanto o sistema estiver aberto."),
+    painelAvisosTitulo: z.string().default("Avisos na tela"),
+    painelAvisosDescricao: z.string().default("Quanto tempo ficam visíveis e onde aparecem."),
+    duracaoCurta: z.string().default("{segundos}s"),
+    posicaoLado: z.string().default("sempre no lado direito"),
     mensagemExterna: z.string(),
     mensagemInterna: z.string(),
     origemExterna: z.string(),

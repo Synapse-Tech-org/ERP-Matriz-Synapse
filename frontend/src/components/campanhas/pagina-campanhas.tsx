@@ -24,7 +24,7 @@ function Cabecalho() {
   const textos = useTextos().campanhas;
   const podeCriar = usePodeEmCampanhas("criar");
   return (
-    <header className="flex flex-wrap items-start justify-between gap-3">
+    <header data-slot="campanhas-cabecalho" className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h1 className="text-2xl font-bold">{textos.titulo}</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{textos.descricao}</p>
@@ -85,7 +85,7 @@ export function PaginaCampanhas() {
   const totalDePaginas = lista ? Math.max(1, Math.ceil(lista.total / TAMANHO_DA_PAGINA)) : 1;
 
   return (
-    <main className="space-y-5 p-6">
+    <main data-slot="campanhas-pagina" className="space-y-5 p-6">
       <Cabecalho />
       {consulta.isError && !lista && (
         <ErroDeCarregamento mensagem={textos.erroCarregar} onTentarNovamente={() => consulta.refetch()} />

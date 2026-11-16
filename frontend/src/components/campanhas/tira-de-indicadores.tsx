@@ -13,7 +13,7 @@ import { BarraDeProgresso } from "./barra-de-progresso";
 
 function Indicador({ icone: Icone, rotulo, valor }: { icone: LucideIcon; rotulo: string; valor: number }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+    <div data-slot="campanhas-indicador" className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
         <Icone className="size-4" aria-hidden />
         {rotulo}
@@ -40,8 +40,8 @@ export function TiraDeIndicadores({ lista }: { lista: ListaDeCampanhas }) {
   const uso = percentual(lista.enfileiradasHoje, lista.tetoDiario);
   const perto = uso >= 90;
   return (
-    <section aria-label={textos.enviadasHoje} className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-      <div className="col-span-2 rounded-xl border border-border bg-card p-4 shadow-sm">
+    <section data-slot="campanhas-indicadores" aria-label={textos.enviadasHoje} className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+      <div data-slot="campanhas-limite" className="col-span-2 rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <Send className="size-4" aria-hidden />
           {textos.enviadasHoje} · {textos.limiteDiario}
@@ -67,10 +67,13 @@ export function TiraDeIndicadores({ lista }: { lista: ListaDeCampanhas }) {
           </p>
         )}
       </div>
+      {/* Agrupador só do layout V2 (um cartão de desempenho); fora dele não gera caixa. */}
+      <div data-slot="campanhas-desempenho" className="contents">
       <Indicador icone={CheckCheck} rotulo={textos.entregues} valor={lista.indicadores.entregues} />
       <Indicador icone={Eye} rotulo={textos.lidas} valor={lista.indicadores.lidas} />
       <Indicador icone={MessageCircleReply} rotulo={textos.respostas} valor={lista.indicadores.respondidas} />
       <Indicador icone={TriangleAlert} rotulo={textos.falhas} valor={lista.indicadores.falhas} />
+      </div>
     </section>
   );
 }

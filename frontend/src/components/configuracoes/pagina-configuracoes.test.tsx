@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -102,8 +102,15 @@ describe("pagina de configurações", () => {
     fireEvent.click(screen.getByRole("button", { name: "Notificações" }));
     expect(screen.getByRole("switch", { name: "Notificações visuais" })).toBeChecked();
     expect(screen.getByRole("switch", { name: "Notificações do chat interno" })).toBeChecked();
-    expect(screen.getByRole("combobox", { name: "Duração dos avisos" })).toHaveTextContent("3 segundos");
-    expect(screen.getByRole("combobox", { name: "Posição dos avisos" })).toHaveTextContent("Em cima");
+    const duracao = screen.getByRole("radiogroup", { name: "Duração dos avisos" });
+    expect(within(duracao).getByRole("radio", { name: "3 segundos" })).toBeChecked();
+    expect(within(duracao).getByRole("radio", { name: "8 segundos" })).not.toBeChecked();
+    const posicao = screen.getByRole("radiogroup", { name: /Posição dos avisos/ });
+    expect(within(posicao).getByRole("radio", { name: "Em cima" })).toBeChecked();
+    fireEvent.click(within(duracao).getByRole("radio", { name: "8 segundos" }));
+    fireEvent.click(within(posicao).getByRole("radio", { name: "Embaixo" }));
+    expect(definirDuracaoSegundos).toHaveBeenCalledWith(8);
+    expect(definirPosicao).toHaveBeenCalledWith("BAIXO");
 
     fireEvent.click(screen.getByRole("switch", { name: "Notificações visuais" }));
     fireEvent.click(screen.getByRole("switch", { name: "Notificações do chat interno" }));

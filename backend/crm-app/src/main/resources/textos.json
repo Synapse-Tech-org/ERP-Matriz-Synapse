@@ -249,6 +249,12 @@
     }
   },
   "notificacoes": {
+    "painelCrmTitulo": "No CRM",
+    "painelCrmDescricao": "Enquanto o sistema estiver aberto.",
+    "painelAvisosTitulo": "Avisos na tela",
+    "painelAvisosDescricao": "Quanto tempo ficam visíveis e onde aparecem.",
+    "duracaoCurta": "{segundos}s",
+    "posicaoLado": "sempre no lado direito",
     "mensagemExterna": "Nova mensagem de {nome}",
     "mensagemInterna": "Mensagem de {nome}",
     "origemExterna": "Mensagem recebida no atendimento",

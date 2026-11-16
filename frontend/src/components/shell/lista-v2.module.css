@@ -232,3 +232,88 @@
     font-size: 23px;
   }
 }
+
+/* ── Campanhas V2 (dentro da moldura de Gestão) ── */
+.gestao :global([data-slot="campanhas-pagina"]) {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0;
+}
+
+.gestao :global([data-slot="campanhas-pagina"]) > * { margin-top: 0; }
+
+.gestao :global([data-slot="campanhas-cabecalho"]) {
+  align-items: flex-end;
+  padding: 8px 0 4px;
+}
+
+.gestao :global([data-slot="campanhas-cabecalho"]) h1 {
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+.gestao :global([data-slot="campanhas-cabecalho"]) h1 + p {
+  margin-top: 6px;
+  line-height: 18px;
+}
+
+.gestao :global([data-slot="campanhas-cabecalho"]) :is(a, button) {
+  min-height: 38px;
+  border-radius: 11px;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.gestao :global([data-slot="campanhas-cabecalho"]) a:first-child {
+  border-color: var(--input);
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+}
+
+.gestao :global([data-slot="campanhas-indicadores"]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr);
+  gap: 14px;
+}
+
+.gestao :global([data-slot="campanhas-limite"]),
+.gestao :global([data-slot="campanhas-desempenho"]) {
+  grid-column: auto;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+}
+
+.gestao :global([data-slot="campanhas-desempenho"]) {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: 20px;
+}
+
+.gestao :global([data-slot="campanhas-indicador"]) {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.gestao :global([data-slot="campanhas-indicador"]) > p,
+.gestao :global([data-slot="campanhas-limite"]) > p:first-of-type {
+  margin-top: 8px;
+  color: var(--chat-texto-forte);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+@media (max-width: 899px) {
+  .gestao :global([data-slot="campanhas-indicadores"]) { grid-template-columns: minmax(0, 1fr); }
+  .gestao :global([data-slot="campanhas-desempenho"]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.gestao :global([data-slot="campanhas-cabecalho"]) h1 + p { max-width: none; }

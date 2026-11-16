@@ -16,7 +16,9 @@ dois lados; larguras menores conferidas só no CRM, porque o mockup não é resp
 | Feedbacks | `/feedbacks` | Formulário refeito em passos. Envio e validação exercitados. |
 | Cabeçalho das páginas (trilha, busca, título) | páginas `lista-v2` | Corrigido na origem comum. |
 | Mensagens Rápidas, Programadas, Lembretes, Agenda, Gestão, Dashboard, Templates, Automação, Relatórios | — | Estrutura confere; trilha corrigida onde divergia. Detalhes finos abaixo. |
-| Campanhas, Configurações | `/campanhas`, `/configuracoes` | **Pendente.** Divergem na estrutura (cabeçalho e indicadores de Campanhas; cartões de seção de Configurações). |
+| Campanhas | `/campanhas` | Cabeçalho e indicadores corrigidos (cartão de limite + cartão de desempenho). Comparada no estado vazio; a tabela com campanhas não foi comparada (sem dados de teste). |
+| Configurações | `/configuracoes` | Navegação e seção Notificações refeitas (duração segmentada, posição em cartões). Perfil já conferia. Interface e Ajuda não foram refeitas. |
+| Aba Interno | `/atendimentos` | Nova: lista só os chats internos quando o chat interno está habilitado no V2. |
 | Administração, Onboarding | — | **Não comparadas.** |
 | Horários, Banco de Arquivos | — | Sem tela no CRM (ver diferenças justificadas). |
 
@@ -28,7 +30,9 @@ dois lados; larguras menores conferidas só no CRM, porque o mockup não é resp
 | `atendimentos-antes-1920.png` | `atendimentos-depois-1920.png`, `atendimentos-depois-1440.png` | `atendimentos-mockup-1920.png` |
 | — | `tags-depois-1920.png`, `tags-depois-390.png` | `tags-mockup-1920.png` |
 | — | `feedbacks-depois-1920.png` | `feedbacks-mockup-1920.png` |
-| — | `abas-filtro-1366.png` (abas com filtro ativo, sem corte) | — |
+| — | `abas-filtro-1366.png` (abas com filtro ativo, sem corte), `aba-interno-1920.png` | — |
+| — | `campanhas-depois-1920.png` | `campanhas-mockup-1920.png` |
+| — | `configuracoes-depois-1920.png` | `configuracoes-mockup-1920.png` |
 
 Fixar e soltar a sidebar em Atendimentos foi amostrado quadro a quadro: lista, conversa e
 ficha ficam contíguas em todos os quadros, a conversa cede de 468 para 668 px e volta, e a
@@ -46,6 +50,8 @@ preservados.
 - **Menu "⋮" por cartão e nome da cor da tag.** Não existem ação nem dado equivalentes; não
   foram criados controles sem função.
 - **Empresa no cartão da lista.** Oculta no V2 como no mockup; segue no cabeçalho e na ficha.
+- **Configurações › Por e-mail e "Testar aviso".** O mockup mostra; não há preferência nem ação equivalentes no produto, então não foram criados.
+- **Campanhas › barras e percentuais de desempenho.** O mockup mostra percentuais sobre "enviadas em 30 dias"; a API entrega só as contagens, exibidas sem barra.
 - **Horários e Banco de Arquivos.** Não há backend; pela regra de não mockar dados, as rotas
   continuam mostrando o estado "área não construída".
 - **Rótulos do catálogo.** "Templates WhatsApp", "Buscar contatos…" e "Ctrl K" seguem o
