@@ -50,6 +50,95 @@
   padding: 14px 12px 12px;
 }
 
+.canvas :global([data-slot="sidebar-fixar"]) {
+  margin-left: auto;
+  border-radius: 10px;
+  color: var(--texto-sidebar-sub);
+}
+
+.canvas :global([data-slot="sidebar-fixar"]) .icone {
+  font-size: 17px;
+}
+
+.canvas :global([data-slot="sidebar"][data-state="collapsed"]) :global([data-slot="sidebar-fixar"]) {
+  pointer-events: none;
+}
+
+.canvas :global([data-slot="sidebar-busca"]) {
+  flex: none;
+  padding: 2px 12px 6px;
+}
+
+.canvas :global([data-slot="sidebar-busca"]:empty) {
+  display: none;
+}
+
+.canvas :global([data-slot="sidebar-busca"]) :global([data-slot="dashboard-busca"]) {
+  display: flex;
+  width: 244px;
+  height: 40px;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  padding: 0 6px 0 12px;
+  border: 1px solid rgb(255 255 255 / 95%);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 72%);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 5%);
+  color: var(--muted-foreground);
+  font-size: 13.5px;
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.canvas :global([data-slot="sidebar"][data-state="collapsed"]) :global([data-slot="dashboard-busca"]) {
+  width: 44px;
+}
+
+.canvas :global([data-slot="sidebar-busca"]) :global([data-slot="dashboard-busca"]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.canvas :global([data-slot="sidebar-busca"]) .icone {
+  width: 20px;
+  color: var(--foreground);
+  font-size: 17px;
+  text-align: center;
+}
+
+.canvas :global([data-slot="sidebar-busca"]) :global([data-slot="dashboard-busca"]) > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.canvas :global([data-slot="sidebar-busca"]) kbd {
+  display: flex;
+  height: 24px;
+  flex: none;
+  align-items: center;
+  padding: 0 7px;
+  border: 1px solid var(--input);
+  border-radius: 7px;
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.canvas :global([data-slot="sidebar-busca"]) :global([data-slot="dashboard-busca"]) > :not(:first-child) {
+  transition: opacity 160ms cubic-bezier(0.22, 1, 0.36, 1) 70ms;
+}
+
+.canvas :global([data-slot="sidebar"][data-state="collapsed"]) :global([data-slot="dashboard-busca"]) > :not(:first-child) {
+  opacity: 0;
+  transition: opacity 90ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .canvas :global([data-slot="sidebar-logo"]) {
   width: 44px;
   height: 44px;
@@ -63,14 +152,47 @@
 
 .canvas :global([data-slot="sidebar-navegacao"]) {
   min-height: 0;
-  padding: 0 11px 6px;
+  padding: 0 10px 6px 12px;
   scrollbar-width: none;
 }
 
-.canvas :global([data-slot="sidebar"][data-state="collapsed"]) :global([data-slot="sidebar-grupo"]) {
-  margin: 8px 0 12px;
-  padding-top: 14px;
-  background: linear-gradient(rgb(11 19 36 / 14%), rgb(11 19 36 / 14%)) center top / 20px 1px no-repeat;
+/* Recolhida, o título do grupo dá lugar a um traço de 20px alinhado aos ícones. */
+.canvas :global([data-slot="sidebar-grupo-titulo"])::after {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  width: 20px;
+  height: 1px;
+  background: rgb(11 19 36 / 14%);
+  content: "";
+  opacity: 0;
+  transition: opacity 150ms;
+}
+
+.canvas :global([data-slot="sidebar"][data-state="collapsed"]) :global([data-slot="sidebar-grupo-titulo"])::after {
+  opacity: 1;
+}
+
+.canvas :global([data-slot="selo-beta"]) {
+  padding: 2px 7px;
+  border: 0;
+  background: var(--accent);
+  color: var(--primary);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.5;
+  text-transform: none;
+}
+
+.canvas :global([data-slot="sidebar-rodape"]) {
+  padding: 6px 10px 12px 12px;
+}
+
+.canvas :global([data-slot="sidebar-perfil-seta"]) {
+  flex: none;
+  margin-right: 6px;
+  color: var(--muted-foreground);
 }
 
 .canvas :global([data-slot="sidebar-link"]) {
@@ -82,12 +204,15 @@
   letter-spacing: -0.01em;
 }
 
+.canvas :global([data-slot="sidebar-link"]) {
+  width: 244px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1), background-color 150ms;
+}
+
 .canvas :global([data-slot="sidebar"][data-state="collapsed"]) :global([data-slot="sidebar-link"]) {
   width: 44px;
-  margin-inline: auto;
-  justify-content: center;
-  gap: 0;
-  padding: 0;
 }
 
 .canvas :global([data-slot="sidebar-link"][aria-current="page"]) {
@@ -110,7 +235,6 @@
 }
 
 .canvas :global([data-slot="sidebar"][data-state="collapsed"]) :global([data-slot="sidebar-link"]) :global([data-slot="rotulo-sidebar"]) {
-  position: absolute;
   pointer-events: none;
 }
 
@@ -120,13 +244,19 @@
 }
 
 .canvas :global([data-slot="sidebar-pendencias"]) {
+  min-width: 22px;
+  height: 20px;
+  flex: none;
+  padding: 0 7px;
   background: #1f5fd6;
   color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
 }
 
 .canvas :global([data-slot="sidebar"][data-state="collapsed"]) :global([data-slot="sidebar-pendencias"]) {
-  top: 5px;
-  right: 7px;
+  top: 7px;
+  right: 9px;
   width: 9px;
   height: 9px;
   min-width: 0;
@@ -135,9 +265,14 @@
   font-size: 0;
 }
 
+/* No mockup a margem do último item colapsa com a do título seguinte. */
+.canvas :global([data-slot="sidebar-grupo"]) li:last-child :global([data-slot="sidebar-link"]) {
+  margin-bottom: 0;
+}
+
 .canvas :global([data-slot="sidebar-perfil"]) {
   min-width: 44px;
-  padding: 3px;
+  padding: 4px;
   border: 1px solid rgb(255 255 255 / 95%);
   border-radius: 16px;
   background: rgb(255 255 255 / 80%);
@@ -146,11 +281,12 @@
 
 .canvas :global([data-slot="sidebar"][data-state="collapsed"]) :global([data-slot="sidebar-perfil"]) {
   width: 44px;
-  height: 44px;
 }
 
-.canvas :global([data-slot="sidebar"][data-state="collapsed"]) :global([data-slot="sidebar-perfil"]) :global([data-slot="rotulo-sidebar"]) {
-  display: none;
+.canvas :global([data-slot="sidebar-perfil"]) {
+  width: 244px;
+  overflow: hidden;
+  transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .canvas :global([data-slot="sidebar-perfil"]):hover {

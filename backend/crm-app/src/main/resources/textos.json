@@ -2397,7 +2397,16 @@
       "ordenar": "Ordenar tags",
       "maisUsadas": "Mais usadas",
       "alfabetica": "A–Z",
-      "verContatos": "Ver contatos"
+      "verContatos": "Ver contatos",
+      "todasTitulo": "Todas as tags",
+      "resumoLista": "{exibidas} de {total} · clique em “Ver contatos” para filtrar a Agenda",
+      "resumoListaSemAgenda": "{exibidas} de {total}",
+      "colunaTag": "Tag",
+      "colunaUso": "Uso na base",
+      "colunaLeads": "Leads",
+      "emUso": "{n} em uso na base",
+      "leadsComTag": "Leads com tag",
+      "vazioTitulo": "Nenhuma tag encontrada"
     },
     "titulo": "Tags",
     "descricao": "Etiquetas para classificar e segmentar leads.",

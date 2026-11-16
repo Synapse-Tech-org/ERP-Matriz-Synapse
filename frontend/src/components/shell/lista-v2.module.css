@@ -24,8 +24,12 @@
 .pagina :global([data-slot="lista-v2-topo"]) {
   min-height: 38px;
   justify-content: space-between;
-  color: var(--muted-foreground);
-  font-size: 13px;
+  color: var(--texto-fraco, var(--muted-foreground));
+  font-size: 13.5px;
+}
+
+.pagina :global([data-slot="lista-v2-topo"]) nav span[aria-hidden]:not([data-slot]) {
+  color: color-mix(in srgb, var(--texto-fraco, var(--muted-foreground)) 45%, transparent);
 }
 
 .pagina :global([data-slot="lista-v2-topo"]) :global([aria-current="page"]) {
@@ -64,9 +68,14 @@
   justify-content: space-between;
   gap: 10px;
   margin: 0;
-  padding: 4px 0;
+  padding: 8px 0 4px;
   border: 0;
   background: transparent;
+}
+
+.pagina > header h1 + p {
+  margin-top: 6px;
+  line-height: 18px;
 }
 
 .pagina > header h1 {

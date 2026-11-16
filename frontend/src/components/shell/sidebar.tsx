@@ -62,6 +62,7 @@ import {
 import { NovidadesDialog } from "./novidades-dialog";
 import { SeloBeta } from "./selo-beta";
 import { IconeFrontendV2, type NomeIconeFrontendV2 } from "./icone-frontend-v2";
+import { BuscaDoDashboard } from "@/components/dashboard/busca-do-dashboard";
 
 interface ItemDeMenu extends ItemDeMenuBase {
   icone: React.ComponentType<{ className?: string }>;
@@ -242,6 +243,8 @@ export function Sidebar({
       AUSENTE: textos.rodape.presenca.ausente,
       OFFLINE: textos.rodape.presenca.offline,
     })[status];
+  const papeis: Record<string, string | undefined> = textos.administracao?.acessos?.papeis ?? {};
+  const rotuloDoPapel = (valor: string | null | undefined) => (valor ? papeis[valor] ?? valor : valor);
 
   return (
     <>
@@ -281,9 +284,11 @@ export function Sidebar({
       <div
         data-slot="sidebar-marca"
         className={
-          retraida
-            ? "flex flex-col items-center gap-2 px-2 py-4"
-            : "flex items-center gap-3 px-[18px] py-5"
+          visualV2
+            ? "flex w-[266px] flex-none items-center gap-[11px]"
+            : retraida
+              ? "flex flex-col items-center gap-2 px-2 py-4"
+              : "flex items-center gap-3 px-[18px] py-5"
         }
       >
         {tema?.logoUrl && !logoFalhou ? (
@@ -311,7 +316,9 @@ export function Sidebar({
         )}
         <div className="min-w-0 flex-1 overflow-hidden">
           <p
-            className="truncate text-[15px] leading-tight font-bold tracking-tight text-sidebar-texto-forte"
+            className={visualV2
+              ? "truncate text-[15.5px] leading-[1.15] font-semibold tracking-[-.025em] text-sidebar-texto-forte"
+              : "truncate text-[15px] leading-tight font-bold tracking-tight text-sidebar-texto-forte"}
             style={estiloDoRotuloDaSidebar(retraida)}
             aria-hidden={retraida}
             data-slot="rotulo-sidebar"
@@ -319,7 +326,9 @@ export function Sidebar({
             {textos.app.marca}
           </p>
           <p
-            className="mt-0.5 truncate text-[10px] font-semibold tracking-[.16em] text-texto-sidebar-sub uppercase"
+            className={visualV2
+              ? "mt-0.5 truncate text-xs text-texto-sidebar-sub"
+              : "mt-0.5 truncate text-[10px] font-semibold tracking-[.16em] text-texto-sidebar-sub uppercase"}
             style={estiloDoRotuloDaSidebar(retraida)}
             aria-hidden={retraida}
           >
@@ -333,15 +342,25 @@ export function Sidebar({
           aria-expanded={!retraida}
           aria-label={fixada ? textos.menu.desafixar : textos.menu.fixar}
           title={fixada ? textos.menu.desafixar : textos.menu.fixar}
+          data-slot="sidebar-fixar"
+          style={visualV2 ? estiloDoRotuloDaSidebar(retraida) : undefined}
           className="flex size-8 flex-none items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-item-texto-hover"
         >
-          {fixada ? (
+          {visualV2 ? (
+            <IconeFrontendV2 nome={fixada ? "sidebar-unfold-line" : "sidebar-fold-line"} />
+          ) : fixada ? (
             <PanelLeftClose className="size-[calc(var(--tamanho-icone-sidebar)*0.857143)]" aria-hidden />
           ) : (
             <PanelLeftOpen className="size-[calc(var(--tamanho-icone-sidebar)*0.857143)]" aria-hidden />
           )}
         </button>
       </div>
+
+      {visualV2 && (
+        <div data-slot="sidebar-busca">
+          <BuscaDoDashboard rotulo={textos.gestao?.v2?.buscaGlobal} />
+        </div>
+      )}
 
       <nav
         data-slot="sidebar-navegacao"
@@ -386,7 +405,7 @@ export function Sidebar({
           setPopupAberto(false);
           botaoPerfil.current?.focus();
         }
-      }} className={retraida ? "relative border-t border-[color-mix(in_srgb,var(--sidebar-texto-forte)_8%,transparent)] px-2 py-3" : "relative border-t border-[color-mix(in_srgb,var(--sidebar-texto-forte)_8%,transparent)] px-3 py-3.5"}>
+      }} data-slot="sidebar-rodape" className={visualV2 ? "relative flex-none" : retraida ? "relative border-t border-[color-mix(in_srgb,var(--sidebar-texto-forte)_8%,transparent)] px-2 py-3" : "relative border-t border-[color-mix(in_srgb,var(--sidebar-texto-forte)_8%,transparent)] px-3 py-3.5"}>
         {popupAberto && (
           <div
             id="sidebar-menu-perfil"
@@ -439,7 +458,16 @@ export function Sidebar({
           </div>
         )}
 
-        <div className={retraida ? "flex flex-col items-center gap-1" : "flex items-center gap-1"}>
+        {visualV2 && (
+          <AtalhosDoRodapeV2
+            pathname={pathname}
+            retraida={retraida}
+            novidadesAberto={novidadesAberto}
+            onAbrirNovidades={() => setNovidadesAberto(true)}
+          />
+        )}
+
+        <div className={visualV2 ? "flex" : retraida ? "flex flex-col items-center gap-1" : "flex items-center gap-1"}>
           <button
             type="button"
             ref={botaoPerfil}
@@ -453,9 +481,11 @@ export function Sidebar({
             aria-label={`${textos.rodape.presenca.rotulo}: ${rotuloDaPresenca(statusAtual)}`}
             title={`${textos.rodape.presenca.rotulo}: ${rotuloDaPresenca(statusAtual)}`}
             className={
-              retraida
-                ? "flex items-center justify-center rounded-xl p-1 hover:bg-sidebar-item-overlay-hover"
-                : "flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-sidebar-item-overlay-hover"
+              visualV2
+                ? "flex min-w-0 flex-none items-center gap-2.5"
+                : retraida
+                  ? "flex items-center justify-center rounded-xl p-1 hover:bg-sidebar-item-overlay-hover"
+                  : "flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-sidebar-item-overlay-hover"
             }
           >
           <span data-slot="sidebar-avatar" className="relative flex size-[38px] flex-none items-center justify-center">
@@ -473,16 +503,21 @@ export function Sidebar({
             data-slot="rotulo-sidebar"
           >
             {meuUsuario.data && (
-              <span className="block truncate text-[13.5px] font-bold text-sidebar-texto-forte">
+              <span className={cn("block truncate text-[13.5px] text-sidebar-texto-forte", visualV2 ? "font-semibold tracking-[-.01em]" : "font-bold")}>
                 {meuUsuario.data.nome}
               </span>
             )}
-            <span className="block truncate text-[11.5px] font-medium text-texto-sidebar-sub">
-              {meuUsuario.data?.papel ?? papel} · {rotuloDaPresenca(statusAtual)}
+            <span className={visualV2 ? "mt-px block truncate text-xs text-texto-sidebar-sub" : "block truncate text-[11.5px] font-medium text-texto-sidebar-sub"}>
+              {visualV2 ? rotuloDoPapel(meuUsuario.data?.papel ?? papel) : meuUsuario.data?.papel ?? papel} · {rotuloDaPresenca(statusAtual)}
             </span>
           </span>
+          {visualV2 && (
+            <span data-slot="sidebar-perfil-seta" style={estiloDoRotuloDaSidebar(retraida)}>
+              <IconeFrontendV2 nome="expand-up-down-line" />
+            </span>
+          )}
           </button>
-          {textos.novidades?.titulo && (
+          {!visualV2 && textos.novidades?.titulo && (
             <button
               type="button"
               onClick={() => setNovidadesAberto(true)}
@@ -493,27 +528,91 @@ export function Sidebar({
               <Sparkles className="size-[calc(var(--tamanho-icone-sidebar)*0.761905)]" aria-hidden />
             </button>
           )}
-          <Link
-            href="/feedbacks"
-            aria-label={textos.menu.itens.feedbacks}
-            title={textos.menu.itens.feedbacks}
-            className="flex size-8 flex-none items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-item-texto-hover"
-          >
-            <MessageSquarePlus className="size-[calc(var(--tamanho-icone-sidebar)*0.761905)]" aria-hidden />
-          </Link>
-          <Link
-            href="/configuracoes"
-            aria-label={textos.configuracoes.abrir}
-            title={textos.configuracoes.abrir}
-            className="flex size-8 items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-item-texto-hover"
-          >
-            <Settings className="size-[calc(var(--tamanho-icone-sidebar)*0.761905)]" />
-          </Link>
+          {!visualV2 && (
+            <>
+              <Link
+                href="/feedbacks"
+                aria-label={textos.menu.itens.feedbacks}
+                title={textos.menu.itens.feedbacks}
+                className="flex size-8 flex-none items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-item-texto-hover"
+              >
+                <MessageSquarePlus className="size-[calc(var(--tamanho-icone-sidebar)*0.761905)]" aria-hidden />
+              </Link>
+              <Link
+                href="/configuracoes"
+                aria-label={textos.configuracoes.abrir}
+                title={textos.configuracoes.abrir}
+                className="flex size-8 items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-item-texto-hover"
+              >
+                <Settings className="size-[calc(var(--tamanho-icone-sidebar)*0.761905)]" />
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </aside>
       <NovidadesDialog aberto={novidadesAberto} onFechar={() => setNovidadesAberto(false)} />
     </>
+  );
+}
+
+const CLASSE_LINK_ATIVO =
+  "relative flex items-center gap-3 rounded-[10px] bg-sidebar-item-overlay-ativo px-3 py-2.5 text-[16px] font-medium text-sidebar-texto-forte shadow-[inset_3px_0_0_var(--sidebar-item-acento-ativo)] hover:bg-sidebar-item-overlay-ativo-hover";
+const CLASSE_LINK_INATIVO =
+  "relative flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[16px] font-medium text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover";
+
+interface AtalhosDoRodapeV2Props {
+  pathname: string;
+  retraida: boolean;
+  novidadesAberto: boolean;
+  onAbrirNovidades: () => void;
+}
+
+/** Novidades, Feedbacks e Configurações como linhas do menu, acima do cartão de perfil (mockup V2). */
+function AtalhosDoRodapeV2({ pathname, retraida, novidadesAberto, onAbrirNovidades }: AtalhosDoRodapeV2Props) {
+  const textos = useTextos();
+  const atalhos = [
+    { rota: "/feedbacks", rotulo: textos.menu.itens.feedbacks, icones: ["chat-heart-line", "chat-heart-fill"] },
+    { rota: "/configuracoes", rotulo: textos.configuracoes.titulo, icones: ["settings-4-line", "settings-4-fill"] },
+  ] as const;
+
+  return (
+    <div className="mb-2.5 flex flex-col gap-px" data-slot="sidebar-atalhos">
+      {textos.novidades?.titulo && (
+        <button
+          type="button"
+          data-slot="sidebar-link"
+          onClick={onAbrirNovidades}
+          aria-label={retraida ? textos.novidades.titulo : undefined}
+          title={textos.novidades.titulo}
+          className={novidadesAberto ? CLASSE_LINK_ATIVO : CLASSE_LINK_INATIVO}
+        >
+          <IconeFrontendV2 nome={novidadesAberto ? "sparkling-2-fill" : "sparkling-2-line"} />
+          <span className="flex-1 truncate text-left whitespace-nowrap" style={estiloDoRotuloDaSidebar(retraida)} aria-hidden={retraida} data-slot="rotulo-sidebar">
+            {textos.novidades.titulo}
+          </span>
+        </button>
+      )}
+      {atalhos.map(({ rota, rotulo, icones }) => {
+        const ativo = rotaDoItemAtiva(pathname, rota);
+        return (
+          <Link
+            key={rota}
+            data-slot="sidebar-link"
+            href={rota}
+            aria-current={ativo ? "page" : undefined}
+            aria-label={retraida ? rotulo : undefined}
+            title={rotulo}
+            className={ativo ? CLASSE_LINK_ATIVO : CLASSE_LINK_INATIVO}
+          >
+            <IconeFrontendV2 nome={icones[ativo ? 1 : 0]} />
+            <span className="flex-1 truncate whitespace-nowrap" style={estiloDoRotuloDaSidebar(retraida)} aria-hidden={retraida} data-slot="rotulo-sidebar">
+              {rotulo}
+            </span>
+          </Link>
+        );
+      })}
+    </div>
   );
 }
 
@@ -545,8 +644,12 @@ function MenuGrupo({
   if (itensVisiveis.length === 0) return null;
 
   return (
-    <div className="mb-2" data-slot="sidebar-grupo">
-      <p
+    <div className={visualV2 ? undefined : "mb-2"} data-slot="sidebar-grupo">
+      {visualV2 ? (
+        <p data-slot="sidebar-grupo-titulo" className="relative mt-2 flex h-[30px] items-center px-3 text-xs font-medium whitespace-nowrap text-texto-sidebar-titulo">
+          <span style={estiloDoRotuloDaSidebar(retraida)} aria-hidden={retraida} data-slot="rotulo-sidebar">{titulo}</span>
+        </p>
+      ) : <p
         className="overflow-hidden px-2.5 text-[10.5px] font-bold tracking-[.11em] text-texto-sidebar-titulo uppercase whitespace-nowrap"
         style={{
           ...estiloDoRotuloDaSidebar(retraida),
@@ -559,8 +662,8 @@ function MenuGrupo({
         data-slot="rotulo-sidebar"
       >
         {titulo}
-      </p>
-      <ul className="flex flex-col gap-0.5">
+      </p>}
+      <ul className={visualV2 ? "flex flex-col" : "flex flex-col gap-0.5"}>
         {itensVisiveis.map((item) => {
           const Icone = item.icone;
           const ativo = rotaDoItemAtiva(pathname, item.rota);
@@ -585,11 +688,7 @@ function MenuGrupo({
                 }}
                 aria-label={retraida ? rotuloAcessivel : undefined}
                 title={rotulo}
-                className={
-                  ativo
-                    ? "relative flex items-center gap-3 rounded-[10px] bg-sidebar-item-overlay-ativo px-3 py-2.5 text-[16px] font-medium text-sidebar-texto-forte shadow-[inset_3px_0_0_var(--sidebar-item-acento-ativo)] hover:bg-sidebar-item-overlay-ativo-hover"
-                    : "relative flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[16px] font-medium text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
-                }
+                className={ativo ? CLASSE_LINK_ATIVO : CLASSE_LINK_INATIVO}
               >
                 {iconeV2 ? <IconeFrontendV2 nome={iconeV2} /> : <Icone
                   className={

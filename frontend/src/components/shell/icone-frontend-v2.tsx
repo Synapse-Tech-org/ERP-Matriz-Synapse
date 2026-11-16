@@ -62,6 +62,20 @@ const glifos = {
   "chat-settings-line": "\ueb6d",
   "repeat-line": "\uf074",
   "heart-3-line": "\uee0b",
+  "sidebar-fold-line": "\uf45c",
+  "sidebar-unfold-line": "\uf45e",
+  "sparkling-2-fill": "\uf36a",
+  "chat-heart-line": "\ueb5f",
+  "chat-heart-fill": "\ueb5e",
+  "settings-4-line": "\uf0e8",
+  "settings-4-fill": "\uf0e7",
+  "expand-up-down-line": "\uf327",
+  "add-line": "\uea13",
+  "pencil-line": "\uefe0",
+  "delete-bin-line": "\uec2a",
+  "user-follow-fill": "\uf260",
+  "close-line": "\ueb99",
+  "check-line": "\ueb7b",
 } as const;
 
 export type NomeIconeFrontendV2 = keyof typeof glifos;
