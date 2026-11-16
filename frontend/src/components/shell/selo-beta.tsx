@@ -6,7 +6,7 @@ import { useTextos } from "@/lib/config/textos-provider";
 export function SeloBeta() {
   const rotulo = useTextos().menu.beta;
   return (
-    <span className="shrink-0 rounded-full border border-current px-1.5 py-px text-[9.5px] leading-none font-bold tracking-wide uppercase">
+    <span data-slot="selo-beta" className="shrink-0 rounded-full border border-current px-1.5 py-px text-[9.5px] leading-none font-bold tracking-wide uppercase">
       {rotulo}
     </span>
   );

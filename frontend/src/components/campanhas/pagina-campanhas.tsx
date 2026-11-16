@@ -14,6 +14,7 @@ import {
   useListaDeCampanhas,
 } from "@/lib/campanhas/hooks";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 
 import { AcaoSoDoAdministrador, CampanhasIndisponiveis, EstadoVazio } from "./estados";
 import { CartaoDeCampanha } from "./cartao-de-campanha";
@@ -24,7 +25,7 @@ function Cabecalho() {
   const textos = useTextos().campanhas;
   const podeCriar = usePodeEmCampanhas("criar");
   return (
-    <header className="flex flex-wrap items-start justify-between gap-3">
+    <header data-slot="campanhas-cabecalho" className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h1 className="text-2xl font-bold">{textos.titulo}</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{textos.descricao}</p>
@@ -78,6 +79,7 @@ export function PaginaCampanhas() {
   const podeCriar = usePodeEmCampanhas("criar");
   const [pagina, setPagina] = useState(0);
   const consulta = useListaDeCampanhas(pagina);
+  const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("gestao_layout_v2") ?? false;
 
   if (consulta.isError && funcionalidadeIndisponivel(consulta.error)) return <CampanhasIndisponiveis />;
 
@@ -85,7 +87,7 @@ export function PaginaCampanhas() {
   const totalDePaginas = lista ? Math.max(1, Math.ceil(lista.total / TAMANHO_DA_PAGINA)) : 1;
 
   return (
-    <main className="space-y-5 p-6">
+    <main data-slot="campanhas-pagina" className="space-y-5 p-6">
       <Cabecalho />
       {consulta.isError && !lista && (
         <ErroDeCarregamento mensagem={textos.erroCarregar} onTentarNovamente={() => consulta.refetch()} />
@@ -114,7 +116,7 @@ export function PaginaCampanhas() {
             />
           ) : (
             <>
-              <TabelaDeCampanhas campanhas={lista.itens} />
+              <TabelaDeCampanhas campanhas={lista.itens} v2={layoutV2} />
               <ul className="space-y-3 md:hidden" aria-label={textos.lista.titulo}>
                 {lista.itens.map((campanha) => (
                   <CartaoDeCampanha key={campanha.id} campanha={campanha} />

@@ -21,6 +21,8 @@ import {
   Trash2,
   UserRound,
   FileText,
+  IdCard,
+  X,
   Image as ImageIcon,
 } from "lucide-react";
 
@@ -69,13 +71,15 @@ import { FormularioLembrete } from "../lembretes/formulario-lembrete";
 import { FormularioMensagemProgramada } from "../mensagens-programadas/formulario-mensagem-programada";
 import { CampoNomeDoLead } from "../leads/campo-nome-do-lead";
 import { ConsultaDarwin } from "../leads/consulta-darwin";
-import { DadosClienteLocais } from "../leads/dados-cliente-locais";
+import { DadosClienteLocais, formatarCpfDaFicha } from "../leads/dados-cliente-locais";
 import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import { EditorTelefoneDoLead } from "../leads/editor-telefone-do-lead";
 import { ContadorDoPainel } from "../ui/contador-do-painel";
 import { SomenteAdministrador } from "../administracao/somente-administrador";
 import { copiarTexto } from "@/lib/mensagens/copiar-texto";
 import { cn } from "@/lib/utils";
+import visualV2 from "../shell/agenda-recursos-v2.module.css";
+import fichaV2 from "./painel-da-conversa-v2.module.css";
 
 type Props = {
   leadId: string;
@@ -117,14 +121,20 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
   const posicaoEtapa = etapaAtual
     ? etapasOrdenadas.findIndex((etapa) => etapa.id === etapaAtual.id) + 1
     : 0;
+  const notasEMidias = <>
+    <SecaoDeNotasInternas key={lead.data.id} lead={lead.data} />
+    <SecaoDeMidias key={`midias:${leadId}`} leadId={leadId} />
+  </>;
+  const IconeFechar = layoutV2 ? X : PanelRightClose;
 
   return (
     <aside
       data-slot="painel-detalhes-lead"
       id="painel-detalhes-lead"
-      className="flex h-full min-h-0 w-[344px] shrink-0 flex-col overflow-hidden border-l border-border bg-background"
+      className={cn("flex h-full min-h-0 w-[344px] shrink-0 flex-col overflow-hidden border-l border-border bg-background",
+        layoutV2 && [visualV2.paleta, fichaV2.ficha])}
     >
-      <div className="flex flex-none items-center justify-between gap-2 p-4">
+      <div className="flex flex-none items-center justify-between gap-2 p-4" data-slot="ficha-topo">
         <p className="text-sm font-bold text-foreground">{textos.titulo}</p>
         <Button
           type="button"
@@ -136,26 +146,26 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
           aria-label={textos.retrair}
           title={textos.retrair}
         >
-          <PanelRightClose className="size-(--tamanho-icone-interface)" aria-hidden />
+          <IconeFechar className="size-(--tamanho-icone-interface)" aria-hidden />
         </Button>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 pt-0">
-        <div className="flex flex-col items-center gap-2 text-center">
+      <div className={cn("min-h-0 flex-1 overflow-y-auto p-4 pt-0", layoutV2 ? fichaV2.corpo : "space-y-5")}>
+        <div className="flex flex-col items-center gap-2 text-center" data-slot="ficha-identidade">
           <FotoDoLeadClicavel
             id={lead.data.id}
             nome={lead.data.nome}
             fotoUrl={lead.data.fotoUrl}
-            className="flex size-16 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white"
+            className={cn("flex size-16 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white", layoutV2 && fichaV2.avatar)}
           />
-          <div>
+          <div className={layoutV2 ? fichaV2.nome : undefined}>
             <CampoNomeDoLead
               key={leadId}
               leadId={leadId}
               valorAtual={lead.data.nome}
               className="text-base"
             />
-            {lead.data.empresa && (
+            {!layoutV2 && lead.data.empresa && (
               <p className="text-xs text-muted-foreground">
                 {lead.data.empresa}
               </p>
@@ -163,7 +173,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2.5" data-slot="ficha-contadores">
           <ContadorDoPainel
             valor={lead.data.numAtendimentos}
             rotulo={textosLead.contadores.atendimentos}
@@ -175,11 +185,11 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
         </div>
 
         <div>
-          <p className="mb-3 px-0.5 text-xs font-bold tracking-wide text-muted-foreground uppercase">
-            {dadosClienteAtivos ? textosDadosCliente.titulo : textos.informacoesGerais}
+          <p className="mb-3 px-0.5 text-xs font-bold tracking-wide text-muted-foreground uppercase" data-slot="ficha-rotulo">
+            {!layoutV2 && dadosClienteAtivos ? textosDadosCliente.titulo : textos.informacoesGerais}
           </p>
-          <div className="space-y-3">
-            <CampoCodigoDoLead key={leadId} leadId={leadId} valorAtual={lead.data.codigo} />
+          <div className={layoutV2 ? fichaV2.dados : "space-y-3"}>
+            {!layoutV2 && <CampoCodigoDoLead key={leadId} leadId={leadId} valorAtual={lead.data.codigo} />}
             <InformacaoDoPainel
               icone={<Phone className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.telefone}
@@ -196,13 +206,19 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
                 </>
               )}
             />
-            {dadosClienteAtivos && <DadosClienteLocais lead={lead.data} />}
+            {layoutV2 && <InformacaoDoPainel
+              icone={<IdCard aria-hidden />}
+              rotulo={textosDadosCliente.cpf}
+              legenda={textosDadosCliente.cpf}
+              valor={formatarCpfDaFicha(lead.data.cpf)}
+            />}
+            {!layoutV2 && dadosClienteAtivos && <DadosClienteLocais lead={lead.data} />}
             {(!layoutV2 || dadosClienteAtivos) && <InformacaoDoPainel
               icone={<Mail className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.email}
               valor={lead.data.email}
             />}
-            {!dadosClienteAtivos && <ConsultaDarwin key={`darwin:${leadId}`} leadId={leadId} cpfAtual={lead.data.cpf} permitido={capacidades.pode("contatos.editar")} />}
+            {!layoutV2 && !dadosClienteAtivos && <ConsultaDarwin key={`darwin:${leadId}`} leadId={leadId} cpfAtual={lead.data.cpf} permitido={capacidades.pode("contatos.editar")} />}
             <InformacaoDoPainel
               icone={<MapPin className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.localizacao}
@@ -215,7 +231,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
             <InformacaoDoPainel
               icone={<UserRound className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.responsavel}
-              valor={responsavelNome}
+              valor={layoutV2 && responsavelNome ? `${textosLead.dados.responsavel} · ${responsavelNome}` : responsavelNome}
             />
           </div>
         </div>
@@ -227,7 +243,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
               {/* Etapa atual ao lado do título: é a informação principal da seção. */}
               <div data-slot="etapa-cabecalho" className="flex min-w-0 items-center justify-between gap-2">
                 <p className="shrink-0 text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                  {textosLead.etapa.titulo}
+                  {layoutV2 ? textos.etapaV2 : textosLead.etapa.titulo}
                 </p>
                 <span
                   className="min-w-0 truncate rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground"
@@ -235,7 +251,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
                   style={
                     etapaAtual.corVisual
                       ? {
-                          backgroundColor: `${etapaAtual.corVisual}22`,
+                          backgroundColor: layoutV2 ? `color-mix(in srgb, ${etapaAtual.corVisual} 10%, transparent)` : `${etapaAtual.corVisual}22`,
                           color: etapaAtual.corVisual,
                         }
                       : undefined
@@ -284,39 +300,53 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
         </SomenteAdministrador>
 
         <div>
-          <p className="mb-2 px-0.5 text-xs font-bold tracking-wide text-muted-foreground uppercase">
-            {textosLead.tags.titulo}
+          <p className="mb-2 px-0.5 text-xs font-bold tracking-wide text-muted-foreground uppercase" data-slot="ficha-rotulo">
+            {layoutV2 ? textos.etiquetasV2 : textosLead.tags.titulo}
           </p>
-          <AtalhoTags leadId={leadId} modo="painel" />
+          <AtalhoTags leadId={leadId} modo="painel" visualV2={layoutV2} />
         </div>
 
-        {capacidades.pode("resumo_ia.ver") && (
-          <ResumoPersistidoDoLead
-            key={`${lead.data.id}:${atendimentoId}`}
-            lead={lead.data}
-            atendimentoId={atendimentoId}
-            titulo={textos.secoes.resumo}
-          />
-        )}
-
-        {capacidades.pode("mensagens_programadas.ver") && (
-          <SecaoDeProgramadas
-            leadId={leadId}
-            leadNome={lead.data.nome}
-            titulo={textos.secoes.programadas}
-            vazio={textos.vazioProgramadas}
-          />
-        )}
-        {capacidades.pode("lembretes.ver") && (
-          <SecaoDeLembretes
-            leadId={leadId}
-            leadNome={lead.data.nome}
-            titulo={textos.secoes.lembretes}
-            vazio={textos.vazioLembretes}
-          />
-        )}
-        <SecaoDeNotasInternas key={lead.data.id} lead={lead.data} />
-        <SecaoDeMidias key={`midias:${leadId}`} leadId={leadId} />
+        <div className={layoutV2 ? fichaV2.secoes : "space-y-5"}>
+          {capacidades.pode("resumo_ia.ver") && (
+            <ResumoPersistidoDoLead
+              key={`${lead.data.id}:${atendimentoId}`}
+              lead={lead.data}
+              atendimentoId={atendimentoId}
+              titulo={textos.secoes.resumo}
+              visualV2={layoutV2}
+            />
+          )}
+          {layoutV2 && notasEMidias}
+          {capacidades.pode("mensagens_programadas.ver") && (
+            <SecaoDeProgramadas
+              leadId={leadId}
+              leadNome={lead.data.nome}
+              titulo={textos.secoes.programadas}
+              vazio={textos.vazioProgramadas}
+            />
+          )}
+          {capacidades.pode("lembretes.ver") && (
+            <SecaoDeLembretes
+              leadId={leadId}
+              leadNome={lead.data.nome}
+              titulo={textos.secoes.lembretes}
+              vazio={textos.vazioLembretes}
+            />
+          )}
+          {!layoutV2 && notasEMidias}
+          {layoutV2 && (lead.data.empresa || lead.data.codigo || dadosClienteAtivos || capacidades.pode("contatos.editar")) && (
+            <SecaoColapsavel icone={<IdCard className="size-(--tamanho-icone-interface)" />} titulo={textosDadosCliente.titulo}>
+              <div className="space-y-3">
+                {lead.data.empresa && <p className="text-sm">{lead.data.empresa}</p>}
+                <CampoCodigoDoLead key={leadId} leadId={leadId} valorAtual={lead.data.codigo} />
+                {dadosClienteAtivos ? <DadosClienteLocais lead={lead.data} mostrarCpf={false} /> : (
+                  <ConsultaDarwin key={`darwin:${leadId}`} leadId={leadId} cpfAtual={lead.data.cpf}
+                    permitido={capacidades.pode("contatos.editar")} mostrarCpf={false} />
+                )}
+              </div>
+            </SecaoColapsavel>
+          )}
+        </div>
       </div>
     </aside>
   );
@@ -326,10 +356,12 @@ function ResumoPersistidoDoLead({
   lead,
   atendimentoId,
   titulo,
+  visualV2,
 }: {
   lead: LeadFicha;
   atendimentoId: string;
   titulo: string;
+  visualV2: boolean;
 }) {
   const textos = useTextos();
   const estado = useEstadoResumoIa(atendimentoId);
@@ -379,29 +411,25 @@ function ResumoPersistidoDoLead({
     });
   }
 
+  const acao = podeSolicitar ? (
+    <Button type="button" size="sm" variant={temResumo ? "outline" : "default"}
+      onClick={gerar} disabled={processando}>
+      {aguardandoConferencia || cicloObsoleto || configuracaoAusente
+        ? textos.atendimentos.painel.resumoIa.aguardandoConferenciaLabel
+        : processando
+          ? textos.atendimentos.painel.resumoIa.processando
+          : temResumo
+            ? textos.atendimentos.painel.resumoIa.regerar
+            : textos.atendimentos.painel.resumoIa.gerar}
+    </Button>
+  ) : undefined;
+
   return (
     <SecaoColapsavel
       icone={<Sparkles className="size-(--tamanho-icone-interface) text-primary" />}
       titulo={titulo}
-      acao={
-        podeSolicitar ? (
-          <Button
-            type="button"
-            size="sm"
-            variant={temResumo ? "outline" : "default"}
-            onClick={gerar}
-            disabled={processando}
-          >
-            {aguardandoConferencia || cicloObsoleto || configuracaoAusente
-              ? textos.atendimentos.painel.resumoIa.aguardandoConferenciaLabel
-              : processando
-              ? textos.atendimentos.painel.resumoIa.processando
-              : temResumo
-                ? textos.atendimentos.painel.resumoIa.regerar
-                : textos.atendimentos.painel.resumoIa.gerar}
-          </Button>
-        ) : undefined
-      }
+      acao={visualV2 ? undefined : acao}
+      abertaPorPadrao={visualV2 && temResumo}
     >
       <div className="space-y-2">
         <p role={erro || aguardandoConferencia || cicloObsoleto || configuracaoAusente ? "alert" : "status"} className="text-xs text-muted-foreground">
@@ -430,9 +458,13 @@ function ResumoPersistidoDoLead({
           </div>
         ) : (
           <>
-            <div className="flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
-              <Sparkles className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" />
-              <p className="whitespace-pre-wrap text-sm text-foreground">{resumo}</p>
+            <div className={visualV2 ? fichaV2.resumo : "flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3"}>
+              {visualV2 ? <div className={fichaV2.resumoTitulo}>
+                <Sparkles aria-hidden />
+                <span>{textos.atendimentos.painel.resumoIa.tituloCartao}</span>
+                <span>{textos.atendimentos.painel.resumoIa.selo}</span>
+              </div> : <Sparkles className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" />}
+              <p className={visualV2 ? undefined : "whitespace-pre-wrap text-sm text-foreground"}>{resumo}</p>
             </div>
             {atualizadoEm && (
               <p className="text-xs text-muted-foreground">
@@ -441,6 +473,7 @@ function ResumoPersistidoDoLead({
             )}
           </>
         )}
+        {visualV2 && acao}
       </div>
     </SecaoColapsavel>
   );
@@ -545,17 +578,20 @@ function InformacaoDoPainel({
   valor,
   vazio,
   acao,
+  legenda,
 }: {
   icone: React.ReactNode;
   rotulo: string;
   valor: string | null;
   vazio?: string;
   acao?: React.ReactNode;
+  legenda?: string;
 }) {
   if (!valor && !acao) return null;
   return (
-    <div className="flex items-center gap-2.5 text-primary" title={rotulo}>
+    <div className="flex items-center gap-2.5 text-primary" title={rotulo} data-slot="ficha-dado">
       {icone}
+      {legenda && <span>{legenda}</span>}
       <div className="flex min-w-0 flex-1 items-center gap-1">
         <p className="min-w-0 flex-1 truncate text-sm text-foreground">{valor || vazio}</p>
         {acao}
@@ -570,7 +606,7 @@ function CopiarTelefone({ valor }: { valor: string }) {
 
   return (
     <>
-      <Button type="button" variant="ghost" size="icon-sm"
+      <Button type="button" variant="ghost" size="icon-sm" data-slot="ficha-copiar-telefone"
         aria-label={media.copiarTelefone ?? mensagem.acoes.copiar}
         onClick={async () => setResultado(await copiarTexto(valor))}>
         <Copy aria-hidden />
@@ -782,7 +818,7 @@ function SecaoColapsavel({
         </button>
       </div>
       {aberta && (
-        <div id={idPainel} className="p-2.5">
+        <div id={idPainel} className="p-2.5" data-slot="secao-colapsavel-corpo">
           {children}
         </div>
       )}

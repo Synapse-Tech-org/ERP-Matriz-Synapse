@@ -85,16 +85,20 @@ vi.mock("@/lib/config/textos-provider", () => ({
         administracao: "Administração",
       },
     },
-    administracao: {},
+    administracao: { acessos: { papeis: { ATENDENTE: "Atendente" } } },
     rodape: {
       trocarConta: "Trocar conta",
       trocarSenha: "Trocar senha",
       sair: "Sair",
       presenca: { rotulo: "Status de presença", online: "Online", ausente: "Ausente", offline: "Offline" },
     },
-    configuracoes: { abrir: "Abrir configurações" },
+    configuracoes: { abrir: "Abrir configurações", titulo: "Configurações" },
     novidades: textosNovidades.titulo ? { titulo: textosNovidades.titulo } : undefined,
   }),
+}));
+
+vi.mock("@/components/dashboard/busca-do-dashboard", () => ({
+  BuscaDoDashboard: () => <button type="button">Busca global</button>,
 }));
 
 vi.mock("./novidades-dialog", () => ({
@@ -424,6 +428,23 @@ describe("sidebar", () => {
     expect(screen.getByRole("link", { name: "Feedbacks" })).toBeInTheDocument();
     expect(screen.queryByText(ROTULO_NOVIDADES_TESTE)).not.toBeInTheDocument();
     expect(screen.queryByText("Feedbacks")).not.toBeInTheDocument();
+  });
+
+  it("no visual V2 traz a busca, os atalhos do rodapé como linhas do menu e o papel legível", async () => {
+    rotaAtual.pathname = "/feedbacks";
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    cliente.setQueryData(CHAVE_MINHAS_PERMISSOES, permissoesEfetivasDeTeste("ATENDENTE"));
+    render(
+      <QueryClientProvider client={cliente}>
+        <Sidebar visualV2 retraida={false} onAlternar={vi.fn()} />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Busca global" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Feedbacks" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Configurações" })).toHaveAttribute("href", "/configuracoes");
+    expect(screen.getByText("Atendente · Online")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Abrir configurações" })).not.toBeInTheDocument();
   });
 
   it("omite o badge quando a contagem falha", async () => {

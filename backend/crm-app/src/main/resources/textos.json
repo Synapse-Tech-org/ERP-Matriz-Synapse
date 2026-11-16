@@ -200,6 +200,9 @@
   "menu": {
     "grupoMenu": "Menu",
     "grupoGestao": "Gestão",
+    "grupoPrincipal": "Principal",
+    "grupoRecursos": "Recursos",
+    "grupoConta": "Conta",
     "retrair": "Retrair menu lateral",
     "reabrir": "Reabrir menu lateral",
     "fixar": "Fixar menu aberto",
@@ -246,6 +249,12 @@
     }
   },
   "notificacoes": {
+    "painelCrmTitulo": "No CRM",
+    "painelCrmDescricao": "Enquanto o sistema estiver aberto.",
+    "painelAvisosTitulo": "Avisos na tela",
+    "painelAvisosDescricao": "Quanto tempo ficam visíveis e onde aparecem.",
+    "duracaoCurta": "{segundos}s",
+    "posicaoLado": "sempre no lado direito",
     "mensagemExterna": "Nova mensagem de {nome}",
     "mensagemInterna": "Mensagem de {nome}",
     "origemExterna": "Mensagem recebida no atendimento",
@@ -408,6 +417,18 @@
     "sessaoExpirada": "Sua sessão expirou. Entre novamente."
   },
   "feedbacks": {
+    "v2": {
+      "perguntaTipo": "O que você quer enviar?",
+      "descricaoSugestao": "Uma ideia para melhorar o CRM",
+      "descricaoErro": "Algo não funcionou como esperado",
+      "perguntaArea": "Qual parte do CRM?",
+      "perguntaDescricao": "Descreva com detalhes",
+      "opcional": "opcional",
+      "escolherImagem": "Clique para escolher uma imagem",
+      "faltaPreencher": "Falta escolher a área e escrever a descrição.",
+      "pronto": "Tudo pronto para enviar.",
+      "resumoEnvios": "{total} envios · {abertos} em análise"
+    },
     "meusEnvios": "Meus envios",
     "historicoVazio": "Você ainda não enviou feedback.",
     "historicoCarregando": "Carregando seus envios...",
@@ -562,7 +583,8 @@
       "ativos": "Ativos",
       "pendentes": "Pendentes",
       "potenciais": "Potenciais",
-      "todos": "Todos"
+      "todos": "Todos",
+      "internos": "Interno"
     },
     "filtros": {
       "etapa": "Etapa",
@@ -1028,6 +1050,8 @@
       "retrair": "Retrair detalhes do lead",
       "reabrir": "Reabrir detalhes do lead",
       "informacoesGerais": "Informações gerais",
+      "etapaV2": "Etapa do atendimento",
+      "etiquetasV2": "Etiquetas",
       "notasInternas": "Notas internas",
       "notas": {
         "placeholder": "Registre aqui as observações compartilhadas sobre o lead.",
@@ -1037,6 +1061,8 @@
         "erro": "Não foi possível salvar a nota. O texto confirmado anteriormente foi restaurado."
       },
       "resumoIa": {
+        "tituloCartao": "Resumo do atendimento",
+        "selo": "IA",
         "vazio": "Nenhum resumo gerado ainda.",
         "ultimaGeracao": "Última geração: {data}",
         "gerar": "Gerar",
@@ -1203,6 +1229,7 @@
       "soAutomaticos": "Somente automáticos",
       "hoje": "Hoje",
       "amanha": "Amanhã",
+      "ontem": "Ontem",
       "proximos": "Próximos dias",
       "concluidos": "Concluídos",
       "adiar": "Adiar",
@@ -1264,6 +1291,8 @@
   },
   "mensagensProgramadas": {
     "v2": {
+      "hoje": "Hoje",
+      "amanha": "Amanhã",
       "emUmaHora": "Em 1 hora",
       "hojeAs17": "Hoje, 17:00",
       "amanhaAs9": "Amanhã, 09:00",
@@ -2397,7 +2426,16 @@
       "ordenar": "Ordenar tags",
       "maisUsadas": "Mais usadas",
       "alfabetica": "A–Z",
-      "verContatos": "Ver contatos"
+      "verContatos": "Ver contatos",
+      "todasTitulo": "Todas as tags",
+      "resumoLista": "{exibidas} de {total} · clique em “Ver contatos” para filtrar a Agenda",
+      "resumoListaSemAgenda": "{exibidas} de {total}",
+      "colunaTag": "Tag",
+      "colunaUso": "Uso na base",
+      "colunaLeads": "Leads",
+      "emUso": "{n} em uso na base",
+      "leadsComTag": "Leads com tag",
+      "vazioTitulo": "Nenhuma tag encontrada"
     },
     "titulo": "Tags",
     "descricao": "Etiquetas para classificar e segmentar leads.",

@@ -3,12 +3,20 @@
 import { useState } from "react";
 import { MessageSquare } from "lucide-react";
 
+import { mascararTelefoneBr } from "@/components/atendimentos/dialogo-novo-contato";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
 import type { EtapaAtendimento } from "@/lib/lead/types";
 import type { UsuarioEquipe } from "@/lib/equipe/types";
 import type { LeadDaAgenda, StatusBasicoLead } from "@/lib/agenda/types";
+import { telefoneParaNovoContato } from "@/lib/atendimento/abrir-conversa-do-contato";
 import type { Textos } from "@/lib/config/schema";
+
+/** Máscara nacional para leitura; número fora do formato brasileiro aparece como foi salvo. */
+function telefoneParaLeitura(telefone: string): string {
+  const nacional = telefoneParaNovoContato(telefone);
+  return nacional ? mascararTelefoneBr(nacional) : telefone;
+}
 
 type TextosAgenda = Textos["agenda"];
 
@@ -136,7 +144,7 @@ export function TabelaDeLeads({
                   </div>
                 </td>
                 <td className="px-5 py-3 font-mono text-xs text-muted-foreground">
-                  {lead.telefone ?? "—"}
+                  {lead.telefone ? (layoutV2 ? telefoneParaLeitura(lead.telefone) : lead.telefone) : "—"}
                 </td>
                 <td className="px-5 py-3 text-muted-foreground">
                   {lead.localizacao ?? "—"}

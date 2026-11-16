@@ -24,7 +24,14 @@ vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () =
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
+    menu: { grupoConta: "Conta", itens: { feedbacks: "Feedbacks" } },
     feedbacks: {
+      v2: {
+        perguntaTipo: "O que você quer enviar?", descricaoSugestao: "Uma ideia", descricaoErro: "Algo falhou",
+        perguntaArea: "Qual parte do CRM?", perguntaDescricao: "Descreva com detalhes", opcional: "opcional",
+        escolherImagem: "Escolher imagem", faltaPreencher: "Falta preencher.", pronto: "Tudo pronto.",
+        resumoEnvios: "{total} envios · {abertos} em análise",
+      },
       meusEnvios: "Meus envios",
       acompanhamento: { emAnalise: "Em análise", resolvido: "Resolvido", resposta: "Resposta da equipe" },
       historicoMais: "Ver mais",
@@ -103,6 +110,29 @@ describe("PaginaFeedbacks", () => {
       expect(screen.getByText("Correção publicada")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "Ver mais" }));
       expect(carregarMais).toHaveBeenCalledOnce();
+    } finally {
+      flags.splice(flags.indexOf("gestao_layout_v2"), 1);
+    }
+  });
+
+  it("no layout V2 escolhe tipo e área por botões e envia o mesmo payload", async () => {
+    mutate.mockReset();
+    historico.mockReturnValue({ isSuccess: true, hasNextPage: false, data: { pages: [{ itens: [] }] } });
+    flags.push("gestao_layout_v2");
+    try {
+      renderizar();
+      fireEvent.click(await screen.findByRole("button", { name: /Erro/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Agenda" }));
+      expect(screen.getByText("Falta preencher.")).toBeInTheDocument();
+      fireEvent.change(screen.getByPlaceholderText("Descreva"), { target: { value: "O filtro não abriu" } });
+      expect(screen.getByText("Tudo pronto.")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Enviar feedback" }));
+
+      expect(mutate).toHaveBeenCalledWith(
+        { tipo: "ERRO", areaChave: "AGENDA", descricao: "O filtro não abriu" },
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      );
     } finally {
       flags.splice(flags.indexOf("gestao_layout_v2"), 1);
     }

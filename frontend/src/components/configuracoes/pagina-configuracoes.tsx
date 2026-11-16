@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent, type UIEvent } from "react";
 import Link from "next/link";
-import { Bell, Camera, CircleHelp, KeyRound, Palette, Save, Trash2, UserRound } from "lucide-react";
+import { ArrowUpRight, Bell, Camera, CircleHelp, CornerDownLeft, KeyRound, MessageSquareHeart, Palette, Save, Trash2, UserRound } from "lucide-react";
 
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import visual from "@/components/shell/agenda-recursos-v2.module.css";
@@ -10,24 +10,18 @@ import listaV2 from "@/components/shell/lista-v2.module.css";
 import { useEnterEnviaMensagem } from "@/lib/atendimento/preferencia-de-envio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDensidadeDasListas } from "@/lib/config/preferencia-densidade";
+import estilosV2 from "./configuracoes-v2.module.css";
+import { NotificacoesV2 } from "./notificacoes-v2";
 import { PreferenciasDeAparencia } from "./preferencias-de-aparencia";
 import { useTextos } from "@/lib/config/textos-provider";
-import {
-  usePreferenciaChatInternoDeNotificacao,
-  usePreferenciaDuracaoDeNotificacao,
-  usePreferenciaPosicaoDeNotificacao,
-  usePreferenciaSomDeNotificacao,
-  usePreferenciaVisualDeNotificacao,
-} from "@/lib/atendimento/preferencias-notificacoes";
 import { useAtualizarMeuUsuario, useAtualizarMinhaFoto, useMeuUsuario, useRemoverMinhaFoto } from "@/lib/equipe/use-equipe";
 
 function dataDaSenha(valor: string | null, t: ReturnType<typeof useTextos>["configuracoes"]) {
@@ -38,12 +32,7 @@ function dataDaSenha(valor: string | null, t: ReturnType<typeof useTextos>["conf
 export function PaginaConfiguracoes() {
   const textos = useTextos();
   const t = textos.configuracoes;
-  const notificacoes = textos.notificacoes;
-  const preferenciaSom = usePreferenciaSomDeNotificacao();
-  const preferenciaVisual = usePreferenciaVisualDeNotificacao();
-  const preferenciaChatInterno = usePreferenciaChatInternoDeNotificacao();
-  const preferenciaDuracao = usePreferenciaDuracaoDeNotificacao();
-  const preferenciaPosicao = usePreferenciaPosicaoDeNotificacao();
+  const papeis: Record<string, string | undefined> = textos.administracao?.acessos?.papeis ?? {};
   const [aba, setAba] = useState("perfil");
   const envio = useEnterEnviaMensagem();
   const densidade = useDensidadeDasListas();
@@ -129,7 +118,7 @@ export function PaginaConfiguracoes() {
 
   return (
     <div className={listaV2.pagina + " " + listaV2.modulo + " " + visual.paleta}>
-      <CabecalhoListaV2 titulo={t.titulo} busca={textos.gestao?.v2?.buscaGlobal} />
+      <CabecalhoListaV2 titulo={t.titulo} grupo={textos.menu.grupoConta} />
       <header>
         <div>
           <h1 className="text-xl font-bold tracking-tight">{t.titulo}</h1>
@@ -137,7 +126,7 @@ export function PaginaConfiguracoes() {
         </div>
       </header>
       <div className="flex min-h-0 flex-1 flex-col gap-4 lg:grid lg:grid-cols-[232px_minmax(0,1fr)]">
-        <nav aria-label={t.secoes} className="flex max-w-full shrink-0 gap-1 overflow-x-auto self-start rounded-2xl border bg-card p-2 lg:w-full lg:flex-col">
+        <nav aria-label={t.secoes} className={"flex max-w-full shrink-0 gap-1 overflow-x-auto self-start rounded-2xl border bg-card p-2 lg:w-full lg:flex-col " + estilosV2.nav}>
           {abas.map(({ id, nome, icone: Icone }) => (
             <button
               key={id}
@@ -152,7 +141,7 @@ export function PaginaConfiguracoes() {
           ))}
         </nav>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div onScroll={acompanharRolagem} className="min-h-0 flex-1 space-y-7 overflow-y-auto overscroll-contain pr-1">
+          <div onScroll={acompanharRolagem} className={"min-h-0 flex-1 space-y-7 overflow-y-auto overscroll-contain pr-1 " + estilosV2.secoes}>
             <section id="configuracoes-perfil" ref={(secao) => { secoes.current.perfil = secao; }} tabIndex={-1} className="space-y-3 outline-none">
               <div>
                 <h2 className="text-lg font-bold tracking-tight">{t.perfil}</h2>
@@ -240,7 +229,7 @@ export function PaginaConfiguracoes() {
                       )}
                       <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
                         <span className="text-sm font-medium">{t.papel}</span>
-                        <Badge variant="secondary">{dados.papel}</Badge>
+                        <Badge variant="secondary">{papeis[dados.papel] ?? dados.papel}</Badge>
                       </div>
                       <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
                         <div className="text-xs text-muted-foreground">
@@ -258,95 +247,45 @@ export function PaginaConfiguracoes() {
             </section>
             <section id="configuracoes-notificacoes" ref={(secao) => { secoes.current.notificacoes = secao; }} tabIndex={-1} className="space-y-3 outline-none">
               <h2 className="text-lg font-bold tracking-tight">{t.abaNotificacoes}</h2>
-              <Card className="rounded-2xl">
-                <CardHeader>
-                  <CardTitle>{notificacoes.somTitulo}</CardTitle>
-                  <CardDescription>{notificacoes.somDescricao}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-5">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-medium">{preferenciaSom.somHabilitado ? notificacoes.somAtivado : notificacoes.somDesativado}</p>
-                        <p className="text-xs text-muted-foreground">{notificacoes.somDescricao}</p>
-                      </div>
-                      <Switch checked={preferenciaSom.somHabilitado} onCheckedChange={preferenciaSom.definirSomHabilitado} aria-label={notificacoes.somTitulo} />
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-medium">{preferenciaVisual.visualHabilitado ? notificacoes.visualAtivado : notificacoes.visualDesativado}</p>
-                        <p className="text-xs text-muted-foreground">{notificacoes.visualDescricao}</p>
-                      </div>
-                      <Switch checked={preferenciaVisual.visualHabilitado} onCheckedChange={preferenciaVisual.definirVisualHabilitado} aria-label={notificacoes.visualTitulo} />
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-medium">{preferenciaChatInterno.chatInternoHabilitado ? notificacoes.chatInternoAtivado : notificacoes.chatInternoDesativado}</p>
-                        <p className="text-xs text-muted-foreground">{notificacoes.chatInternoDescricao}</p>
-                      </div>
-                      <Switch checked={preferenciaChatInterno.chatInternoHabilitado} onCheckedChange={preferenciaChatInterno.definirChatInternoHabilitado} aria-label={notificacoes.chatInternoTitulo} />
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-medium">{notificacoes.duracaoTitulo}</p>
-                        <p className="text-xs text-muted-foreground">{notificacoes.duracaoDescricao}</p>
-                      </div>
-                      <Select value={String(preferenciaDuracao.duracaoSegundos)} onValueChange={(valor) => { if (valor) preferenciaDuracao.definirDuracaoSegundos(Number(valor)); }}>
-                        <SelectTrigger aria-label={notificacoes.duracaoTitulo}>
-                          <SelectValue>{notificacoes.duracaoOpcao.replace("{segundos}", String(preferenciaDuracao.duracaoSegundos))}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 3, 5, 8, 15, 30].map((segundos) => <SelectItem key={segundos} value={String(segundos)}>{notificacoes.duracaoOpcao.replace("{segundos}", String(segundos))}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-medium">{notificacoes.posicaoTitulo}</p>
-                        <p className="text-xs text-muted-foreground">{notificacoes.posicaoDescricao}</p>
-                      </div>
-                      <Select value={preferenciaPosicao.posicao} onValueChange={(valor) => { if (valor === "TOPO" || valor === "BAIXO") preferenciaPosicao.definirPosicao(valor); }}>
-                        <SelectTrigger aria-label={notificacoes.posicaoTitulo}>
-                          <SelectValue>{preferenciaPosicao.posicao === "TOPO" ? notificacoes.posicaoTopo : notificacoes.posicaoBaixo}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="TOPO">{notificacoes.posicaoTopo}</SelectItem>
-                          <SelectItem value="BAIXO">{notificacoes.posicaoBaixo}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <NotificacoesV2 />
             </section>
             <section id="configuracoes-interface" ref={(secao) => { secoes.current.interface = secao; }} tabIndex={-1} className="space-y-3 outline-none">
               <h2 className="text-lg font-bold tracking-tight">{t.abaInterface}</h2>
-              <PreferenciasDeAparencia />
-              <Card className="rounded-2xl">
-                <CardHeader><CardTitle>{t.densidadeListas}</CardTitle></CardHeader>
-                <CardContent>
-                  <div role="group" aria-label={t.densidadeListas} className={listaV2.opcoes}>
-                    <button type="button" aria-pressed={!densidade.compacta} onClick={() => densidade.definir(false)}>{t.densidadeConfortavel}</button>
-                    <button type="button" aria-pressed={densidade.compacta} onClick={() => densidade.definir(true)}>{t.densidadeCompacta}</button>
+              <div className={estilosV2.interface}>
+                <PreferenciasDeAparencia
+                  densidade={(
+                    <fieldset>
+                      <legend className="mb-2 text-sm font-medium">{t.densidadeListas}</legend>
+                      <div role="group" aria-label={t.densidadeListas} className={listaV2.opcoes}>
+                        <button type="button" aria-pressed={!densidade.compacta} onClick={() => densidade.definir(false)}>{t.densidadeConfortavel}</button>
+                        <button type="button" aria-pressed={densidade.compacta} onClick={() => densidade.definir(true)}>{t.densidadeCompacta}</button>
+                      </div>
+                    </fieldset>
+                  )}
+                />
+                <div className={`${estilosV2.cartao} ${estilosV2.unica}`}>
+                  <div className={estilosV2.linha}>
+                    <CornerDownLeft aria-hidden />
+                    <div className="min-w-0 flex-1">
+                      <strong>{t.enterEnvia}</strong>
+                      <small>{t.enterEnviaDescricao}</small>
+                    </div>
+                    <Switch checked={envio.ativo} onCheckedChange={envio.definir} aria-label={t.enterEnvia} />
                   </div>
-                </CardContent>
-              </Card>
-              <Card className="rounded-2xl">
-                <CardHeader>
-                  <CardTitle>{t.enterEnvia}</CardTitle>
-                  <CardDescription>{t.enterEnviaDescricao}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Switch checked={envio.ativo} onCheckedChange={envio.definir} aria-label={t.enterEnvia} />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </section>
             <section id="configuracoes-ajuda" ref={(secao) => { secoes.current.ajuda = secao; }} tabIndex={-1} className="min-h-full space-y-3 outline-none">
               <h2 className="text-lg font-bold tracking-tight">{t.abaAjuda}</h2>
-              <Card className="rounded-2xl">
-                <CardHeader><CardTitle>{t.feedbackTitulo}</CardTitle></CardHeader>
-                <CardContent><Link href="/feedbacks" className="text-primary underline">{t.feedbackAcao}</Link></CardContent>
-              </Card>
+              <div className={estilosV2.ajuda}>
+                <article className={estilosV2.apoio}>
+                  <MessageSquareHeart aria-hidden />
+                  <ArrowUpRight aria-hidden />
+                  <h3>{t.feedbackTitulo}</h3>
+                  {textos.feedbacks?.descricao && <p>{textos.feedbacks.descricao}</p>}
+                  <Link href="/feedbacks">{t.feedbackAcao}</Link>
+                </article>
+              </div>
             </section>
           </div>
           {(alterado || salvo || atualizar.isError) && (

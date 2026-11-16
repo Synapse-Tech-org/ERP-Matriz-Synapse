@@ -82,14 +82,18 @@ vi.mock("@/lib/auth/auth-store", () => ({
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
+    configuracoes: { descartar: "Descartar" },
     dadosCliente: { titulo: "Dados do cliente", cpf: "CPF", nascimento: "Data de nascimento", naoInformado: "Não informado" },
     atendimentos: {
+      mensagem: { acoes: { copiar: "Copiar", copiada: "Copiada", copiarErro: "Erro ao copiar" } },
       media: { baixar: "Baixar", imagem: "Imagem", audio: "Áudio", visualizador: { abrirMidia: "Abrir {nome}" } },
       painel: {
         titulo: "Detalhes do lead",
         retrair: "Retrair detalhes do lead",
         reabrir: "Reabrir detalhes do lead",
         informacoesGerais: "Informações gerais",
+        etapaV2: "Etapa do atendimento",
+        etiquetasV2: "Etiquetas",
         notasInternas: "Notas internas",
         notas: {
           placeholder: "Observações compartilhadas",
@@ -99,6 +103,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
           erro: "Erro ao salvar nota",
         },
         resumoIa: {
+          tituloCartao: "Resumo do atendimento",
+          selo: "IA",
           vazio: "Nenhum resumo gerado ainda.",
           ultimaGeracao: "Última geração: {data}",
           gerar: "Gerar",
@@ -163,10 +169,12 @@ vi.mock("@/lib/config/textos-provider", () => ({
         codigoPlaceholder: "Somente números",
         codigoInvalido: "Informe apenas números, com no máximo 20 dígitos.",
         localizacao: "Localização",
+        editarLocalizacao: "Editar localização",
         responsavel: "Responsável",
       },
       etapa: { titulo: "Etapa", posicao: "{atual} de {total}" },
       contadores: { atendimentos: "Atendimentos", mensagens: "Mensagens" },
+      edicao: { salvar: "Salvar" },
       tags: {
         titulo: "Etiquetas",
         botao: "Tag",
@@ -280,6 +288,24 @@ describe("painel da conversa", () => {
     expect(screen.getByText("529.982.247-25")).toBeInTheDocument();
     expect(screen.getByText("21/05/1990")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Consultar na Darwin" })).not.toBeInTheDocument();
+  });
+  it("exibe CPF e resumo persistido na ficha V2 e mantém o código e os dados locais acessíveis", () => {
+    funcionalidades.data = ["atendimentos_layout_v2", "dados_cliente_ficha"];
+    leadState.data = { ...leadState.data, cpf: "52998224725", codigo: "137", dadosCustomizados: { data_nascimento: "1990-05-21" } };
+    renderizarPainel("lead-1", "Jardel Lima");
+
+    expect(screen.getAllByText("529.982.247-25")).toHaveLength(1);
+    expect(screen.getByText("Responsável · Jardel Lima")).toBeInTheDocument();
+    expect(screen.getByText("Resumo do atendimento")).toBeInTheDocument();
+    expect(screen.getByText("Cliente pediu orçamento de box.")).toBeInTheDocument();
+    expect(obterControleDaSecao("Resumo por IA")).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Regerar" }));
+    expect(solicitarResumoState.mutate).toHaveBeenCalledOnce();
+
+    fireEvent.click(obterControleDaSecao("Dados do cliente"));
+    expect(screen.getByRole("textbox", { name: "Código" })).toHaveValue("137");
+    expect(screen.getByText("21/05/1990")).toBeInTheDocument();
+    expect(screen.getAllByText("529.982.247-25")).toHaveLength(1);
   });
   it("mantém identidades distintas para edição de código e consulta Darwin ao trocar a ficha", () => {
     const erros = vi.spyOn(console, "error").mockImplementation(() => {});

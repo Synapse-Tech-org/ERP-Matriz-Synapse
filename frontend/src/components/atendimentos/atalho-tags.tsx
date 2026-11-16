@@ -24,9 +24,11 @@ import {
 export function AtalhoTags({
   leadId,
   modo = "cabecalho",
+  visualV2 = false,
 }: {
   leadId: string;
   modo?: "cabecalho" | "painel";
+  visualV2?: boolean;
 }) {
   const textos = useTextos().painelLead.tags;
   const tags = useTagsDoLead(leadId);
@@ -34,6 +36,7 @@ export function AtalhoTags({
 
   return (
     <div
+      data-slot={visualV2 ? "ficha-tags" : undefined}
       className={
         modo === "painel"
           ? "flex flex-wrap items-center gap-1.5"
@@ -46,6 +49,7 @@ export function AtalhoTags({
             ? "flex flex-wrap gap-1.5"
             : "hidden max-w-48 gap-1 overflow-hidden xl:flex"
         }
+        data-slot={modo === "painel" ? undefined : "atalho-tags-aplicadas"}
       >
         {tags.data?.map((tag) => (
           <Badge
@@ -61,6 +65,7 @@ export function AtalhoTags({
       {podeAplicar && (
         <Popover>
           <PopoverTrigger
+            data-slot={visualV2 ? "ficha-adicionar-tag" : undefined}
             className={buttonVariants({
               variant: modo === "painel" ? "outline" : "ghost",
               size: modo === "painel" ? "sm" : "icon",

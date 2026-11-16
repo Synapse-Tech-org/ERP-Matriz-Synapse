@@ -110,7 +110,11 @@ type Props = {
   onAbrirNovoAtendimento?: () => void;
   abrindoNovoAtendimento?: boolean;
   onAtendimentoFinalizado?: (resumo: AtendimentoResumo) => void;
+  /** Layout V2: busca, tags e telefone antes das ações do atendimento, como no protótipo. */
+  utilitariasPrimeiro?: boolean;
 };
+
+const ACOES_UTILITARIAS = new Set(["buscar", "tags", "telefone", "reabrir-painel"]);
 
 /** Identificação da conversa, tags persistidas e ações operacionais. */
 export function CabecalhoConversa({
@@ -126,6 +130,7 @@ export function CabecalhoConversa({
   onAbrirNovoAtendimento,
   abrindoNovoAtendimento = false,
   onAtendimentoFinalizado,
+  utilitariasPrimeiro = false,
 }: Props) {
   const catalogo = useTextos();
   const textos = catalogo.atendimentos.cabecalho;
@@ -475,6 +480,15 @@ export function CabecalhoConversa({
     });
   }
 
+  // A ordem do array é também a ordem de tabulação: reordenar aqui mantém foco e visual iguais.
+  const acoesNaOrdem = utilitariasPrimeiro
+    ? [
+        ...acoes.filter((acao) => ACOES_UTILITARIAS.has(acao.id)),
+        ...acoes.filter((acao) => acao.id === "separador"),
+        ...acoes.filter((acao) => !ACOES_UTILITARIAS.has(acao.id) && acao.id !== "separador"),
+      ]
+    : acoes;
+
   return (
     <div
       ref={cabecalhoRef}
@@ -506,9 +520,9 @@ export function CabecalhoConversa({
               {nomeDoLead}
             </p>
             {canal && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-cor-sucesso/10 px-2 py-0.5 text-[0.7rem] font-semibold text-cor-sucesso">
+              <span data-slot="canal-do-lead" title={canal} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-cor-sucesso/10 px-2 py-0.5 text-[0.7rem] font-semibold text-cor-sucesso">
                 <MessageCircleMore className="size-[calc(var(--tamanho-icone-interface)*0.75)]" aria-hidden />
-                {canal}
+                <span data-slot="canal-do-lead-rotulo">{canal}</span>
               </span>
             )}
           </div>
@@ -541,7 +555,7 @@ export function CabecalhoConversa({
       </div>
 
       <BarraDeAcoesComTransbordo
-        acoes={acoes}
+        acoes={acoesNaOrdem}
         rotuloMenu={textos.maisAcoes ?? textos.outros}
         containerRef={cabecalhoRef}
         larguraReservada={LARGURA_MINIMA_DA_IDENTIFICACAO_PX}

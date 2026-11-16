@@ -33,6 +33,7 @@ const AREA_PARA_TEXTO: Record<
 export function PaginaFeedbacksAdministracao() {
   const textos = useTextos();
   const t = textos.administracao.feedbacks;
+  const papeis: Record<string, string | undefined> = textos.administracao.acessos?.papeis ?? {};
   const [tipo, setTipo] = useState<TipoFeedback | null>(null);
   const consulta = useFeedbacksAdministrativos(tipo);
   const itens = consulta.data?.pages.flatMap((pagina) => pagina.itens) ?? [];
@@ -100,7 +101,7 @@ export function PaginaFeedbacksAdministracao() {
                       <div className="min-w-0">
                         <p className="font-bold text-foreground">{feedback.autorNome}</p>
                         <p className="text-xs text-muted-foreground">
-                          {t.autorPapel.replace("{papel}", feedback.autorPapel)}
+                          {t.autorPapel.replace("{papel}", papeis[feedback.autorPapel] ?? feedback.autorPapel)}
                         </p>
                       </div>
                       <PillDeStatus

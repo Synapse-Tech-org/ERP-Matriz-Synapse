@@ -1,0 +1,123 @@
+/* Administração V2: abas no cabeçalho da página e indicadores em cartão (protótipo). */
+.estado {
+  display: inline-flex;
+  height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+  color: var(--chat-texto-forte);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.estado::before {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--texto-fraco, var(--muted-foreground));
+  content: "";
+}
+
+.abas {
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 12px;
+  background: var(--muted);
+}
+
+.abas ul {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+}
+
+.abas a {
+  display: flex;
+  height: 32px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 9px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.abas a svg { width: 15px; height: 15px; flex: none; }
+
+.abas a[aria-current="page"] {
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+  color: var(--chat-texto-forte);
+  font-weight: 600;
+}
+
+.abas a:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+
+.conteudo { min-width: 0; }
+
+/* O título da seção repete a aba ativa: fica só para leitores de tela. */
+.conteudo :global([data-slot="admin-resumo-titulo"]) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.conteudo :global([data-slot="admin-indicadores"]) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 14px;
+}
+
+.conteudo :global([data-slot="admin-indicador"]) {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px 12px;
+  padding: 20px;
+  border: 1px solid var(--agenda-borda-cartao, var(--border));
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+}
+
+.conteudo :global([data-slot="admin-indicador"]) > span { border-radius: 50%; }
+
+.conteudo :global([data-slot="admin-indicador-rotulo"]) {
+  order: 1;
+  margin: 0;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.conteudo :global([data-slot="admin-indicador-valor"]) {
+  order: 2;
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--chat-texto-forte);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.conteudo h2 {
+  color: var(--chat-texto-forte);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+/* Em telas estreitas o estado do sistema desce para a linha de baixo em vez de ser cortado. */
+.raiz :global([data-slot="lista-v2-topo"]) { flex-wrap: wrap; row-gap: 8px; }

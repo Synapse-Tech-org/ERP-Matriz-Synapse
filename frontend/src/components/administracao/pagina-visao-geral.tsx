@@ -59,23 +59,24 @@ export function PaginaVisaoGeralAdministracao() {
 
   return (
     <section className="space-y-6">
-      <header>
+      <header data-slot="admin-resumo-titulo">
         <h2 className="text-lg font-bold tracking-tight">{textos.titulo}</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">{textos.descricao}</p>
       </header>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div data-slot="admin-indicadores" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cartoes.map((cartao) => {
           const Icone = cartao.icone;
           return (
             <article
               key={cartao.rotulo}
+              data-slot="admin-indicador"
               className="rounded-xl border border-border bg-card p-5 shadow-sm"
             >
               <span className={`flex size-10 items-center justify-center rounded-xl ${cartao.classeIcone}`}>
                 <Icone className="size-[calc(var(--tamanho-icone-interface)*1.25)]" aria-hidden />
               </span>
-              <p className="mt-3.5 text-3xl font-bold tracking-tight tabular-nums">{cartao.valor}</p>
-              <p className="mt-0.5 text-[12.5px] font-semibold text-muted-foreground">{cartao.rotulo}</p>
+              <p data-slot="admin-indicador-valor" className="mt-3.5 text-3xl font-bold tracking-tight tabular-nums">{cartao.valor}</p>
+              <p data-slot="admin-indicador-rotulo" className="mt-0.5 text-[12.5px] font-semibold text-muted-foreground">{cartao.rotulo}</p>
             </article>
           );
         })}

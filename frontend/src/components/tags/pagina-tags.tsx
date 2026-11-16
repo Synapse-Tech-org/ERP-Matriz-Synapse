@@ -1,9 +1,9 @@
 "use client";
 
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
-import { OpcoesListaV2 } from "@/components/shell/opcoes-lista-v2";
 import Link from "next/link";
 import listaV2 from "@/components/shell/lista-v2.module.css";
+import visual from "@/components/shell/agenda-recursos-v2.module.css";
 import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 
 
@@ -60,6 +60,10 @@ import {
   useTags,
 } from "@/lib/tags/use-tags";
 import type { AgregacaoDeTags, DadosDeTag, Tag } from "@/lib/tags/types";
+import { IconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
+
+import { ListaDeTagsV2, ResumoDeTagsV2 } from "./lista-tags-v2";
+import estilosV2 from "./tags-v2.module.css";
 
 /**
  * Tokens de tema disponíveis para tag (design/TOKENS.md): nenhuma cor literal aqui, só
@@ -148,7 +152,8 @@ type TextosTags = ReturnType<typeof useTextos>["tags"];
 
 export function PaginaTags() {
   const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("recursos_layout_v2") ?? false;
-  const t = useTextos().tags;
+  const textos = useTextos();
+  const t = textos.tags;
   const tags = useTags();
   const agregacao = useAgregacaoDeTags();
   const remover = useRemoverTag();
@@ -172,9 +177,63 @@ export function PaginaTags() {
   const maiorContagem = Math.max(1, ...Array.from(contagemPorTagId.values()));
   const totalVisivel = agregacao.data?.totalLeadsVisiveis ?? 0;
 
+  if (layoutV2) {
+    return (
+      <div data-layout="v2" className={`${listaV2.pagina} ${visual.paleta} ${estilosV2.raiz}`}>
+        <CabecalhoListaV2 titulo={t.titulo} grupo={textos.menu.grupoRecursos} busca={textos.gestao?.v2?.buscaGlobal} />
+        <header>
+          <div>
+            <h1>{t.titulo}</h1>
+            <p className="text-sm text-muted-foreground">{t.descricao}</p>
+          </div>
+          {podeCriar && (
+            <Button data-slot="lista-v2-acao" onClick={() => setNovaAberta(true)}>
+              <IconeFrontendV2 nome="add-line" />{t.nova}
+            </Button>
+          )}
+        </header>
+        {tags.isLoading ? (
+          <p>{t.carregando}</p>
+        ) : tags.isError ? (
+          <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => tags.refetch()} />
+        ) : (
+          <>
+            {agregacao.isError ? (
+              <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => agregacao.refetch()} />
+            ) : (
+              <ResumoDeTagsV2
+                totalTags={todas.length}
+                emUso={todas.filter((tag) => (contagemPorTagId.get(tag.id) ?? 0) > 0).length}
+                agregacao={agregacao.data}
+                textos={t}
+                IconeDaTag={IconeDaTag}
+              />
+            )}
+            <ListaDeTagsV2
+              tags={filtradas}
+              totalTags={todas.length}
+              contagens={contagemPorTagId}
+              totalVisivel={totalVisivel}
+              textos={t}
+              busca={busca}
+              onBuscar={setBusca}
+              ordem={ordem}
+              onOrdenar={setOrdem}
+              verContatos={capacidades.pode("clientes.acessar")}
+              onEditar={podeEditarExcluir ? setEdicao : undefined}
+              onRemover={podeEditarExcluir ? (tag) => remover.mutate(tag.id) : undefined}
+              IconeDaTag={IconeDaTag}
+            />
+          </>
+        )}
+        <Formulario aberto={novaAberta && podeCriar} onFechar={() => setNovaAberta(false)} />
+        {edicao && podeEditarExcluir && <Formulario aberto existente={edicao} onFechar={() => setEdicao(null)} />}
+      </div>
+    );
+  }
+
   return (
-    <div data-layout={layoutV2 ? "v2" : "legado"} className={layoutV2 ? `${listaV2.pagina} ${listaV2.modulo}` : "space-y-5 p-6"}>
-      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} />}
+    <div data-layout="legado" className="space-y-5 p-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">{t.titulo}</h1>
@@ -191,8 +250,6 @@ export function PaginaTags() {
         </div>
       </header>
 
-      {layoutV2 && <OpcoesListaV2<"nome" | "uso"> rotulo={t.v2.ordenar} valor={ordem} onChange={setOrdem}
-        opcoes={[{ valor: "uso", rotulo: t.v2.maisUsadas }, { valor: "nome", rotulo: t.v2.alfabetica }]} />}
       {tags.isLoading ? (
         <p>{t.carregando}</p>
       ) : tags.isError ? (
@@ -224,7 +281,6 @@ export function PaginaTags() {
                     maiorContagem={maiorContagem}
                     totalVisivel={totalVisivel}
                     textos={t}
-                    verContatos={layoutV2 && capacidades.pode("clientes.acessar")}
                     onEditar={podeEditarExcluir ? () => setEdicao(tag) : undefined}
                     onRemover={podeEditarExcluir ? () => remover.mutate(tag.id) : undefined}
                   />

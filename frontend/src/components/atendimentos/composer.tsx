@@ -11,6 +11,7 @@ import {
   LayoutTemplate,
   Mic,
   Paperclip,
+  ArrowUp,
   Send,
   Square,
   Trash2,
@@ -69,6 +70,8 @@ type Props = {
   onFalhasDeMidia?: (falhas: FalhaDeEnvioMidia[]) => void;
   podeEnviar?: boolean;
   onRevalidarEnvio?: () => Promise<boolean>;
+  /** Layout V2: atalho de mensagens rápidas e seta de envio do protótipo. */
+  visualV2?: boolean;
   ref?: Ref<ComposerHandle>;
 };
 
@@ -140,6 +143,7 @@ export function Composer({
   onFalhasDeMidia,
   podeEnviar = true,
   onRevalidarEnvio,
+  visualV2 = false,
   ref,
 }: Props) {
   const catalogo = useTextos();
@@ -670,6 +674,7 @@ export function Composer({
       <div className="relative mx-auto w-full max-w-[874px] [--tamanho-icone-composer:var(--tamanho-icone-interface)]">
         <div className="pointer-events-auto rounded-xl border border-input bg-card p-3 shadow-md [--tamanho-icone-interface:calc(var(--tamanho-icone-composer)*1.1)]">
         <p
+          data-slot="composer-janela"
           className="mb-1.5 flex items-center gap-1.5 px-1 text-xs text-muted-foreground"
         >
           <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground/50" aria-hidden />
@@ -805,8 +810,8 @@ export function Composer({
           </p>
         )}
 
-        <div className="flex items-end gap-2">
-          <div className="flex shrink-0 items-center gap-1">
+        <div data-slot="composer-linha" className="flex items-end gap-2">
+          <div data-slot="composer-ferramentas" className="flex shrink-0 items-center gap-1">
             <input
               ref={inputArquivoRef}
               type="file"
@@ -888,6 +893,21 @@ export function Composer({
               </PopoverContent>
             </Popover>
 
+            {visualV2 && podeUsarRapidas && !rapidas.isError && (
+              <button
+                type="button"
+                data-slot="composer-rapidas"
+                disabled={!podeEnviar || gravador.fase !== "INATIVO"}
+                onClick={() => {
+                  setModoMenuAnexo("mensagens-rapidas");
+                  setMenuAnexoAberto(true);
+                }}
+              >
+                <Zap aria-hidden />
+                {textos.mensagensRapidas}
+              </button>
+            )}
+
             {podeAgendar && (
               <Tooltip>
                 <TooltipTrigger
@@ -919,7 +939,7 @@ export function Composer({
           </div>
 
           {gravador.disponivel && gravador.fase === "INATIVO" && arquivos.length === 0 && (
-            <div className="order-last shrink-0">
+            <div data-slot="composer-gravar" className="order-last shrink-0">
               <Tooltip>
                 <TooltipTrigger
                   className={buttonVariants({ variant: "ghost", size: "icon" })}
@@ -934,7 +954,7 @@ export function Composer({
             </div>
           )}
 
-          <div className="relative min-w-0 flex-1">
+          <div data-slot="composer-campo" className="relative min-w-0 flex-1">
             <Textarea
               ref={textareaRef}
               value={texto}
@@ -988,7 +1008,7 @@ export function Composer({
             )}
           </div>
 
-          <div className="order-last flex shrink-0 items-center gap-1">
+          <div data-slot="composer-enviar" className="order-last flex shrink-0 items-center gap-1">
             <Button
               type="button"
               size="icon"
@@ -1006,7 +1026,9 @@ export function Composer({
               }
               aria-label={textos.enviar}
             >
-              <Send className="size-(--tamanho-icone-interface)" />
+              {visualV2
+                ? <ArrowUp className="size-(--tamanho-icone-interface)" aria-hidden />
+                : <Send className="size-(--tamanho-icone-interface)" />}
             </Button>
           </div>
         </div>

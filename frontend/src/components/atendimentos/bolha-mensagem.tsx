@@ -205,7 +205,7 @@ export function BolhaMensagem({
         )}
       >
         {doAtendente && nomeDoRemetente && (
-          <p className="mb-1 text-xs font-semibold text-primary-foreground">
+          <p data-slot="bolha-remetente" className="mb-1 text-xs font-semibold text-primary-foreground">
             {nomeDoRemetente}
           </p>
         )}
@@ -441,6 +441,7 @@ export function BolhaMensagem({
         )}
 
         <div
+          data-slot="bolha-rodape"
           className={cn(
             "mt-1 flex items-center gap-1.5 text-[0.7rem]",
             doAtendente

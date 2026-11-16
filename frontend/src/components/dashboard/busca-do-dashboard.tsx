@@ -39,6 +39,10 @@ function BuscaAutorizada({ dados, rotulo }: { dados?: VisaoGeralDashboard; rotul
       if (evento.defaultPrevented || evento.repeat || evento.altKey || evento.shiftKey) return;
       if (!(evento.ctrlKey || evento.metaKey) || evento.key.toLowerCase() !== "k") return;
       if (evento.target instanceof Element && evento.target.closest('[role="dialog"]')) return;
+      // A sidebar V2 e o cabeçalho podem montar a busca ao mesmo tempo: só a última do documento
+      // (a do cabeçalho, quando existe) responde ao atalho, para não abrir dois diálogos.
+      const gatilhos = document.querySelectorAll('[data-slot="dashboard-busca"]');
+      if (gatilhos[gatilhos.length - 1] !== gatilho.current) return;
 
       evento.preventDefault();
       gatilho.current?.focus();

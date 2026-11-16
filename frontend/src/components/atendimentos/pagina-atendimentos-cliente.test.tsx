@@ -292,6 +292,9 @@ vi.mock("./painel-da-conversa", () => ({
 vi.mock("@/components/chat-interno/painel-conversa-interna", () => ({
   PainelConversaInterna: () => <div data-testid="conversa-interna" />,
 }));
+vi.mock("./trilho-equipe", () => ({
+  TrilhoEquipe: () => <aside data-testid="trilho-equipe" />,
+}));
 vi.mock("./lista-mensagens", async () => {
   // Consome o contexto do card de contato compartilhado como a bolha real (E211).
   const { useAberturaDeConversaDoContato } = await import("@/lib/atendimento/abrir-conversa-do-contato");
@@ -566,6 +569,24 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("historico")).toBe(historico);
     expect(screen.getByTestId("composer")).toBe(composer);
     expect(stomp.clientes).toEqual(clientes);
+  });
+
+  it("a flag da instância retira o trilho sem impedir a seleção de conversas internas", async () => {
+    const dimensoes = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockReturnValue(new DOMRect(0, 0, 1600, 800));
+    try {
+      const pagina = renderPagina();
+      const flags = ["atendimentos_layout_v2", "chat_interno"];
+      act(() => pagina.queryClient.setQueryData(["config", "features"], flags));
+      expect(await screen.findByTestId("trilho-equipe")).toBeInTheDocument();
+
+      act(() => pagina.queryClient.setQueryData(["config", "features"], [...flags, "chat_interno_sem_trilho"]));
+      await waitFor(() => expect(screen.queryByTestId("trilho-equipe")).not.toBeInTheDocument());
+      act(() => callbacks.abrir?.({ tipo: "EQUIPE_INTERNA", conversaId: "equipe", atendimentoId: null } as ItemInbox));
+      expect(await screen.findByTestId("conversa-interna")).toBeInTheDocument();
+    } finally {
+      dimensoes.mockRestore();
+    }
   });
 
   it("uma resposta 404 atrasada de A não fecha B nem apresenta revogação de B", async () => {
