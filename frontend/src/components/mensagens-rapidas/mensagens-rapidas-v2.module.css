@@ -105,3 +105,9 @@
   .listas h2, .listas p { display: none; }
   .listas button { flex: none; white-space: nowrap; }
 }
+
+/* Ações do cartão discretas como no protótipo: neutras e menores, com cor só na interação. */
+.cartao :global([data-slot="button"]) { color: var(--texto-fraco, var(--muted-foreground)); }
+.cartao :global([data-slot="button"]) svg { width: 15px; height: 15px; }
+.cartao :global([data-slot="button"]):is(:hover, :focus-visible) { color: var(--chat-texto-forte); }
+.cartao :global([data-slot="button"][data-acao="remover"]):is(:hover, :focus-visible) { color: var(--destructive); }

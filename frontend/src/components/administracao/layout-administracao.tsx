@@ -4,9 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, KeyRound, MessageSquareText, ShieldCheck } from "lucide-react";
 
+import visual from "@/components/shell/agenda-recursos-v2.module.css";
+import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
+import listaV2 from "@/components/shell/lista-v2.module.css";
 import { Badge } from "@/components/ui/badge";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import { cn } from "@/lib/utils";
+
+import estilosV2 from "./administracao-v2.module.css";
 
 const ABAS = [
   { chave: "visaoGeral", rota: "/administracao", icone: Activity, exata: true },
@@ -15,8 +21,46 @@ const ABAS = [
 ] as const;
 
 export function LayoutAdministracao({ children }: { children: React.ReactNode }) {
-  const textos = useTextos().administracao;
+  const catalogo = useTextos();
+  const textos = catalogo.administracao;
   const pathname = usePathname();
+  const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("gestao_layout_v2") ?? false;
+  const estaAtiva = (aba: (typeof ABAS)[number]) => (aba.exata ? pathname === aba.rota : pathname.startsWith(aba.rota));
+
+  if (layoutV2) {
+    const abaAtual = ABAS.find(estaAtiva) ?? ABAS[0];
+    return (
+      <main data-layout="v2" className={cn(listaV2.pagina, listaV2.modulo, visual.paleta, estilosV2.raiz)}>
+        <CabecalhoListaV2
+          titulo={textos.abas[abaAtual.chave]}
+          grupo={catalogo.menu.grupoGestao}
+          trilha={[textos.titulo]}
+          extra={<span className={estilosV2.estado}>{textos.estadoSistema}</span>}
+        />
+        <header>
+          <div>
+            <h1>{textos.titulo}</h1>
+            <p className="text-sm text-muted-foreground">{textos.descricao}</p>
+          </div>
+          <nav aria-label={textos.navegacao} className={estilosV2.abas}>
+            <ul>
+              {ABAS.map((aba) => {
+                const Icone = aba.icone;
+                return (
+                  <li key={aba.chave}>
+                    <Link href={aba.rota} aria-current={estaAtiva(aba) ? "page" : undefined}>
+                      <Icone aria-hidden />{textos.abas[aba.chave]}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        </header>
+        <div className={estilosV2.conteudo}>{children}</div>
+      </main>
+    );
+  }
 
   return (
     <main className="flex h-full min-h-full min-w-0 flex-col overflow-x-hidden bg-[var(--fundo-canvas)]">
@@ -48,7 +92,7 @@ export function LayoutAdministracao({ children }: { children: React.ReactNode })
         >
           <ul className="flex gap-1 sm:flex-col">
             {ABAS.map((aba) => {
-              const ativa = aba.exata ? pathname === aba.rota : pathname.startsWith(aba.rota);
+              const ativa = estaAtiva(aba);
               const Icone = aba.icone;
               return (
                 <li key={aba.chave} className="shrink-0">

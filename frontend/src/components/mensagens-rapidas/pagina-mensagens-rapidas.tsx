@@ -232,7 +232,8 @@ function CardDeMensagemRapida({
             <Button
               size="icon"
               variant="ghost"
-              className="size-8 text-destructive hover:text-destructive"
+              data-acao="remover"
+                      className="size-8 text-destructive hover:text-destructive"
               aria-label={`${textos.remover} /${mensagem.palavraChave}`}
               onClick={onRemover}
             >

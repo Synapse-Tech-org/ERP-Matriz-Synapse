@@ -1204,6 +1204,7 @@ export const TextosSchema = z.object({
       soAutomaticos: z.string().default("Somente automáticos"),
       hoje: z.string().default("Hoje"),
       amanha: z.string().default("Amanhã"),
+      ontem: z.string().default("Ontem"),
       proximos: z.string().default("Próximos dias"),
       concluidos: z.string().default("Concluídos"),
       adiar: z.string().default("Adiar"),
@@ -1233,6 +1234,8 @@ export const TextosSchema = z.object({
   }),
   mensagensProgramadas: z.object({
     v2: z.object({
+      hoje: z.string().default("Hoje"),
+      amanha: z.string().default("Amanhã"),
       emUmaHora: z.string().default("Em 1 hora"),
       hojeAs17: z.string().default("Hoje, 17:00"),
       amanhaAs9: z.string().default("Amanhã, 09:00"),

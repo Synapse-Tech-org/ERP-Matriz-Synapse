@@ -1229,6 +1229,7 @@
       "soAutomaticos": "Somente automáticos",
       "hoje": "Hoje",
       "amanha": "Amanhã",
+      "ontem": "Ontem",
       "proximos": "Próximos dias",
       "concluidos": "Concluídos",
       "adiar": "Adiar",
@@ -1290,6 +1291,8 @@
   },
   "mensagensProgramadas": {
     "v2": {
+      "hoje": "Hoje",
+      "amanha": "Amanhã",
       "emUmaHora": "Em 1 hora",
       "hojeAs17": "Hoje, 17:00",
       "amanhaAs9": "Amanhã, 09:00",

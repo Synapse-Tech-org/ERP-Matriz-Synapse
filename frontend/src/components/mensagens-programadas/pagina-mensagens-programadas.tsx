@@ -200,7 +200,9 @@ export function PaginaMensagensProgramadas() {
       {layoutV2 && periodoValido && proximo.data && <div className={visual.proximo}>
         <Send aria-hidden className="size-3.5" />
         <span className="text-muted-foreground">{t.v2.proximoEnvio}</span>
-        <time dateTime={proximo.data.dataEnvio} className="font-semibold">{new Date(proximo.data.dataEnvio).toLocaleString("pt-BR")}</time>
+        <time dateTime={proximo.data.dataEnvio} className="font-semibold">
+          {seloDoDia(proximo.data.dataEnvio, t.v2)}, {horaLocal(proximo.data.dataEnvio)}
+        </time>
         <span className="break-words font-medium">{proximo.data.leadNome}</span>
       </div>}
       </div>
@@ -266,6 +268,24 @@ export function PaginaMensagensProgramadas() {
 }
 
 type TextosMensagensProgramadas = ReturnType<typeof useTextos>["mensagensProgramadas"];
+
+/** "Hoje" e "Amanhã" por extenso; os demais dias como dd/mm. */
+function seloDoDia(iso: string, rotulos: { hoje?: string; amanha?: string }) {
+  const dia = chaveDoDiaLocal(iso);
+  const amanha = new Date();
+  amanha.setDate(amanha.getDate() + 1);
+  if (rotulos.hoje && dia === chaveDoDiaLocal(new Date())) return rotulos.hoje;
+  if (rotulos.amanha && dia === chaveDoDiaLocal(amanha)) return rotulos.amanha;
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
+/** "terça, 17 de novembro": o ano só aparece quando não é o corrente. */
+function diaPorExtenso(iso: string) {
+  const data = new Date(iso);
+  const outroAno = data.getFullYear() !== new Date().getFullYear();
+  return data.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", ...(outroAno && { year: "numeric" }) })
+    .replace("-feira", "");
+}
 
 function TabelaDeMensagensProgramadas({
   itens,
@@ -334,9 +354,9 @@ function TabelaDeMensagensProgramadas({
             <th scope="rowgroup" colSpan={mostrarAtendente ? 6 : 5} className={visual.grupo + " text-left"}>
               <span>
                 <small aria-hidden className={visual.dia} data-hoje={dia === hoje}>
-                  {new Date(mensagens[0].dataEnvio).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                  {seloDoDia(mensagens[0].dataEnvio, textos.v2)}
                 </small>
-                <time dateTime={dia}>{new Date(mensagens[0].dataEnvio).toLocaleDateString("pt-BR", { dateStyle: "full" })}</time>
+                <time dateTime={dia}>{diaPorExtenso(mensagens[0].dataEnvio)}</time>
                 <small className={visual.total}>{(mensagens.length === 1 ? textos.v2.mensagemNoDia : textos.v2.mensagensNoDia)
                   .replace("{total}", String(mensagens.length))}</small>
               </span>
@@ -413,7 +433,8 @@ function TabelaDeMensagensProgramadas({
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="size-8 text-destructive hover:text-destructive"
+                        data-acao="remover"
+                      className="size-8 text-destructive hover:text-destructive"
                         aria-label={`${textos.cancelar} ${mensagem.leadNome}`}
                         disabled={cancelando}
                         onClick={() => onCancelar(mensagem.id)}

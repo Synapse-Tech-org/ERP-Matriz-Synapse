@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent, type UIEvent } from "react";
 import Link from "next/link";
-import { Bell, Camera, CircleHelp, KeyRound, Palette, Save, Trash2, UserRound } from "lucide-react";
+import { ArrowUpRight, Bell, Camera, CircleHelp, CornerDownLeft, KeyRound, MessageSquareHeart, Palette, Save, Trash2, UserRound } from "lucide-react";
 
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import visual from "@/components/shell/agenda-recursos-v2.module.css";
@@ -10,7 +10,7 @@ import listaV2 from "@/components/shell/lista-v2.module.css";
 import { useEnterEnviaMensagem } from "@/lib/atendimento/preferencia-de-envio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -251,32 +251,41 @@ export function PaginaConfiguracoes() {
             </section>
             <section id="configuracoes-interface" ref={(secao) => { secoes.current.interface = secao; }} tabIndex={-1} className="space-y-3 outline-none">
               <h2 className="text-lg font-bold tracking-tight">{t.abaInterface}</h2>
-              <PreferenciasDeAparencia />
-              <Card className="rounded-2xl">
-                <CardHeader><CardTitle>{t.densidadeListas}</CardTitle></CardHeader>
-                <CardContent>
-                  <div role="group" aria-label={t.densidadeListas} className={listaV2.opcoes}>
-                    <button type="button" aria-pressed={!densidade.compacta} onClick={() => densidade.definir(false)}>{t.densidadeConfortavel}</button>
-                    <button type="button" aria-pressed={densidade.compacta} onClick={() => densidade.definir(true)}>{t.densidadeCompacta}</button>
+              <div className={estilosV2.interface}>
+                <PreferenciasDeAparencia
+                  densidade={(
+                    <fieldset>
+                      <legend className="mb-2 text-sm font-medium">{t.densidadeListas}</legend>
+                      <div role="group" aria-label={t.densidadeListas} className={listaV2.opcoes}>
+                        <button type="button" aria-pressed={!densidade.compacta} onClick={() => densidade.definir(false)}>{t.densidadeConfortavel}</button>
+                        <button type="button" aria-pressed={densidade.compacta} onClick={() => densidade.definir(true)}>{t.densidadeCompacta}</button>
+                      </div>
+                    </fieldset>
+                  )}
+                />
+                <div className={`${estilosV2.cartao} ${estilosV2.unica}`}>
+                  <div className={estilosV2.linha}>
+                    <CornerDownLeft aria-hidden />
+                    <div className="min-w-0 flex-1">
+                      <strong>{t.enterEnvia}</strong>
+                      <small>{t.enterEnviaDescricao}</small>
+                    </div>
+                    <Switch checked={envio.ativo} onCheckedChange={envio.definir} aria-label={t.enterEnvia} />
                   </div>
-                </CardContent>
-              </Card>
-              <Card className="rounded-2xl">
-                <CardHeader>
-                  <CardTitle>{t.enterEnvia}</CardTitle>
-                  <CardDescription>{t.enterEnviaDescricao}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Switch checked={envio.ativo} onCheckedChange={envio.definir} aria-label={t.enterEnvia} />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </section>
             <section id="configuracoes-ajuda" ref={(secao) => { secoes.current.ajuda = secao; }} tabIndex={-1} className="min-h-full space-y-3 outline-none">
               <h2 className="text-lg font-bold tracking-tight">{t.abaAjuda}</h2>
-              <Card className="rounded-2xl">
-                <CardHeader><CardTitle>{t.feedbackTitulo}</CardTitle></CardHeader>
-                <CardContent><Link href="/feedbacks" className="text-primary underline">{t.feedbackAcao}</Link></CardContent>
-              </Card>
+              <div className={estilosV2.ajuda}>
+                <article className={estilosV2.apoio}>
+                  <MessageSquareHeart aria-hidden />
+                  <ArrowUpRight aria-hidden />
+                  <h3>{t.feedbackTitulo}</h3>
+                  {textos.feedbacks?.descricao && <p>{textos.feedbacks.descricao}</p>}
+                  <Link href="/feedbacks">{t.feedbackAcao}</Link>
+                </article>
+              </div>
             </section>
           </div>
           {(alterado || salvo || atualizar.isError) && (

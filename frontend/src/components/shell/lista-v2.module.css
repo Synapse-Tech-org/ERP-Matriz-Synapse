@@ -317,3 +317,167 @@
 }
 
 .gestao :global([data-slot="campanhas-cabecalho"]) h1 + p { max-width: none; }
+
+/* Campanhas V2: cabeçalho ancorado no topo, proporções do desempenho e tabela do protótipo. */
+.gestao :global([data-slot="campanhas-cabecalho"]) { align-items: flex-start; }
+.gestao :global([data-slot="campanhas-cabecalho"]) > div:last-child { margin-top: 14px; }
+
+.gestao :global([data-slot="campanhas-indicador-parte"]) {
+  display: inline;
+  margin-left: 8px;
+  color: var(--cor-sucesso);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.gestao :global([data-slot="campanhas-indicador-barra"]) {
+  display: block;
+  height: 5px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.gestao :global([data-slot="campanhas-indicador-barra"]) > div {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+.gestao :global([data-slot="campanhas-tabela"]) {
+  padding: 8px;
+  border: 1px solid var(--agenda-borda-cartao, var(--border));
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+}
+
+.gestao :global([data-slot="campanhas-tabela"]) table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13.5px;
+  text-align: left;
+}
+
+.gestao :global([data-slot="campanhas-tabela"]) th {
+  height: 36px;
+  padding: 0 14px;
+  background: var(--muted);
+  color: var(--texto-fraco, var(--muted-foreground));
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.gestao :global([data-slot="campanhas-tabela"]) th:first-child { border-radius: 10px 0 0 10px; }
+.gestao :global([data-slot="campanhas-tabela"]) th:last-child { border-radius: 0 10px 10px 0; }
+
+.gestao :global([data-slot="campanhas-tabela"]) td {
+  height: 68px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--borda-suave, var(--border));
+  color: var(--foreground);
+}
+
+.gestao :global([data-slot="campanhas-tabela"]) tr:last-child td { border-bottom: 0; }
+.gestao :global([data-slot="campanhas-tabela"]) tbody tr:hover td { background: color-mix(in srgb, var(--muted) 45%, transparent); }
+
+.gestao :global([data-slot="campanhas-tabela"]) :is(th, td)[data-numero],
+.gestao :global([data-slot="campanhas-tabela"]) :is(th, td)[data-acao] { text-align: right; }
+
+.gestao :global([data-slot="campanhas-tabela"]) td[data-numero] { color: var(--chat-texto-forte); font-weight: 500; }
+
+.gestao :global([data-slot="campanha-nome"]) {
+  display: flex;
+  min-width: 0;
+  max-width: 420px;
+  align-items: center;
+  gap: 12px;
+}
+
+.gestao :global([data-slot="campanha-nome"]) > svg {
+  box-sizing: content-box;
+  width: 17px;
+  height: 17px;
+  flex: none;
+  padding: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--primary);
+}
+
+.gestao :global(tr[data-status="RASCUNHO"]) :global([data-slot="campanha-nome"]) > svg,
+.gestao :global(tr[data-status="CANCELADA"]) :global([data-slot="campanha-nome"]) > svg {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.gestao :global([data-slot="campanha-nome"]) a {
+  display: block;
+  overflow: hidden;
+  color: var(--chat-texto-forte);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gestao :global([data-slot="campanha-nome"]) a:is(:hover, :focus-visible) { text-decoration: underline; }
+
+.gestao :global([data-slot="campanha-nome"]) small {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--texto-fraco, var(--muted-foreground));
+  font-family: var(--fonte-mono, ui-monospace), monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gestao :global([data-slot="campanhas-tabela"]) td > span {
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-weight: 500;
+}
+
+.gestao :global([data-slot="campanha-progresso"]) { min-width: 200px; max-width: 380px; }
+
+.gestao :global([data-slot="campanha-progresso"]) p {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 7px;
+  color: var(--texto-fraco, var(--muted-foreground));
+  font-size: 13px;
+}
+
+.gestao :global([data-slot="campanha-progresso"]) strong { color: var(--chat-texto-forte); font-weight: 600; }
+.gestao :global([data-slot="campanha-progresso"]) [role="progressbar"] { height: 5px; }
+
+.gestao :global([data-slot="campanha-inicio"]) span { display: block; color: var(--chat-texto-forte); }
+.gestao :global([data-slot="campanha-inicio"]) small {
+  display: block;
+  margin-top: 2px;
+  color: var(--texto-fraco, var(--muted-foreground));
+  font-size: 12.5px;
+}
+
+.gestao :global([data-slot="campanhas-tabela"]) td[data-acao] a {
+  min-height: 34px;
+  border-color: var(--input);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+  font-weight: 500;
+}
+
+.gestao :global([data-slot="campanhas-indicador"]):last-child :global([data-slot="campanhas-indicador-parte"]) { color: var(--destructive); }
+.gestao :global([data-slot="campanhas-indicador"]):last-child :global([data-slot="campanhas-indicador-barra"]) > div { background: var(--destructive); }
+
+/* Excluir fica neutro até o ponteiro ou o foco chegar (protótipo); a cor de perigo aparece na interação. */
+.pagina :global(button[data-acao="remover"]) { color: var(--texto-fraco, var(--muted-foreground)); }
+.pagina :global(button[data-acao="remover"]):is(:hover, :focus-visible) { color: var(--destructive); }

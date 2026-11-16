@@ -28,7 +28,7 @@
   height: 38px; padding: 0 6px 0 13px; border: 1px solid var(--border); border-radius: 12px;
   color: var(--gestao-texto-suave); background: var(--card); box-shadow: var(--gestao-sombra);
 }
-.pagina :global([data-slot="dashboard-busca"]) > span { min-width: 0; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
+.pagina :global([data-slot="dashboard-busca"]) > span:not(:first-child) { min-width: 0; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
 .pagina :global([data-slot="dashboard-busca"]) kbd { padding: 3px 7px; border: 1px solid var(--border); border-radius: 7px; background: var(--background); }
 .pagina header.cabecalho { padding: 22px 0 18px; border: 0; background: transparent; }
 .pagina header.cabecalho > div { align-items: end; gap: 16px; }

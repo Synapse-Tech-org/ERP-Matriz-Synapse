@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, PencilLine } from "lucide-react";
+import { ArrowRight, Megaphone, PencilLine } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -98,9 +98,93 @@ function Linha({ campanha }: { campanha: Campanha }) {
   );
 }
 
-export function TabelaDeCampanhas({ campanhas }: { campanhas: Campanha[] }) {
+const SEM_VALOR = "—";
+
+/** Linha do layout V2: template sob o nome, leitura e respostas em colunas, limite sob o início. */
+function LinhaV2({ campanha }: { campanha: Campanha }) {
+  const catalogo = useTextos().campanhas;
+  const textos = catalogo.lista;
+  const destino = destinoDaCampanha(campanha, usePodeEmCampanhas("editar"));
+  const Icone = destino.rotulo === "continuarRascunho" ? PencilLine : ArrowRight;
+  const { total, enviados, lidos, respondidos } = campanha.contadores;
+  const percentualEnviado = percentual(enviados, total);
+  const taxa = (parte: number) => (enviados > 0 ? `${percentual(parte, enviados)}%` : SEM_VALOR);
+  return (
+    <tr data-status={campanha.status}>
+      <td>
+        <div data-slot="campanha-nome">
+          <Megaphone aria-hidden />
+          <div className="min-w-0">
+            <Link href={destino.href}>{campanha.nome}</Link>
+            <small>{campanha.template.nome}</small>
+          </div>
+        </div>
+      </td>
+      <td><ChipDeStatus status={campanha.status} /></td>
+      <td>
+        <div data-slot="campanha-progresso">
+          <p>
+            <span>
+              <strong>{formatarNumero(enviados)}</strong>{" "}
+              {interpolarCatalogo(catalogo.indicadores.deLimite, { limite: formatarNumero(total) })}
+            </span>
+            <span>{percentualEnviado}%</span>
+          </p>
+          <BarraDeProgresso
+            valor={percentualEnviado}
+            tom={campanha.status === "CONCLUIDA" ? "sucesso" : "primario"}
+            rotulo={interpolarCatalogo(textos.progressoDe, { percentual: String(percentualEnviado) })}
+          />
+        </div>
+      </td>
+      <td data-numero>{taxa(lidos)}</td>
+      <td data-numero>{taxa(respondidos)}</td>
+      <td>
+        <div data-slot="campanha-inicio">
+          <span><Inicio campanha={campanha} /></span>
+          <small>{interpolarCatalogo(textos.porDia, { limite: formatarNumero(campanha.limiteDiario) })}</small>
+        </div>
+      </td>
+      <td data-acao>
+        <Link href={destino.href} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          {textos[destino.rotulo]}
+          <Icone aria-hidden />
+        </Link>
+      </td>
+    </tr>
+  );
+}
+
+function TabelaV2({ campanhas }: { campanhas: Campanha[] }) {
+  const catalogo = useTextos().campanhas;
+  const colunas = catalogo.lista.colunas;
+  return (
+    <div data-slot="campanhas-tabela" className="hidden overflow-x-auto md:block">
+      <table>
+        <caption className="sr-only">{catalogo.lista.titulo}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{colunas.nome}</th>
+            <th scope="col">{colunas.status}</th>
+            <th scope="col">{colunas.progresso}</th>
+            <th scope="col" data-numero>{catalogo.indicadores.lidas}</th>
+            <th scope="col" data-numero>{catalogo.indicadores.respostas}</th>
+            <th scope="col">{colunas.inicio}</th>
+            <th scope="col" data-acao>{colunas.acoes}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {campanhas.map((campanha) => <LinhaV2 key={campanha.id} campanha={campanha} />)}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function TabelaDeCampanhas({ campanhas, v2 = false }: { campanhas: Campanha[]; v2?: boolean }) {
   const textos = useTextos().campanhas.lista;
   const colunas = textos.colunas;
+  if (v2) return <TabelaV2 campanhas={campanhas} />;
   const titulos = [colunas.nome, colunas.template, colunas.status, colunas.progresso, colunas.limite, colunas.inicio];
   return (
     <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">

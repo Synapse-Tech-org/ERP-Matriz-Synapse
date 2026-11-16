@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { BuscaDoDashboard } from "@/components/dashboard/busca-do-dashboard";
@@ -5,7 +6,9 @@ import { CentralDeAvisos } from "@/components/notificacoes/central-de-avisos";
 import { IconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
 import { useTextos } from "@/lib/config/textos-provider";
 
-export function CabecalhoListaV2({ titulo, grupo, busca, trilha }: { titulo: string; grupo?: string; busca?: string; trilha?: string[] }) {
+type Props = { titulo: string; grupo?: string; busca?: string; trilha?: string[]; extra?: ReactNode };
+
+export function CabecalhoListaV2({ titulo, grupo, busca, trilha, extra }: Props) {
   const { menu } = useTextos();
 
   return (
@@ -20,8 +23,9 @@ export function CabecalhoListaV2({ titulo, grupo, busca, trilha }: { titulo: str
         <span aria-hidden>/</span>
         <span aria-current="page">{titulo}</span>
       </nav>
-      {busca ? <div className="flex min-w-0 items-center gap-2.5">
-        <BuscaDoDashboard rotulo={busca} />
+      {busca || extra ? <div className="flex min-w-0 items-center gap-2.5">
+        {extra}
+        {busca && <BuscaDoDashboard rotulo={busca} />}
         <CentralDeAvisos />
       </div> : <CentralDeAvisos />}
     </div>

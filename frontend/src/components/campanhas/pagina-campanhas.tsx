@@ -14,6 +14,7 @@ import {
   useListaDeCampanhas,
 } from "@/lib/campanhas/hooks";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 
 import { AcaoSoDoAdministrador, CampanhasIndisponiveis, EstadoVazio } from "./estados";
 import { CartaoDeCampanha } from "./cartao-de-campanha";
@@ -78,6 +79,7 @@ export function PaginaCampanhas() {
   const podeCriar = usePodeEmCampanhas("criar");
   const [pagina, setPagina] = useState(0);
   const consulta = useListaDeCampanhas(pagina);
+  const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("gestao_layout_v2") ?? false;
 
   if (consulta.isError && funcionalidadeIndisponivel(consulta.error)) return <CampanhasIndisponiveis />;
 
@@ -114,7 +116,7 @@ export function PaginaCampanhas() {
             />
           ) : (
             <>
-              <TabelaDeCampanhas campanhas={lista.itens} />
+              <TabelaDeCampanhas campanhas={lista.itens} v2={layoutV2} />
               <ul className="space-y-3 md:hidden" aria-label={textos.lista.titulo}>
                 {lista.itens.map((campanha) => (
                   <CartaoDeCampanha key={campanha.id} campanha={campanha} />

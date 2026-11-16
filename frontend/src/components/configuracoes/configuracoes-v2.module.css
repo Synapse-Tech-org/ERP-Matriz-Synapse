@@ -220,3 +220,108 @@
   font-weight: 600;
   letter-spacing: -0.015em;
 }
+
+/* Interface: um cartão de aparência na largura do protótipo, com tamanho e densidade lado a lado. */
+.interface {
+  display: grid;
+  max-width: 880px;
+  gap: 14px;
+}
+
+.interface :global([data-slot="aparencia-tema"]) {
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.interface :global([data-slot="aparencia-tema"][aria-pressed="true"]) {
+  border-color: var(--primary);
+  background: var(--card);
+  box-shadow: 0 0 0 3px var(--accent);
+}
+
+.interface :global([data-slot="aparencia-tema"]) > span:first-child { height: 84px; margin-bottom: 10px; }
+
+.interface :global([data-slot="aparencia-tema-rotulo"]) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px 4px;
+  color: var(--chat-texto-forte);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.interface :global([data-slot="aparencia-tema-rotulo"])::before {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border: 1.5px solid var(--texto-fraco, var(--muted-foreground));
+  border-radius: 50%;
+  content: "";
+}
+
+.interface :global([data-slot="aparencia-tema"][aria-pressed="true"]) :global([data-slot="aparencia-tema-rotulo"])::before {
+  border: 5px solid var(--primary);
+}
+
+.interface :global([data-slot="aparencia-dupla"]) { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+
+.interface :global([data-slot="aparencia-dupla"]) :is(div[class], [role="group"]) { width: 100%; }
+
+.interface :global([data-slot="aparencia-dupla"]) button {
+  flex: 1;
+  justify-content: center;
+  font-weight: 500;
+}
+
+.interface :global([data-slot="aparencia-dupla"]) button[aria-pressed="true"] { font-weight: 600; }
+
+.unica { padding: 4px 22px; }
+.unica .linha { border-top: 0; }
+
+@media (max-width: 699px) {
+  .interface :global([data-slot="aparencia-dupla"]) { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Ajuda: cartões de apoio do protótipo (ícone, título, texto e ação). */
+.ajuda {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 345px), 1fr));
+  gap: 14px;
+}
+
+.apoio {
+  position: relative;
+  padding: 20px 22px 22px;
+  border: 1px solid var(--agenda-borda-cartao, var(--border));
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+}
+
+.apoio > svg:first-child {
+  box-sizing: content-box;
+  width: 20px;
+  height: 20px;
+  padding: 11px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--cor-sucesso) 12%, transparent);
+  color: var(--cor-sucesso);
+}
+
+.apoio > svg:nth-child(2) {
+  position: absolute;
+  top: 32px;
+  right: 22px;
+  width: 16px;
+  height: 16px;
+  color: var(--texto-fraco, var(--muted-foreground));
+}
+
+.apoio h3 { margin-top: 18px; color: var(--chat-texto-forte); font-size: 15.5px; font-weight: 600; letter-spacing: -0.015em; }
+.apoio p { margin-top: 6px; color: var(--texto-fraco, var(--muted-foreground)); font-size: 13px; line-height: 20px; }
+.apoio a { display: inline-block; margin-top: 12px; color: var(--primary); font-size: 13.5px; font-weight: 500; }
+.apoio a::after { position: absolute; inset: 0; border-radius: 18px; content: ""; }
+.apoio a:focus-visible { outline: none; }
+.apoio a:focus-visible::after { outline: 2px solid var(--ring); outline-offset: 2px; }

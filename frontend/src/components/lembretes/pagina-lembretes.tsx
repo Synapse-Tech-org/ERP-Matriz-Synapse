@@ -403,8 +403,7 @@ function TabelaDeLembretes({
                 </td>
                 <td className="px-4 py-3 text-xs font-medium">
                   {agora === undefined ? new Date(item.dataHora).toLocaleString("pt-BR") : <>
-                    <time dateTime={item.dataHora}>{chaveDoDiaLocal(item.dataHora) === chaveDoDiaLocal(new Date(agora))
-                      ? textos.v2.hoje : new Date(item.dataHora).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })}
+                    <time dateTime={item.dataHora} className="whitespace-nowrap">{rotuloDoDia(item.dataHora, agora, textos.v2)}
                       {" · "}{horaLocal(item.dataHora)}</time>
                     <div className={visual.tempoRelativo}>{concluido ? textos.status.concluido.toLowerCase()
                       : tempoRelativo(item.dataHora, agora)}</div>
@@ -433,6 +432,7 @@ function TabelaDeLembretes({
                     <Button
                       size="icon"
                       variant="ghost"
+                      data-acao="remover"
                       className="size-8 text-destructive hover:text-destructive"
                       aria-label={`${textos.remover} ${item.texto}`}
                       disabled={ocupado}
@@ -454,6 +454,22 @@ function TabelaDeLembretes({
   );
 }
 
+
+/** Ontem, Hoje e Amanhã por extenso; os demais dias como "seg 27/07". */
+function rotuloDoDia(iso: string, agora: number, rotulos: { hoje: string; amanha: string; ontem?: string }) {
+  const dia = chaveDoDiaLocal(iso);
+  const vizinho = (deslocamento: number) => {
+    const data = new Date(agora);
+    data.setDate(data.getDate() + deslocamento);
+    return chaveDoDiaLocal(data);
+  };
+  if (dia === vizinho(0)) return rotulos.hoje;
+  if (dia === vizinho(1)) return rotulos.amanha;
+  if (rotulos.ontem && dia === vizinho(-1)) return rotulos.ontem;
+  const data = new Date(iso);
+  const semana = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+  return semana + " " + data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
 
 function tempoRelativo(iso: string, agora: number) {
   const minutos = Math.round((Date.parse(iso) - agora) / 60_000);
