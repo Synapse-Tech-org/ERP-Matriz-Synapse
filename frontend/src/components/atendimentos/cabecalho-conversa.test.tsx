@@ -707,6 +707,20 @@ describe("CabecalhoConversa — transbordo para o ⋯ (E210)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
   }
 
+  it("com utilitariasPrimeiro, buscar vem antes de Finalizar na ordem do documento (e de tabulação)", () => {
+    renderizar({ utilitariasPrimeiro: true });
+    const buscar = screen.getByRole("button", { name: "Buscar na conversa" });
+    const finalizar = screen.getByRole("button", { name: /Finalizar/ });
+    expect(buscar.compareDocumentPosition(finalizar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("sem utilitariasPrimeiro, a ordem legada é preservada: Finalizar antes de buscar", () => {
+    renderizar();
+    const buscar = screen.getByRole("button", { name: "Buscar na conversa" });
+    const finalizar = screen.getByRole("button", { name: /Finalizar/ });
+    expect(finalizar.compareDocumentPosition(buscar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("sem transferir, devolver, finalizar e colaborar, essas ações somem da barra e do ⋯; buscar continua", () => {
     definirCapacidadesDeTeste({
       negadas: ["atendimentos.transferir", "atendimentos.devolver_ia", "atendimentos.finalizar", "atendimentos.colaborar"],

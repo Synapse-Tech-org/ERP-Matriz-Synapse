@@ -1,0 +1,178 @@
+.ficha {
+  background: var(--card);
+  font-family: var(--fonte-frontend-v2), var(--fonte-base), sans-serif;
+}
+
+.ficha :global([data-slot="ficha-topo"]) { padding: 16px 16px 0; }
+.ficha :global([data-slot="ficha-topo"]) > p {
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -.015em;
+}
+.ficha :global([data-slot="ficha-topo"]) button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--muted-foreground);
+}
+.ficha :global([data-slot="ficha-topo"]) button:hover { background: var(--background); }
+.ficha :global([data-slot="ficha-topo"]) svg { width: 15px; height: 15px; }
+
+.corpo {
+  padding: 12px 16px 20px;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+.ficha :global([data-slot="ficha-identidade"]) { gap: 14px; padding-top: 6px; margin-bottom: 18px; }
+.avatar {
+  width: 84px;
+  height: 84px;
+  box-shadow: 0 0 0 5px var(--card), 0 0 0 6px var(--border);
+  font-size: 28px;
+  font-weight: 600;
+}
+.nome { position: relative; width: 100%; min-width: 0; }
+.nome :is(input, p:not([role="alert"])) {
+  padding: 0 18px;
+  color: var(--foreground);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: -.025em;
+}
+.nome svg { position: absolute; inset-inline-end: 3px; opacity: 0; }
+.nome:is(:hover, :focus-within) svg { opacity: 1; }
+
+.ficha :global([data-slot="ficha-contadores"]) { gap: 8px; margin-bottom: 18px; }
+.ficha :global([data-slot="ficha-contadores"]) > div {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--card);
+}
+.ficha :global([data-slot="ficha-contadores"]) p:first-child,
+.ficha :global([data-slot="ficha-rotulo"]),
+.ficha :global([data-slot="etapa-cabecalho"]) > p {
+  color: var(--agenda-texto-suave);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.ficha :global([data-slot="ficha-contadores"]) p:last-child {
+  margin-top: 6px;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 30px;
+  letter-spacing: -.035em;
+}
+.ficha :global([data-slot="ficha-rotulo"]) { margin-bottom: 8px; }
+
+.dados {
+  margin-bottom: 18px;
+  padding: 4px 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--background) 75%, var(--card));
+}
+.dados:empty { display: none; }
+.dados :global([data-slot="ficha-dado"]) { min-height: 40px; }
+.dados :global([data-slot="ficha-dado"]) + :global([data-slot="ficha-dado"]) { border-top: 1px solid var(--border); }
+.dados :global([data-slot="ficha-dado"]) :is(p, span) { font-size: 13.5px; }
+.dados :global([data-slot="ficha-dado"]) > :is(svg, span) { flex: none; color: var(--agenda-texto-suave); }
+.dados :global([data-slot="ficha-dado"]) > svg { width: 15px; height: 15px; }
+.dados :global([data-slot="ficha-dado"]) button { width: 26px; height: 26px; color: var(--muted-foreground); }
+.dados :global([data-slot="ficha-dado"]) button svg { width: 13px; height: 13px; }
+.dados :global([data-slot="ficha-copiar-telefone"]) { opacity: 0; }
+.dados :global([data-slot="ficha-dado"]):is(:hover, :focus-within) :global([data-slot="ficha-copiar-telefone"]) { opacity: 1; }
+@media (hover: none) {
+  .dados :global([data-slot="ficha-copiar-telefone"]) { opacity: 1; }
+}
+
+.ficha :global([data-slot="etapa-do-atendimento"]) { margin-bottom: 18px; }
+.ficha :global([data-slot="etapa-cabecalho"]) { padding-inline: 2px; }
+.ficha :global([data-slot="etapa-cabecalho"]) > p { flex-shrink: 1; }
+.ficha :global([data-slot="etapa-cabecalho"]) > span { padding: 2px 10px; font-weight: 500; }
+.ficha :global([data-slot="etapa-segmento"]) { height: 8px; }
+.ficha :global([data-slot="etapa-rodape"]) { margin-top: 6px; font-size: 12px; color: var(--agenda-texto-suave); }
+.ficha :global([data-slot="etapa-rodape"]) > span:nth-child(2) { font-weight: 500; }
+
+.ficha :global([data-slot="ficha-tags"]) { margin-bottom: 20px; }
+.ficha :global([data-slot="ficha-tags"]) > div:first-child { display: contents; }
+.ficha :global([data-slot="ficha-tags"]) :global([data-slot="badge"]) {
+  height: 22px;
+  max-width: 100%;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--raio-pill);
+  background: color-mix(in srgb, currentColor 10%, var(--card));
+  font-size: 12px;
+}
+.ficha :global([data-slot="ficha-adicionar-tag"]) {
+  height: 24px;
+  min-height: 0;
+  padding: 0 10px;
+  border: 1px dashed var(--input);
+  border-radius: var(--raio-pill);
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.ficha :global([data-slot="ficha-adicionar-tag"]) svg { width: 12px; height: 12px; }
+
+.secoes { display: grid; min-width: 0; gap: 8px; }
+.ficha .secoes :global([data-slot="secao-colapsavel"]) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.ficha .secoes :global([data-slot="secao-colapsavel-cabecalho"]) {
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+.secoes :global([data-slot="secao-colapsavel-controle"]) { gap: 11px; }
+.secoes :global([data-slot="secao-colapsavel-controle"]) > svg {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--primary);
+}
+.secoes :global([data-slot="secao-colapsavel-controle"]) > span:first-of-type {
+  font-size: 13.5px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.secoes :global([data-slot="secao-colapsavel-chevron"]) { width: 20px; height: 32px; }
+.secoes :global([data-slot="secao-colapsavel-corpo"]) { padding: 8px 0 6px; }
+.secoes :global([role="status"]):empty { display: none; }
+
+.resumo {
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--primary-foreground) 18%, transparent), 0 12px 24px -16px var(--primary);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.resumoTitulo { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 600; }
+.resumoTitulo > svg { width: 15px; height: 15px; flex: none; }
+.resumoTitulo > span:last-child {
+  margin-inline-start: auto;
+  padding: 1px 8px;
+  border-radius: var(--raio-pill);
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  font-size: 11px;
+  font-weight: 500;
+}

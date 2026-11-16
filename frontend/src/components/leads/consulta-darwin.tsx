@@ -13,7 +13,9 @@ import { ErroDeApi } from "@/lib/api/errors";
 import { disponibilidadeDarwin, consultarDarwin, aplicarDarwin, type PreviaDarwin } from "@/lib/lead/darwin";
 
 /** Apenas a ficha de clientes. Permissão/visibilidade/configuração são revalidadas no backend. */
-export function ConsultaDarwin({ leadId, permitido, cpfAtual }: { leadId: string; permitido: boolean; cpfAtual?: string | null }) {
+export function ConsultaDarwin({ leadId, permitido, cpfAtual, mostrarCpf = true }: {
+  leadId: string; permitido: boolean; cpfAtual?: string | null; mostrarCpf?: boolean;
+}) {
   const t = useTextos().darwin;
   const usuarioId = useAuthStore(s => s.usuarioId);
   const cache = useQueryClient();
@@ -90,7 +92,7 @@ export function ConsultaDarwin({ leadId, permitido, cpfAtual }: { leadId: string
   const candidato = previa?.candidatos[0];
   const podeAplicar = previa?.estado === "ENCONTRADO" && previa.confirmacao && (nome || cpf || email) && !sucesso && !conflito;
   return <>
-    <div className="flex min-w-0 items-center gap-3 text-sm"><FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden /><span className="shrink-0 text-xs text-muted-foreground">{t.cpf}</span><span className="min-w-0 break-words">{cpfAtual || t.ausente}</span></div>
+    {mostrarCpf && <div className="flex min-w-0 items-center gap-3 text-sm"><FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden /><span className="shrink-0 text-xs text-muted-foreground">{t.cpf}</span><span className="min-w-0 break-words">{cpfAtual || t.ausente}</span></div>}
     <Button type="button" variant="outline" size="sm" onClick={abrir} disabled={consulta.isPending || aplicacao.isPending} className="w-full gap-2">
       <Search className="size-4" aria-hidden />{t.consultar}
     </Button>

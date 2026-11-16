@@ -1018,6 +1018,8 @@ export const TextosSchema = z.object({
       retrair: z.string(),
       reabrir: z.string(),
       informacoesGerais: z.string(),
+      etapaV2: z.string().default("Etapa do atendimento"),
+      etiquetasV2: z.string().default("Etiquetas"),
       notasInternas: z.string(),
       notas: z.object({
         placeholder: z.string(),
@@ -1027,6 +1029,8 @@ export const TextosSchema = z.object({
         erro: z.string(),
       }),
       resumoIa: z.object({
+        tituloCartao: z.string().default("Resumo do atendimento"),
+        selo: z.string().default("IA"),
         vazio: z.string(),
         ultimaGeracao: z.string(),
         gerar: z.string(),
