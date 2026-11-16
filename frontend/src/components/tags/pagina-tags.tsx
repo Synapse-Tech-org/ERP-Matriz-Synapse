@@ -63,6 +63,7 @@ import type { AgregacaoDeTags, DadosDeTag, Tag } from "@/lib/tags/types";
 import { IconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
 
 import { ListaDeTagsV2, ResumoDeTagsV2 } from "./lista-tags-v2";
+import estilosV2 from "./tags-v2.module.css";
 
 /**
  * Tokens de tema disponíveis para tag (design/TOKENS.md): nenhuma cor literal aqui, só
@@ -178,7 +179,7 @@ export function PaginaTags() {
 
   if (layoutV2) {
     return (
-      <div data-layout="v2" className={`${listaV2.pagina} ${visual.paleta}`}>
+      <div data-layout="v2" className={`${listaV2.pagina} ${visual.paleta} ${estilosV2.raiz}`}>
         <CabecalhoListaV2 titulo={t.titulo} grupo={textos.menu.grupoRecursos} busca={textos.gestao?.v2?.buscaGlobal} />
         <header>
           <div>

@@ -238,9 +238,12 @@
   pointer-events: none;
 }
 
+/* Fixada, a barra mantém 268px enquanto o slot anima: acompanhar a largura do slot a fazia
+   encolher para 68px e crescer de novo (salto visível ao fixar ou soltar). */
 .canvas :global([data-slot="sidebar"][data-fixada="true"]) {
   position: absolute;
-  width: calc(100% - 20px);
+  z-index: 40;
+  width: 268px;
 }
 
 .canvas :global([data-slot="sidebar-pendencias"]) {

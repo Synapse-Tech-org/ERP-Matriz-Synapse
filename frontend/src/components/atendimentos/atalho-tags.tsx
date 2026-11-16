@@ -46,6 +46,7 @@ export function AtalhoTags({
             ? "flex flex-wrap gap-1.5"
             : "hidden max-w-48 gap-1 overflow-hidden xl:flex"
         }
+        data-slot={modo === "painel" ? undefined : "atalho-tags-aplicadas"}
       >
         {tags.data?.map((tag) => (
           <Badge

@@ -25,7 +25,7 @@ export function MolduraGestaoV2({
       data-layout="v2"
       className={`${estilos.pagina} ${estilos.modulo} ${secao === "gestao" ? visualGestao.moldura : estilos.gestao}`}
     >
-      {secao !== "gestao" && <CabecalhoListaV2 titulo={titulo} />}
+      {secao !== "gestao" && <CabecalhoListaV2 titulo={titulo} grupo={textos.menu.grupoGestao} busca={textos.gestao?.v2?.buscaGlobal} />}
       {children}
     </section>
   );

@@ -539,3 +539,614 @@
     padding: 12px 12px 0;
   }
 }
+
+/* ── Lista de conversas: medidas do protótipo (coluna de 360px) ── */
+.pagina :global([data-slot="lista-conversas-cabecalho"]) {
+  padding: 18px 16px 0;
+}
+
+.pagina :global([data-slot="lista-conversas-titulo"]) {
+  min-height: 36px;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.pagina :global([data-slot="lista-conversas-cabecalho"]) h1 {
+  font-size: 20px;
+  white-space: nowrap;
+}
+
+.pagina :global([data-slot="lista-conversas-menu"]) {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 7px;
+  color: var(--texto-fraco, var(--muted-foreground));
+}
+
+.pagina :global([data-slot="lista-conversas-acoes"]) {
+  flex-wrap: nowrap;
+}
+
+.pagina :global([data-slot="lista-conversas-busca"]) input {
+  height: 40px;
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--background) 70%, var(--card));
+}
+
+.pagina :global([data-slot="abas-conversas"]) {
+  width: calc(100% - 32px);
+  min-height: 51px;
+  margin: 14px 16px 0;
+}
+
+.pagina :global([data-slot="abas-conversas"]) :global([data-slot="tabs-trigger"]) {
+  min-width: 0;
+  min-height: 45px;
+  flex: 1 1 0;
+  gap: 1px;
+  padding: 6px 0 5px;
+  font-weight: 500;
+}
+
+.pagina :global([data-slot="abas-conversas"]) :global([data-slot="tabs-trigger"][data-active]) {
+  box-shadow: 0 1px 2px rgb(16 24 40 / 8%), 0 0 0 1px rgb(16 24 40 / 3%);
+}
+
+.pagina :global([data-slot="abas-conversas"]) :global([data-slot="badge"]) {
+  height: 18px;
+  color: var(--foreground);
+  letter-spacing: -0.02em;
+  line-height: 18px;
+}
+
+.pagina :global([data-slot="lista-conversas-itens"]) {
+  padding: 10px 10px 14px;
+}
+
+.pagina :global([data-slot="cartao-conversa"]),
+.pagina :global([data-slot="cartao-fila-operacional"]) {
+  position: relative;
+  width: 100%;
+  min-height: 99px;
+  gap: 12px;
+  margin: 0 0 2px;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.pagina :global([data-slot="cartao-conversa"][aria-current="true"]),
+.pagina :global([data-slot="cartao-fila-operacional"][aria-current="true"]) {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 11%, var(--card));
+  box-shadow: 0 0 0 1px var(--primary), 0 6px 16px -8px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+.pagina :global([data-slot="cartao-fila-operacional"]) > :first-child {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pagina :global([data-slot="fila-nome"]) {
+  color: var(--chat-texto-forte);
+  font-size: 13.5px;
+  line-height: 18px;
+}
+
+.pagina :global([data-slot="fila-hora"]) {
+  color: var(--texto-fraco, var(--muted-foreground));
+  font-size: 12px;
+}
+
+/* O protótipo não repete a empresa no cartão; ela segue no cabeçalho e na ficha. */
+.pagina :global([data-slot="fila-empresa"]) {
+  display: none;
+}
+
+.pagina :global([data-slot="fila-previa"]) {
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.pagina :global([data-slot="fila-rodape"]) {
+  min-height: 24px;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.pagina :global([data-slot="fila-canal"]) {
+  position: absolute;
+  top: 70px;
+  left: 39px;
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.pagina :global([data-slot="fila-canal"]) svg {
+  width: 11px;
+  height: 11px;
+}
+
+.pagina :global([data-slot="fila-etapa"]) {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 15px;
+}
+
+.pagina :global([data-slot="fila-espera"]) {
+  height: 22px;
+  gap: 4px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.pagina :global([data-slot="fila-espera"]) svg {
+  width: 13px;
+  height: 13px;
+}
+
+.pagina :global([data-slot="fila-atendente"]) {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--input);
+  border-radius: 50%;
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.pagina :global([data-slot="fila-nao-lidas"]) {
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  padding: 0 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+/* ── Cabeçalho da conversa ── */
+.pagina :global([data-slot="cabecalho-conversa"]) {
+  gap: 13px;
+  padding: 8px 18px 8px 20px;
+}
+
+.pagina :global([data-slot="cabecalho-conversa"]) > div:first-child {
+  gap: 13px;
+}
+
+.pagina :global([data-slot="cabecalho-conversa"]) > div:first-child > span[title] {
+  width: 44px;
+  height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pagina :global([data-slot="nome-do-lead"]) {
+  flex: 0 1 auto;
+  font-size: 16px;
+  line-height: 21px;
+}
+
+.pagina :global([data-slot="canal-do-lead"]) {
+  width: 22px;
+  height: 22px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.pagina :global([data-slot="canal-do-lead"]) svg {
+  width: 13px;
+  height: 13px;
+}
+
+.pagina :global([data-slot="canal-do-lead-rotulo"]) {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.pagina :global([data-slot="subtitulo-do-lead"]) {
+  margin-top: 3px;
+  color: var(--texto-fraco, var(--muted-foreground));
+  font-size: 12.5px;
+}
+
+.pagina :global([data-slot="acoes-cabecalho"]) {
+  gap: 6px;
+}
+
+.pagina :global([data-slot="acoes-cabecalho"]) :is(button, a) {
+  height: 36px;
+  min-height: 36px;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.pagina :global([data-slot="acoes-cabecalho"]) :is(:global([data-medida="buscar"]), :global([data-medida="tags"]), :global([data-medida="telefone"]), :global([data-medida="reabrir-painel"])) :is(button, a) {
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+  color: var(--muted-foreground);
+}
+
+/* As etiquetas aplicadas ficam na ficha lateral; no cabeçalho o protótipo mostra só o atalho. */
+.pagina :global([data-slot="atalho-tags-aplicadas"]) {
+  display: none;
+}
+
+.pagina :global([data-slot="acoes-cabecalho"]) :global([data-medida="separador"]) > span {
+  width: 8px;
+  margin: 0;
+  background: transparent;
+}
+
+.pagina :global([data-slot="acoes-cabecalho"]) :global([data-slot="button"][data-variant="outline"]) {
+  gap: 7px;
+  padding: 0 13px;
+  border-color: var(--input);
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+  color: var(--chat-texto-forte);
+}
+
+.pagina :global([data-slot="acoes-cabecalho"]) :global([data-slot="button"][data-variant="outline"]) svg {
+  width: 15px;
+  height: 15px;
+  color: var(--muted-foreground);
+}
+
+.pagina :global([data-slot="acoes-cabecalho"]) :global([data-medida="finalizar"]) :is(button, [data-slot="button"]) {
+  padding: 0 14px;
+  border-color: transparent;
+  background: var(--primary);
+  box-shadow: var(--sombra-primaria);
+  color: var(--primary-foreground);
+}
+
+.pagina :global([data-slot="acoes-cabecalho"]) :global([data-medida="finalizar"]) :is(button, [data-slot="button"]):hover {
+  background: var(--cor-primaria-hover, var(--primary));
+}
+
+.pagina :global([data-slot="acoes-cabecalho"]) :global([data-medida="finalizar"]) svg {
+  width: 16px;
+  height: 16px;
+  color: inherit;
+}
+
+/* ── Bolhas ── */
+.pagina :global([data-slot="bolha-mensagem"]) {
+  border: 1px solid var(--border);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.pagina :global([data-slot="bolha-mensagem"][data-enviada="true"]) {
+  border-color: transparent;
+}
+
+.pagina :global([data-slot="bolha-remetente"]) {
+  margin-bottom: 3px;
+  color: color-mix(in srgb, var(--primary-foreground) 78%, transparent);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.pagina :global([data-slot="bolha-rodape"]) {
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 4px;
+  color: var(--texto-fraco, var(--muted-foreground));
+  font-size: 10.5px;
+  line-height: 14px;
+}
+
+.pagina :global([data-enviada="true"]) :global([data-slot="bolha-rodape"]) {
+  color: color-mix(in srgb, var(--primary-foreground) 75%, transparent);
+}
+
+/* O estado de entrega continua anunciado (aria-label) e no title; o texto visível sai. */
+.pagina :global([data-slot="bolha-rodape"]) [role="status"] > span[aria-hidden] {
+  display: none;
+}
+
+/* ── Trilho da equipe: "+" no topo, como no protótipo ── */
+.pagina :global([data-slot="trilho-equipe-adicionar"]) {
+  order: -1;
+}
+
+/* ── Composer: campo em cima, ferramentas embaixo (protótipo) ── */
+.pagina :global([data-slot="composer"]) {
+  padding: 12px 20px 18px;
+}
+
+.pagina :global([data-slot="composer"]) > div > div {
+  padding: 6px;
+  border-color: color-mix(in srgb, var(--card) 90%, transparent);
+}
+
+/* A janela aberta segue anunciada a leitores de tela; o protótipo não a exibe. */
+.pagina :global([data-slot="composer-janela"]) {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.pagina :global([data-slot="composer-linha"]) {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px 2px;
+}
+
+.pagina :global([data-slot="composer-campo"]) {
+  order: -1;
+  flex: 0 0 100%;
+}
+
+.pagina :global([data-slot="composer-campo"]) textarea {
+  min-height: 46px;
+  padding: 11px 8px 4px;
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.pagina :global([data-slot="composer-ferramentas"]) {
+  gap: 4px;
+}
+
+.pagina :global([data-slot="composer-linha"]) :is(:global([data-slot="composer-ferramentas"]), :global([data-slot="composer-gravar"])) > :is(button, a) {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: var(--muted-foreground);
+}
+
+.pagina :global([data-slot="composer-rapidas"]) {
+  display: inline-flex;
+  width: auto !important;
+  height: 32px !important;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--card) 90%, transparent);
+  border-radius: 999px !important;
+  background: color-mix(in srgb, var(--card) 60%, transparent);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 6%);
+  color: var(--chat-texto-forte) !important;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.pagina :global([data-slot="composer-rapidas"]) svg {
+  width: 15px;
+  height: 15px;
+  color: var(--primary);
+}
+
+.pagina :global([data-slot="composer-rapidas"]):disabled {
+  opacity: 0.5;
+}
+
+.pagina :global([data-slot="composer-rapidas"]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.pagina :global([data-slot="composer-gravar"]) {
+  margin-left: auto;
+}
+
+.pagina :global([data-slot="composer-enviar"]) {
+  margin-left: 2px;
+}
+
+.pagina :global([data-slot="composer-gravar"]) + :global([data-slot="composer-campo"]) + :global([data-slot="composer-enviar"]) {
+  margin-left: 2px;
+}
+
+.pagina :global([data-slot="composer-campo"]) + :global([data-slot="composer-enviar"]) {
+  margin-left: auto;
+}
+
+.pagina :global([data-slot="composer-enviar"]) button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  box-shadow: var(--sombra-primaria);
+}
+
+/* ── Ficha do lead ── */
+.pagina :global([data-slot="ficha-topo"]) {
+  padding: 16px 16px 0;
+}
+
+.pagina :global([data-slot="ficha-topo"]) > p {
+  color: var(--chat-texto-forte);
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.pagina :global([data-slot="ficha-topo"]) > button {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border: 1px solid var(--input);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--muted-foreground);
+}
+
+.pagina :global([data-slot="ficha-corpo"]) {
+  padding: 12px 16px 20px;
+}
+
+.pagina :global([data-slot="ficha-corpo"]) > * + * {
+  margin-top: 18px;
+}
+
+.pagina :global([data-slot="ficha-identidade"]) {
+  gap: 14px;
+  padding-top: 6px;
+}
+
+.pagina :global([data-slot="ficha-identidade"]) > :first-child {
+  width: 84px;
+  height: 84px;
+  font-size: 26px;
+  font-weight: 600;
+  box-shadow: 0 0 0 4px var(--card), 0 0 0 5px var(--border);
+}
+
+.pagina :global([data-slot="ficha-identidade"]) :is(input, button, p):first-child {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.pagina :global([data-slot="ficha-contadores"]) {
+  gap: 8px;
+}
+
+.pagina :global([data-slot="contador-do-painel"]) {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.pagina :global([data-slot="contador-do-painel"]) > p:first-child {
+  color: var(--texto-fraco, var(--muted-foreground));
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.pagina :global([data-slot="contador-do-painel"]) > p:last-child {
+  margin-top: 6px;
+  color: var(--chat-texto-forte);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+}
+
+.pagina :global([data-slot="ficha-rotulo"]) {
+  margin-bottom: 8px;
+  padding-inline: 2px;
+  color: var(--texto-fraco, var(--muted-foreground));
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.pagina :global([data-slot="ficha-informacoes"]) {
+  padding: 4px 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--background) 60%, var(--card));
+}
+
+.pagina :global([data-slot="ficha-informacoes"]) > * {
+  min-height: 40px;
+  margin-top: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pagina :global([data-slot="ficha-informacoes"]) > :last-child {
+  border-bottom: 0;
+}
+
+.pagina :global([data-slot="ficha-linha"]) {
+  gap: 10px;
+  color: var(--texto-fraco, var(--muted-foreground));
+}
+
+.pagina :global([data-slot="ficha-linha"]) > svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.pagina :global([data-slot="ficha-linha"]) p {
+  color: var(--chat-texto-forte);
+  font-size: 13.5px;
+}
+
+.pagina :global([data-slot="ficha-linha"]) button {
+  color: var(--texto-fraco, var(--muted-foreground));
+}
+
+.pagina :global([data-slot="ficha-linha"]) button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.pagina :global([data-slot="secao-colapsavel"]) {
+  border-color: var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.pagina :global([data-slot="ficha-corpo"]) > :global([data-slot="secao-colapsavel"]) + :global([data-slot="secao-colapsavel"]) {
+  margin-top: 8px;
+}
+
+.pagina :global([data-slot="secao-colapsavel-cabecalho"]) {
+  gap: 11px;
+  padding: 10px 12px;
+}
+
+.pagina :global([data-slot="secao-colapsavel-controle"]) {
+  gap: 11px;
+}
+
+.pagina :global([data-slot="secao-colapsavel-controle"]) > svg:first-child {
+  box-sizing: content-box;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--primary);
+}
+
+.pagina :global([data-slot="secao-colapsavel-controle"]) > span:first-of-type {
+  color: var(--chat-texto-forte);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.pagina :global([data-slot="ficha-linha"]) button {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+}

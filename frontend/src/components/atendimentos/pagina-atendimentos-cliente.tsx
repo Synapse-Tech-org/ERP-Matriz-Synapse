@@ -1199,6 +1199,7 @@ export function PaginaAtendimentosCliente({
         ) : conversa ? (
           <>
             <CabecalhoConversa
+              utilitariasPrimeiro={layoutV2}
               convite={convite}
               conversa={conversa}
               estado={estadoSelecionado as EstadoAtendimentoSelecionado}
@@ -1274,6 +1275,7 @@ export function PaginaAtendimentosCliente({
                 </div>
               ) : conversa.status !== "FINALIZADO" ? (
                 <Composer
+                  visualV2={layoutV2}
                   ref={composerRef}
                   conversa={conversa}
                   convite={convite}

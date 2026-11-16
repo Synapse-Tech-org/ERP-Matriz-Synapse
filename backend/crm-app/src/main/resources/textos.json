@@ -200,6 +200,9 @@
   "menu": {
     "grupoMenu": "Menu",
     "grupoGestao": "Gestão",
+    "grupoPrincipal": "Principal",
+    "grupoRecursos": "Recursos",
+    "grupoConta": "Conta",
     "retrair": "Retrair menu lateral",
     "reabrir": "Reabrir menu lateral",
     "fixar": "Fixar menu aberto",

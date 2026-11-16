@@ -158,6 +158,7 @@ export const TextosSchema = z.object({
     grupoMenu: z.string(),
     grupoPrincipal: z.string().default("Principal"),
     grupoRecursos: z.string().default("Recursos"),
+    grupoConta: z.string().default("Conta"),
     grupoGestao: z.string(),
     retrair: z.string(),
     reabrir: z.string(),

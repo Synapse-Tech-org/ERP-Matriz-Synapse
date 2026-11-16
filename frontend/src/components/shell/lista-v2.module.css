@@ -60,6 +60,47 @@
   background: var(--v2-laranja);
 }
 
+/* Busca global do topo. :where() mantém a especificidade baixa para as telas que já a estilizam. */
+:where(.pagina) :global([data-slot="dashboard-busca"]) {
+  display: flex;
+  width: min(360px, 30vw);
+  min-width: 0;
+  height: 38px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 6px 0 13px;
+  border: 1px solid var(--input);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+  color: var(--texto-fraco, var(--muted-foreground));
+  font-size: 13.5px;
+  text-align: start;
+  cursor: pointer;
+}
+
+:where(.pagina) :global([data-slot="dashboard-busca"]) > span:not(:first-child) {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.pagina) :global([data-slot="dashboard-busca"]) kbd {
+  padding: 4px 7px;
+  border: 1px solid var(--input);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+@media (max-width: 639px) {
+  :where(.pagina) :global([data-slot="dashboard-busca"]) { width: 38px; justify-content: center; padding: 0; }
+  :where(.pagina) :global([data-slot="dashboard-busca"]) > :not(:first-child) { display: none; }
+}
+
 .pagina > header {
   display: flex;
   flex: none;

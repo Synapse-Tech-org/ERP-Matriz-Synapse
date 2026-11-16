@@ -129,7 +129,7 @@ export function PaginaConfiguracoes() {
 
   return (
     <div className={listaV2.pagina + " " + listaV2.modulo + " " + visual.paleta}>
-      <CabecalhoListaV2 titulo={t.titulo} busca={textos.gestao?.v2?.buscaGlobal} />
+      <CabecalhoListaV2 titulo={t.titulo} grupo={textos.menu.grupoConta} />
       <header>
         <div>
           <h1 className="text-xl font-bold tracking-tight">{t.titulo}</h1>

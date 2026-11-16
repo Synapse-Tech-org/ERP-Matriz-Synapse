@@ -1,4 +1,5 @@
 /* Tags V2: indicadores e tabela com rolagem interna, como no protótipo. */
+.raiz { min-width: 0; }
 .resumo {
   display: grid;
   flex: none;
@@ -305,6 +306,11 @@
 }
 
 @media (max-width: 899px) {
+  /* Em tela estreita a página rola inteira; a rolagem interna da tabela é só do desktop. */
+  .raiz { overflow-y: auto; }
+  .raiz > * { flex-shrink: 0; }
+  .painelTopo > div:first-child { flex-basis: 100%; }
+  .busca { width: 100%; }
   .resumo { grid-template-columns: 1fr; }
   .painel { flex: none; overflow: visible; }
   .linhas { overflow: visible; }

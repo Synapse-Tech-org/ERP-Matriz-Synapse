@@ -124,7 +124,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
       id="painel-detalhes-lead"
       className="flex h-full min-h-0 w-[344px] shrink-0 flex-col overflow-hidden border-l border-border bg-background"
     >
-      <div className="flex flex-none items-center justify-between gap-2 p-4">
+      <div data-slot="ficha-topo" className="flex flex-none items-center justify-between gap-2 p-4">
         <p className="text-sm font-bold text-foreground">{textos.titulo}</p>
         <Button
           type="button"
@@ -140,8 +140,8 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
         </Button>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 pt-0">
-        <div className="flex flex-col items-center gap-2 text-center">
+      <div data-slot="ficha-corpo" className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 pt-0">
+        <div data-slot="ficha-identidade" className="flex flex-col items-center gap-2 text-center">
           <FotoDoLeadClicavel
             id={lead.data.id}
             nome={lead.data.nome}
@@ -163,7 +163,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div data-slot="ficha-contadores" className="grid grid-cols-2 gap-2.5">
           <ContadorDoPainel
             valor={lead.data.numAtendimentos}
             rotulo={textosLead.contadores.atendimentos}
@@ -175,10 +175,10 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
         </div>
 
         <div>
-          <p className="mb-3 px-0.5 text-xs font-bold tracking-wide text-muted-foreground uppercase">
+          <p data-slot="ficha-rotulo" className="mb-3 px-0.5 text-xs font-bold tracking-wide text-muted-foreground uppercase">
             {dadosClienteAtivos ? textosDadosCliente.titulo : textos.informacoesGerais}
           </p>
-          <div className="space-y-3">
+          <div data-slot="ficha-informacoes" className="space-y-3">
             <CampoCodigoDoLead key={leadId} leadId={leadId} valorAtual={lead.data.codigo} />
             <InformacaoDoPainel
               icone={<Phone className="size-(--tamanho-icone-interface)" aria-hidden />}
@@ -226,7 +226,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
             <div data-slot="etapa-do-atendimento">
               {/* Etapa atual ao lado do título: é a informação principal da seção. */}
               <div data-slot="etapa-cabecalho" className="flex min-w-0 items-center justify-between gap-2">
-                <p className="shrink-0 text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                <p data-slot="ficha-rotulo" className="shrink-0 text-xs font-bold tracking-wide text-muted-foreground uppercase">
                   {textosLead.etapa.titulo}
                 </p>
                 <span
@@ -284,7 +284,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
         </SomenteAdministrador>
 
         <div>
-          <p className="mb-2 px-0.5 text-xs font-bold tracking-wide text-muted-foreground uppercase">
+          <p data-slot="ficha-rotulo" className="mb-2 px-0.5 text-xs font-bold tracking-wide text-muted-foreground uppercase">
             {textosLead.tags.titulo}
           </p>
           <AtalhoTags leadId={leadId} modo="painel" />
@@ -554,7 +554,7 @@ function InformacaoDoPainel({
 }) {
   if (!valor && !acao) return null;
   return (
-    <div className="flex items-center gap-2.5 text-primary" title={rotulo}>
+    <div data-slot="ficha-linha" className="flex items-center gap-2.5 text-primary" title={rotulo}>
       {icone}
       <div className="flex min-w-0 flex-1 items-center gap-1">
         <p className="min-w-0 flex-1 truncate text-sm text-foreground">{valor || vazio}</p>

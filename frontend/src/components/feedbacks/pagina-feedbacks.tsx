@@ -84,7 +84,7 @@ export function PaginaFeedbacks() {
 
   return (
     <section className={layoutV2 ? cn(listaV2.pagina, listaV2.modulo, visual.paleta) : "mx-auto w-full max-w-3xl space-y-6 p-6"}>
-      {layoutV2 && <CabecalhoListaV2 titulo={textos.titulo} busca={catalogo.gestao?.v2?.buscaGlobal} />}
+      {layoutV2 && <CabecalhoListaV2 titulo={catalogo.menu.itens.feedbacks} grupo={catalogo.menu.grupoConta} />}
       <header>
         <div>
           <h1 className="text-2xl font-bold text-foreground">{textos.titulo}</h1>

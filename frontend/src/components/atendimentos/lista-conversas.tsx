@@ -399,18 +399,10 @@ function ListaConversasBase({
     </Button>
   );
 
-  return (
-    <div data-slot="lista-conversas" className={cn("flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background", painelOperacionalPermitido && "bg-card", className)}>
-      <div data-slot="lista-conversas-cabecalho" className="px-4 pt-4">
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <h1 className={cn("min-w-0 break-words text-lg font-bold tracking-tight text-foreground", painelOperacionalPermitido && "text-sm text-primary")}>{onVoltarPainel
-            ? <button type="button" onClick={onVoltarPainel} className="rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={catalogo.painelOperacional.voltar}>{catalogo.menu.itens.atendimentos}</button>
-            : catalogo.menu.itens.atendimentos}</h1>
-          <div data-slot="lista-conversas-acoes" className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1">
-            {layoutV2 && <CentralDeAvisos mostrarContagem />}
-            {layoutV2 && botaoFiltros}
-            {(!layoutV2 || !painelOperacionalPermitido || podeFinalizarEmLote) && <DropdownMenu>
+  const menuDaLista = (!layoutV2 || !painelOperacionalPermitido || podeFinalizarEmLote) && (
+    <DropdownMenu>
               <DropdownMenuTrigger
+                data-slot="lista-conversas-menu"
                 className="inline-flex size-10 items-center justify-center rounded-[var(--raio-botao-md)] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={textos.finalizar.todosMenu}
               >
@@ -434,7 +426,21 @@ function ListaConversasBase({
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
-            </DropdownMenu>}
+            </DropdownMenu>
+  );
+
+  return (
+    <div data-slot="lista-conversas" className={cn("flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background", painelOperacionalPermitido && "bg-card", className)}>
+      <div data-slot="lista-conversas-cabecalho" className="px-4 pt-4">
+        <div data-slot="lista-conversas-titulo" className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <h1 className={cn("min-w-0 break-words text-lg font-bold tracking-tight text-foreground", painelOperacionalPermitido && "text-sm text-primary")}>{onVoltarPainel
+            ? <button type="button" onClick={onVoltarPainel} className="rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={catalogo.painelOperacional.voltar}>{catalogo.menu.itens.atendimentos}</button>
+            : catalogo.menu.itens.atendimentos}</h1>
+          {layoutV2 && menuDaLista}
+          <div data-slot="lista-conversas-acoes" className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1">
+            {layoutV2 && <CentralDeAvisos mostrarContagem />}
+            {layoutV2 && botaoFiltros}
+            {!layoutV2 && menuDaLista}
             {!layoutV2 && botaoNovoContato}
             {chatInternoHabilitado && (
               <DropdownMenu>
@@ -573,7 +579,7 @@ function ListaConversasBase({
       <ScrollArea className="min-h-0 flex-1 overflow-hidden" data-slot="lista-conversas-scroll">
         <div className="pt-4" data-slot="lista-conversas-itens">
           {operacional ? <>
-            <ListaFilaOperacional consulta={operacional.fila} referencia={operacional.snapshot.data} selecionadoId={selecionadoId} onAbrir={onAbrirFilaOperacional ?? (() => undefined)} internos={operacional.internos} onAbrirInterno={onAbrirAtendimento} />
+            <ListaFilaOperacional compacta={layoutV2} consulta={operacional.fila} referencia={operacional.snapshot.data} selecionadoId={selecionadoId} onAbrir={onAbrirFilaOperacional ?? (() => undefined)} internos={operacional.internos} onAbrirInterno={onAbrirAtendimento} />
             {operacional.internosErro && <div role="alert" className="p-3 text-xs"><p>{catalogo.painelOperacional.erroInternos}</p><Button variant="ghost" onClick={operacional.recarregarInternos}>{catalogo.painelOperacional.tentar}</Button></div>}
           </> : isLoading ? (
             <div className="space-y-2 p-3">

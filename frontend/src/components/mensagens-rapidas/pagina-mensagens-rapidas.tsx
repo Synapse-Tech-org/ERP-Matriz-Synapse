@@ -35,7 +35,8 @@ import type { MensagemRapida } from "@/lib/suporte/types";
 import estilos from "./mensagens-rapidas-v2.module.css";
 
 export function PaginaMensagensRapidas() {
-  const t = useTextos().mensagensRapidas;
+  const textos = useTextos();
+  const t = textos.mensagensRapidas;
   const layoutV2 = useFuncionalidadesHabilitadas().data?.includes("mensagens_rapidas_layout_v2") ?? false;
   // Só apresentação: agrupa por autor para quem enxerga as mensagens de toda a equipe.
   const gestor = ["SUBGESTOR", "GESTOR", "ADMINISTRADOR"].includes(useAuthStore((s) => s.papel) ?? "");
@@ -70,7 +71,7 @@ export function PaginaMensagensRapidas() {
 
   return (
     <div data-layout={layoutV2 ? "v2" : "legado"} className={layoutV2 ? listaV2.pagina : "space-y-5 p-6"}>
-      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} />}
+      {layoutV2 && <CabecalhoListaV2 titulo={t.titulo} grupo={textos.menu.grupoRecursos} busca={textos.gestao?.v2?.buscaGlobal} />}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">{t.titulo}</h1>
