@@ -577,7 +577,8 @@
       "ativos": "Ativos",
       "pendentes": "Pendentes",
       "potenciais": "Potenciais",
-      "todos": "Todos"
+      "todos": "Todos",
+      "internos": "Interno"
     },
     "filtros": {
       "etapa": "Etapa",

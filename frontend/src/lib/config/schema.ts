@@ -532,6 +532,7 @@ export const TextosSchema = z.object({
       pendentes: z.string(),
       potenciais: z.string(),
       todos: z.string(),
+      internos: z.string().default("Interno"),
     }),
     filtros: z.object({
       etapa: z.string(),
