@@ -300,6 +300,18 @@ export const TextosSchema = z.object({
     sessaoExpirada: z.string(),
   }),
   feedbacks: z.object({
+    v2: z.object({
+      perguntaTipo: z.string().default("O que você quer enviar?"),
+      descricaoSugestao: z.string().default("Uma ideia para melhorar o CRM"),
+      descricaoErro: z.string().default("Algo não funcionou como esperado"),
+      perguntaArea: z.string().default("Qual parte do CRM?"),
+      perguntaDescricao: z.string().default("Descreva com detalhes"),
+      opcional: z.string().default("opcional"),
+      escolherImagem: z.string().default("Clique para escolher uma imagem"),
+      faltaPreencher: z.string().default("Falta escolher a área e escrever a descrição."),
+      pronto: z.string().default("Tudo pronto para enviar."),
+      resumoEnvios: z.string().default("{total} envios · {abertos} em análise"),
+    }).prefault({}),
     meusEnvios: z.string().default("Meus envios"),
     historicoVazio: z.string().default("Você ainda não enviou feedback."),
     historicoCarregando: z.string().default("Carregando seus envios..."),

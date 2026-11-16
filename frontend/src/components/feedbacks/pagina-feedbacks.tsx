@@ -12,6 +12,8 @@ import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Seletor } from "@/components/ui/seletor";
 import { Textarea } from "@/components/ui/textarea";
 import { AnexoFeedback } from "./anexo-feedback";
+import estilosV2 from "./feedbacks-v2.module.css";
+import { FormularioFeedbackV2 } from "./formulario-feedback-v2";
 import { apiFetch } from "@/lib/api/http-client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -21,6 +23,8 @@ import type { AreaFeedback, TipoFeedback } from "@/lib/feedbacks/types";
 import { areaDeFeedbackVisivel } from "@/lib/navegacao/visibilidade-do-menu";
 
 const LIMITE_DESCRICAO = 2000;
+
+const tom = (cor: string) => ({ "--tom": cor }) as React.CSSProperties;
 
 const CHAVES_DE_AREA: Array<{
   valor: AreaFeedback;
@@ -82,8 +86,55 @@ export function PaginaFeedbacks() {
     );
   }
 
+  function escolherArquivo(evento: React.ChangeEvent<HTMLInputElement>) {
+    const selecionado = evento.currentTarget.files?.[0];
+    if (!selecionado) return;
+    const valido = selecionado.size > 0 && selecionado.size <= 5 * 1024 * 1024
+      && ["image/png", "image/jpeg"].includes(selecionado.type);
+    setErroAnexo(!valido);
+    if (valido) setArquivo(selecionado);
+    evento.currentTarget.value = "";
+  }
+
+  if (layoutV2) {
+    return (
+      <section className={cn(listaV2.pagina, visual.paleta, estilosV2.raiz)}>
+        <CabecalhoListaV2 titulo={catalogo.menu.itens.feedbacks} grupo={catalogo.menu.grupoConta} />
+        <header>
+          <div>
+            <h1>{catalogo.menu.itens.feedbacks}</h1>
+            <p className="text-sm text-muted-foreground">{textos.descricao}</p>
+          </div>
+        </header>
+        <div className={estilosV2.grade}>
+          <FormularioFeedbackV2
+            textos={textos}
+            tipo={tipo}
+            onTipo={setTipo}
+            area={area}
+            onArea={setArea}
+            areas={areasVisiveis.map((opcao) => ({ valor: opcao.valor, rotulo: textos.areas[opcao.texto] }))}
+            descricao={descricao}
+            onDescricao={setDescricao}
+            limite={LIMITE_DESCRICAO}
+            arquivo={arquivo}
+            onEscolherArquivo={escolherArquivo}
+            onRemoverArquivo={() => { setArquivo(null); setErroAnexo(false); }}
+            erroAnexo={erroAnexo}
+            enviando={enviar.isPending}
+            validacao={validacao}
+            erro={enviar.isError}
+            enviado={enviado}
+            onSubmit={submeter}
+          />
+          <MeusEnvios v2 />
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section className={layoutV2 ? cn(listaV2.pagina, listaV2.modulo, visual.paleta) : "mx-auto w-full max-w-3xl space-y-6 p-6"}>
+    <section className="mx-auto w-full max-w-3xl space-y-6 p-6">
       {layoutV2 && <CabecalhoListaV2 titulo={catalogo.menu.itens.feedbacks} grupo={catalogo.menu.grupoConta} />}
       <header>
         <div>
@@ -157,15 +208,7 @@ export function PaginaFeedbacks() {
               <label className="block cursor-pointer text-sm font-medium">
                 {textos.anexo.titulo}
                 <input className="mt-2 block w-full text-sm" type="file" accept="image/png,image/jpeg"
-                  disabled={enviar.isPending} onChange={(evento) => {
-                    const selecionado = evento.currentTarget.files?.[0];
-                    if (!selecionado) return;
-                    const valido = selecionado.size > 0 && selecionado.size <= 5 * 1024 * 1024
-                      && ["image/png", "image/jpeg"].includes(selecionado.type);
-                    setErroAnexo(!valido);
-                    if (valido) setArquivo(selecionado);
-                    evento.currentTarget.value = "";
-                  }} />
+                  disabled={enviar.isPending} onChange={escolherArquivo} />
               </label>
               <p className="text-xs text-muted-foreground">{textos.anexo.formatos}</p>
               {arquivo && (
@@ -195,17 +238,31 @@ export function PaginaFeedbacks() {
   );
 }
 
-function MeusEnvios() {
+function MeusEnvios({ v2 = false }: { v2?: boolean }) {
   const textos = useTextos().feedbacks;
   const usuarioId = useAuthStore((estado) => estado.usuarioId);
   const consulta = useMeusFeedbacks(usuarioId);
   const itens = consulta.data?.pages.flatMap((pagina) => pagina.itens) ?? [];
 
   return (
-    <section className="min-w-0 rounded-2xl border bg-card p-5 shadow-sm">
-      <h2 className="mb-4 flex items-center gap-2 text-base font-semibold">
-        <History className="size-4 text-primary" aria-hidden />{textos.meusEnvios}
-      </h2>
+    <section className={v2 ? estilosV2.cartao : "min-w-0 rounded-2xl border bg-card p-5 shadow-sm"}>
+      {v2 ? (
+        <div className={estilosV2.enviosTopo}>
+          <h2>{textos.meusEnvios}</h2>
+          {consulta.isSuccess && (
+            <p>
+              {textos.v2.resumoEnvios
+                .replace("{total}", String(itens.length))
+                .replace("{abertos}", String(itens.filter((item) => !item.resposta).length))}
+            </p>
+          )}
+        </div>
+      ) : (
+        <h2 className="mb-4 flex items-center gap-2 text-base font-semibold">
+          <History className="size-4 text-primary" aria-hidden />{textos.meusEnvios}
+        </h2>
+      )}
+      <div className={v2 ? estilosV2.envios : undefined}>
       {consulta.isPending && <p role="status" className="text-sm text-muted-foreground">{textos.historicoCarregando}</p>}
       {consulta.isError && <ErroDeCarregamento mensagem={textos.historicoErro} onTentarNovamente={() => void consulta.refetch()} />}
       {consulta.isSuccess && itens.length === 0 && (
@@ -215,10 +272,13 @@ function MeusEnvios() {
         {itens.map((item) => {
           const area = CHAVES_DE_AREA.find(({ valor }) => valor === item.areaChave);
           return (
-            <li key={item.id} className="space-y-2 rounded-xl border p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                <span className={cn("rounded-full px-2 py-1 font-medium", item.tipo === "ERRO"
-                  ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}>
+            <li key={item.id} className={v2 ? estilosV2.envio : "space-y-2 rounded-xl border p-3"}>
+              <div className={v2 ? estilosV2.envioTopo : "flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"}>
+                <span
+                  style={v2 ? tom(item.tipo === "ERRO" ? "var(--destructive)" : "var(--primary)") : undefined}
+                  className={v2 ? undefined : cn("rounded-full px-2 py-1 font-medium", item.tipo === "ERRO"
+                    ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}
+                >
                   {item.tipo === "ERRO" ? textos.tipos.erro : textos.tipos.sugestao}
                 </span>
                 {area && <span>{textos.areas[area.texto]}</span>}
@@ -229,13 +289,16 @@ function MeusEnvios() {
               <p className="whitespace-pre-wrap break-words text-sm">{item.descricao}</p>
               {item.anexoNome && <AnexoFeedback id={item.id} nome={item.anexoNome} />}
               {textos.acompanhamento && (
-                <div className="space-y-2 border-t pt-2 text-sm">
-                  <span className={item.resposta ? "font-medium text-cor-sucesso" : "font-medium text-cor-atencao"}>
+                <div className={v2 ? undefined : "space-y-2 border-t pt-2 text-sm"}>
+                  <span
+                    style={v2 ? tom(item.resposta ? "var(--cor-sucesso)" : "var(--cor-atencao)") : undefined}
+                    className={v2 ? estilosV2.situacao : item.resposta ? "font-medium text-cor-sucesso" : "font-medium text-cor-atencao"}
+                  >
                     {item.resposta ? textos.acompanhamento.resolvido : textos.acompanhamento.emAnalise}
                   </span>
                   {item.resposta && (
-                    <div className="rounded-lg bg-muted/40 p-3">
-                      <p className="font-medium">{textos.acompanhamento.resposta}</p>
+                    <div className={v2 ? estilosV2.resposta : "rounded-lg bg-muted/40 p-3"}>
+                      <p className={v2 ? "font-semibold text-chat-texto-forte" : "font-medium"}>{textos.acompanhamento.resposta}</p>
                       <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">{item.resposta}</p>
                     </div>
                   )}
@@ -251,6 +314,7 @@ function MeusEnvios() {
           {textos.historicoMais}
         </Button>
       )}
+      </div>
     </section>
   );
 }

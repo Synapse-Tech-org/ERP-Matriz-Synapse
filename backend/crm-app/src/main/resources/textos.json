@@ -411,6 +411,18 @@
     "sessaoExpirada": "Sua sessão expirou. Entre novamente."
   },
   "feedbacks": {
+    "v2": {
+      "perguntaTipo": "O que você quer enviar?",
+      "descricaoSugestao": "Uma ideia para melhorar o CRM",
+      "descricaoErro": "Algo não funcionou como esperado",
+      "perguntaArea": "Qual parte do CRM?",
+      "perguntaDescricao": "Descreva com detalhes",
+      "opcional": "opcional",
+      "escolherImagem": "Clique para escolher uma imagem",
+      "faltaPreencher": "Falta escolher a área e escrever a descrição.",
+      "pronto": "Tudo pronto para enviar.",
+      "resumoEnvios": "{total} envios · {abertos} em análise"
+    },
     "meusEnvios": "Meus envios",
     "historicoVazio": "Você ainda não enviou feedback.",
     "historicoCarregando": "Carregando seus envios...",
