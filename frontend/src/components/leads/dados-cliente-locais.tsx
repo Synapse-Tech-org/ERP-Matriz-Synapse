@@ -5,20 +5,24 @@ import { useTextos } from "@/lib/config/textos-provider";
 import type { LeadFicha } from "@/lib/lead/types";
 
 /** Nome e telefone ja estao na identidade da ficha; nao duplica nem consulta fonte externa. */
-export function DadosClienteLocais({ lead }: { lead: LeadFicha }) {
+export function DadosClienteLocais({ lead, mostrarCpf = true }: { lead: LeadFicha; mostrarCpf?: boolean }) {
   const t = useTextos().dadosCliente;
-  const cpf = lead.cpf?.trim();
-  const digitos = cpf?.replace(/\D/g, "");
-  const documento = digitos?.length === 11
-    ? digitos.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : cpf;
   const nascimento = dataLocal(lead.dadosCustomizados?.data_nascimento);
   return <dl className="space-y-3" aria-label={t.titulo}>
-    {[{ rotulo: t.cpf, valor: documento, Icone: FileText }, { rotulo: t.nascimento, valor: nascimento, Icone: CalendarDays }].map(({ rotulo, valor, Icone }) =>
+    {[...(mostrarCpf ? [{ rotulo: t.cpf, valor: formatarCpfDaFicha(lead.cpf), Icone: FileText }] : []),
+      { rotulo: t.nascimento, valor: nascimento, Icone: CalendarDays }].map(({ rotulo, valor, Icone }) =>
       <div key={rotulo} className="flex min-w-0 items-center gap-2.5">
         <Icone className="size-(--tamanho-icone-interface) shrink-0 text-primary" aria-hidden />
         <div className="min-w-0"><dt className="text-xs text-muted-foreground">{rotulo}</dt><dd className="break-words text-sm text-foreground">{valor || t.naoInformado}</dd></div>
       </div>)}
   </dl>;
+}
+
+export function formatarCpfDaFicha(cpf: string | null): string | null {
+  const documento = cpf?.trim();
+  const digitos = documento?.replace(/\D/g, "");
+  return digitos?.length === 11
+    ? digitos.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : documento || null;
 }
 
 function dataLocal(valor: unknown): string | null {

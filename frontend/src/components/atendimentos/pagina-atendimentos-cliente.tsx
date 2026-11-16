@@ -999,7 +999,8 @@ export function PaginaAtendimentosCliente({
     substituirReacoesDoHistorico(cache, ["mensagens", historicoId], mensagem.id, resposta.reacoes);
   }
 
-  const mostrarTrilho = layoutV2 && chatInternoHabilitado && trilhoCabe && !conversaEmColunaUnica;
+  const chatSemTrilho = flags?.includes("chat_interno_sem_trilho") ?? false;
+  const mostrarTrilho = layoutV2 && chatInternoHabilitado && !chatSemTrilho && trilhoCabe && !conversaEmColunaUnica;
   const colunasDoPainel = conversaEmColunaUnica
     ? "minmax(0, 1fr)"
     : listaOcultaComPainel

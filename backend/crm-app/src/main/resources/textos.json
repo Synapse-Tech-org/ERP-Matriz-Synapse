@@ -1028,6 +1028,8 @@
       "retrair": "Retrair detalhes do lead",
       "reabrir": "Reabrir detalhes do lead",
       "informacoesGerais": "Informações gerais",
+      "etapaV2": "Etapa do atendimento",
+      "etiquetasV2": "Etiquetas",
       "notasInternas": "Notas internas",
       "notas": {
         "placeholder": "Registre aqui as observações compartilhadas sobre o lead.",
@@ -1037,6 +1039,8 @@
         "erro": "Não foi possível salvar a nota. O texto confirmado anteriormente foi restaurado."
       },
       "resumoIa": {
+        "tituloCartao": "Resumo do atendimento",
+        "selo": "IA",
         "vazio": "Nenhum resumo gerado ainda.",
         "ultimaGeracao": "Última geração: {data}",
         "gerar": "Gerar",

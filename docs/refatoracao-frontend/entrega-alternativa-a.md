@@ -23,6 +23,8 @@ Banco de Arquivos e Horários saíram do escopo a pedido do responsável.
 
 As chaves de ativação são independentes por instância: `atendimentos_layout_v2`, `dashboard_layout_v2`, `agenda_layout_v2`, `mensagens_rapidas_layout_v2`, `recursos_layout_v2`, `gestao_layout_v2` e `relatorios`. Antes de concluir cada aba, comparar a tela e seus estados com o mockup atualizado em desktop e celular, incluindo tons, brilho e contraste, e verificar cada nova ação com dados persistidos e permissões reais. A presença da moldura V2 não conclui essa revisão.
 
+Na Estrutural, habilite `chat_interno_sem_trilho` em `feature_flag` junto com `chat_interno` e `atendimentos_layout_v2` quando reativar o V2. O chat interno continua na lista de Atendimentos com a etiqueta `Chat interno`; a flag retira apenas o trilho de equipe à direita. Instâncias sem essa flag continuam exibindo o trilho quando houver largura disponível.
+
 # Alternativa A — primeira entrega de Atendimentos
 
 ## 1. Estado e revisão
