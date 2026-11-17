@@ -465,7 +465,7 @@ function ListaConversasBase({
                   ? <MoreVertical className="size-(--tamanho-icone-interface)" aria-hidden />
                   : <MoreHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />}
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align={layoutV2 ? "start" : "end"}>
                 {/* Ponto futuro de Registrar venda: este menu e o ciclo explicitamente selecionado.
                     Mantido sem item/atalho enquanto a acao manual estiver globalmente oculta. */}
                 <DropdownMenuItem onClick={() => escolherVisao("FINALIZADOS")}>

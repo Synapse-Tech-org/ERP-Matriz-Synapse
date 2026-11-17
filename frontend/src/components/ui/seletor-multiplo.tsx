@@ -50,6 +50,7 @@ export function SeletorMultiplo({
             type="button"
             variant="outline"
             role="combobox"
+            data-seletor-multiplo=""
             aria-label={ariaLabel}
             className={cn(
               "h-10 justify-between rounded-lg border-input bg-card px-3 text-xs font-medium",
@@ -62,6 +63,7 @@ export function SeletorMultiplo({
         <ChevronDown className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent
+        data-seletor-multiplo=""
         align="start"
         sideOffset={6}
         className="max-h-72 min-w-44 w-(--anchor-width) overflow-y-auto rounded-lg border border-border bg-popover p-1.5 shadow-lg"

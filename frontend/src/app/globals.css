@@ -340,3 +340,79 @@ html.dark {
 }
 .previa-de-tema > :first-child { background: var(--cor-destaque, var(--primary)); }
 .previa-de-tema > :last-child { background: color-mix(in srgb, var(--card) 65%, transparent); }
+
+/*
+ * Menus e seletores no estilo do protótipo, só quando a rota está no layout V2 (o shell marca
+ * html[data-visual="v2"]). Vale para Select, DropdownMenu e o seletor múltiplo, inclusive quando
+ * abrem em portal. O gatilho usa :where() para as telas V2 que já o ajustam continuarem mandando.
+ */
+:where(html[data-visual="v2"]) :is([data-slot="select-trigger"], button[data-seletor-multiplo]) {
+  border-color: var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+:where(html[data-visual="v2"]) :is([data-slot="select-trigger"]:not([data-size="sm"]), button[data-seletor-multiplo]) {
+  min-height: 40px;
+  padding-inline: 12px 10px;
+}
+:where(html[data-visual="v2"]) :is([data-slot="select-trigger"], button[data-seletor-multiplo]) > svg:last-child {
+  color: var(--texto-fraco, var(--muted-foreground));
+}
+
+html[data-visual="v2"] :is([data-slot="select-content"], [data-slot="dropdown-menu-content"], [data-slot="popover-content"][data-seletor-multiplo]) {
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--popover);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 24px 60px -20px rgb(11 19 36 / 35%);
+}
+
+html[data-visual="v2"] :is([data-slot="select-item"], [data-slot="dropdown-menu-item"], [data-seletor-multiplo] [role="option"]) {
+  min-height: 38px;
+  gap: 10px;
+  padding-block: 0;
+  padding-left: 10px;
+  border-radius: 11px;
+  color: var(--chat-texto-forte);
+  font-size: 13.5px;
+}
+html[data-visual="v2"] [data-slot="dropdown-menu-item"] { padding-right: 10px; }
+html[data-visual="v2"] [data-slot="select-item"] { padding-right: 32px; }
+html[data-visual="v2"] [data-seletor-multiplo] [role="option"] { padding-right: 10px; }
+
+html[data-visual="v2"] :is([data-slot="select-item"], [data-slot="dropdown-menu-item"])[data-highlighted],
+html[data-visual="v2"] [data-seletor-multiplo] [role="option"]:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--muted) 60%, var(--card));
+  color: var(--chat-texto-forte);
+}
+html[data-visual="v2"] [data-slot="select-item"][data-selected],
+html[data-visual="v2"] [data-seletor-multiplo] [role="option"][aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 75%, var(--card));
+  font-weight: 600;
+}
+html[data-visual="v2"] [data-slot="select-item"] svg { color: var(--primary); }
+html[data-visual="v2"] [data-slot="dropdown-menu-item"][data-variant="destructive"] { color: var(--destructive); }
+
+html[data-visual="v2"] [data-seletor-multiplo] [role="option"] > span:first-child {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--input);
+  border-radius: 6px;
+  background: var(--card);
+}
+html[data-visual="v2"] [data-seletor-multiplo] [role="option"][aria-selected="true"] > span:first-child {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+html[data-visual="v2"] [data-slot="select-content"] { min-width: 220px; }
+html[data-visual="v2"] :is([data-slot="select-item"], [data-slot="dropdown-menu-item"]):is([data-selected], [data-highlighted], :focus) {
+  color: var(--chat-texto-forte);
+}
+html[data-visual="v2"] :is([data-slot="select-item"], [data-slot="dropdown-menu-item"]):is([data-selected], [data-highlighted], :focus) *:not(svg) {
+  color: inherit;
+}
+html[data-visual="v2"] [data-slot="dropdown-menu-content"] { min-width: 200px; }
