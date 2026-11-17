@@ -144,6 +144,20 @@ describe("painel operacional com componentes reais", () => {
     expect(await screen.findByRole("menuitem", { name: /Finalizados/ })).toBeInTheDocument();
   });
 
+  it("no V2 o título sai da tela e a Visão geral vira botão próprio ao lado do +", async () => {
+    api.mockImplementation((url: string) => Promise.resolve(
+      url.includes("/fila?") ? { itens: [], proximoCursor: null } : url.includes("/etapas") || url.includes("/chat-interno") ? [] : snapshot()));
+    const voltar = vi.fn();
+    renderizar(<ListaConversas selecionadoId={null} visaoAtual="TODOS" painelOperacionalPermitido layoutV2
+      onAbrirAtendimento={vi.fn()} onAbrirFilaOperacional={vi.fn()} onVoltarPainel={voltar} onNovoContato={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "Atendimentos" })).toHaveClass("sr-only");
+    const botao = screen.getByRole("button", { name: "Voltar ao painel de Atendimentos" });
+    expect(botao).toHaveAttribute("data-slot", "lista-visao-geral");
+    expect(botao.nextElementSibling).toHaveAttribute("data-slot", "novo-atendimento");
+    fireEvent.click(botao);
+    expect(voltar).toHaveBeenCalledOnce();
+  });
+
   it("mantém conversas internas participativas também na visão Ativos do painel operacional", async () => {
     const abrirInterno = vi.fn();
     api.mockImplementation((url: string) => Promise.resolve(

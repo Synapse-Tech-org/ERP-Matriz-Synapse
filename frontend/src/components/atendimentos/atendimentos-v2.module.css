@@ -157,14 +157,14 @@
   font-weight: 600;
 }
 
-.pagina :global([data-slot="lista-conversas-acoes"]) > :global([data-slot="novo-atendimento"]) {
+.pagina :global([data-slot="lista-conversas-acoes"]) > :is(:global([data-slot="novo-atendimento"]), :global([data-slot="lista-visao-geral"])) {
   border-color: var(--primary);
   background: var(--primary);
   color: var(--primary-foreground);
   box-shadow: var(--sombra-primaria);
 }
 
-.pagina :global([data-slot="lista-conversas-acoes"]) > :global([data-slot="novo-atendimento"]):hover {
+.pagina :global([data-slot="lista-conversas-acoes"]) > :is(:global([data-slot="novo-atendimento"]), :global([data-slot="lista-visao-geral"])):hover {
   background: var(--cor-primaria-hover);
 }
 

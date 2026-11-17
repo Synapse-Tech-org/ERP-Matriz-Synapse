@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listarConversasChat } from "@/lib/chat-interno/api";
 import { previewUltimaMensagem } from "@/lib/chat-interno/mensagem-sistema";
 import { useEtapas } from "@/lib/lead/use-painel-lead";
-import { MoreHorizontal, Plus, Search, SlidersHorizontal, UserPlus, UsersRound, X } from "lucide-react";
+import { LayoutDashboard, MoreHorizontal, Plus, Search, SlidersHorizontal, UserPlus, UsersRound, X } from "lucide-react";
 import { ListaFilaOperacional } from "./painel-operacional";
 import { totalizarOperacional, useFilaOperacional, useSnapshotOperacional, type FiltroOperacional, type ConsultaFilaOperacional } from "@/lib/atendimento/painel-operacional";
 
@@ -446,6 +446,14 @@ function ListaConversasBase({
     </Button>
   );
 
+  // V2: a Visão geral do gestor tem botão próprio (azul, como o "+"); o título sai da tela.
+  const botaoVisaoGeral = layoutV2 && onVoltarPainel && (
+    <Button type="button" data-slot="lista-visao-geral" variant="outline" size="icon-sm" className="min-h-10 min-w-10"
+      aria-label={catalogo.painelOperacional.voltar} title={catalogo.painelOperacional.titulo} onClick={onVoltarPainel}>
+      <LayoutDashboard className="size-(--tamanho-icone-interface)" aria-hidden />
+    </Button>
+  );
+
   const menuDaLista = (!layoutV2 || !painelOperacionalPermitido || podeFinalizarEmLote || finalizadosSoNoMenu) && (
     <DropdownMenu>
               <DropdownMenuTrigger
@@ -480,9 +488,10 @@ function ListaConversasBase({
     <div data-slot="lista-conversas" className={cn("flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background", painelOperacionalPermitido && "bg-card", className)}>
       <div data-slot="lista-conversas-cabecalho" className="px-4 pt-4">
         <div data-slot="lista-conversas-titulo" className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <h1 className={cn("min-w-0 break-words text-lg font-bold tracking-tight text-foreground", painelOperacionalPermitido && "text-sm text-primary")}>{onVoltarPainel
+          {layoutV2 ? <h1 className="sr-only">{catalogo.menu.itens.atendimentos}</h1>
+            : <h1 className={cn("min-w-0 break-words text-lg font-bold tracking-tight text-foreground", painelOperacionalPermitido && "text-sm text-primary")}>{onVoltarPainel
             ? <button type="button" onClick={onVoltarPainel} className="rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={catalogo.painelOperacional.voltar}>{catalogo.menu.itens.atendimentos}</button>
-            : catalogo.menu.itens.atendimentos}</h1>
+            : catalogo.menu.itens.atendimentos}</h1>}
           {layoutV2 && menuDaLista}
           <div data-slot="lista-conversas-acoes" className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1">
             {layoutV2 && <CentralDeAvisos mostrarContagem />}
@@ -518,6 +527,7 @@ function ListaConversasBase({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            {botaoVisaoGeral}
             {layoutV2 ? botaoNovoContato : botaoFiltros}
           </div>
         </div>
