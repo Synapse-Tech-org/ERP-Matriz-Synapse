@@ -45,43 +45,59 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
     public VisaoGeralDashboard consultar(FiltroTemporalDashboard filtro) {
         ResultadoMensal<AgregadoAtendimento> atendimentosMensais = atendimentosMensais(filtro);
         AgregadoAtendimento atual = atendimentosMensais.total();
-        AgregadoAtendimento anterior = atendimentos(List.of(filtro.periodoAnterior()));
+        // O selo dos cards compara o mes de referencia com o anterior (ver FiltroTemporalDashboard).
+        // Quando a comparacao cobre o proprio periodo exibido, os totais ja calculados sao reaproveitados.
+        boolean mesmoPeriodo = filtro.comparacaoCobreOPeriodoAtual();
+        List<IntervaloTemporal> comparado = List.of(filtro.comparacaoAtual());
+        List<IntervaloTemporal> anteriorAoComparado = List.of(filtro.comparacaoAnterior());
+        AgregadoAtendimento atendimentoComparado = mesmoPeriodo ? atual : atendimentos(comparado);
+        AgregadoAtendimento anterior = atendimentos(anteriorAoComparado);
         long atendimentosAcumulados = contarAte("atendimento", "iniciado_em", filtro);
 
         ResultadoMensal<AgregadoAvaliacao> avaliacoesMensais = avaliacoesMensais(filtro);
         AgregadoAvaliacao avaliacaoAtual = avaliacoesMensais.total();
-        AgregadoAvaliacao avaliacaoAnterior = avaliacoes(List.of(filtro.periodoAnterior()));
+        AgregadoAvaliacao avaliacaoComparada = mesmoPeriodo ? avaliacaoAtual : avaliacoes(comparado);
+        AgregadoAvaliacao avaliacaoAnterior = avaliacoes(anteriorAoComparado);
 
         ResultadoMensal<AgregadoResolucaoIa> resolucoesMensais = resolucoesMensais(filtro);
         AgregadoResolucaoIa resolucaoIaAtual = resolucoesMensais.total();
-        AgregadoResolucaoIa resolucaoIaAnterior =
-                resolucaoPorIa(List.of(filtro.periodoAnterior()));
+        AgregadoResolucaoIa resolucaoIaComparada = mesmoPeriodo ? resolucaoIaAtual : resolucaoPorIa(comparado);
+        AgregadoResolucaoIa resolucaoIaAnterior = resolucaoPorIa(anteriorAoComparado);
         BigDecimal taxaResolucaoIaAtual = percentual(
                 resolucaoIaAtual.semTransferencia(), resolucaoIaAtual.finalizados());
+        BigDecimal taxaResolucaoIaComparada = percentual(
+                resolucaoIaComparada.semTransferencia(), resolucaoIaComparada.finalizados());
         BigDecimal taxaResolucaoIaAnterior = percentual(
                 resolucaoIaAnterior.semTransferencia(), resolucaoIaAnterior.finalizados());
 
         AgregacaoDeVendasRepositorio.VendasComSerie vendasComSerie = vendas.agregarComSerie(
                 filtro.periodoAtual(), filtro.periodoDeOriginacao(), filtro.fusoHorario());
         AgregacaoDeVendas vendasAtual = vendasComSerie.agregado();
-        long vendasAnteriores =
-                vendas.totalDeVendas(List.of(filtro.periodoAnterior()), filtro.periodoDeOriginacao());
+        long vendasComparadas = mesmoPeriodo
+                ? vendasAtual.total()
+                : vendas.totalDeVendas(comparado, filtro.periodoDeOriginacao());
+        long vendasAnteriores = vendas.totalDeVendas(anteriorAoComparado, filtro.periodoDeOriginacao());
         long vendasAcumuladas =
                 vendas.contarAte(filtro.fimDoPeriodoAtual(), filtro.periodoDeOriginacao());
 
         LeadsMensais leadsMensais = leadsMensais(filtro);
         long novosLeadsAtual = leadsMensais.total();
-        long novosLeadsAnterior = contarLeads(List.of(filtro.periodoAnterior()));
+        long novosLeadsComparados = mesmoPeriodo ? novosLeadsAtual : contarLeads(comparado);
+        long novosLeadsAnterior = contarLeads(anteriorAoComparado);
         long leadsDaOriginacao = filtro.periodoDeOriginacao() == null
                 ? 0
                 : contarLeads(List.of(filtro.periodoDeOriginacao()));
         long leadsAtuais = filtro.periodoDeOriginacao() == null
                 ? novosLeadsAtual
                 : leadsDaOriginacao;
+        long leadsComparados = filtro.periodoDeOriginacao() == null
+                ? novosLeadsComparados
+                : leadsDaOriginacao;
         long leadsAnteriores = filtro.periodoDeOriginacao() == null
                 ? novosLeadsAnterior
                 : leadsDaOriginacao;
         BigDecimal taxaAtual = percentual(vendasAtual.total(), leadsAtuais);
+        BigDecimal taxaComparada = percentual(vendasComparadas, leadsComparados);
         BigDecimal taxaAnterior = percentual(vendasAnteriores, leadsAnteriores);
 
         List<VisaoGeralDashboard.AtendenteNaAvaliacao> avaliacoesDoPeriodo =
@@ -94,36 +110,37 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 new VisaoGeralDashboard.Atendimentos(
                         atual.quantidade(),
                         atendimentosAcumulados,
-                        Comparativo.percentual(decimal(atual.quantidade()), decimal(anterior.quantidade()))),
+                        Comparativo.percentual(
+                                decimal(atendimentoComparado.quantidade()), decimal(anterior.quantidade()))),
                 new VisaoGeralDashboard.NovosLeads(
                         novosLeadsAtual,
-                        Comparativo.percentual(decimal(novosLeadsAtual), decimal(novosLeadsAnterior))),
+                        Comparativo.percentual(decimal(novosLeadsComparados), decimal(novosLeadsAnterior))),
                 new VisaoGeralDashboard.TempoMedioAtendimento(
                         segundos(atual.mediaSegundos()),
-                        Comparativo.percentual(atual.mediaSegundos(), anterior.mediaSegundos())),
+                        Comparativo.percentual(atendimentoComparado.mediaSegundos(), anterior.mediaSegundos())),
                 new VisaoGeralDashboard.AvaliacaoMedia(
                         escala(avaliacaoAtual.media()),
                         EscalaDeAvaliacao.NOTA_MAXIMA,
                         avaliacaoAtual.quantidade(),
                         new VisaoGeralDashboard.DistribuicaoDeAvaliacoes(
                                 avaliacaoAtual.otimo(), avaliacaoAtual.bom(), avaliacaoAtual.ruim()),
-                        Comparativo.pontos(avaliacaoAtual.media(), avaliacaoAnterior.media())),
+                        Comparativo.pontos(avaliacaoComparada.media(), avaliacaoAnterior.media())),
                 new VisaoGeralDashboard.ResolucaoPorIa(
                         taxaResolucaoIaAtual,
                         resolucaoIaAtual.semTransferencia(),
                         resolucaoIaAtual.finalizados(),
                         Comparativo.pontosPercentuais(
-                                taxaResolucaoIaAtual, taxaResolucaoIaAnterior)),
+                                taxaResolucaoIaComparada, taxaResolucaoIaAnterior)),
                 new VisaoGeralDashboard.VendasFechadas(
                         vendasAtual.total(),
                         vendasAcumuladas,
                         Comparativo.percentual(
-                                decimal(vendasAtual.total()), decimal(vendasAnteriores))),
+                                decimal(vendasComparadas), decimal(vendasAnteriores))),
                 new VisaoGeralDashboard.TaxaConversao(
                         taxaAtual,
                         vendasAtual.total(),
                         leadsAtuais,
-                        Comparativo.pontosPercentuais(taxaAtual, taxaAnterior)),
+                        Comparativo.pontosPercentuais(taxaComparada, taxaAnterior)),
                 statusAoVivo(filtro),
                 funil.etapas(),
                 funil.perdidos(),
@@ -148,7 +165,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 new VisaoGeralDashboard.Nps(
                         avaliacaoAtual.nps(),
                         avaliacaoAtual.respostasNps(),
-                        Comparativo.pontos(avaliacaoAtual.nps(), avaliacaoAnterior.nps())),
+                        Comparativo.pontos(avaliacaoComparada.nps(), avaliacaoAnterior.nps())),
                 leadsMensais.parados());
     }
 
