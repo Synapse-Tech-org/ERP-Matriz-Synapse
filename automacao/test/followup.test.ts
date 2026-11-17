@@ -8,8 +8,9 @@ import {
 import { lerRegrasCrm } from "../src/followup/configuracao-crm.js";
 import { carregarFollowup } from "../src/followup/configuracao.js";
 import { HttpJson } from "../src/followup/http.js";
+import { FalhaIntegracao } from "../src/followup/http.js";
 import { CrmHttpFollowup } from "../src/followup/crm-http.js";
-import { WhatsAppFollowup } from "../src/followup/provedores.js";
+import { criarProvedorFollowup } from "../src/followup/provedores.js";
 import { ProcessarAtendimento } from "../src/followup/processar-atendimento.js";
 import type {
   AtendimentoFollowup,
@@ -216,8 +217,10 @@ function cenario() {
     status = "",
     limite = true;
   let recusa = false;
+  let bloqueado = false;
   let provedorFalha = false,
     registroFalha = false;
+  let motivo: string | undefined;
   const recibo = {
     id: "e1",
     atendimentoId: a.id,
@@ -239,8 +242,9 @@ function cenario() {
       status = "RESERVADO";
       return { id: "e1", chave: "chave" };
     },
-    async marcar(_id, novo) {
+    async marcar(_id, novo, causa) {
       status = novo;
+      motivo = causa;
     },
     async consumirLimite() {
       return limite;
@@ -265,7 +269,7 @@ function cenario() {
     },
     async registrar() {
       registros++;
-      if (registroFalha) throw Error("crm");
+      if (registroFalha) throw new FalhaIntegracao("HTTP_400");
       return "m2";
     },
     async finalizar() {},
@@ -287,7 +291,9 @@ function cenario() {
       controle,
       crm,
       {
-        validar() {},
+        validar() {
+          if (bloqueado) throw new Error("NUMERO_NAO_PERMITIDO");
+        },
         async enviar() {
           envios++;
           if (provedorFalha) throw Error("timeout");
@@ -311,8 +317,14 @@ function cenario() {
     get status() {
       return status;
     },
+    get motivo() {
+      return motivo;
+    },
     recusar() {
       recusa = true;
+    },
+    bloquearNumero() {
+      bloqueado = true;
     },
     esgotar() {
       limite = false;
@@ -328,6 +340,15 @@ function cenario() {
     },
   };
 }
+test("destinatario fora da lista e ignorado antes de reservar ou enviar", async () => {
+  const s = cenario();
+  s.bloquearNumero();
+  assert.equal(await s.executar().executar(s.a, config(), "rodada"), "DESTINATARIO_FORA_DA_LISTA_PERMITIDA");
+  assert.equal(s.status, "");
+  assert.equal(s.envios, 0);
+  assert.equal(s.registros, 0);
+});
+
 test("envia, persiste comprovante e registra no CRM", async () => {
   const s = cenario();
   assert.equal(
@@ -355,10 +376,13 @@ test("aceite seguido de falha CRM recupera apenas registro, sem segundo envio", 
     await s.executar().executar(s.a, config(), "rodada"),
     "ENVIADO_REGISTRO_CRM_PENDENTE",
   );
+  assert.equal(s.motivo, "REGISTRO_CRM_PENDENTE_HTTP_400");
+  await s.executar().recuperarRegistros();
+  assert.equal(s.motivo, "REGISTRO_CRM_PENDENTE_HTTP_400");
   s.recuperarCrm();
   await s.executar().recuperarRegistros();
   assert.equal(s.envios, 1);
-  assert.equal(s.registros, 2);
+  assert.equal(s.registros, 3);
 });
 test("limite atingido nao cria reserva que bloqueie candidato da proxima rodada", async () => {
   const s = cenario();
@@ -419,7 +443,7 @@ test("HTTP nao repete POST e nao expoe segredos na excecao", async () => {
 });
 test("allowlist bloqueia destinatario antes de chamar provedor", async () => {
   let chamadas = 0;
-  const p = new WhatsAppFollowup(
+  const p = criarProvedorFollowup(
     {
       tipo: "evolution",
       base: "https://fixture.invalid",
@@ -453,7 +477,7 @@ for (const tipo of ["evolution", "z-api", "meta"] as const)
       token: "fixture",
       clientToken: "fixture",
     };
-    const p = new WhatsAppFollowup(
+    const p = criarProvedorFollowup(
       { ...base, tipo },
       {
         async chamar(_url, _headers, body) {
@@ -518,7 +542,7 @@ test("meta-cloud reutiliza o nome do provedor configurado no CRM", () => {
 
 for (const tipo of ["evolution", "z-api", "meta"] as const)
   test(`${tipo}: HTTP 200 sem comprovante nao significa envio comprovado`, async () => {
-    const p = new WhatsAppFollowup(
+    const p = criarProvedorFollowup(
       {
         tipo,
         base: "https://fixture.invalid",

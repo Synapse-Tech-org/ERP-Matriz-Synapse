@@ -2,6 +2,7 @@ import type { Pool } from "pg";
 import type { ConsultaAtendimentos, CrmFollowup } from "./contratos.js";
 import type { ProcessarAtendimento } from "./processar-atendimento.js";
 import { FalhaIntegracao } from "./http.js";
+import { codigoFalha, motivoInterrupcao, type FaseRodada } from "./falhas.js";
 
 export interface OpcoesRodada {
   intervaloMinutos: number;
@@ -71,15 +72,19 @@ export class ExecutarRodada {
         "UPDATE automacao_infra.followup_rodada SET status='crashed',finalizado_em=now(),motivo='PROCESSO_INTERROMPIDO' WHERE status='running' AND id<>$1",
         [id],
       );
+      let fase: FaseRodada = "BUSCAR_CONFIGURACAO_CRM";
       try {
         const config = await this.crm.configuracao();
+        fase = "PERSISTIR_PROGRESSO";
         await this.pool.query(
           "UPDATE automacao_infra.followup_rodada SET padroes_utilizados=$2::jsonb WHERE id=$1",
           [id, JSON.stringify(config.padroesUtilizados)],
         );
+        fase = "RECUPERAR_REGISTROS_CRM";
         await this.processador.recuperarRegistros();
         while (ate) {
           verificarCoordenacao();
+          fase = "BUSCAR_ATENDIMENTOS_CRM";
           const pagina = await this.consulta.listar(
             cursor,
             this.config.pagina,
@@ -91,6 +96,7 @@ export class ExecutarRodada {
           for (let i = 0; i < pagina.length; i += 2) {
             verificarCoordenacao();
             const dupla = pagina.slice(i, i + 2);
+            fase = "PROCESSAR_ATENDIMENTOS";
             const resultados = await Promise.allSettled(
               dupla.map(async (a) => {
                 const inicio = Date.now();
@@ -103,10 +109,7 @@ export class ExecutarRodada {
                     verificarCoordenacao,
                   );
                 } catch (error) {
-                  resultado =
-                    error instanceof FalhaIntegracao
-                      ? "FALHA_" + error.codigo
-                      : "FALHA_NO_PROCESSAMENTO";
+                  resultado = "FALHA_" + codigoFalha(error);
                 }
                 await this.pool.query(
                   `INSERT INTO automacao_infra.followup_etapa(rodada_id,atendimento_id,resultado,duracao_ms)
@@ -120,6 +123,7 @@ export class ExecutarRodada {
             if (resultados.some((r) => r.status === "rejected"))
               throw new Error("PERSISTENCIA_DA_ETAPA_FALHOU");
             cursor = dupla[dupla.length - 1]!.id;
+            fase = "PERSISTIR_PROGRESSO";
             await this.pool.query(
               "UPDATE automacao_infra.followup_rodada SET cursor_id=$2 WHERE id=$1",
               [id, cursor],
@@ -127,6 +131,7 @@ export class ExecutarRodada {
           }
         }
         verificarCoordenacao();
+        fase = "CONCLUIR_RODADA";
         await this.pool.query(
           `UPDATE automacao_infra.followup_rodada SET finalizado_em=now(),
           status=CASE WHEN EXISTS(SELECT 1 FROM automacao_infra.followup_etapa WHERE rodada_id=$1
@@ -135,6 +140,7 @@ export class ExecutarRodada {
           [id],
         );
         // Limpa apenas o historico detalhado. Recusas, comprovantes e chaves nunca sao apagados aqui.
+        fase = "LIMPAR_HISTORICO";
         await this.pool.query(
           `DELETE FROM automacao_infra.followup_rodada r
           WHERE r.status IN ('success','error') AND r.finalizado_em < now()-($1*interval '1 day')
@@ -143,11 +149,12 @@ export class ExecutarRodada {
           [this.config.retencaoDias],
         );
       } catch (error) {
+        const motivo = motivoInterrupcao(fase, error);
         await this.pool.query(
-          "UPDATE automacao_infra.followup_rodada SET status='error',finalizado_em=now(),motivo='RODADA_INTERROMPIDA' WHERE id=$1",
-          [id],
+          "UPDATE automacao_infra.followup_rodada SET status='error',finalizado_em=now(),motivo=$2 WHERE id=$1",
+          [id, motivo],
         );
-        throw error;
+        throw new FalhaIntegracao(motivo);
       }
     } finally {
       try {

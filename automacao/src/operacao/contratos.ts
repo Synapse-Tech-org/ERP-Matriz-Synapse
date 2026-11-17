@@ -21,6 +21,20 @@ export interface EtapaExecucao {
 export interface DetalheExecucao extends ExecucaoResumo {
   etapas: EtapaExecucao[];
   detalhesDisponiveis: boolean;
+  atendimentos?: AtendimentoExecucao[];
+  totalAtendimentos?: number;
+}
+
+export interface AtendimentoExecucao {
+  atendimentoId: string;
+  resultado: string;
+  duracaoMs: number;
+  comprovanteId: string | null;
+  statusEnvio: string | null;
+  provedorId: string | null;
+  crmMensagemId: string | null;
+  motivo: string | null;
+  enviadoEm: string | null;
 }
 export interface FiltroExecucoes {
   pagina: number;

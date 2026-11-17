@@ -4,7 +4,7 @@ import type { ConfiguracaoBanco } from "../operacao/configuracao.js";
 import type { ConfiguracaoFollowup } from "./configuracao.js";
 import { HttpJson } from "./http.js";
 import { CrmHttpFollowup } from "./crm-http.js";
-import { WhatsAppFollowup } from "./provedores.js";
+import { criarProvedorFollowup } from "./provedores.js";
 import { AtendimentosPostgres } from "./atendimentos-postgres.js";
 import { ControlePostgres } from "./controle-postgres.js";
 import { ProcessarAtendimento } from "./processar-atendimento.js";
@@ -62,7 +62,7 @@ export class RuntimeFollowup {
       consulta,
       new ControlePostgres(this.pool),
       crm,
-      new WhatsAppFollowup(
+      criarProvedorFollowup(
         config.provedor,
         new HttpJson(config.timeoutMs),
         config.restricao,

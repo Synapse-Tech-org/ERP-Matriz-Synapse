@@ -497,6 +497,23 @@ tbody tr:hover {
 .drawer-body > .muted {
   font-size: 13px;
 }
+.diagnostico-atendimento {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.diagnostico-atendimento > strong {
+  font-size: 13px;
+}
+.diagnostico-atendimento p {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 10px 0;
+}
+.diagnostico-atendimento dl {
+  grid-template-columns: 110px minmax(0, 1fr);
+  margin: 16px 0;
+}
 .steps {
   list-style: none;
   padding: 0;

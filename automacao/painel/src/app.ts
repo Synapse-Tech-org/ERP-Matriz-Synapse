@@ -12,6 +12,7 @@ import {
 } from "lucide";
 import { api, ErroApi, type Usuario, type DetalheExecucao } from "./api";
 import { t } from "./textos";
+import { explicarResultado } from "./diagnostico";
 import "./estilos.css";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -220,7 +221,8 @@ function painel(usuario: Usuario): void {
         "connected",
         estado.estado === "PRONTO",
       );
-      text("automation", estado.automacaoHabilitada ? t.ativa : t.desativada);
+      text("automation", (estado.automacaoHabilitada ? t.ativa : t.desativada)
+        + " | Follow-up " + (estado.followUpHabilitado ? "ativado" : "desativado"));
       text("executor", estado.executorDisponivel ? "" : t.executorPendente);
       for (const [id, key] of [
         ["total", "total"],
@@ -364,6 +366,42 @@ function mostrarDetalhe(body: HTMLElement, data: DetalheExecucao): void {
     meta.append(dt, dd);
   }
   body.append(meta);
+  if (data.atendimentos) {
+    const titulo = document.createElement("h3");
+    titulo.textContent = "Atendimentos: " + data.atendimentos.length
+      + " de " + (data.totalAtendimentos ?? data.atendimentos.length);
+    body.append(titulo);
+    for (const atendimento of data.atendimentos) {
+      const item = document.createElement("section");
+      item.className = "diagnostico-atendimento";
+      const codigo = document.createElement("strong");
+      codigo.textContent = atendimento.resultado;
+      const descricao = document.createElement("p");
+      descricao.textContent = explicarResultado(atendimento.resultado);
+      const dados = document.createElement("dl");
+      for (const [rotulo, valor] of [
+        ["Atendimento", atendimento.atendimentoId],
+        ["Status do envio", atendimento.statusEnvio || "Sem comprovante nesta rodada"],
+        ["ID do provedor", atendimento.provedorId || "--"],
+        ["Mensagem no CRM", atendimento.crmMensagemId || "--"],
+        ["Aceite registrado em", horario(atendimento.enviadoEm)],
+        ["Motivo registrado", atendimento.motivo || "--"],
+      ]) {
+        const dt = document.createElement("dt");
+        dt.textContent = rotulo;
+        const dd = document.createElement("dd");
+        dd.textContent = valor;
+        dados.append(dt, dd);
+      }
+      item.append(codigo, descricao, dados);
+      if (atendimento.motivo) {
+        const motivo = document.createElement("p");
+        motivo.textContent = explicarResultado(atendimento.motivo);
+        item.append(motivo);
+      }
+      body.append(item);
+    }
+  }
   const heading = document.createElement("h3");
   heading.textContent = t.etapas;
   body.append(heading);

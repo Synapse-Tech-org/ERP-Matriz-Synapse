@@ -1,6 +1,8 @@
 # Follow-up unificado em TypeScript
 
-Implementacao de 10/11/2026, branch `feat/automacao-local-base`.
+Implementacao iniciada em 10/11/2026 na antiga `feat/automacao-local-base`.
+Desde 11/11, desenvolver em `codex/frontend-automacao-hml`, compartilhada com
+Marcondes. Estado atual: [CONTEXTO-HOMOLOGACAO.md](CONTEXTO-HOMOLOGACAO.md).
 Decisoes: [DECISOES-FOLLOWUP-UNIFICADO.md](DECISOES-FOLLOWUP-UNIFICADO.md).
 Nao altera os fluxos de entrada do n8n, Java ou frontend do CRM.
 
@@ -57,7 +59,9 @@ nao pode ser desfeita: o controle persistido impede repeti-la cegamente.
 | `atendimentos-postgres.ts` | Consulta compartilhada CRM com contexto RLS de servico |
 | `controle-postgres.ts` | Reserva, comprovante e limite atomico |
 | `crm-http.ts` | Contratos internos existentes, sem mudar o CRM |
-| `provedores.ts` | Payloads Evolution, Z-API e Meta |
+| `provedores.ts` | Fabrica para selecionar e compor o provedor |
+| `provedores/whatsapp-followup.ts` | Validacao e allowlist compartilhadas |
+| `provedores/meta.ts`, `provedores/z-api.ts`, `provedores/evolution.ts` | Contrato HTTP isolado por API |
 | `http.ts` | Timeout, circuit breaker e erros sem segredos |
 | `rodada.ts` | Trava, cursor, dois candidatos, historico e retencao |
 | `runtime.ts` | Composicao das dependencias e ciclo de vida pg-boss |

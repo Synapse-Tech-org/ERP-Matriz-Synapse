@@ -108,7 +108,7 @@ export class ControlePostgres implements ControleFollowup {
   }
   async registrado(id: string, mensagemId: string): Promise<void> {
     await this.pool.query(
-      "UPDATE public.follow_ups_temporary SET crm_mensagem_id=$2,updated_at=now() WHERE id=$1 AND status='ENVIADO'",
+      "UPDATE public.follow_ups_temporary SET crm_mensagem_id=$2,motivo_operacional=NULL,updated_at=now() WHERE id=$1 AND status='ENVIADO'",
       [id, mensagemId],
     );
   }

@@ -1,3 +1,5 @@
+import { lerCausaHttp } from "./causas-http.js";
+
 export class FalhaIntegracao extends Error {
   constructor(
     readonly codigo: string,
@@ -40,8 +42,11 @@ export class HttpJson implements TransporteJson {
         signal: AbortSignal.timeout(this.timeoutMs),
       });
       if (!response.ok) {
-        await response.body?.cancel();
-        throw new FalhaIntegracao("HTTP_" + response.status, response.status);
+        const causa = await lerCausaHttp(response);
+        throw new FalhaIntegracao(
+          "HTTP_" + response.status + (causa ? "_" + causa : ""),
+          response.status,
+        );
       }
       if (response.status === 204) {
         this.falhas = 0;

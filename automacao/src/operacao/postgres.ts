@@ -10,6 +10,7 @@ import type {
 } from "./contratos.js";
 import { aplicarMigracoes } from "./migracoes.js";
 import { lerEtapas } from "./etapas.js";
+import { motivoSeguro } from "./diagnostico-followup.js";
 
 export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
   private readonly pool: Pool;
@@ -190,6 +191,24 @@ export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
       FROM automacao_infra.followup_etapa WHERE rodada_id=$1 GROUP BY resultado ORDER BY resultado`,
       [id.slice(3)],
     );
+    // Limita a transferencia sem esconder o total. Nao consulta nome ou texto
+    // da mensagem no CRM. O comprovante pertence a este atendimento/rodada.
+    const atendimentos = await this.pool.query(
+      `SELECT e.atendimento_id::text,e.resultado,e.duracao_ms,
+        (count(*) OVER())::int AS total,
+        f.id::text AS comprovante_id,f.status AS status_envio,
+        f.whatsapp_message_id,f.crm_mensagem_id,f.motivo_operacional,f.enviado_em
+      FROM automacao_infra.followup_etapa e
+      LEFT JOIN LATERAL (
+        SELECT id,status,whatsapp_message_id,crm_mensagem_id,motivo_operacional,enviado_em
+        FROM public.follow_ups_temporary
+        WHERE execucao_id=$1::text AND crm_atendimento_id=e.atendimento_id::text
+        ORDER BY id DESC LIMIT 1
+      ) f ON true
+      WHERE e.rodada_id=$1::uuid
+      ORDER BY e.atendimento_id LIMIT 200`,
+      [id.slice(3)],
+    );
     const etapas: DetalheExecucao["etapas"] = passos.rows.map((p) => ({
       nome: `${p.resultado} (${p.quantidade})`,
       duracaoMs: p.duracao,
@@ -220,6 +239,18 @@ export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
       modo: "schedule",
       etapas,
       detalhesDisponiveis: true,
+      totalAtendimentos: Number(atendimentos.rows[0]?.total || 0),
+      atendimentos: atendimentos.rows.map((a) => ({
+        atendimentoId: a.atendimento_id,
+        resultado: a.resultado,
+        duracaoMs: a.duracao_ms,
+        comprovanteId: a.comprovante_id,
+        statusEnvio: a.status_envio,
+        provedorId: a.whatsapp_message_id,
+        crmMensagemId: a.crm_mensagem_id,
+        motivo: motivoSeguro(a.motivo_operacional),
+        enviadoEm: a.enviado_em?.toISOString() || null,
+      })),
     };
   }
 }
