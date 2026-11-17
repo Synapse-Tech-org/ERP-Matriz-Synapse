@@ -77,13 +77,28 @@ class DashboardVisaoGeralRepositorioJdbcTest {
 
     @Test
     void usaAgregacaoCompletaSomenteNoPeriodoAtualEProjecaoEstreitaNoAnteriorENoStatusAoVivo() {
-        FiltroTemporalDashboard filtro = FiltroTemporalDashboard.de(2026, List.of(9), null, null, ZoneId.of("UTC"));
+        FiltroTemporalDashboard filtro = FiltroTemporalDashboard.de(
+                2026, List.of(9), null, null, ZoneId.of("UTC"), java.time.LocalDate.of(2026, 11, 17));
 
         repositorio.consultar(filtro);
 
         verify(vendas, times(1)).agregarComSerie(same(filtro.periodoAtual()), isNull(), eq(filtro.fusoHorario()));
-        verify(vendas).totalDeVendas(eq(List.of(filtro.periodoAnterior())), isNull());
+        verify(vendas).totalDeVendas(eq(List.of(filtro.comparacaoAnterior())), isNull());
+        // Mes fechado: a comparacao cobre o periodo exibido e reaproveita o total ja agregado.
         verify(vendas, times(2))
+                .totalDeVendas(org.mockito.ArgumentMatchers.<List<IntervaloTemporal>>any(), isNull());
+    }
+
+    @Test
+    void noMesCorrenteConsultaOMesDeReferenciaAlemDoAnterior() {
+        FiltroTemporalDashboard filtro = FiltroTemporalDashboard.de(
+                2026, null, null, null, ZoneId.of("UTC"), java.time.LocalDate.of(2026, 11, 17));
+
+        repositorio.consultar(filtro);
+
+        verify(vendas).totalDeVendas(eq(List.of(filtro.comparacaoAtual())), isNull());
+        verify(vendas).totalDeVendas(eq(List.of(filtro.comparacaoAnterior())), isNull());
+        verify(vendas, times(3))
                 .totalDeVendas(org.mockito.ArgumentMatchers.<List<IntervaloTemporal>>any(), isNull());
     }
 }

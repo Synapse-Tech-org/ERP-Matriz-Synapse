@@ -1517,7 +1517,7 @@ export const TextosSchema = z.object({
     funilApoio: z.string(),
     filtros: z.object({ rotulo: z.string(), ano: z.string(), meses: z.string(), anoInteiro: z.string(), originacao: z.string(), intervalo: z.string(), de: z.string(), ate: z.string(), limpar: z.string(), selecioneMes: z.string(), origemCompleta: z.string() }),
     meses: z.array(z.string()).length(12),
-    kpis: z.object({ rotulo: z.string(), atendimentos: z.string(), atendimentosApoio: z.string(), conversao: z.string(), conversaoApoio: z.string(), tempoMedio: z.string(), tempoMedioApoio: z.string(), vendas: z.string(), vendasApoio: z.string(), csat: z.string(), csatApoio: z.string(), resolucaoIa: z.string(), resolucaoIaApoio: z.string(), novosLeads: z.string(), novosLeadsApoio: z.string(), resumoSerie: z.string().default("mín {minMes} {min} · máx {maxMes} {max} · média {media}"), periodoAnterior: z.string() }),
+    kpis: z.object({ rotulo: z.string(), atendimentos: z.string(), atendimentosApoio: z.string(), conversao: z.string(), conversaoApoio: z.string(), tempoMedio: z.string(), tempoMedioApoio: z.string(), vendas: z.string(), vendasApoio: z.string(), csat: z.string(), csatApoio: z.string(), resolucaoIa: z.string(), resolucaoIaApoio: z.string(), novosLeads: z.string(), novosLeadsApoio: z.string(), resumoSerie: z.string().default("mín {minMes} {min} · máx {maxMes} {max} · média {media}"), periodoAnterior: z.string(), mesAnterior: z.string().default("vs. mês anterior") }),
     agora: z.object({
       rotulo: z.string(),
       emIa: z.string(),
@@ -1752,6 +1752,11 @@ export const TextosSchema = z.object({
     }),
   }),
   automacao: z.object({
+    emBreve: z.object({
+      selo: z.string().default("Em breve"),
+      personalidade: z.string().default("Personalidade da IA"),
+      parametro: z.string().default("Este ajuste ainda não tem efeito nesta versão."),
+    }).prefault({}),
     confirmacoesConsultas: z.object({
       rotulo: z.string(), titulo: z.string(), descricao: z.string(),
       janela: z.string(), inicio: z.string(), fim: z.string(), antecedencia: z.string(),

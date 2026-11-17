@@ -468,12 +468,22 @@ describe("ListaConversas", () => {
     expect(screen.getAllByRole("button", { name: "Mais ações" })).toHaveLength(1);
   });
 
-  it("no V2 com chat interno, a aba Interno lista só as conversas internas e as abre", async () => {
+  it("no V2 com chat interno, a aba Interno só aparece com a flag atendimentos_aba_interno", () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={cliente}>
+        <ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} chatInternoHabilitado layoutV2 />
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByRole("tab", { name: /Interno/ })).not.toBeInTheDocument();
+  });
+
+  it("no V2 com chat interno e a flag, a aba Interno lista só as conversas internas e as abre", async () => {
     const abrir = vi.fn();
     const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={cliente}>
-        <ListaConversas selecionadoId={null} onAbrirAtendimento={abrir} chatInternoHabilitado layoutV2 />
+        <ListaConversas selecionadoId={null} onAbrirAtendimento={abrir} chatInternoHabilitado abaInternoHabilitada layoutV2 />
       </QueryClientProvider>,
     );
 

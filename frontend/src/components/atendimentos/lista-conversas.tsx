@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listarConversasChat } from "@/lib/chat-interno/api";
 import { previewUltimaMensagem } from "@/lib/chat-interno/mensagem-sistema";
 import { useEtapas } from "@/lib/lead/use-painel-lead";
-import { MoreHorizontal, Plus, Search, SlidersHorizontal, UserPlus, UsersRound, X } from "lucide-react";
+import { LayoutDashboard, MoreHorizontal, MoreVertical, Plus, Search, SlidersHorizontal, UserPlus, UsersRound, X } from "lucide-react";
 import { ListaFilaOperacional } from "./painel-operacional";
 import { totalizarOperacional, useFilaOperacional, useSnapshotOperacional, type FiltroOperacional, type ConsultaFilaOperacional } from "@/lib/atendimento/painel-operacional";
 
@@ -60,6 +60,10 @@ type Props = {
   onAtendimentosAtualizados?: (atendimentos: ItemInbox[]) => void;
   onAbrirAtendimento: (cartao: ItemInbox) => void;
   chatInternoHabilitado?: boolean;
+  /** Flag `atendimentos_aba_interno`: aba "Interno" só com os chats internos (V2). */
+  abaInternoHabilitada?: boolean;
+  /** Flag `atendimentos_finalizados_so_no_menu`: gestor acessa Finalizados só pelo menu da lista. */
+  finalizadosSoNoMenu?: boolean;
   contatosInternos?: ChatContato[];
   contatosInternosCarregando?: boolean;
   contatosInternosErro?: boolean;
@@ -126,7 +130,7 @@ type ConsultaDeInternos = Pick<ReturnType<typeof useQuery<Awaited<ReturnType<typ
 type PropsInternas = Props & { consultaInternos?: ConsultaDeInternos };
 
 export function ListaConversas(props: Props) {
-  return props.layoutV2 && props.chatInternoHabilitado
+  return props.layoutV2 && props.chatInternoHabilitado && props.abaInternoHabilitada
     ? <ListaConversasComAbaInterna {...props} />
     : <ListaConversasRoteada {...props} />;
 }
@@ -194,6 +198,7 @@ function ListaConversasBase({
   onAtendimentosAtualizados,
   onAbrirAtendimento,
   chatInternoHabilitado = false,
+  finalizadosSoNoMenu = false,
   contatosInternos = [],
   contatosInternosCarregando = false,
   contatosInternosErro = false,
@@ -441,16 +446,26 @@ function ListaConversasBase({
     </Button>
   );
 
-  const menuDaLista = (!layoutV2 || !painelOperacionalPermitido || podeFinalizarEmLote) && (
+  // V2: a Visão geral do gestor tem botão próprio (azul, como o "+"); o título sai da tela.
+  const botaoVisaoGeral = layoutV2 && onVoltarPainel && (
+    <Button type="button" data-slot="lista-visao-geral" variant="outline" size="icon-sm" className="min-h-10 min-w-10"
+      aria-label={catalogo.painelOperacional.voltar} title={catalogo.painelOperacional.titulo} onClick={onVoltarPainel}>
+      <LayoutDashboard className="size-(--tamanho-icone-interface)" aria-hidden />
+    </Button>
+  );
+
+  const menuDaLista = (!layoutV2 || !painelOperacionalPermitido || podeFinalizarEmLote || finalizadosSoNoMenu) && (
     <DropdownMenu>
               <DropdownMenuTrigger
                 data-slot="lista-conversas-menu"
                 className="inline-flex size-10 items-center justify-center rounded-[var(--raio-botao-md)] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={textos.finalizar.todosMenu}
               >
-                <MoreHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />
+                {layoutV2
+                  ? <MoreVertical className="size-(--tamanho-icone-interface)" aria-hidden />
+                  : <MoreHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />}
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align={layoutV2 ? "start" : "end"}>
                 {/* Ponto futuro de Registrar venda: este menu e o ciclo explicitamente selecionado.
                     Mantido sem item/atalho enquanto a acao manual estiver globalmente oculta. */}
                 <DropdownMenuItem onClick={() => escolherVisao("FINALIZADOS")}>
@@ -475,11 +490,12 @@ function ListaConversasBase({
     <div data-slot="lista-conversas" className={cn("flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background", painelOperacionalPermitido && "bg-card", className)}>
       <div data-slot="lista-conversas-cabecalho" className="px-4 pt-4">
         <div data-slot="lista-conversas-titulo" className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <h1 className={cn("min-w-0 break-words text-lg font-bold tracking-tight text-foreground", painelOperacionalPermitido && "text-sm text-primary")}>{onVoltarPainel
+          {layoutV2 ? <h1 className="sr-only">{catalogo.menu.itens.atendimentos}</h1>
+            : <h1 className={cn("min-w-0 break-words text-lg font-bold tracking-tight text-foreground", painelOperacionalPermitido && "text-sm text-primary")}>{onVoltarPainel
             ? <button type="button" onClick={onVoltarPainel} className="rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={catalogo.painelOperacional.voltar}>{catalogo.menu.itens.atendimentos}</button>
-            : catalogo.menu.itens.atendimentos}</h1>
-          {layoutV2 && menuDaLista}
+            : catalogo.menu.itens.atendimentos}</h1>}
           <div data-slot="lista-conversas-acoes" className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1">
+            {layoutV2 && menuDaLista}
             {layoutV2 && <CentralDeAvisos mostrarContagem />}
             {layoutV2 && botaoFiltros}
             {!layoutV2 && menuDaLista}
@@ -513,6 +529,7 @@ function ListaConversasBase({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            {botaoVisaoGeral}
             {layoutV2 ? botaoNovoContato : botaoFiltros}
           </div>
         </div>
@@ -561,10 +578,10 @@ function ListaConversasBase({
           variant="line"
           className={cn(
             "mx-4 mt-3 flex h-auto w-[calc(100%-2rem)] justify-start gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden p-0 md:grid md:gap-1 md:overflow-x-hidden",
-            painelOperacionalPermitido ? "grid-cols-5 gap-0 overflow-x-hidden group-data-horizontal/tabs:h-auto" : papelAmplo ? "md:grid-cols-4" : "md:grid-cols-3",
+            painelOperacionalPermitido ? (finalizadosSoNoMenu ? "grid-cols-4" : "grid-cols-5") + " gap-0 overflow-x-hidden group-data-horizontal/tabs:h-auto" : papelAmplo ? "md:grid-cols-4" : "md:grid-cols-3",
           )}
         >
-          {(painelOperacionalPermitido ? [...ABAS_GESTAO, "FINALIZADOS" as const] : abas).map((item) => (
+          {(painelOperacionalPermitido ? finalizadosSoNoMenu ? ABAS_GESTAO : [...ABAS_GESTAO, "FINALIZADOS" as const] : abas).map((item) => (
             <TabsTrigger
               key={item}
               value={item}

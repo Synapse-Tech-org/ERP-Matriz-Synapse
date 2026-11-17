@@ -61,6 +61,13 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
     || (pathname === "/mensagens-rapidas" && funcionalidades.data?.includes("mensagens_rapidas_layout_v2"))
     || (ROTAS_RECURSOS_V2.has(pathname) && funcionalidades.data?.includes("recursos_layout_v2"))
     || (ROTAS_GESTAO_V2.has(secao) && funcionalidades.data?.includes("gestao_layout_v2"));
+  // Menus e seletores abrem em portal, fora do canvas: a marca no <html> permite estilizá-los no V2.
+  useEffect(() => {
+    const raiz = document.documentElement;
+    if (visualV2) raiz.dataset.visual = "v2";
+    else delete raiz.dataset.visual;
+    return () => { delete raiz.dataset.visual; };
+  }, [visualV2]);
   const fixada = noDashboard ? dashboardFixada ?? !dashboardV2 : expansao.fixada;
   const expandida = noDashboard ? fixada || expansao.expandida : expansao.expandida;
   const alternarFixacao = noDashboard

@@ -210,6 +210,8 @@ export function PaginaAtendimentosCliente({
   const { definir: definirConversaEmTelaCheia } = useConversaEmTelaCheia();
   const { data: configuracao } = useConfiguracaoComposer();
   const chatInternoHabilitado = flags?.includes("chat_interno") ?? false;
+  const abaInternoHabilitada = flags?.includes("atendimentos_aba_interno") ?? false;
+  const finalizadosSoNoMenu = flags?.includes("atendimentos_finalizados_so_no_menu") ?? false;
   const contatosInternos = useQuery({ queryKey: ["chat-interno", "contatos"], queryFn: listarContatosChat, enabled: chatInternoHabilitado });
   const selecionarConversaInterna = useCallback((conversaId: string) => {
     setConversaInternaId(conversaId);
@@ -1140,6 +1142,8 @@ export function PaginaAtendimentosCliente({
         onAtendimentosAtualizados={atualizarAtendimentos}
         onAbrirAtendimento={selecionarAtendimento}
         chatInternoHabilitado={chatInternoHabilitado}
+        abaInternoHabilitada={abaInternoHabilitada}
+        finalizadosSoNoMenu={finalizadosSoNoMenu}
         contatosInternos={contatosInternos.data ?? []}
         contatosInternosCarregando={contatosInternos.isLoading || contatosInternos.isFetching}
         contatosInternosErro={contatosInternos.isError}

@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import { IconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
+import { SeloEmBreve } from "@/components/ui/selo-em-breve";
 import lista from "@/components/shell/lista-v2.module.css";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -27,7 +28,8 @@ const ABAS = {
   confirmacoesConsultas: { icone: "calendar-line" },
 } as const;
 
-export type AbaAutomacaoV2 = keyof typeof ABAS;
+/** "Mensagens do sistema" ainda não tem efeito: fica no menu, desabilitada e com o selo "Em breve". */
+export type AbaAutomacaoV2 = Exclude<keyof typeof ABAS, "sistema">;
 
 export function MolduraAutomacaoV2({ aba, clinica = false, onSelecionar, resumo, children }: {
   aba: AbaAutomacaoV2;
@@ -54,13 +56,26 @@ export function MolduraAutomacaoV2({ aba, clinica = false, onSelecionar, resumo,
             {GRUPOS.map(({ rotulo, abas }) => (
               <div key={rotulo} className={estilos.grupo}>
                 <p>{rotulo}</p>
-                {abas.map((item) => (
+                {abas.map((item) => item === "sistema" ? (
+                  <button key={item} type="button" disabled data-em-breve>
+                    <IconeFrontendV2 nome={ABAS[item].icone} />
+                    {ABAS[item].rotulo}
+                    {textos.automacao.emBreve && <SeloEmBreve texto={textos.automacao.emBreve.selo} className="ml-auto" />}
+                  </button>
+                ) : (
                   <button key={item} type="button" aria-current={aba === item ? "page" : undefined}
                     onClick={() => onSelecionar(item)}>
                     <IconeFrontendV2 nome={ABAS[item].icone} />
                     {ABAS[item].rotulo}
                   </button>
                 ))}
+                {rotulo === GRUPOS[0].rotulo && textos.automacao.emBreve && (
+                  <button type="button" disabled data-em-breve>
+                    <IconeFrontendV2 nome="sparkling-2-line" />
+                    {textos.automacao.emBreve.personalidade}
+                    <SeloEmBreve texto={textos.automacao.emBreve.selo} className="ml-auto" />
+                  </button>
+                )}
               </div>
             ))}
             {clinica && (

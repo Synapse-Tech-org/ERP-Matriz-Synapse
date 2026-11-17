@@ -269,18 +269,64 @@ html[data-cor-destaque]:not([data-cor-destaque="azul"]) {
   --ring: var(--cor-destaque);
 }
 
-html.dark[data-cor-destaque] {
+/*
+ * Modo escuro completo. `html.dark` (0,1,1) vence o :root injetado pelo tema (0,1,0) e o `.dark`
+ * do shadcn, em qualquer ordem de carga. Antes só fundo, cartão e "muted" trocavam: texto, bordas,
+ * acento e o canvas continuavam os do tema claro, e os avatares/tags herdavam os cinzas de
+ * `--chart-*` do `.dark`. A cor de destaque escolhida continua mandando em `--primary`
+ * (regra `html[data-cor-destaque]:not(azul)`, mais específica).
+ */
+html.dark {
   color-scheme: dark;
   --crm-v2-fundo: #0e1220;
+  --crm-v2-canvas: #090c16;
   --crm-v2-cartao: #171c2b;
   --crm-v2-suave: #20263a;
   --crm-v2-texto: #f2f4f8;
+  --crm-v2-texto-padrao: #d8dde7;
   --crm-v2-texto-suave: #a4adbf;
+  --crm-v2-texto-fraco: #7f889b;
   --crm-v2-borda: #32394d;
+  --crm-v2-borda-suave: #262c3e;
+
+  /* Tokens Synapse (lidos direto por componentes fora do shadcn). */
+  --fundo-app: var(--crm-v2-fundo);
+  --fundo-canvas: var(--crm-v2-canvas);
+  --fundo-superficie: var(--crm-v2-cartao);
+  --fundo-sutil: var(--crm-v2-suave);
+  --texto-forte: var(--crm-v2-texto);
+  --texto-padrao: var(--crm-v2-texto-padrao);
+  --texto-suave: var(--crm-v2-texto-suave);
+  --texto-fraco: var(--crm-v2-texto-fraco);
+  --borda: var(--crm-v2-borda);
+  --borda-forte: var(--crm-v2-borda);
+  --borda-suave: var(--crm-v2-borda-suave);
+  --cor-primaria-suave: color-mix(in srgb, var(--cor-primaria) 20%, var(--crm-v2-cartao));
+
+  /* Aliases shadcn. */
   --background: var(--crm-v2-fundo);
+  --foreground: var(--crm-v2-texto-padrao);
   --card: var(--crm-v2-cartao);
+  --card-foreground: var(--crm-v2-texto-padrao);
   --popover: var(--crm-v2-cartao);
+  --popover-foreground: var(--crm-v2-texto-padrao);
+  --primary: var(--cor-primaria);
+  --primary-foreground: var(--cor-primaria-texto);
+  --secondary: var(--crm-v2-suave);
+  --secondary-foreground: var(--crm-v2-texto);
   --muted: var(--crm-v2-suave);
+  --muted-foreground: var(--crm-v2-texto-suave);
+  --accent: color-mix(in srgb, var(--primary) 20%, var(--crm-v2-cartao));
+  --accent-foreground: color-mix(in srgb, var(--primary) 55%, var(--crm-v2-texto));
+  --border: var(--crm-v2-borda);
+  --input: var(--crm-v2-borda);
+  --ring: var(--primary);
+  --chat-texto-forte: var(--crm-v2-texto);
+  --chart-1: var(--cor-info);
+  --chart-2: var(--cor-ia);
+  --chart-3: var(--cor-destaque-2);
+  --chart-4: var(--cor-destaque-3);
+  --chart-5: var(--cor-atencao);
 }
 
 .previa-de-tema {
@@ -294,3 +340,79 @@ html.dark[data-cor-destaque] {
 }
 .previa-de-tema > :first-child { background: var(--cor-destaque, var(--primary)); }
 .previa-de-tema > :last-child { background: color-mix(in srgb, var(--card) 65%, transparent); }
+
+/*
+ * Menus e seletores no estilo do protótipo, só quando a rota está no layout V2 (o shell marca
+ * html[data-visual="v2"]). Vale para Select, DropdownMenu e o seletor múltiplo, inclusive quando
+ * abrem em portal. O gatilho usa :where() para as telas V2 que já o ajustam continuarem mandando.
+ */
+:where(html[data-visual="v2"]) :is([data-slot="select-trigger"], button[data-seletor-multiplo]) {
+  border-color: var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--sombra-sm);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+:where(html[data-visual="v2"]) :is([data-slot="select-trigger"]:not([data-size="sm"]), button[data-seletor-multiplo]) {
+  min-height: 40px;
+  padding-inline: 12px 10px;
+}
+:where(html[data-visual="v2"]) :is([data-slot="select-trigger"], button[data-seletor-multiplo]) > svg:last-child {
+  color: var(--texto-fraco, var(--muted-foreground));
+}
+
+html[data-visual="v2"] :is([data-slot="select-content"], [data-slot="dropdown-menu-content"], [data-slot="popover-content"][data-seletor-multiplo]) {
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--popover);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 24px 60px -20px rgb(11 19 36 / 35%);
+}
+
+html[data-visual="v2"] :is([data-slot="select-item"], [data-slot="dropdown-menu-item"], [data-seletor-multiplo] [role="option"]) {
+  min-height: 38px;
+  gap: 10px;
+  padding-block: 0;
+  padding-left: 10px;
+  border-radius: 11px;
+  color: var(--chat-texto-forte);
+  font-size: 13.5px;
+}
+html[data-visual="v2"] [data-slot="dropdown-menu-item"] { padding-right: 10px; }
+html[data-visual="v2"] [data-slot="select-item"] { padding-right: 32px; }
+html[data-visual="v2"] [data-seletor-multiplo] [role="option"] { padding-right: 10px; }
+
+html[data-visual="v2"] :is([data-slot="select-item"], [data-slot="dropdown-menu-item"])[data-highlighted],
+html[data-visual="v2"] [data-seletor-multiplo] [role="option"]:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--muted) 60%, var(--card));
+  color: var(--chat-texto-forte);
+}
+html[data-visual="v2"] [data-slot="select-item"][data-selected],
+html[data-visual="v2"] [data-seletor-multiplo] [role="option"][aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 75%, var(--card));
+  font-weight: 600;
+}
+html[data-visual="v2"] [data-slot="select-item"] svg { color: var(--primary); }
+html[data-visual="v2"] [data-slot="dropdown-menu-item"][data-variant="destructive"] { color: var(--destructive); }
+
+html[data-visual="v2"] [data-seletor-multiplo] [role="option"] > span:first-child {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--input);
+  border-radius: 6px;
+  background: var(--card);
+}
+html[data-visual="v2"] [data-seletor-multiplo] [role="option"][aria-selected="true"] > span:first-child {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+html[data-visual="v2"] [data-slot="select-content"] { min-width: 220px; }
+html[data-visual="v2"] :is([data-slot="select-item"], [data-slot="dropdown-menu-item"]):is([data-selected], [data-highlighted], :focus) {
+  color: var(--chat-texto-forte);
+}
+html[data-visual="v2"] :is([data-slot="select-item"], [data-slot="dropdown-menu-item"]):is([data-selected], [data-highlighted], :focus) *:not(svg) {
+  color: inherit;
+}
+html[data-visual="v2"] [data-slot="dropdown-menu-content"] { min-width: 200px; }

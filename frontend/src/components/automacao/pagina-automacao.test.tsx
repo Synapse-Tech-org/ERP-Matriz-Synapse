@@ -18,6 +18,7 @@ const PARAMETROS = [
   { chave: "clinica.regua_consultas", valor: JSON.stringify({ inicio: "08:00", fim: "18:00", antecedencia: 24,
     confirmacao: "", lembrete: "", reengajamento: "" }), unidade: null, tipo: "TEXT", valorMin: null, valorMax: null, descricao: "" },
   { chave: "followup.primeiro.minutos", valor: "15", unidade: "minutos", tipo: "INT", valorMin: 1, valorMax: 1440, descricao: "Tempo sem resposta do lead.", atualizadoEm: "2026-01-01T00:00:00Z" },
+  { chave: "atendimento.finalizar_apos_horas", valor: "24", unidade: "horas", tipo: "INT", valorMin: 1, valorMax: 720, descricao: "Finaliza atendimentos inativos.", atualizadoEm: "2026-01-01T00:00:00Z" },
   { chave: "automacao.habilitada", valor: "true", unidade: null, tipo: "BOOLEAN", valorMin: null, valorMax: null, descricao: "Chave geral da automação.", atualizadoEm: "2026-01-01T00:00:00Z" },
 ];
 
@@ -51,6 +52,7 @@ const TEXTOS = {
     abas: { geral: "Geral", followUp: "Follow-up", fidelizacao: "Fidelização" },
     disponibilidade: { titulo: "Atendentes Disponíveis", descricao: "Defina quais atendentes estão disponíveis agora para a IA direcionar clientes.", rotuloAtual: "DISPONIBILIDADE ATUAL", contagem: "{disponiveis} de {total} disponíveis", vazio: "Nenhum atendente ativo cadastrado.", erro: "Erro equipe" },
     recursosIa: { titulo: "Recursos de IA", resumo: "Resumo automático por IA", resumoDescricao: "Gera um resumo do atendimento ao finalizar.", preenchimento: "Preenchimento automático", preenchimentoDescricao: "Preenche dados do cliente a partir da conversa.", ativado: "Ativado", desativado: "Desativado", gatilho: "Gatilho", quantidade: "Mensagens" },
+    emBreve: { selo: "Em breve", personalidade: "Personalidade da IA", parametro: "Este ajuste ainda não tem efeito nesta versão." },
     avancado: { titulo: "Parâmetros avançados", descricao: "Valores operacionais lidos diretamente pela Automação.", abrir: "Abrir parâmetros avançados", fechar: "Fechar parâmetros avançados" },
     regras: {
       novo: "Nova regra", novoFollowUp: "Novo follow-up", novaMensagem: "Nova mensagem", followUpContagemSingular: "{quantidade} follow-up", followUpsContagem: "{quantidade} follow-ups", mensagemContagemSingular: "{quantidade} mensagem", mensagensContagem: "{quantidade} mensagens", editar: "Editar", ativar: "Ativar regra", desativar: "Desativar regra", excluir: "Excluir", confirmarExclusao: "Excluir esta regra?", cancelar: "Cancelar", ativo: "Ativo", inativo: "Inativo", vazio: "Vazio", vazioFollowUp: "Nenhum follow-up cadastrado.", vazioFidelizacao: "Nenhuma mensagem cadastrada.", erro: "Erro regras", erroSalvar: "Não foi possível salvar. O valor anterior foi restaurado.", unidadeHora: "hora", unidadeHoras: "Horas", unidadeDia: "dia", unidadeDias: "Dias", tempo: "TEMPO SEM RESPOSTA PARA ENVIAR", dias: "DIAS SEM ENTRAR EM CONTATO", diasSemContato: "dias sem contato", mensagem: "MENSAGEM", preview: "Prévia", previewNome: "Marcos", placeholderAjuda: "Use {nome}", mensagemNovaFollowUp: "Olá, {nome}!", mensagemNovaFidelizacao: "Olá novamente, {nome}!", visualizacaoWhatsapp: "VISUALIZAÇÃO NO WHATSAPP", online: "online", hoje: "HOJE", horario: "09:14", composer: "Mensagem", previewVazio: "Sua mensagem aparecerá aqui…", badgeFollowUp: "{tempo} sem resposta", badgeFidelizacao: "{dias} sem contato", gatilhoFollowUp: "Enviado após {tempo} sem resposta", gatilhoFidelizacao: "Enviado após {dias} sem contato",
@@ -250,10 +252,20 @@ describe("pagina de automacao", () => {
   it("mantem a faixa numerica vinda do backend", () => {
     render(<PaginaAutomacao />);
     fireEvent.click(screen.getByText("Parâmetros avançados"));
-    expect(screen.getByText("Faixa: 1–1440 minutos")).toBeInTheDocument();
-    const linha = screen.getByText("followup.primeiro.minutos").parentElement?.parentElement?.parentElement;
+    expect(screen.getByText("Faixa: 1–720 horas")).toBeInTheDocument();
+    const linha = screen.getByText("atendimento.finalizar_apos_horas").parentElement?.parentElement?.parentElement;
     expect(linha).toBeTruthy();
-    fireEvent.change(within(linha!).getByDisplayValue("15"), { target: { value: "9999" } });
+    fireEvent.change(within(linha!).getByDisplayValue("24"), { target: { value: "9999" } });
     expect(within(linha!).getByRole("alert")).toHaveTextContent("Valor fora da faixa");
+  });
+
+  it("parametro sem efeito aparece com Em breve, so leitura e sem Salvar", () => {
+    render(<PaginaAutomacao />);
+    fireEvent.click(screen.getByText("Parâmetros avançados"));
+    const linha = screen.getByText("followup.primeiro.minutos").parentElement?.parentElement?.parentElement as HTMLElement;
+    expect(within(linha).getByText("Em breve")).toBeInTheDocument();
+    expect(within(linha).getByText("Este ajuste ainda não tem efeito nesta versão.")).toBeInTheDocument();
+    expect(within(linha).getByDisplayValue("15")).toBeDisabled();
+    expect(within(linha).queryByRole("button", { name: "Salvar" })).not.toBeInTheDocument();
   });
 });

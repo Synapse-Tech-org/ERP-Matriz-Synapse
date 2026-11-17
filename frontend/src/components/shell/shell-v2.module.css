@@ -340,3 +340,25 @@
 :global(html[data-cor-destaque]) .canvas {
   --sidebar-item-icone-ativo: var(--cor-destaque);
 }
+
+/* Modo escuro: busca, bloco do perfil e anéis de presença acompanham o cartão escuro. */
+:global(html.dark) .canvas {
+  --fundo-sidebar-bloco: var(--crm-v2-cartao);
+}
+:global(html.dark) .canvas :global([data-slot="sidebar-busca"]) :global([data-slot="dashboard-busca"]) {
+  border-color: var(--crm-v2-borda);
+  background: color-mix(in srgb, var(--crm-v2-suave) 80%, transparent);
+  box-shadow: none;
+}
+:global(html.dark) .canvas :global([data-slot="sidebar-busca"]) kbd {
+  border-color: var(--crm-v2-borda);
+  background: var(--crm-v2-cartao);
+}
+:global(html.dark) .canvas :global([data-slot="sidebar-presenca"]) { border-color: var(--crm-v2-cartao); }
+:global(html.dark) .canvas :global([data-slot="sidebar-perfil"]) {
+  border-color: var(--crm-v2-borda);
+  background: color-mix(in srgb, var(--crm-v2-suave) 80%, transparent);
+  box-shadow: none;
+}
+:global(html.dark) .canvas :global([data-slot="sidebar-perfil"]):hover { background: var(--crm-v2-suave); }
+:global(html.dark) .canvas :global([data-slot="sidebar-link"]) :is(.icone, svg) { color: var(--crm-v2-texto-suave); }
