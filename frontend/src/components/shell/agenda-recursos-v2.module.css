@@ -289,6 +289,19 @@
   .avisoExclusao { bottom: 76px; }
 }
 :global(html.dark) .paleta, :global(html.dark) .formulario {
+  --accent: color-mix(in srgb, var(--primary) 20%, var(--crm-v2-cartao));
+  --accent-foreground: color-mix(in srgb, var(--primary) 55%, var(--crm-v2-texto));
+  --agenda-borda-cartao: var(--crm-v2-borda);
+  --agenda-divisoria: var(--crm-v2-borda-suave);
+  --agenda-texto-secundario: var(--crm-v2-texto-padrao);
+  --agenda-texto-suave: var(--crm-v2-texto-fraco);
+  --agenda-cinza-fundo: var(--crm-v2-suave);
+  --agenda-roxo-fundo: color-mix(in srgb, var(--agenda-roxo) 22%, var(--crm-v2-cartao));
+  --agenda-ambar-fundo: color-mix(in srgb, var(--agenda-ambar) 22%, var(--crm-v2-cartao));
+  --agenda-verde-fundo: color-mix(in srgb, var(--agenda-verde) 22%, var(--crm-v2-cartao));
+  --agenda-vermelho-fundo: color-mix(in srgb, var(--agenda-vermelho) 22%, var(--crm-v2-cartao));
+  --agenda-ardosia: var(--crm-v2-texto-suave);
+  --agenda-sombra: none;
   --background: var(--crm-v2-fundo);
   --foreground: var(--crm-v2-texto);
   --card: var(--crm-v2-cartao);
@@ -307,3 +320,23 @@
   --ring: var(--cor-destaque);
   --accent-foreground: var(--cor-destaque);
 }
+/* Modo escuro: tons fixos claros de Lembretes, Programadas e formulários trocados por equivalentes escuros. */
+:global(html.dark) .barra > :global(button[aria-pressed="true"]) { border-color: color-mix(in srgb, var(--agenda-roxo) 40%, transparent); }
+:global(html.dark) .aviso { border-color: color-mix(in srgb, var(--agenda-roxo) 40%, transparent); color: var(--crm-v2-texto); }
+:global(html.dark) .aviso p { color: var(--crm-v2-texto-suave); }
+:global(html.dark) .cartao tr:hover > td { background: var(--crm-v2-suave); }
+:global(html.dark) .lembretesTabela [data-concluido="true"] :is(.textoLembrete, time),
+:global(html.dark) .programadasTabela [data-status="CANCELADA"] :is(time, .conteudoProgramada) { color: var(--crm-v2-texto-fraco); }
+:global(html.dark) .lead { border-color: var(--crm-v2-borda); color: var(--crm-v2-texto-padrao); }
+:global(html.dark) .lead:hover { border-color: color-mix(in srgb, var(--primary) 45%, transparent); background: var(--accent); color: var(--crm-v2-texto); }
+:global(html.dark) .lembretesTabela .marca { border-color: var(--crm-v2-texto-fraco); background: transparent; }
+:global(html.dark) .lembretesTabela [data-atrasado="true"] .marca { border-color: #e5867c; }
+:global(html.dark) .menuAdiar:global([data-slot="popover-content"]) { border-color: var(--crm-v2-borda); background: var(--crm-v2-cartao); color: var(--crm-v2-texto); }
+:global(html.dark) :is(.menuAdiar :global([data-slot="popover-title"]), .menuAdiar button span) { color: var(--crm-v2-texto-fraco); }
+:global(html.dark) :is(.menuAdiar button:hover, .acaoProgramada:hover) { background: var(--crm-v2-suave); }
+:global(html.dark) .formulario :is(:global([data-slot="dialog-header"]), :global([data-slot="dialog-footer"])) { border-color: var(--crm-v2-borda); }
+:global(html.dark) .formulario :global([data-slot="dialog-close"]) { color: var(--crm-v2-texto-suave); }
+:global(html.dark) .atalhos button { background: var(--crm-v2-cartao); color: var(--crm-v2-texto-padrao); }
+:global(html.dark) .atalhos button[aria-pressed="true"] { border-color: color-mix(in srgb, var(--primary) 45%, transparent); background: var(--accent); color: var(--accent-foreground); }
+:global(html.dark) .buscaLeadFormulario { border-bottom-color: var(--crm-v2-borda); }
+:global(html.dark) :is(.leadsFormulario label:hover, .leadsFormulario label:has(:checked)) { background: var(--crm-v2-suave); }
