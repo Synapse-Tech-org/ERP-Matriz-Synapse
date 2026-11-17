@@ -28,6 +28,7 @@ const glifos = {
   "arrow-up-line": "\uea76",
   "arrow-down-line": "\uea4c",
   "arrow-right-up-line": "\uea70",
+  "arrow-right-up-fill": "\uea6f",
   "search-line": "\uf0d1",
   "notification-3-line": "\uef94",
   "chat-smile-2-line": "\ueb6f",
