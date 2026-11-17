@@ -557,12 +557,9 @@
   white-space: nowrap;
 }
 
-.pagina :global([data-slot="lista-conversas-menu"]) {
-  width: 24px;
-  height: 24px;
-  flex: none;
-  border-radius: 7px;
-  color: var(--texto-fraco, var(--muted-foreground));
+/* "⋮" da lista: mesmo botão dos demais (borda, fundo, 36px), ícone na cor de texto forte. */
+.pagina :global([data-slot="lista-conversas-acoes"]) > :global([data-slot="lista-conversas-menu"]) {
+  color: var(--chat-texto-forte);
 }
 
 .pagina :global([data-slot="lista-conversas-acoes"]) {

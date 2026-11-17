@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listarConversasChat } from "@/lib/chat-interno/api";
 import { previewUltimaMensagem } from "@/lib/chat-interno/mensagem-sistema";
 import { useEtapas } from "@/lib/lead/use-painel-lead";
-import { LayoutDashboard, MoreHorizontal, Plus, Search, SlidersHorizontal, UserPlus, UsersRound, X } from "lucide-react";
+import { LayoutDashboard, MoreHorizontal, MoreVertical, Plus, Search, SlidersHorizontal, UserPlus, UsersRound, X } from "lucide-react";
 import { ListaFilaOperacional } from "./painel-operacional";
 import { totalizarOperacional, useFilaOperacional, useSnapshotOperacional, type FiltroOperacional, type ConsultaFilaOperacional } from "@/lib/atendimento/painel-operacional";
 
@@ -461,7 +461,9 @@ function ListaConversasBase({
                 className="inline-flex size-10 items-center justify-center rounded-[var(--raio-botao-md)] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={textos.finalizar.todosMenu}
               >
-                <MoreHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />
+                {layoutV2
+                  ? <MoreVertical className="size-(--tamanho-icone-interface)" aria-hidden />
+                  : <MoreHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {/* Ponto futuro de Registrar venda: este menu e o ciclo explicitamente selecionado.
@@ -492,8 +494,8 @@ function ListaConversasBase({
             : <h1 className={cn("min-w-0 break-words text-lg font-bold tracking-tight text-foreground", painelOperacionalPermitido && "text-sm text-primary")}>{onVoltarPainel
             ? <button type="button" onClick={onVoltarPainel} className="rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={catalogo.painelOperacional.voltar}>{catalogo.menu.itens.atendimentos}</button>
             : catalogo.menu.itens.atendimentos}</h1>}
-          {layoutV2 && menuDaLista}
           <div data-slot="lista-conversas-acoes" className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1">
+            {layoutV2 && menuDaLista}
             {layoutV2 && <CentralDeAvisos mostrarContagem />}
             {layoutV2 && botaoFiltros}
             {!layoutV2 && menuDaLista}

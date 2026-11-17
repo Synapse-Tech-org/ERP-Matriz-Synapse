@@ -154,6 +154,9 @@ describe("painel operacional com componentes reais", () => {
     const botao = screen.getByRole("button", { name: "Voltar ao painel de Atendimentos" });
     expect(botao).toHaveAttribute("data-slot", "lista-visao-geral");
     expect(botao.nextElementSibling).toHaveAttribute("data-slot", "novo-atendimento");
+    const menu = screen.getByRole("button", { name: "Mais ações" });
+    expect(menu.parentElement).toHaveAttribute("data-slot", "lista-conversas-acoes");
+    expect(menu.parentElement?.firstElementChild).toBe(menu);
     fireEvent.click(botao);
     expect(voltar).toHaveBeenCalledOnce();
   });
