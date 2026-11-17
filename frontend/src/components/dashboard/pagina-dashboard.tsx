@@ -356,7 +356,7 @@ export function PaginaDashboard() {
                   <IconeFrontendV2 nome="calendar-2-line" />
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false}>
+                <SelectContent alignItemWithTrigger={false} align="start">
                   {opcoesDeAno.map(({ valor, rotulo }) => <SelectItem key={valor} value={valor}>{rotulo}</SelectItem>)}
                 </SelectContent>
               </Select>
