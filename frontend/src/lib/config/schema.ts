@@ -1752,6 +1752,11 @@ export const TextosSchema = z.object({
     }),
   }),
   automacao: z.object({
+    emBreve: z.object({
+      selo: z.string().default("Em breve"),
+      personalidade: z.string().default("Personalidade da IA"),
+      parametro: z.string().default("Este ajuste ainda não tem efeito nesta versão."),
+    }).prefault({}),
     confirmacoesConsultas: z.object({
       rotulo: z.string(), titulo: z.string(), descricao: z.string(),
       janela: z.string(), inicio: z.string(), fim: z.string(), antecedencia: z.string(),

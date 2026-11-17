@@ -2474,6 +2474,11 @@
     }
   },
   "automacao": {
+    "emBreve": {
+      "selo": "Em breve",
+      "personalidade": "Personalidade da IA",
+      "parametro": "Este ajuste ainda não tem efeito nesta versão."
+    },
     "confirmacoesConsultas": {
       "rotulo": "Confirmações e lembretes",
       "titulo": "Confirmações e lembretes de consultas",
