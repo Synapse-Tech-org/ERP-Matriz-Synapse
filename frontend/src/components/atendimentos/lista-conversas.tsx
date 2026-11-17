@@ -60,6 +60,10 @@ type Props = {
   onAtendimentosAtualizados?: (atendimentos: ItemInbox[]) => void;
   onAbrirAtendimento: (cartao: ItemInbox) => void;
   chatInternoHabilitado?: boolean;
+  /** Flag `atendimentos_aba_interno`: aba "Interno" só com os chats internos (V2). */
+  abaInternoHabilitada?: boolean;
+  /** Flag `atendimentos_finalizados_so_no_menu`: gestor acessa Finalizados só pelo menu da lista. */
+  finalizadosSoNoMenu?: boolean;
   contatosInternos?: ChatContato[];
   contatosInternosCarregando?: boolean;
   contatosInternosErro?: boolean;
@@ -126,7 +130,7 @@ type ConsultaDeInternos = Pick<ReturnType<typeof useQuery<Awaited<ReturnType<typ
 type PropsInternas = Props & { consultaInternos?: ConsultaDeInternos };
 
 export function ListaConversas(props: Props) {
-  return props.layoutV2 && props.chatInternoHabilitado
+  return props.layoutV2 && props.chatInternoHabilitado && props.abaInternoHabilitada
     ? <ListaConversasComAbaInterna {...props} />
     : <ListaConversasRoteada {...props} />;
 }
@@ -194,6 +198,7 @@ function ListaConversasBase({
   onAtendimentosAtualizados,
   onAbrirAtendimento,
   chatInternoHabilitado = false,
+  finalizadosSoNoMenu = false,
   contatosInternos = [],
   contatosInternosCarregando = false,
   contatosInternosErro = false,
@@ -441,7 +446,7 @@ function ListaConversasBase({
     </Button>
   );
 
-  const menuDaLista = (!layoutV2 || !painelOperacionalPermitido || podeFinalizarEmLote) && (
+  const menuDaLista = (!layoutV2 || !painelOperacionalPermitido || podeFinalizarEmLote || finalizadosSoNoMenu) && (
     <DropdownMenu>
               <DropdownMenuTrigger
                 data-slot="lista-conversas-menu"
@@ -561,10 +566,10 @@ function ListaConversasBase({
           variant="line"
           className={cn(
             "mx-4 mt-3 flex h-auto w-[calc(100%-2rem)] justify-start gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden p-0 md:grid md:gap-1 md:overflow-x-hidden",
-            painelOperacionalPermitido ? "grid-cols-5 gap-0 overflow-x-hidden group-data-horizontal/tabs:h-auto" : papelAmplo ? "md:grid-cols-4" : "md:grid-cols-3",
+            painelOperacionalPermitido ? (finalizadosSoNoMenu ? "grid-cols-4" : "grid-cols-5") + " gap-0 overflow-x-hidden group-data-horizontal/tabs:h-auto" : papelAmplo ? "md:grid-cols-4" : "md:grid-cols-3",
           )}
         >
-          {(painelOperacionalPermitido ? [...ABAS_GESTAO, "FINALIZADOS" as const] : abas).map((item) => (
+          {(painelOperacionalPermitido ? finalizadosSoNoMenu ? ABAS_GESTAO : [...ABAS_GESTAO, "FINALIZADOS" as const] : abas).map((item) => (
             <TabsTrigger
               key={item}
               value={item}
