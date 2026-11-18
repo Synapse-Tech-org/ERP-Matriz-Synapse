@@ -20,9 +20,11 @@ const estadoSidebar = vi.hoisted(() => ({
   onFocoFora: undefined as undefined | (() => void),
 }));
 const rota = vi.hoisted(() => ({ atual: "/atendimentos" }));
-const funcionalidades = vi.hoisted(() => ({ flags: [] as string[] }));
+const funcionalidades = vi.hoisted(() => ({ flags: [] as string[], carregando: false }));
 vi.mock("@/lib/config/use-funcionalidades", () => ({
-  useFuncionalidadesHabilitadas: () => ({ data: funcionalidades.flags }),
+  useFuncionalidadesHabilitadas: () => funcionalidades.carregando
+    ? { data: undefined, isPending: true }
+    : { data: funcionalidades.flags, isPending: false },
 }));
 vi.mock("next/font/google", () => ({ Geist: () => ({ variable: "fonte-v2-de-teste" }) }));
 
@@ -96,6 +98,7 @@ describe("ShellComSidebar", () => {
 
   beforeEach(() => {
     funcionalidades.flags = [];
+    funcionalidades.carregando = false;
     rota.atual = "/atendimentos";
     telaEstreita = false;
     notificarMudanca = undefined;
@@ -132,6 +135,23 @@ describe("ShellComSidebar", () => {
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-fixada", "false");
     expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
     expect(screen.queryByTestId("navegacao-inferior")).not.toBeInTheDocument();
+  });
+
+  it("não desenha o layout antigo enquanto as flags do layout V2 ainda carregam", () => {
+    funcionalidades.carregando = true;
+    rota.atual = "/dashboard";
+    const shell = render(<ShellComSidebar><p>Dashboard</p></ShellComSidebar>);
+
+    expect(screen.queryByTestId("sidebar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Dashboard")).not.toBeInTheDocument();
+    expect(document.querySelector("[data-slot='page-canvas']")).toHaveAttribute("aria-busy", "true");
+
+    funcionalidades.carregando = false;
+    funcionalidades.flags = ["dashboard_layout_v2"];
+    shell.rerender(<ShellComSidebar><p>Dashboard</p></ShellComSidebar>);
+
+    expect(screen.getByText("Dashboard")).toBeInTheDocument();
+    expect(slotDaSidebar().closest("[data-slot='page-canvas']")).toHaveClass("fonte-v2-de-teste");
   });
 
   it("usa a geometria da referência no Dashboard v2 sem alterar Atendimentos", () => {
