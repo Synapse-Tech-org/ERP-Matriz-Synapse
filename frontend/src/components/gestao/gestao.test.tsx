@@ -189,6 +189,12 @@ describe("Gestão", () => {
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
   });
 
+  it("Configurações gerais aparece só para quem pode ver os parâmetros da automação", () => {
+    subgestorQueEditaPerfis(["automacao.ver"]);
+    render(<PaginaGestao />);
+    expect(screen.getByRole("tab", { name: TEXTOS.abas.geral })).toBeInTheDocument();
+  });
+
   it("selo reflete o papel real: Administrador não vira 'somente gestor'", () => {
     minhas = minhasDe("ADMINISTRADOR", true);
     render(<PaginaGestao />);

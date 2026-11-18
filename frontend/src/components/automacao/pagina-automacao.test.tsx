@@ -19,6 +19,7 @@ const PARAMETROS = [
     confirmacao: "", lembrete: "", reengajamento: "" }), unidade: null, tipo: "TEXT", valorMin: null, valorMax: null, descricao: "" },
   { chave: "followup.primeiro.minutos", valor: "15", unidade: "minutos", tipo: "INT", valorMin: 1, valorMax: 1440, descricao: "Tempo sem resposta do lead.", atualizadoEm: "2026-01-01T00:00:00Z" },
   { chave: "atendimento.finalizar_apos_horas", valor: "24", unidade: "horas", tipo: "INT", valorMin: 1, valorMax: 720, descricao: "Finaliza atendimentos inativos.", atualizadoEm: "2026-01-01T00:00:00Z" },
+  { chave: "ia.preenchimento_automatico.intervalo_horas", valor: "24", unidade: "horas", tipo: "INT", valorMin: 1, valorMax: 720, descricao: "Intervalo do preenchimento.", atualizadoEm: "2026-01-01T00:00:00Z" },
   { chave: "automacao.habilitada", valor: "true", unidade: null, tipo: "BOOLEAN", valorMin: null, valorMax: null, descricao: "Chave geral da automação.", atualizadoEm: "2026-01-01T00:00:00Z" },
 ];
 
@@ -253,7 +254,9 @@ describe("pagina de automacao", () => {
     render(<PaginaAutomacao />);
     fireEvent.click(screen.getByText("Parâmetros avançados"));
     expect(screen.getByText("Faixa: 1–720 horas")).toBeInTheDocument();
-    const linha = screen.getByText("atendimento.finalizar_apos_horas").parentElement?.parentElement?.parentElement;
+    // A chave da finalização por inatividade é editada em Gestão › Configurações gerais.
+    expect(screen.queryByText("atendimento.finalizar_apos_horas")).not.toBeInTheDocument();
+    const linha = screen.getByText("ia.preenchimento_automatico.intervalo_horas").parentElement?.parentElement?.parentElement;
     expect(linha).toBeTruthy();
     fireEvent.change(within(linha!).getByDisplayValue("24"), { target: { value: "9999" } });
     expect(within(linha!).getByRole("alert")).toHaveTextContent("Valor fora da faixa");
