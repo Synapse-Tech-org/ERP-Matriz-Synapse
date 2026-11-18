@@ -16,6 +16,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/lib/config/use-funcionalidades", () => ({ useFuncionalidadesHabilitadas: () => ({ data: funcionalidades }) }));
 vi.mock("./aba-equipe", () => ({ AbaEquipe: () => <div>aba equipe</div> }));
+vi.mock("@/components/shell/cabecalho-lista-v2", () => ({ CabecalhoListaV2: () => null }));
 
 const salvarPerfil = { mutate: vi.fn(), reset: vi.fn(), isPending: false, error: null as unknown };
 const salvarExcecoes = { mutate: vi.fn(), reset: vi.fn(), isPending: false, error: null as unknown };
@@ -193,6 +194,15 @@ describe("Gestão", () => {
     subgestorQueEditaPerfis(["automacao.ver"]);
     render(<PaginaGestao />);
     expect(screen.getByRole("tab", { name: TEXTOS.abas.geral })).toBeInTheDocument();
+  });
+
+  it("no layout V2, Configurações gerais leva o selo Beta como Perfis de acesso", () => {
+    funcionalidades = ["gestao_layout_v2"];
+    subgestorQueEditaPerfis(["automacao.ver"]);
+    render(<PaginaGestao />);
+    const aba = screen.getAllByRole("tab").find((t) => t.textContent?.includes(TEXTOS.abas.geral));
+    expect(aba).toBeDefined();
+    expect(within(aba!).getByText(TEXTOS.v2.beta)).toBeInTheDocument();
   });
 
   it("selo reflete o papel real: Administrador não vira 'somente gestor'", () => {

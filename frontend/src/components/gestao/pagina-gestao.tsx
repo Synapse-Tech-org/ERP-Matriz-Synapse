@@ -120,7 +120,7 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
                     <span className="rounded-md bg-muted px-1.5 py-px text-[10px] font-bold text-muted-foreground">
                       {textos.abas.emBreve}
                     </span>
-                  ) : layoutV2 && a === "permissoes" ? (
+                  ) : layoutV2 && (a === "permissoes" || a === "geral") ? (
                     <span className={visual.beta}>{textos.v2.beta}</span>
                   ) : contadores[a] != null && (
                     <span className="rounded-md bg-muted px-1.5 py-px text-[10px] font-bold text-muted-foreground tabular-nums">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Clock, MessagesSquare, Star } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
@@ -13,7 +14,7 @@ import {
   type DiaDaSemana, type ExpedienteDoDia, type ModoDoDia,
 } from "@/lib/gestao/configuracoes-gerais";
 
-import { CampoComSalvar, LinhaInterruptor, SecaoConfiguracoes } from "./campos-configuracoes-gerais";
+import { CampoComSalvar, LinhaConfiguracao, LinhaInterruptor, SecaoConfiguracoes } from "./campos-configuracoes-gerais";
 import type { TextosGestao } from "./apoio";
 
 type Textos = TextosGestao["configuracoesGerais"];
@@ -45,10 +46,12 @@ export function AbaConfiguracoesGerais({ textos, editavel }: { textos: TextosGes
   const npsPergunta = p(CHAVES.npsPergunta);
 
   return (
-    <div className="space-y-5" data-slot="configuracoes-gerais">
-      {!editavel && <p role="status" className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">{t.somenteLeitura}</p>}
+    <div className="grid items-start gap-5 xl:grid-cols-2" data-slot="configuracoes-gerais">
+      {!editavel && (
+        <p role="status" className="rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground xl:col-span-2">{t.somenteLeitura}</p>
+      )}
 
-      <SecaoConfiguracoes titulo={t.secoes.atendimentos}>
+      <SecaoConfiguracoes icone={MessagesSquare} titulo={t.secoes.atendimentos}>
         {fim && (
           <LinhaInterruptor parametro={fim} titulo={t.fimExpediente.titulo} descricao={t.fimExpediente.descricao} editavel={editavel} textos={t}>
             {fim.valor === "true" && usarExpediente && horarioFixo && (
@@ -64,36 +67,34 @@ export function AbaConfiguracoesGerais({ textos, editavel }: { textos: TextosGes
           </LinhaInterruptor>
         )}
         {semResposta && (
-          <div className="py-4 first:pt-0 last:pb-0">
-            <p className="text-sm font-semibold">{t.semResposta.titulo}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{t.semResposta.descricao}</p>
-            <CampoComSalvar key={k(semResposta)} className="mt-3" parametro={semResposta} rotulo={t.semResposta.titulo} tipo="number" unidade={t.unidades.minutos} editavel={editavel} textos={t} />
-          </div>
+          <LinhaConfiguracao titulo={t.semResposta.titulo} descricao={t.semResposta.descricao} controle={(
+            <CampoComSalvar key={k(semResposta)} parametro={semResposta} rotulo={t.semResposta.titulo} rotuloOculto tipo="number" unidade={t.unidades.minutos} editavel={editavel} textos={t} />
+          )} />
         )}
         {presenca && <LinhaInterruptor parametro={presenca} titulo={t.presenca.titulo} descricao={t.presenca.descricao} editavel={editavel} textos={t} />}
         {audio && (
-          <div className="py-4 first:pt-0 last:pb-0">
-            <p className="text-sm font-semibold">{t.audio.titulo}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{t.audio.descricao}</p>
-            <CampoComSalvar key={k(audio)} className="mt-3" parametro={audio} rotulo={t.audio.titulo} tipo="number" unidade={t.unidades.segundos} editavel={editavel} textos={t} />
-          </div>
+          <LinhaConfiguracao titulo={t.audio.titulo} descricao={t.audio.descricao} controle={(
+            <CampoComSalvar key={k(audio)} parametro={audio} rotulo={t.audio.titulo} rotuloOculto tipo="number" unidade={t.unidades.segundos} editavel={editavel} textos={t} />
+          )} />
         )}
       </SecaoConfiguracoes>
 
-      <Expediente porChave={porChave} editavel={editavel} textos={t} />
+      <div className="grid min-w-0 gap-5">
+        <Expediente porChave={porChave} editavel={editavel} textos={t} />
 
-      {avaliacao && (
-        <SecaoConfiguracoes titulo={t.secoes.avaliacao}>
-          <LinhaInterruptor parametro={avaliacao} titulo={t.avaliacao.titulo} descricao={t.avaliacao.descricao} editavel={editavel} textos={t} />
-          {nps && (
-            <LinhaInterruptor parametro={nps} titulo={t.avaliacao.nps} descricao={t.avaliacao.npsDescricao} editavel={editavel} textos={t}>
-              {nps.valor === "true" && npsPergunta && (
-                <CampoComSalvar key={k(npsPergunta)} parametro={npsPergunta} rotulo={t.avaliacao.npsPergunta} editavel={editavel} textos={t} />
-              )}
-            </LinhaInterruptor>
-          )}
-        </SecaoConfiguracoes>
-      )}
+        {avaliacao && (
+          <SecaoConfiguracoes icone={Star} titulo={t.secoes.avaliacao}>
+            <LinhaInterruptor parametro={avaliacao} titulo={t.avaliacao.titulo} descricao={t.avaliacao.descricao} editavel={editavel} textos={t} />
+            {nps && (
+              <LinhaInterruptor parametro={nps} titulo={t.avaliacao.nps} descricao={t.avaliacao.npsDescricao} editavel={editavel} textos={t}>
+                {nps.valor === "true" && npsPergunta && (
+                  <CampoComSalvar key={k(npsPergunta)} parametro={npsPergunta} rotulo={t.avaliacao.npsPergunta} editavel={editavel} textos={t} />
+                )}
+              </LinhaInterruptor>
+            )}
+          </SecaoConfiguracoes>
+        )}
+      </div>
     </div>
   );
 }
@@ -108,7 +109,7 @@ function QuandoFinalizar({ usarExpediente, horarioFixo, editavel, textos }: {
     { valor: "false", rotulo: textos.fimExpediente.horarioFixo },
   ];
   return (
-    <div className="flex flex-wrap items-end gap-4 rounded-lg bg-muted/40 p-3">
+    <div className="flex flex-wrap items-end gap-4">
       <div>
         <p className="text-xs font-medium text-muted-foreground">{textos.fimExpediente.quando}</p>
         <Select value={segueExpediente ? "true" : "false"} disabled={!editavel || atualizar.isPending}
@@ -138,20 +139,19 @@ function Expediente({ porChave, editavel, textos }: { porChave: Map<string, Para
     return parametro ? [{ dia, parametro }] : [];
   });
   return (
-    <SecaoConfiguracoes titulo={textos.secoes.expediente} descricao={textos.expediente.descricao}>
-      <div className="py-4 first:pt-0 last:pb-0">
-        <p className="text-sm font-semibold">{textos.expediente.padrao}</p>
-        <div className="mt-3 flex flex-wrap gap-4">
+    <SecaoConfiguracoes icone={Clock} titulo={textos.secoes.expediente} descricao={textos.expediente.descricao}>
+      <LinhaConfiguracao titulo={textos.expediente.padrao} controle={(
+        <div className="flex flex-wrap gap-3">
           <CampoComSalvar key={`${inicio.chave}:${inicio.valor}`} parametro={inicio} rotulo={textos.expediente.inicio} tipo="time" editavel={editavel} textos={textos}
             validar={(valor) => (horarioValido(valor, fim.valor) ? null : textos.expediente.erroFaixa)} />
           <CampoComSalvar key={`${fim.chave}:${fim.valor}`} parametro={fim} rotulo={textos.expediente.fim} tipo="time" editavel={editavel} textos={textos}
             validar={(valor) => (horarioValido(inicio.valor, valor) ? null : textos.expediente.erroFaixa)} />
         </div>
-      </div>
+      )} />
       {dias.length > 0 && (
-        <div className="py-4 first:pt-0 last:pb-0">
+        <div className="py-4">
           <p className="text-sm font-semibold">{textos.expediente.porDia}</p>
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 divide-y rounded-xl border">
             {dias.map(({ dia, parametro }) => (
               <LinhaDoDia key={`${parametro.chave}:${parametro.valor}`} dia={dia} parametro={parametro} padrao={{ inicio: inicio.valor, fim: fim.valor }}
                 editavel={editavel} textos={textos} />
@@ -176,7 +176,7 @@ function LinhaDoDia({ dia, parametro, padrao, editavel, textos }: {
   const alterado = escreverDia(rascunho) !== escreverDia(salvo);
   const nomeDoDia = textos.expediente.dias[dia];
   return (
-    <div className="flex flex-wrap items-center gap-3" data-slot="expediente-dia">
+    <div className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 px-3 py-1.5" data-slot="expediente-dia">
       <span className="w-20 text-sm font-medium">{nomeDoDia}</span>
       <Select value={rascunho.modo} disabled={!editavel}
         onValueChange={(modo) => {
@@ -186,11 +186,14 @@ function LinhaDoDia({ dia, parametro, padrao, editavel, textos }: {
             ? { modo: "proprio", inicio: padrao.inicio, fim: padrao.fim }
             : { ...atual, modo: modo as ModoDoDia }));
         }}>
-        <SelectTrigger className="min-w-44" aria-label={nomeDoDia}><SelectValue>{rotulos[rascunho.modo]}</SelectValue></SelectTrigger>
+        <SelectTrigger className="h-9 min-w-44" aria-label={nomeDoDia}><SelectValue>{rotulos[rascunho.modo]}</SelectValue></SelectTrigger>
         <SelectContent alignItemWithTrigger={false} align="start">
           {(Object.keys(rotulos) as ModoDoDia[]).map((modo) => <SelectItem key={modo} value={modo}>{rotulos[modo]}</SelectItem>)}
         </SelectContent>
       </Select>
+      {rascunho.modo === "padrao" && (
+        <span className="text-sm text-muted-foreground tabular-nums">{padrao.inicio} – {padrao.fim}</span>
+      )}
       {rascunho.modo === "proprio" && (
         <>
           <Input type="time" className="w-32" aria-label={`${nomeDoDia} · ${textos.expediente.inicio}`} value={rascunho.inicio} disabled={!editavel}
