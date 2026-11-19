@@ -554,6 +554,9 @@
       "adicionarFiltro": "Adicionar filtro",
       "carregarMais": "Carregar mais conversas",
       "carregandoMais": "Carregando conversas...",
+      "desatualizada": "Não foi possível atualizar a lista. Mostrando a última versão disponível.",
+      "indisponivel": "Não foi possível carregar a lista de atendimentos.",
+      "tentarNovamente": "Tentar novamente",
       "finalizados": "Ver Finalizados"
     },
     "novoContato": {

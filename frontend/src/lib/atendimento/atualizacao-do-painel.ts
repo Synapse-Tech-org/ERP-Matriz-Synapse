@@ -1,5 +1,6 @@
-import type { QueryClient, QueryKey } from "@tanstack/react-query";
+import type { InfiniteData, QueryClient, QueryFilters, QueryKey } from "@tanstack/react-query";
 
+import type { PaginaInbox } from "./api";
 import { chaveTecnicaDaNotificacao } from "./servico-notificacoes-tempo-real";
 import type { NotificacaoTempoReal } from "./types";
 
@@ -18,7 +19,8 @@ const TIPOS_URGENTES: ReadonlySet<NotificacaoTempoReal["tipo"]> = new Set([
  * E209/E225 — intervalo mínimo entre dois refetches da LISTA (inbox e listas legadas) disparados por eventos. Cada
  * refetch relê TODAS as páginas já carregadas da inbox; sem este limite, uma rajada de mensagens virava uma rajada
  * igual de consultas por aba aberta. A E225 subiu de 2 s para 5 s: no máximo 12 recargas da lista por minuto por aba
- * (eram 30), ao custo de a lista poder ficar até 5 s defasada quando chegam eventos em sequência.
+ * (eram 30) vindas das janelas. Se uma leitura ainda ocupa a chave, fica apenas uma
+ * reconciliação pendente, executada depois dela ao invés de cancelar e reiniciar as páginas.
  *
  * Constante técnica (como a coalescência do som de notificação), não regra de negócio: não muda
  * o que o usuário vê, só quantas vezes o mesmo dado é pedido de novo.
@@ -140,6 +142,7 @@ export class AgendadorDeAtualizacaoDoPainel {
   private readonly chavesLembradas = new Set<string>();
   private readonly lista: JanelaDeCoalescencia;
   private readonly contagem: JanelaDeCoalescencia;
+  private readonly releiturasAposConsulta = new Map<string, Promise<unknown>>();
 
   constructor(
     private readonly cache: QueryClient,
@@ -169,25 +172,47 @@ export class AgendadorDeAtualizacaoDoPainel {
   private recarregarLista(): void {
     const atendimentos = new Set(this.atendimentosDoLote);
     this.atendimentosDoLote.clear();
-    void this.cache.invalidateQueries({
+    this.recarregarSemSobrepor({
       queryKey: ["atendimentos"],
       predicate: (query) => !ehContagem(query.queryKey) && deveReler(query.queryKey, atendimentos),
-      refetchType: this.tipoDeRecarga(),
     });
   }
 
   private recarregarContagem(): void {
-    void this.cache.invalidateQueries({
+    this.recarregarSemSobrepor({
       queryKey: ["atendimentos", "contagem"],
-      refetchType: this.tipoDeRecarga(),
     });
   }
 
   private recarregarTudo(): void {
+    this.releiturasAposConsulta.clear();
     this.atendimentosDoLote.clear();
     this.lista.cobertaPorRecargaAmpla();
     this.contagem.cobertaPorRecargaAmpla();
     void this.cache.invalidateQueries({ queryKey: ["atendimentos"] });
+  }
+
+  private recarregarSemSobrepor(filtro: QueryFilters): void {
+    const tipo = this.tipoDeRecarga();
+    const consultas = this.cache.getQueryCache();
+    for (const consulta of consultas.findAll({ ...filtro, type: "active" })) {
+      const emCurso = consulta.promise;
+      if (consulta.state.fetchStatus === "idle" || !emCurso
+        || this.releiturasAposConsulta.get(consulta.queryHash) === emCurso) continue;
+      this.releiturasAposConsulta.set(consulta.queryHash, emCurso);
+      // A resposta em voo pode ter sido produzida antes do evento. Não a cancele nem
+      // considere o evento coberto: uma única releitura reconcilia o lote depois dela.
+      const reconciliar = () => {
+        if (this.releiturasAposConsulta.get(consulta.queryHash) !== emCurso) return;
+        this.releiturasAposConsulta.delete(consulta.queryHash);
+        if (consultas.get(consulta.queryHash) !== consulta) return;
+        void this.cache.invalidateQueries({
+          queryKey: consulta.queryKey, exact: true, refetchType: this.tipoDeRecarga(),
+        }, { cancelRefetch: false });
+      };
+      void emCurso.then(reconciliar, reconciliar);
+    }
+    void this.cache.invalidateQueries({ ...filtro, refetchType: tipo }, { cancelRefetch: false });
   }
 
   private tipoDeRecarga(): "active" | "none" {
@@ -201,6 +226,20 @@ export class AgendadorDeAtualizacaoDoPainel {
       if (maisAntiga !== undefined) this.chavesLembradas.delete(maisAntiga);
     }
   }
+}
+
+/** Descarta o cartão revogado antes de reler. Uma falha de leitura não pode fazê-lo voltar. */
+export function removerAtendimentoRevogadoDaInbox(cache: QueryClient, atendimentoId: string): void {
+  const filtro = { queryKey: ["atendimentos", "inbox"] };
+  void cache.cancelQueries(filtro);
+  cache.setQueriesData<InfiniteData<PaginaInbox>>(filtro, (atual) => atual && ({
+    ...atual,
+    pages: atual.pages.map(pagina => ({
+      ...pagina,
+      itens: pagina.itens.filter(item => item?.tipo === "EQUIPE_INTERNA"
+        || (item?.atendimentoId !== atendimentoId && item?.atendimentoAtivoId !== atendimentoId)),
+    })),
+  }));
 }
 
 function ehContagem(chave: QueryKey): boolean {

@@ -7,6 +7,7 @@ import { ErroDeApi } from "@/lib/api/errors";
 import { invalidarArquivosDoLead } from "@/lib/lead/invalidar-arquivos";
 
 import { enviarMidia } from "./api";
+import { atualizarPainelDeAtendimentos } from "./atualizacao-do-painel";
 import { atualizarPaginaRecente, identidadeAutenticada } from "./cache-mensagens";
 import { confirmarEnvioNoHistorico } from "./confirmar-envio";
 import { reconciliarEnvioAmbiguo } from "./reconciliar-envio";
@@ -179,7 +180,7 @@ export function useEnviarMidia() {
         confirmarEnvioNoHistorico(atual, contexto.otimista, resposta, identidade),
       );
       if (resposta.transferiuOLead || reconciliada) {
-        queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
+        atualizarPainelDeAtendimentos(queryClient, { atendimentoId: resposta.atendimentoId });
       }
     },
   });

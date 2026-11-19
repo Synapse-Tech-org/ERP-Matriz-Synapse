@@ -508,6 +508,9 @@ export const TextosSchema = z.object({
       adicionarFiltro: z.string().default("Adicionar filtro"),
       carregarMais: z.string(),
       carregandoMais: z.string(),
+      desatualizada: z.string().default("Não foi possível atualizar a lista. Mostrando a última versão disponível."),
+      indisponivel: z.string().default("Não foi possível carregar a lista de atendimentos."),
+      tentarNovamente: z.string().default("Tentar novamente"),
       finalizados: z.string(),
     }),
     novoContato: z.object({

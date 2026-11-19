@@ -8,6 +8,7 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -80,6 +81,7 @@ class InboxUnificadaControllerIT extends PostgresIT {
     void limpar() {
         jdbc.update("DELETE FROM chat_interno_conversa WHERE id = ?", conversa);
         jdbc.update("DELETE FROM chat_interno_conversa WHERE id = ?", grupo);
+        jdbc.update("DELETE FROM mensagem WHERE atendimento_id = ?", atendimentoDoBruno);
         jdbc.update("DELETE FROM atendimento WHERE id = ?", atendimentoDoBruno);
         jdbc.update("DELETE FROM lead WHERE id = ?", leadDoBruno);
     }
@@ -146,6 +148,47 @@ class InboxUnificadaControllerIT extends PostgresIT {
         assertThat(equipeGrupo.path("tipo").asText()).isEqualTo("EQUIPE_INTERNA");
         assertThat(quantidade(corpo, conversa.toString())).isEqualTo(1);
         assertThat(quantidade(corpo, grupo.toString())).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("ATIVOS com RLS: ciclo de colega só aparece após participação consentida; empate não perde cartões")
+    void paginaClienteEEquipeSemPerdaNoMesmoHorario() throws Exception {
+        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        assertThat(ids(json.readTree(paginaAtiva(token, 100, null).getBody())))
+                .doesNotContain(atendimentoDoBruno.toString());
+        jdbc.update("""
+                INSERT INTO atendimento_participante (atendimento_id, usuario_id, origem)
+                VALUES (?, ?, 'CONVITE')
+                """, atendimentoDoBruno, ana);
+        jdbc.update("UPDATE chat_interno_mensagem SET enviado_em = statement_timestamp() WHERE conversa_id IN (?,?)",
+                conversa, grupo);
+        jdbc.update("""
+                INSERT INTO mensagem (atendimento_id, remetente_tipo, tipo, conteudo, status_entrega, enviado_em)
+                SELECT ?, 'LEAD', 'TEXTO', 'teste de cursor', 'ENTREGUE', enviado_em
+                FROM chat_interno_mensagem WHERE conversa_id = ?
+                """, atendimentoDoBruno, grupo);
+
+        var todos = json.readTree(paginaAtiva(token, 100, null).getBody());
+        var esperados = new ArrayList<String>();
+        todos.path("itens").forEach(item -> esperados.add(item.path("identificadorVisual").asText()));
+        assertThat(esperados).contains(conversa.toString(), grupo.toString(), atendimentoDoBruno.toString());
+        var paginados = new ArrayList<String>();
+        String cursor = null;
+        do {
+            var resposta = paginaAtiva(token, 1, cursor);
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            var pagina = json.readTree(resposta.getBody());
+            pagina.path("itens").forEach(item -> paginados.add(item.path("identificadorVisual").asText()));
+            cursor = pagina.path("proximoCursor").asText(null);
+            assertThat(paginados).hasSizeLessThanOrEqualTo(esperados.size());
+        } while (cursor != null);
+        assertThat(paginados).containsExactlyElementsOf(esperados).doesNotHaveDuplicates();
+    }
+
+    private ResponseEntity<String> paginaAtiva(String token, int limite, String cursor) {
+        return ApoioAutenticacao.comToken(http, token, HttpMethod.GET,
+                "/api/v1/atendimentos/inbox?visao=ATIVOS&limite=" + limite
+                        + (cursor == null ? "" : "&cursor=" + cursor), String.class);
     }
 
     @Test

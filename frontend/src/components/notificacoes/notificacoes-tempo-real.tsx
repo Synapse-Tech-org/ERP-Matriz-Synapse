@@ -69,7 +69,7 @@ export function NotificacoesTempoReal() {
     const bruto: unknown = notificacao;
     if (ehAvisoDeFotoDoLead(bruto)) {
       if (!acessoClientes) return;
-      invalidarFotosDeLeads(cache);
+      invalidarFotosDeLeads(cache, bruto.eventoId);
       return; // Não é mensagem: sem som/toast e sem alterar autoria ou histórico.
     }
     if (!acessoClientes && !ehAvisoDeAcessoAlterado(bruto) && !ehAvisoDePresencaAlterada(bruto)
@@ -171,6 +171,9 @@ export function NotificacoesTempoReal() {
       void cache.invalidateQueries({ queryKey: ["me"] });
       void cache.invalidateQueries({ queryKey: ["cancelamentos"] });
       if (acessoClientes) invalidarFotosDeLeads(cache);
+      // O primeiro CONNECT não é motivo para duplicar a leitura inicial. Reconexão pode
+      // ter perdido eventos de clientes ou de equipe: revalide pela mesma fila coalescida.
+      if (ciclo > 1) atualizarPainelDeAtendimentos(cache, { chave: `reconexao:${ciclo}` });
     }
   }, [ciclo, cache, acessoClientes]);
 

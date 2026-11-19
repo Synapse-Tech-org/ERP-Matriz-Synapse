@@ -30,6 +30,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.SynapseCrmApplication;
+import com.synapse.crm.app.inbox.ApoioVolumeInbox;
 import com.synapse.crm.atendimento.application.painel.VisaoAtendimento;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -63,6 +64,47 @@ class PainelFase2EquivalenciaIT extends PostgresIT {
     private UUID bruno;
     private UUID gestor;
     private Instant base;
+
+    @Test
+    @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = "synapse.inbox.benchmark", matches = "true")
+    void medePrimeiraPaginaAtivaComHistoricoERls() {
+        // Fixture isolada e revertida dentro da transação. Sem dados do cliente ou carga em CI.
+        JdbcTemplate consulta = new JdbcTemplate(chat);
+        new TransactionTemplate(new DataSourceTransactionManager(chat)).executeWithoutResult(tx -> {
+            tx.setRollbackOnly();
+            ApoioVolumeInbox.semear(consulta, ana, bruno, base);
+            consulta.execute("SET LOCAL ROLE synapse_app");
+            consulta.execute("SELECT set_config('app.acesso_clientes', 'true', TRUE)");
+            consulta.execute("SELECT set_config('app.papel', 'ATENDENTE', TRUE)");
+            consulta.queryForList("SELECT set_config('app.usuario_id', ?, TRUE)", ana.toString());
+            assertThat(consulta.queryForObject("SELECT row_security_active('atendimento') "
+                    + "AND row_security_active('lead') AND current_user = 'synapse_app'", Boolean.class)).isTrue();
+            var escolha = PainelDeAtendimentosRepositorioJdbc.escolherPagina(
+                    VisaoAtendimento.ATIVOS, ana, true, false, null, null, 51, null);
+            String completa = PainelDeAtendimentosRepositorioJdbc.cartoesDe(escolha.sql());
+            Object[] argumentos = escolha.parametros().toArray();
+            Object[] argumentosDaEscolha = java.util.Arrays.copyOfRange(argumentos, 1, argumentos.length);
+            for (int i = 0; i < 5; i++) {
+                assertThat(consulta.queryForList(completa, argumentos)).hasSize(51);
+            }
+            long[] tempos = new long[40];
+            for (int i = 0; i < tempos.length; i++) {
+                long inicio = System.nanoTime();
+                consulta.queryForList(completa, argumentos);
+                tempos[i] = (System.nanoTime() - inicio) / 1_000;
+            }
+            java.util.Arrays.sort(tempos);
+            System.out.printf("INBOX_BENCHMARK n=40 p50_us=%d p95_us=%d%n", tempos[19], tempos[37]);
+            explicar(consulta, "ESCOLHA", escolha.sql(), argumentosDaEscolha);
+            explicar(consulta, "COMPLETA", completa, argumentos);
+        });
+    }
+
+    private static void explicar(JdbcTemplate jdbc, String etapa, String sql, Object[] argumentos) {
+        System.out.println("INBOX_EXPLAIN " + etapa);
+        jdbc.queryForList("EXPLAIN (ANALYZE, BUFFERS) " + sql, String.class, argumentos)
+                .forEach(System.out::println);
+    }
 
     @BeforeEach
     void semear() {
@@ -188,6 +230,37 @@ class PainelFase2EquivalenciaIT extends PostgresIT {
         assertThat(daAna).isNotEmpty();
         assertThat(doBruno).isNotEmpty();
         assertThat(daAna).doesNotContainAnyElementsOf(doBruno);
+    }
+
+    @Test
+    void ativosPartindoDosLeadsMantemOCicloHistoricoEFiltraODonoAtual() {
+        UUID lead = lead("historico-representativo", ana, "EM_ATENDIMENTO");
+        UUID historico = atendimento(lead, bruno, "FINALIZADO", minutos(-300));
+        UUID aberto = atendimento(lead, ana, "EM_ATENDIMENTO", minutos(-200));
+        // Última mensagem no ciclo antigo (por exemplo, sincronização tardia): o cartão
+        // representa esse ciclo, mas abrir a conversa e filtrar responsável usam o atual.
+        mensagem(historico, "LEAD", minutos(-10));
+        for (UUID filtro : List.of(ana, bruno)) {
+            var escolha = PainelDeAtendimentosRepositorioJdbc.escolherPagina(
+                    VisaoAtendimento.ATIVOS, ana, true, false, null, null, 101, filtro);
+            String original = PainelDeAtendimentosRepositorioJdbc.agrupar(
+                    PainelDeAtendimentosRepositorioJdbc.CAMPOS + PainelDeAtendimentosRepositorioJdbc.ORIGEM
+                            + PainelDeAtendimentosRepositorioJdbc.WHERE_ATIVOS);
+            naTransacaoDoChat("ATENDENTE", ana, consulta -> {
+                var esperados = consulta.queryForList(original, ana, ana).stream()
+                        .filter(cartao -> filtro.equals(cartao.get("atendente_id"))).toList();
+                var atuais = consulta.queryForList(PainelDeAtendimentosRepositorioJdbc.cartoesDe(escolha.sql()),
+                        escolha.parametros().toArray());
+                assertThat(atuais).containsExactlyElementsOf(esperados);
+                assertThat(atuais.stream().filter(cartao -> historico.equals(cartao.get("atendimento_id"))))
+                        .hasSize(filtro.equals(ana) ? 1 : 0);
+                if (filtro.equals(ana)) {
+                    assertThat(atuais.stream().filter(cartao -> historico.equals(cartao.get("atendimento_id")))
+                            .findFirst().orElseThrow()).containsEntry("atendimento_ativo_id", aberto);
+                }
+                return null;
+            });
+        }
     }
 
     @Test

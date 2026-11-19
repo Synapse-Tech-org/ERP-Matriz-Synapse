@@ -201,9 +201,9 @@ describe("NotificacoesTempoReal", () => {
       },
     }));
 
-    expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }));
+    expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }), { cancelRefetch: false });
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["chat-interno"] });
-    expect(invalidar).not.toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos", "contagem"] }));
+    expect(invalidar).not.toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos", "contagem"] }), { cancelRefetch: false });
   });
 
   it("exibe convite, oferece abrir convite e navega para o atendimento pendente", () => {
@@ -274,9 +274,12 @@ describe("NotificacoesTempoReal — ACESSO_ALTERADO (Gestão, docs/47)", () => {
     const cliente = new QueryClient(); const invalidar = vi.spyOn(cliente, "invalidateQueries");
     renderizarCom(cliente); invalidar.mockClear(); mocks.push.mockClear();
     act(() => mocks.callback?.({ tipo: "FOTOS_LEADS_ATUALIZADAS", eventoId: "foto-1", dados: {} } as unknown as NotificacaoTempoReal));
-    for (const chave of ["avatar", "atendimentos", "agenda", "lead"]) {
+    for (const chave of ["avatar", "agenda", "lead"]) {
       expect(invalidar).toHaveBeenCalledWith({ queryKey: [chave] }, { cancelRefetch: false });
     }
+    expect(invalidar).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ["atendimentos"] }), { cancelRefetch: false },
+    );
     expect(mocks.push).not.toHaveBeenCalled();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
@@ -483,9 +486,22 @@ describe("presença alterada pelo sistema (E223)", () => {
     renderizarComCliente(cliente);
 
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["me"] });
-    for (const chave of ["avatar", "atendimentos", "agenda", "lead"]) {
+    for (const chave of ["avatar", "agenda", "lead"]) {
       expect(invalidar).toHaveBeenCalledWith({ queryKey: [chave] }, { cancelRefetch: false });
     }
+    expect(invalidar).not.toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ["atendimentos"] }), { cancelRefetch: false },
+    );
+  });
+
+  it("na reconexão STOMP revalida a inbox pela fila de atualização", () => {
+    mocks.ciclo = 2;
+    const cliente = new QueryClient();
+    const invalidar = vi.spyOn(cliente, "invalidateQueries");
+    renderizarComCliente(cliente);
+    expect(invalidar).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ["atendimentos"] }), { cancelRefetch: false },
+    );
   });
 
   it("sem nenhuma conexão ainda não relê nada", () => {
