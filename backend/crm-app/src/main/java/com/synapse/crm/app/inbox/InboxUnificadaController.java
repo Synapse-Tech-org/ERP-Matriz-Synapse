@@ -4,6 +4,8 @@ import java.util.UUID;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,7 +37,10 @@ class InboxUnificadaController {
 
     @GetMapping
     @Operation(summary = "Listar inbox unificada", description = "Retorna clientes visíveis e conversas internas das quais o usuário participa.")
-    @ApiResponse(responseCode = "503", description = "Leitura temporariamente indisponível. Nenhuma página parcial é devolvida.")
+    @ApiResponse(responseCode = "200", description = "Página completa.",
+            content = @Content(schema = @Schema(implementation = InboxUnificada.class)))
+    @ApiResponse(responseCode = "503", description = "Leitura temporariamente indisponível. Nenhuma página parcial é devolvida.",
+            content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
     InboxUnificada listar(
             @Parameter(description = "Visão operacional; conversas internas aparecem em ATIVOS e TODOS.")
                     @RequestParam(defaultValue = "TODOS") VisaoAtendimento visao,

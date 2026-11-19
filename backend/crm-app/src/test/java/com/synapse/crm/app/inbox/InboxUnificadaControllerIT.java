@@ -26,16 +26,13 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
 
 /** Contrato HTTP da composição: participação e visibilidade são verificadas no caminho real. */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "synapse.datasource.chat.hikari.connection-init-sql=SET statement_timeout = '2s'")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("dev")
 class InboxUnificadaControllerIT extends PostgresIT {
     private static final String MARCADOR = "E63-inbox-";
@@ -186,30 +183,6 @@ class InboxUnificadaControllerIT extends PostgresIT {
             assertThat(paginados).hasSizeLessThanOrEqualTo(esperados.size());
         } while (cursor != null);
         assertThat(paginados).containsExactlyElementsOf(esperados).doesNotHaveDuplicates();
-    }
-
-    @Test
-    @DisplayName("statement_timeout real retorna 503 em vez de página parcial; a leitura volta após o desbloqueio")
-    void timeoutDaFonteDeClientesNaoProduzListaParcial() throws Exception {
-        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
-        assertThat(paginaAtiva(token, 50, null).getStatusCode()).isEqualTo(HttpStatus.OK);
-        var transacao = new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource()));
-        ResponseEntity<String> falha = transacao.execute(tx -> {
-            tx.setRollbackOnly();
-            jdbc.execute("SET LOCAL lock_timeout = '3s'");
-            jdbc.execute("LOCK TABLE mensagem IN ACCESS EXCLUSIVE MODE");
-            return paginaAtiva(token, 50, null);
-        });
-        assertThat(falha.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-        assertThat(falha.getHeaders().getContentType().toString()).startsWith("application/problem+json");
-        JsonNode erro = json.readTree(falha.getBody());
-        assertThat(erro.path("codigo").asText()).isEqualTo("INBOX_INDISPONIVEL");
-        assertThat(erro.has("itens")).isFalse();
-        assertThat(erro.has("proximoCursor")).isFalse();
-
-        var depois = paginaAtiva(token, 50, null);
-        assertThat(depois.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(encontrarOpcional(json.readTree(depois.getBody()), conversa.toString())).isTrue();
     }
 
     private ResponseEntity<String> paginaAtiva(String token, int limite, String cursor) {

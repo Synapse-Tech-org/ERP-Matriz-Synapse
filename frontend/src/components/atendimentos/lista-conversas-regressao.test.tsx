@@ -140,6 +140,23 @@ describe("ListaConversas — regressão de identidade do array", () => {
     expect(screen.queryByText("Nenhuma conversa")).not.toBeInTheDocument();
   });
 
+  it("não exibe os cartões em cache quando a revalidação responde 403", async () => {
+    const listar = vi.mocked(api.listarInboxUnificada).mockReset();
+    listar.mockResolvedValueOnce({
+      itens: [cliente("protegido", "Cliente protegido")], proximoCursor: null,
+    }).mockRejectedValueOnce(new ErroDeApi(403, null, "Acesso negado"));
+    const cache = new QueryClient();
+    render(<QueryClientProvider client={cache}>
+      <ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />
+    </QueryClientProvider>);
+    expect(await screen.findByRole("button", { name: /Cliente protegido/ })).toBeVisible();
+
+    await act(async () => { await cache.invalidateQueries({ queryKey: ["atendimentos", "inbox"] }); });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Lista indisponível");
+    expect(screen.queryByRole("button", { name: /Cliente protegido/ })).not.toBeInTheDocument();
+    expect(listar).toHaveBeenCalledTimes(2);
+  });
+
   it("repassa cliente e equipe ao pai sem ciclo e atualiza uma vez por página", async () => {
     const primeira = [cliente("cliente-1", "Cliente um"), equipe("conversa-1", "Equipe interna")];
     const segunda = [equipe("conversa-2", "Equipe atualizada"), cliente("cliente-2", "Cliente dois")];

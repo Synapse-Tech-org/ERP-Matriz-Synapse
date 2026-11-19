@@ -78,14 +78,14 @@ produção montada pelo repositório, sem cursor/filtro, limite 51, 5
 aquecimentos + 40 amostras JDBC. Não é um SLA da VPS; as partições da fixture
 concentram as mensagens no mês corrente.
 
-| Etapa (amostra local, ms) | SHA implantado | Primeiro protótipo |
-|---|---:|---:|
-| p50/p95 JDBC da página inteira | 6.120 / 7.930 | 707 / 999 |
-| EXPLAIN seleção de IDs | 2.883 | 326 |
-| Buffers da seleção (shared hit) | 176.483 | 20.092 |
-| EXPLAIN consulta completa | 7.310 | 688 |
-| Buffers da consulta completa (shared hit) | 186.310 | 29.762 |
-| JIT no plano completo | 5.663 | 524 |
+| Etapa (amostra local, ms) | SHA implantado | Primeiro protótipo | Correção (UNION) |
+|---|---:|---:|---:|
+| p50/p95 JDBC da página inteira | 6.120 / 7.930 | 707 / 999 | **56 / 79** |
+| EXPLAIN seleção de IDs | 2.883 | 326 | 29 |
+| Buffers da seleção (shared hit) | 176.483 | 20.092 | 21.122 |
+| EXPLAIN consulta completa | 7.310 | 688 | 40 |
+| Buffers da consulta completa (shared hit) | 186.310 | 29.762 | **26.521** |
+| JIT no plano completo | 5.663 | 524 | não acionado |
 
 Plano inicial: 47.052 sondagens de `idx_atendimento_lead` no semijoin
 de elegibilidade, 1.604 leituras indexadas da data da última mensagem antes
@@ -96,16 +96,36 @@ na busca de ciclos e 408 contagens por ciclo). Essas etapas são subplanos da
 mesma instrução, não SLAs isolados. `BUFFERS` conta acessos a páginas, não
 acessos necessariamente distintos. Os planos completos foram obtidos em
 ambiente de teste; os números não foram inferidos a partir dos logs de produção.
+No plano final, o ramo próprio usou `idx_atendimento_atendente_status`
+com um bitmap scan; o ramo compartilhado percorreu os participantes uma vez
+e sondou `atendimento_pkey` 41 vezes (40 da fixture e 1 de teste).
+O custo do plano final ficou abaixo do limiar padrão de JIT, sem intervenção
+na configuração. A medição final incluiu os possíveis efeitos do histórico
+de inserção/remoção da fixture no mesmo container; a latência com cache frio
+e com o mesmo CPU steal da VPS não foi medida.
+
+Na execução HTTP final com dois clientes concorrentes, 60 páginas devolveram
+200 (p50 110 ms/p95 286 ms). O webhook recebeu e persistiu a mensagem, o caso
+de uso de envio gravou a saída e o publisher real a confirmou com o canal
+fake, em 1.147 ms para o percurso combinado naquele ensaio. A carga usou o
+pool de teste (2 conexões do chat) sem redimensionamento. Não é comparação
+HTTP antes/depois nem homologação do provedor real.
 
 Para repetir na branch da correção, use Java 21 e Docker; execute em `backend`:
 
 ```sh
 ./mvnw -pl crm-app -am verify \
-  '-Dit.test=PainelFase2EquivalenciaIT#medePrimeiraPaginaAtivaComHistoricoERls,CanalWhatsAppIT#envioERecebimentoFuncionamDuranteCargaDaInbox' \
+  '-Dit.test=PainelFase2EquivalenciaIT#medePrimeiraPaginaAtivaComHistoricoERls' \
+  -Dfailsafe.failIfNoSpecifiedTests=false -Dsynapse.inbox.benchmark=true
+
+./mvnw -pl crm-app -am verify \
+  '-Dit.test=CanalWhatsAppIT#envioERecebimentoFuncionamDuranteCargaDaInbox' \
   -Dfailsafe.failIfNoSpecifiedTests=false -Dsynapse.inbox.benchmark=true
 ```
 
-O benchmark é opt-in e não usa URL ou banco externos. No Windows, use
+Cada benchmark é opt-in e deve rodar em JVM/container separado da suíte de
+regressão; a carga modifica estatísticas e deixa páginas físicas mesmo após
+remover a fixture. Não usa URL ou banco externos. No Windows, use
 `mvnw.cmd` com os mesmos argumentos. Para reproduzir a linha de base, aplique
 somente a fixture de medição ao SHA implantado, usando o seletor daquele SHA.
 O teste HTTP sob carga usa webhook real do CRM, jobs de entrada/outbox reais
