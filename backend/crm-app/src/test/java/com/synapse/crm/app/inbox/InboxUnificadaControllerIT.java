@@ -8,6 +8,7 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -25,13 +26,16 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
 
 /** Contrato HTTP da composição: participação e visibilidade são verificadas no caminho real. */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "synapse.datasource.chat.hikari.connection-init-sql=SET statement_timeout = '2s'")
 @ActiveProfiles("dev")
 class InboxUnificadaControllerIT extends PostgresIT {
     private static final String MARCADOR = "E63-inbox-";
@@ -80,6 +84,7 @@ class InboxUnificadaControllerIT extends PostgresIT {
     void limpar() {
         jdbc.update("DELETE FROM chat_interno_conversa WHERE id = ?", conversa);
         jdbc.update("DELETE FROM chat_interno_conversa WHERE id = ?", grupo);
+        jdbc.update("DELETE FROM mensagem WHERE atendimento_id = ?", atendimentoDoBruno);
         jdbc.update("DELETE FROM atendimento WHERE id = ?", atendimentoDoBruno);
         jdbc.update("DELETE FROM lead WHERE id = ?", leadDoBruno);
     }
@@ -146,6 +151,71 @@ class InboxUnificadaControllerIT extends PostgresIT {
         assertThat(equipeGrupo.path("tipo").asText()).isEqualTo("EQUIPE_INTERNA");
         assertThat(quantidade(corpo, conversa.toString())).isEqualTo(1);
         assertThat(quantidade(corpo, grupo.toString())).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("ATIVOS com RLS: ciclo de colega só aparece após participação consentida; empate não perde cartões")
+    void paginaClienteEEquipeSemPerdaNoMesmoHorario() throws Exception {
+        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        assertThat(ids(json.readTree(paginaAtiva(token, 100, null).getBody())))
+                .doesNotContain(atendimentoDoBruno.toString());
+        jdbc.update("""
+                INSERT INTO atendimento_participante (atendimento_id, usuario_id, origem)
+                VALUES (?, ?, 'CONVITE')
+                """, atendimentoDoBruno, ana);
+        jdbc.update("UPDATE chat_interno_mensagem SET enviado_em = statement_timestamp() WHERE conversa_id IN (?,?)",
+                conversa, grupo);
+        jdbc.update("""
+                INSERT INTO mensagem (atendimento_id, remetente_tipo, tipo, conteudo, status_entrega, enviado_em)
+                SELECT ?, 'LEAD', 'TEXTO', 'teste de cursor', 'ENTREGUE', enviado_em
+                FROM chat_interno_mensagem WHERE conversa_id = ?
+                """, atendimentoDoBruno, grupo);
+
+        var todos = json.readTree(paginaAtiva(token, 100, null).getBody());
+        var esperados = new ArrayList<String>();
+        todos.path("itens").forEach(item -> esperados.add(item.path("identificadorVisual").asText()));
+        assertThat(esperados).contains(conversa.toString(), grupo.toString(), atendimentoDoBruno.toString());
+        var paginados = new ArrayList<String>();
+        String cursor = null;
+        do {
+            var resposta = paginaAtiva(token, 1, cursor);
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            var pagina = json.readTree(resposta.getBody());
+            pagina.path("itens").forEach(item -> paginados.add(item.path("identificadorVisual").asText()));
+            cursor = pagina.path("proximoCursor").asText(null);
+            assertThat(paginados).hasSizeLessThanOrEqualTo(esperados.size());
+        } while (cursor != null);
+        assertThat(paginados).containsExactlyElementsOf(esperados).doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("statement_timeout real retorna 503 em vez de página parcial; a leitura volta após o desbloqueio")
+    void timeoutDaFonteDeClientesNaoProduzListaParcial() throws Exception {
+        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        assertThat(paginaAtiva(token, 50, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        var transacao = new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource()));
+        ResponseEntity<String> falha = transacao.execute(tx -> {
+            tx.setRollbackOnly();
+            jdbc.execute("SET LOCAL lock_timeout = '3s'");
+            jdbc.execute("LOCK TABLE mensagem IN ACCESS EXCLUSIVE MODE");
+            return paginaAtiva(token, 50, null);
+        });
+        assertThat(falha.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(falha.getHeaders().getContentType().toString()).startsWith("application/problem+json");
+        JsonNode erro = json.readTree(falha.getBody());
+        assertThat(erro.path("codigo").asText()).isEqualTo("INBOX_INDISPONIVEL");
+        assertThat(erro.has("itens")).isFalse();
+        assertThat(erro.has("proximoCursor")).isFalse();
+
+        var depois = paginaAtiva(token, 50, null);
+        assertThat(depois.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(encontrarOpcional(json.readTree(depois.getBody()), conversa.toString())).isTrue();
+    }
+
+    private ResponseEntity<String> paginaAtiva(String token, int limite, String cursor) {
+        return ApoioAutenticacao.comToken(http, token, HttpMethod.GET,
+                "/api/v1/atendimentos/inbox?visao=ATIVOS&limite=" + limite
+                        + (cursor == null ? "" : "&cursor=" + cursor), String.class);
     }
 
     @Test

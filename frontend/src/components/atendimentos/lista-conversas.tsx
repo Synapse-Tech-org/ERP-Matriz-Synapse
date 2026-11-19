@@ -290,6 +290,9 @@ function ListaConversasBase({
   const {
     data,
     isLoading,
+    isError,
+    isFetching,
+    refetch,
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
@@ -320,16 +323,16 @@ function ListaConversasBase({
 
   useEffect(() => {
     const alvo = fimDaLista.current;
-    if (operacional || !alvo || !hasNextPage) return;
+    if (operacional || mostrandoInternos || !alvo || !hasNextPage || isFetching || isError) return;
     const observador = new IntersectionObserver(
       (entradas) => {
-        if (entradas[0]?.isIntersecting && !isFetchingNextPage) void fetchNextPage();
+        if (entradas[0]?.isIntersecting) void fetchNextPage();
       },
       { rootMargin: "240px" },
     );
     observador.observe(alvo);
     return () => observador.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage, operacional]);
+  }, [fetchNextPage, hasNextPage, isError, isFetching, mostrandoInternos, operacional]);
 
   useEffect(() => {
     onVisaoAlterada?.(visao);
@@ -648,6 +651,14 @@ function ListaConversasBase({
         </div>
       )}
 
+      {!operacional && !mostrandoInternos && isError && (
+        <div className="shrink-0 border-b p-3 text-sm text-muted-foreground">
+          <p role="alert">{data?.length ? textos.lista.desatualizada : textos.lista.indisponivel}</p>
+          <Button type="button" variant="ghost" disabled={isFetching} onClick={() => void refetch({ cancelRefetch: false })}>
+            {textos.lista.tentarNovamente}
+          </Button>
+        </div>
+      )}
       <ScrollArea className="min-h-0 flex-1 overflow-hidden" data-slot="lista-conversas-scroll">
         <div className="pt-4" data-slot="lista-conversas-itens">
           {mostrandoInternos ? (
@@ -678,7 +689,7 @@ function ListaConversasBase({
                 <Skeleton key={indice} className="h-14 w-full" />
               ))}
             </div>
-          ) : filtrados.length === 0 ? (
+          ) : filtrados.length === 0 && isError ? null : filtrados.length === 0 ? (
             <p className="p-4 text-center text-sm text-muted-foreground">
               {textos.cartao.vazio}
             </p>
@@ -706,7 +717,7 @@ function ListaConversasBase({
               </Fragment>
             ))
           )}
-          {!operacional && hasNextPage && (
+          {!operacional && !mostrandoInternos && hasNextPage && !isError && (
             <div ref={fimDaLista} className="p-3 text-center text-xs text-muted-foreground" aria-live="polite">
               {isFetchingNextPage ? textos.lista.carregandoMais : textos.lista.carregarMais}
             </div>

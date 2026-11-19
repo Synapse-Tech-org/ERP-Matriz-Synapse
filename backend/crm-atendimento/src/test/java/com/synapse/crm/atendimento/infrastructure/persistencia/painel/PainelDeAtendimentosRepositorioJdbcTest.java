@@ -3,9 +3,13 @@ package com.synapse.crm.atendimento.infrastructure.persistencia.painel;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+
+import com.synapse.crm.atendimento.application.painel.VisaoAtendimento;
 
 class PainelDeAtendimentosRepositorioJdbcTest {
 
@@ -118,15 +122,16 @@ class PainelDeAtendimentosRepositorioJdbcTest {
     }
 
     @Test
-    void filtroPorResponsavelUsaODonoDoAtendimentoAbertoDepoisDeElegerOCartao() throws Exception {
-        var metodo = PainelDeAtendimentosRepositorioJdbc.class.getDeclaredMethod("escolherPorResponsavelAtual", String.class);
-        metodo.setAccessible(true);
-        String sql = (String) metodo.invoke(null, " WHERE EXISTS (SELECT 1 FROM atendimento ativo WHERE ativo.lead_id = a.lead_id)");
-
-        assertThat(sql)
-                .contains("WHERE linha_do_lead = 1", "LEFT JOIN LATERAL", "ativo_filtro.atendente_id",
-                        "representante.responsavel_atendimento_id", "CASE WHEN ativo_filtro.id IS NULL")
-                .doesNotContain("OFFSET");
+    void filtroPorResponsavelUsaODonoDoAtendimentoAbertoDepoisDeElegerOCartao() {
+        var usuario = UUID.randomUUID();
+        for (var visao : List.of(VisaoAtendimento.ATIVOS, VisaoAtendimento.TODOS)) {
+            var escolha = PainelDeAtendimentosRepositorioJdbc.escolherPagina(
+                    visao, usuario, false, false, null, null, 51, usuario);
+            assertThat(escolha.sql())
+                    .contains("LEFT JOIN LATERAL", "ativo_filtro.atendente_id",
+                            "representante.responsavel_atendimento_id", "CASE WHEN ativo_filtro.id IS NULL")
+                    .doesNotContain("OFFSET");
+        }
     }
 
     @Test

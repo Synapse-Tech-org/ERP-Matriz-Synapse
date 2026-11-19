@@ -67,6 +67,15 @@ describe("listarInboxUnificada — contrato da primeira versão da E63", () => {
       "/api/v1/atendimentos/inbox?visao=FINALIZADOS&limite=50&atendenteId=atendente-1",
     );
   });
+
+  it("encaminha o sinal da consulta para não iniciar páginas canceladas", async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ itens: [], proximoCursor: null });
+    const { signal } = new AbortController();
+    await listarInboxUnificada("ATIVOS", "cursor", 50, null, signal);
+    expect(apiFetch).toHaveBeenLastCalledWith(
+      "/api/v1/atendimentos/inbox?visao=ATIVOS&limite=50&cursor=cursor", { signal },
+    );
+  });
 });
 
 describe("enviarTemplate — corpo renderizado opcional", () => {

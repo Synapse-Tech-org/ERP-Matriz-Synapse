@@ -46,11 +46,13 @@ export async function listarInboxUnificada(
   cursor?: string | null,
   limite = 50,
   atendenteId?: string | null,
+  signal?: AbortSignal,
 ): Promise<PaginaInbox> {
   const params = new URLSearchParams({ visao, limite: String(limite) });
   if (cursor) params.set("cursor", cursor);
   if (atendenteId) params.set("atendenteId", atendenteId);
-  const pagina = await apiFetch<PaginaInbox>(`/api/v1/atendimentos/inbox?${params.toString()}`);
+  const caminho = `/api/v1/atendimentos/inbox?${params.toString()}`;
+  const pagina = await (signal ? apiFetch<PaginaInbox>(caminho, { signal }) : apiFetch<PaginaInbox>(caminho));
   return {
     ...pagina,
     itens: pagina.itens.map(normalizarItemInbox),

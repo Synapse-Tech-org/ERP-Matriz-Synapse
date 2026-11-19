@@ -9,8 +9,14 @@ import static org.awaitility.Awaitility.await;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.awaitility.core.ConditionFactory;
@@ -19,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,6 +44,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.synapse.crm.app.PostgresIT;
+import com.synapse.crm.app.inbox.ApoioVolumeInbox;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
 import com.synapse.crm.app.seguranca.ApoioRls;
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
@@ -106,6 +114,59 @@ class CanalWhatsAppIT extends PostgresIT {
     private TransactionTemplate transacao;
     private UUID idAna;
     private UUID leadDaAna;
+
+    @Test
+    @EnabledIfSystemProperty(named = "synapse.inbox.benchmark", matches = "true")
+    void envioERecebimentoFuncionamDuranteCargaDaInbox() throws Exception {
+        UUID bruno = jdbc.queryForObject("SELECT id FROM usuario WHERE email = 'bruno@dev.local'", UUID.class);
+        Instant base = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(2).atTime(12, 0).toInstant(ZoneOffset.UTC);
+        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        var leiturasIniciadas = new CountDownLatch(2);
+        try (var leitores = Executors.newFixedThreadPool(2)) {
+            ApoioVolumeInbox.semear(jdbc, idAna, bruno, base);
+            var primeira = leitores.submit(() -> lerInboxSobCarga(token, leiturasIniciadas));
+            var segunda = leitores.submit(() -> lerInboxSobCarga(token, leiturasIniciadas));
+            assertThat(leiturasIniciadas.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(primeira.isDone() && segunda.isDone()).isFalse();
+
+            long inicioDasMensagens = System.nanoTime();
+            assertThat(postarWebhook(payload("inbox-benchmark-recebida", "entrada sintética"), CanalFake.ASSINATURA_VALIDA)
+                    .getStatusCode()).isEqualTo(HttpStatus.OK);
+            rodarProcessador();
+            esperar().untilAsserted(() -> assertThat(mensagensDoLead()).isEqualTo(1));
+
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            UUID mensagem = enviar.executar(leadDaAna, "saída sintética durante leituras").mensagem().id();
+            esperar().untilAsserted(() -> {
+                rodarPublisher();
+                assertThat(statusDaMensagem(mensagem)).isEqualTo("ENVIADO");
+            });
+            long mensagensMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicioDasMensagens);
+            var amostras = new ArrayList<>(primeira.get(60, TimeUnit.SECONDS));
+            amostras.addAll(segunda.get(60, TimeUnit.SECONDS));
+            amostras.sort(Long::compare);
+            assertThat(amostras).hasSize(60);
+            System.out.printf("INBOX_HTTP_BENCHMARK concorrencia=2 n=60 p50_us=%d p95_us=%d mensagens_ms=%d%n",
+                    amostras.get(29), amostras.get(56), mensagensMs);
+        } finally {
+            ApoioRls.sair();
+            ApoioVolumeInbox.limpar(jdbc);
+        }
+    }
+
+    private List<Long> lerInboxSobCarga(String token, CountDownLatch iniciada) {
+        var tempos = new ArrayList<Long>();
+        iniciada.countDown();
+        for (int i = 0; i < 30; i++) {
+            long inicio = System.nanoTime();
+            var resposta = ApoioAutenticacao.comToken(http, token, HttpMethod.GET,
+                    "/api/v1/atendimentos/inbox?visao=ATIVOS&limite=50", String.class);
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(resposta.getBody()).contains("inbox-benchmark-");
+            tempos.add(TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - inicio));
+        }
+        return tempos;
+    }
 
     @Test
     void aceiteNaFilaGuardaAmbosIdsNaoConfirmaEnvioENaoReenvia() {

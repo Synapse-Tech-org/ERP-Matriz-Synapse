@@ -1,5 +1,5 @@
-import { focusManager, QueryClient, QueryObserver } from "@tanstack/react-query";
-import { afterEach, describe, expect, it } from "vitest";
+import { focusManager, InfiniteQueryObserver, QueryClient, QueryObserver } from "@tanstack/react-query";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   AgendadorDeAtualizacaoDoPainel,
@@ -124,6 +124,60 @@ afterEach(() => {
 });
 
 describe("AgendadorDeAtualizacaoDoPainel", () => {
+  it("em três páginas, não reinicia o GET lento e executa somente uma reconciliação pendente", async () => {
+    const chave = ["atendimentos", "inbox", "ATIVOS"];
+    async function medir(usarAgendador: boolean) {
+      const cache = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+      const relogio = new RelogioManual();
+      const agendador = new AgendadorDeAtualizacaoDoPainel(cache, relogio);
+      cache.setQueryData(chave, { pages: [{ proximo: 1 }, { proximo: 2 }, { proximo: undefined }], pageParams: [0, 1, 2] });
+      const chamadas: number[] = [];
+      const liberar: (() => void)[] = [];
+      let pico = 0;
+      let emVoo = 0;
+      const observador = new InfiniteQueryObserver(cache, {
+        queryKey: chave, initialPageParam: 0,
+        queryFn: ({ pageParam }) => new Promise<{ proximo?: number }>(resolve => {
+          chamadas.push(pageParam);
+          pico = Math.max(pico, ++emVoo);
+          liberar.push(() => {
+            emVoo--;
+            resolve({ proximo: pageParam < 2 ? pageParam + 1 : undefined });
+          });
+        }),
+        getNextPageParam: pagina => pagina.proximo,
+      });
+      const fechar = observador.subscribe(() => undefined);
+      const atualizar = (chaveEvento: string) => {
+        if (usarAgendador) agendador.solicitar({ chave: chaveEvento });
+        else void cache.invalidateQueries({ queryKey: chave }); // cancelRefetch padrão, como antes.
+      };
+      try {
+        atualizar("primeiro");
+        for (let lote = 0; lote < 6; lote++) {
+          atualizar(`lote-${lote}`);
+          if (usarAgendador) atualizar(`lote-${lote}`); // eco de outro ouvinte
+          relogio.avancar(JANELA_DA_LISTA_MS);
+        }
+        expect(chamadas).toHaveLength(usarAgendador ? 1 : 7);
+        // Os GETs abandonados antes da correção ainda ocupam o transporte.
+        for (let i = 0; i < (usarAgendador ? 6 : 21); i++) {
+          await vi.waitFor(() => expect(liberar.length).toBeGreaterThan(0));
+          liberar.shift()!();
+        }
+        await vi.waitFor(() => expect(cache.isFetching()).toBe(0));
+        return { chamadas, pico };
+      } finally {
+        fechar();
+        cache.clear();
+      }
+    }
+    expect(await medir(false)).toEqual({
+      chamadas: [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2], pico: 7,
+    });
+    expect(await medir(true)).toEqual({ chamadas: [0, 1, 2, 0, 1, 2], pico: 1 });
+  });
+
   it("executa o primeiro pedido na hora: mensagem isolada continua atualizando a lista imediatamente", async () => {
     const { cache, chamadas } = await painel();
     const agendador = new AgendadorDeAtualizacaoDoPainel(cache, new RelogioManual());
@@ -155,11 +209,13 @@ describe("AgendadorDeAtualizacaoDoPainel", () => {
     }
     relogio.avancar(JANELA_DA_LISTA_MS);
 
+    await vi.waitFor(() => expect(cache.isFetching()).toBe(0));
     expect(chamadas["atendimentos/inbox/TODOS"]).toBe(2);
     expect(chamadas["atendimentos/contagem"]).toBe(1);
 
     relogio.avancar(JANELA_DA_CONTAGEM_MS);
 
+    await vi.waitFor(() => expect(cache.isFetching()).toBe(0));
     expect(chamadas["atendimentos/contagem"]).toBe(2);
     expect(chamadas["atendimentos/inbox/TODOS"]).toBe(2);
   });
@@ -172,6 +228,7 @@ describe("AgendadorDeAtualizacaoDoPainel", () => {
     for (let segundo = 0; segundo <= 20; segundo += 1) {
       agendador.solicitar(pedidoDaNotificacao(novaMensagem(segundo)));
       relogio.avancar(1000);
+      await vi.waitFor(() => expect(cache.isFetching()).toBe(0));
     }
 
     // Lista: 0, 5, 10, 15 e 20 s. Contagem: 0, 10 e 20 s.
@@ -180,6 +237,7 @@ describe("AgendadorDeAtualizacaoDoPainel", () => {
 
     relogio.avancar(JANELA_DA_CONTAGEM_MS);
 
+    await vi.waitFor(() => expect(cache.isFetching()).toBe(0));
     expect(chamadas["atendimentos/inbox/TODOS"]).toBe(6);
     expect(chamadas["atendimentos/contagem"]).toBe(4);
   });
@@ -327,6 +385,7 @@ describe("AgendadorDeAtualizacaoDoPainel", () => {
     }
     relogio.avancar(JANELA_DA_CONTAGEM_MS);
 
+    await vi.waitFor(() => abas.forEach((aba) => expect(aba.cache.isFetching()).toBe(0)));
     abas.forEach((aba) => expect(aba.chamadas["atendimentos/contagem"]).toBe(2));
   });
 
@@ -353,6 +412,7 @@ describe("AgendadorDeAtualizacaoDoPainel", () => {
     // servidor executa todas as consultas.
     expect(antes.chamadas["atendimentos/contagem"]).toBe(100);
     expect(antes.chamadas["atendimentos/estado/aberto"]).toBe(100);
+    await vi.waitFor(() => expect(depois.cache.isFetching()).toBe(0));
     expect(depois.chamadas["atendimentos/contagem"]).toBe(2);
     expect(depois.chamadas["atendimentos/estado/aberto"]).toBe(0);
   });

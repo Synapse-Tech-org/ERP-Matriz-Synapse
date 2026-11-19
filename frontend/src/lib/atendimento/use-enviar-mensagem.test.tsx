@@ -105,7 +105,9 @@ describe("useEnviarMensagem", () => {
       expect.any(String),
       undefined,
     );
-    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["atendimentos"] });
+    expect(invalidar).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ["atendimentos"] }), { cancelRefetch: false },
+    );
   });
 
   it("envia o corpo renderizado do template junto dos parametros", async () => {

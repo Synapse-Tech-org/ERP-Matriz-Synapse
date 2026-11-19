@@ -30,6 +30,7 @@ import {
 import {
   atualizarPainelDeAtendimentos,
   pedidoDaNotificacao,
+  removerAtendimentoRevogadoDaInbox,
 } from "@/lib/atendimento/atualizacao-do-painel";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoHistorico } from "@/lib/atendimento/reacoes-cache";
 import {
@@ -637,6 +638,7 @@ export function PaginaAtendimentosCliente({
       });
       indisponibilizarAtendimento(atendimentoRevogado, undefined, "REVOGACAO_WEBSOCKET");
       // Proteção de visibilidade nunca espera a janela de coalescência (E209).
+      removerAtendimentoRevogadoDaInbox(cache, atendimentoRevogado);
       atualizarPainelDeAtendimentos(cache, { atendimentoId: atendimentoRevogado, urgente: true });
     },
     (evento) => {

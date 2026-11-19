@@ -1,7 +1,8 @@
 "use client";
 
 import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { ErroDeApi } from "@/lib/api/errors";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
 
 import { contarAtendimentosPorVisao, listarAtendimentos, listarInboxUnificada } from "./api";
@@ -35,11 +36,18 @@ export function useAtendimentos(visao: VisaoAtendimento, atendenteId?: string | 
       ? ["atendimentos", "inbox", visao, atendenteId]
       : ["atendimentos", "inbox", visao],
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => listarInboxUnificada(visao, pageParam, 50, atendenteId ?? null),
+    queryFn: ({ pageParam, signal }) => listarInboxUnificada(visao, pageParam, 50, atendenteId ?? null, signal),
     getNextPageParam: (ultima) => ultima.proximoCursor ?? undefined,
     enabled: habilitado,
+    // A indisponibilidade explícita já é um sinal de saturação/timeout. Não repita o
+    // lote na hora; foco, reconexão e tentativa explícita continuam revalidando a lista.
+    retry: (tentativas, erro) => tentativas < 1
+      && !(erro instanceof ErroDeApi && [401, 403, 503].includes(erro.status)),
   });
-  const paginas = inbox.data?.pages;
+  const negado = inbox.error instanceof ErroDeApi && [401, 403].includes(inbox.error.status);
+  const paginas = negado ? undefined : inbox.data?.pages;
+  const buscarProxima = inbox.fetchNextPage;
+  const fetchNextPage = useCallback(() => buscarProxima({ cancelRefetch: false }), [buscarProxima]);
   const itensInbox = useMemo(
     () => paginas?.flatMap((pagina) => pagina?.itens ?? []).filter(itemPresente)
       .filter(item => acessoClientes || item.tipo === "EQUIPE_INTERNA"),
@@ -48,10 +56,10 @@ export function useAtendimentos(visao: VisaoAtendimento, atendenteId?: string | 
   return {
     ...inbox,
     data: itensInbox,
-    hasNextPage: inbox.hasNextPage,
+    hasNextPage: !negado && inbox.hasNextPage,
     isFetchingNextPage: inbox.isFetchingNextPage,
-    fetchNextPage: inbox.fetchNextPage,
-    atendentesConhecidos,
+    fetchNextPage,
+    atendentesConhecidos: negado ? [] : atendentesConhecidos,
   };
 }
 

@@ -29,13 +29,9 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
  * caminho critico, mesmo motivo (RNF-CRM-01): um relatorio pesado nao pode roubar conexao do chat, e
  * o inverso tambem vale, esta consulta nao pode competir pelo pool geral.
  *
- * <p>{@code mensagem} nao tem RLS propria (so {@code lead}/{@code atendimento}/{@code lembrete}/
- * {@code mensagem_programada}, desde a V12). Seguro aqui porque o {@code FROM} sempre parte de
- * {@code atendimento}, que tem a politica — os dois {@code LEFT JOIN LATERAL} em {@code mensagem} so
- * alcancam linhas de atendimentos que a RLS ja deixou passar. O {@code ultima_lead} passou a
- * atravessar {@code atendimento} pelo {@code lead_id} (como o {@code nao_lidas} sempre fez, E114):
- * continua gated pela mesma RLS de {@code atendimento}, porque a linha base {@code a} so entra se o
- * lead for visivel, e os demais atendimentos do mesmo lead herdam essa visibilidade.
+ * <p>A V111 aplica a capacidade de acesso a clientes inclusive em {@code mensagem}. O recorte
+ * por carteira/participação continua nas políticas de {@code lead}/{@code atendimento}: consultas
+ * laterais à mensagem sempre referenciam o id de um atendimento que passou por esse recorte.
  */
 @Repository
 class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosRepositorio {
@@ -193,6 +189,41 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             + " WHERE colaborador.atendimento_id = visivel.id AND colaborador.usuario_id = app_usuario_id()"
             + " AND colaborador.saiu_em IS NULL)))";
 
+    /**
+     * A elegibilidade é do lead, não de cada ciclo histórico. No plano do incidente o
+     * semijoin de ATIVOS sondava o mesmo índice uma vez por ciclo visível (47 mil vezes
+     * na fixture). Comece pelos ativos próprios/compartilhados, aplique a RLS do lead
+     * uma vez e só então escolha o ciclo de cada candidato. O ciclo vencedor ainda
+     * pode ser histórico. A ordenação do representante é a mesma de CAMPOS_ESCOLHA.
+     */
+    private static final String REPRESENTANTES_ATIVOS = """
+            SELECT representante.atendimento_id, elegivel.lead_id,
+                   representante.responsavel_atendimento_id, representante.ultima_mensagem_em,
+                   0 AS sem_atendimento_aberto
+            FROM (
+                SELECT visivel.lead_id FROM atendimento visivel
+                WHERE visivel.status = 'EM_ATENDIMENTO' AND visivel.atendente_id = ?
+                UNION
+                SELECT visivel.lead_id FROM atendimento_participante colaborador
+                JOIN atendimento visivel ON visivel.id = colaborador.atendimento_id
+                WHERE visivel.status = 'EM_ATENDIMENTO'
+                  AND colaborador.usuario_id = app_usuario_id() AND colaborador.saiu_em IS NULL
+            ) elegivel
+            JOIN lead l ON l.id = elegivel.lead_id
+            CROSS JOIN LATERAL (
+                SELECT a.id AS atendimento_id, a.atendente_id AS responsavel_atendimento_id,
+                       ultima.enviado_em AS ultima_mensagem_em
+                  FROM atendimento a
+                  LEFT JOIN LATERAL (
+                      SELECT enviado_em FROM mensagem m
+                       WHERE m.atendimento_id = a.id ORDER BY m.enviado_em DESC LIMIT 1
+                  ) ultima ON true
+                 WHERE a.lead_id = elegivel.lead_id
+                 ORDER BY COALESCE(ultima.enviado_em, a.iniciado_em) DESC, a.iniciado_em DESC, a.id DESC
+                 LIMIT 1
+            ) representante
+            """;
+
     static final String WHERE_PENDENTES_PROPRIOS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
             + " LEFT JOIN LATERAL (SELECT remetente_tipo FROM mensagem m_visivel"
             + " WHERE m_visivel.atendimento_id = visivel.id"
@@ -340,10 +371,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
      * roda depois de reduzir o historico a um cartao por lead; sem filtro, a listagem normal nao paga
      * esse custo.
      */
-    private static String escolherPorResponsavelAtual(String filtro) {
-        String representantes = "SELECT atendimento_id, lead_id, responsavel_atendimento_id, "
-                + "ultima_mensagem_em, sem_atendimento_aberto FROM (SELECT " + CAMPOS_ESCOLHA
-                + ORIGEM_ESCOLHA + filtro + ") escolha WHERE linha_do_lead = 1";
+    private static String escolherPorResponsavelAtual(String representantes) {
         return "SELECT representante.atendimento_id FROM (" + representantes + ") representante "
                 + "LEFT JOIN LATERAL (SELECT aberto.id, aberto.atendente_id FROM atendimento aberto "
                 + "WHERE aberto.lead_id = representante.lead_id AND aberto.status <> 'FINALIZADO' "
@@ -490,7 +518,18 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
         // pagina. A ordem dos parametros continua a do texto: o `?` de nao_lidas (segunda fase)
         // vem antes do filtro da primeira.
         boolean filtraResponsavelAtual = filtroAtendenteId != null && visao != VisaoAtendimento.FINALIZADOS;
-        String sql = filtraResponsavelAtual ? escolherPorResponsavelAtual(filtro) : escolher(filtro);
+        String sql;
+        if (visao == VisaoAtendimento.ATIVOS) {
+            // A existência de um ciclo ativo visível já prova sem_atendimento_aberto = 0.
+            sql = filtraResponsavelAtual ? escolherPorResponsavelAtual(REPRESENTANTES_ATIVOS)
+                    : "SELECT atendimento_id FROM (" + REPRESENTANTES_ATIVOS + ") escolha WHERE TRUE";
+        } else if (filtraResponsavelAtual) {
+            sql = escolherPorResponsavelAtual("SELECT atendimento_id, lead_id, responsavel_atendimento_id, "
+                    + "ultima_mensagem_em, sem_atendimento_aberto FROM (SELECT " + CAMPOS_ESCOLHA
+                    + ORIGEM_ESCOLHA + filtro + ") escolha WHERE linha_do_lead = 1");
+        } else {
+            sql = escolher(filtro);
+        }
         List<Object> parametros = new java.util.ArrayList<>();
         parametros.add(usuarioId);
         if (visao == VisaoAtendimento.ATIVOS) {

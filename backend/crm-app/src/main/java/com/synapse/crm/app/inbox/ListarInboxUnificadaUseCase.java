@@ -8,8 +8,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -26,7 +24,6 @@ import com.synapse.crm.sharedkernel.permissao.VerificadorDeCapacidades;
 /** Compõe páginas limitadas das duas fontes e aplica a ordenação global no backend. */
 @Service
 public class ListarInboxUnificadaUseCase {
-    private static final Logger LOG = LoggerFactory.getLogger(ListarInboxUnificadaUseCase.class);
     private static final Comparator<InboxUnificada.Item> ORDEM = Comparator
             .comparingInt(InboxUnificada.Item::grupoDeOrdenacao)
             .thenComparing(InboxUnificada.Item::ultimaMensagemEm,
@@ -70,27 +67,21 @@ public class ListarInboxUnificadaUseCase {
         int tamanho = Math.max(1, Math.min(limite, 100));
         List<InboxUnificada.Item> itens = new ArrayList<>();
         Cursor apos = decodificar(cursor);
-        try {
-            if (capacidades.permite("clientes.acessar")) {
+        // Uma página parcial não tem cursor confiável: ao falhar uma fonte, não publique
+        // um snapshot que pareça completo e substitua a última página válida do usuário.
+        if (capacidades.permite("clientes.acessar")) {
             carregarClientes(visao, tamanho + 1, apos, filtroAtendenteId).stream()
                     .map(InboxUnificada.Item::cliente)
                     .forEach(itens::add);
-            }
-        } catch (RuntimeException erro) {
-            LOG.warn("Não foi possível carregar a fonte de atendimentos da inbox", erro);
         }
         // Conversas internas participativas fazem parte da operação ativa tanto para a gestão
         // quanto para atendentes; PENDENTES/POTENCIAIS continuam sendo recortes exclusivos de
         // atendimentos de clientes.
         if ((visao == VisaoAtendimento.TODOS || visao == VisaoAtendimento.ATIVOS)
                 && (apos == null || apos.grupo() == 0)
-                && chatHabilitado()) {
-            try {
-                equipe.executarPaginado(tamanho + 1, apos == null ? null : apos.data(),
-                        apos == null ? null : apos.id()).stream().map(this::paraEquipe).forEach(itens::add);
-            } catch (RuntimeException erro) {
-                LOG.warn("Não foi possível carregar a fonte de chat interno da inbox", erro);
-            }
+                && features.habilitadas().contains("chat_interno")) {
+            equipe.executarPaginado(tamanho + 1, apos == null ? null : apos.data(),
+                    apos == null ? null : apos.id()).stream().map(this::paraEquipe).forEach(itens::add);
         }
 
         itens.sort(ORDEM);
@@ -115,15 +106,6 @@ public class ListarInboxUnificadaUseCase {
                 apos != null && apos.grupo() == 1,
                 apos == null ? null : apos.data(),
                 apos == null ? null : apos.id(), filtroAtendenteId);
-    }
-
-    private boolean chatHabilitado() {
-        try {
-            return features.habilitadas().contains("chat_interno");
-        } catch (RuntimeException erro) {
-            LOG.warn("Não foi possível consultar a feature flag chat_interno; ocultando a fonte interna", erro);
-            return false;
-        }
     }
 
     private InboxUnificada.Item paraEquipe(ChatInternoRepositorio.ConversaResumo conversa) {
