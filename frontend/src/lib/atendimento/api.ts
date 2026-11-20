@@ -111,9 +111,11 @@ export function removerReacao(
 export function paginaMensagens(
   atendimentoId: string,
   cursor: string | null,
+  signal?: AbortSignal,
 ): Promise<PaginaMensagens> {
   const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
-  return apiFetch<PaginaMensagens>(`/api/v1/atendimentos/${atendimentoId}/mensagens${query}`);
+  const caminho = `/api/v1/atendimentos/${atendimentoId}/mensagens${query}`;
+  return signal ? apiFetch<PaginaMensagens>(caminho, { signal }) : apiFetch<PaginaMensagens>(caminho);
 }
 
 /**
@@ -141,10 +143,13 @@ export function obterMensagem(atendimentoId: string, mensagemId: string): Promis
   );
 }
 
-export function mensagensDesde(atendimentoId: string, desde: string): Promise<MensagemResposta[]> {
-  return apiFetch<MensagemResposta[]>(
-    `/api/v1/atendimentos/${atendimentoId}/mensagens/desde?desde=${encodeURIComponent(desde)}`,
-  );
+export function mensagensDesde(
+  atendimentoId: string,
+  desde: string,
+  signal?: AbortSignal,
+): Promise<MensagemResposta[]> {
+  const caminho = `/api/v1/atendimentos/${atendimentoId}/mensagens/desde?desde=${encodeURIComponent(desde)}`;
+  return signal ? apiFetch<MensagemResposta[]>(caminho, { signal }) : apiFetch<MensagemResposta[]>(caminho);
 }
 
 export interface AlvoDeResposta {

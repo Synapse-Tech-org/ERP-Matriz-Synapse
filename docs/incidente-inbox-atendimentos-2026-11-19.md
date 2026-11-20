@@ -1,6 +1,6 @@
 # Lentidão da inbox de Atendimentos — 19/11/2026
 
-## Produção: evidência fornecida
+## Produção: evidência anterior à PR #360
 
 Estrutural, serviços `erp-matriz-hml-oxj4cd_backend` e
 `erp-matriz-hml-oxj4cd_frontend`: SHA implantado e base `origin/main` no início
@@ -20,7 +20,178 @@ Não havia mudança posterior no fluxo a incorporar naquela revisão.
   serviço. Isso é concorrência externa observada; não prova causa única da
   latência, nem ciclo repetitivo do frontend, nem encerramento de atendimento.
 
-## Diagnóstico reproduzido e correção
+## Relato após a PR #360: lentidão e necessidade de F5
+
+O relato de 19/11/2026 foi por volta das 17h (Brasília), com nova queixa às
+17h49 (20h49 UTC). Backend e frontend estavam na tag `27b0ca8`, com o layout
+V2 ativo (`atendimentos_layout_v2`). Na janela 16h45–17h15 (19h45–20h15 UTC),
+a operação informou **6 ocorrências de timeout ao obter conexão do banco** e
+**186 listagens lentas concluídas**; `ATIVOS` e `FINALIZADOS` chegaram a cerca
+de 4,5 s. A coleta não cobre a segunda queixa. A amostra curta logo após o
+deploy, sem timeouts, não descarta saturação posterior. A latência e a
+contenção foram observadas; não há evidência sincronizada da sessão do
+navegador para atribuir as quedas percebidas ou o efeito de F5 a elas.
+
+### Caminho de falha identificado no backend
+
+O assinante Redis usa o mesmo pool de chat da inbox para identificar quem pode
+receber eventos canônicos na fila pessoal e revalidar assinaturas de conversa.
+Se a consulta de destinatários falhar, aquela entrega pessoal não acontece.
+Se a revalidação de uma assinatura existente falhar por um erro técnico, o
+assinante pode suprimir **aquele** evento para não entregar sem autorização,
+mantendo a assinatura. O transporte WebSocket pode permanecer conectado e
+continuar entregando eventos posteriores. O envio posterior não repõe por si
+só o evento omitido. Em particular, o teste existente
+`RedisSubscriberDeAtendimentoTest#erro_tecnico_na_revalidacao_nao_entrega_mas_mantem_assinatura_e_nao_revoga`
+exercita `onMessage` com timeout sintético do pool e demonstra ausência de
+entrega e de revogação, seguida pela entrega de um evento posterior. Não é um
+teste de navegador nem prova que esse caminho ocorreu naquele horário.
+
+Uma falha ao autorizar um `SUBSCRIBE` novo, uma sessão de transporte encerrada
+e um evento suprimido numa sessão já conectada são fenômenos distintos. Não
+usar o total de sessões WebSocket de uma réplica para inferir o estado de uma
+aba, nem contagem de timeouts do pool para inferir que houve desconexão.
+
+### Falhas reproduzidas na recuperação do V2
+
+No código da tag implantada, fechar e reabrir o STOMP com HTTP 503 na leitura
+de `/estado` deixa os incrementais suspensos. A conexão aparece restabelecida,
+mas um novo gatilho é necessário para voltar a receber atualizações. Mesmo
+quando o estado já foi restabelecido, uma falha em `/mensagens/desde` interrompe
+a recuperação da lacuna do histórico: uma mensagem nova pode aparecer sem
+trazer de volta a que chegou durante a desconexão.
+
+A correção repete apenas essas leituras, até duas vezes por erro transitório,
+com atraso exponencial e jitter. Conserva a conversa e o rascunho; não reenvia
+mutações. A recuperação do histórico usa a mesma âncora até completar, mescla
+por identidade e não reaproveita resultados depois de revogação ou troca de
+conversa. Se o limite for atingido, a ação de tentar novamente não recarrega
+a página. HTTP 403/404 são tratados como perda de acesso, não como lentidão.
+
+O reconciliador também disparava invalidações fora do agendador introduzido
+na #360, inclusive em leituras de estado sem alteração de negócio. As
+notificações canônicas dos dois ouvintes agora têm a mesma chave de
+deduplicação; leituras sem evento não reiniciam lista e contagem. Isso corrige
+uma fonte demonstrável de recargas concorrentes, mas não mede a contribuição
+delas para a saturação em produção.
+
+O patch não acrescenta polling e não detecta, por si só, um único frame
+suprimido se o socket permanecer conectado e não houver outro sinal de
+recuperação. O endpoint existente `/mensagens/desde` consulta mensagens pelo
+instante de envio; não é replay de todos os eventos (por exemplo, status de
+mensagem antiga) e não tem paginação. Não se deve extrapolar a validação de
+uma lacuna curta para uma desconexão longa com grande volume.
+
+### Coleta para uma nova ocorrência (somente leitura; equipe de operação)
+
+Na próxima ocorrência, alinhar com **a mesma hora absoluta**, de preferência
+com segundos e offset de Brasília ou em UTC:
+
+1. **Navegador afetado, no V2:** anotar início, última atualização observada,
+   primeira recuperação, visão (`ATIVOS`, `FINALIZADOS` etc.) e qual ação
+   ficou lenta ou desatualizada. Distinguir lista, abertura, histórico, envio
+   e chegada de mensagem. Registrar se o problema aconteceu sem troca de aba,
+   e se ocorreu recuperação sem F5. Não pedir que a equipe adie a retomada do
+   trabalho para completar a captura.
+2. **DevTools → Network**, se já estiver disponível, habilitar *Preserve log*.
+   Antes/na recuperação, transcrever apenas a hora, início/fim, status HTTP ou
+   `cancelada`/`erro de rede`, duração e `codigo` conhecido de Problem Details.
+   Priorizar `/api/v1/atendimentos/inbox`, `/api/v1/atendimentos/contagem`,
+   `/api/v1/atendimentos/{id}/estado`, `.../{id}/mensagens` e
+   `.../{id}/mensagens/desde`. Contar abortos e novos GETs da mesma leitura e
+   registrar sobreposição. Para `/ws`, registrar tentativa, HTTP `101` quando
+   houver, horário de fechamento (código se disponível) e nova conexão; não
+   interpretar `101` como autorização bem-sucedida do STOMP `SUBSCRIBE`. Se o
+   console já emitir `[atendimento.abertura]`, transcrever somente `etapa`,
+   `visao`, `httpStatus`, `cicloConexao` e tipo `evento` (sem exportar o objeto).
+   Para `[atendimento.historico]`, transcrever somente `etapa`, `httpStatus`,
+   `cicloConexao` e `tentativas`; não copiar o identificador junto do log.
+3. **Servidor:** colher imagens e o recorte sanitizado de todas as réplicas, de
+   três a cinco minutos antes do início até três a cinco minutos depois da
+   recuperação. Se houver métricas já habilitadas, anexar a série temporal do
+   pool (ativas/ociosas/esperando/máximo), duração das listagens/SQL, CPU do
+   banco e CPU steal, e marcar reinícios/rollouts no intervalo. Se houver
+   logs de acesso do proxy já disponíveis, pedir somente hora, rota normalizada,
+   status e duração de `/ws` e das leituras acima. Não ativar logs detalhados,
+   executar carga ou reprocessar mensagens para diagnosticar.
+
+Não exportar HAR bruto, URL completa, query string (o handshake de `/ws` pode
+transportar credencial), headers, cookies, frames, console bruto, resposta
+HTTP, SQL ou conteúdo de mensagens. Usar rótulos sintéticos de aba/conversa
+na planilha; se um ID técnico for indispensável para correlação, compartilhá-lo
+separadamente por canal privado autorizado. Não registrar dados pessoais.
+
+Exemplo de extração para Docker Swarm, em Bash. Ajustar `inicio` e `fim`; o
+intervalo abaixo cobre os relatos de 19/11, inclusive o de 17h49. Somente o
+resumo de campos permitidos é gravado. `docker service logs` imprime carimbos
+em UTC; o filtro corta no segundo exato, com fim exclusivo. Se o driver ou a
+retenção impedir a coleta, registrar essa lacuna — arquivo vazio não confirma
+ausência de falha.
+
+```bash
+umask 077
+set -o pipefail
+inicio=2026-11-19T19:44:00Z
+fim=2026-11-19T20:55:00Z
+backend=erp-matriz-hml-oxj4cd_backend
+frontend=erp-matriz-hml-oxj4cd_frontend
+saida=$(mktemp ./diagnostico-atendimentos-XXXXXXXX.txt)
+
+printf 'janela_utc=[%s,%s)\n' "$inicio" "$fim" >> "$saida"
+for servico in "$backend" "$frontend"; do
+  printf 'servico=%s\n' "$servico" >> "$saida"
+  docker service inspect "$servico" \
+    --format 'imagem={{.Spec.TaskTemplate.ContainerSpec.Image}}' >> "$saida" 2>/dev/null \
+    || printf 'imagem=indisponivel\n' >> "$saida"
+done
+
+if docker service logs --raw --timestamps --since "$inicio" "$backend" 2>&1 |
+  LC_ALL=C awk -v inicio="${inicio%Z}" -v fim="${fim%Z}" '
+    function emitir(categoria,   i, f) {
+      printf "%s %s", $1, categoria
+      for (i = 2; i <= NF; i++) {
+        f = $i
+        if (f ~ /^(pool=synapse-(chat|geral)|papel=(ATENDENTE|OPERADOR|SUBGESTOR|GESTOR|ADMINISTRADOR)|aba=(ATIVOS|PENDENTES|POTENCIAIS|TODOS|FINALIZADOS)|pagina=(completa|paginada)|cursor=(sim|nao)|filtroAtendente=(sim|nao))$/ ||
+            f ~ /^(ativas|ociosas|esperando|total|maximo|saturadoHaSegundos|limiarSegundos|duracaoSegundos|limite|cartoes|duracaoMs|limiteMs|poolAtivas|poolOciosas|poolEsperando|poolMaximo|sessoesAtivas|usuariosAutenticadosUnicos)=[0-9]+$/)
+          printf " %s", f
+      }
+      printf "\n"
+    }
+    $1 !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9:.]+Z$/ { next }
+    substr($1, 1, 19) < inicio || substr($1, 1, 19) >= fim { next }
+    /\[METRICA_POOL_CONEXOES\]/       { emitir("POOL"); next }
+    /\[ALERTA_POOL_SATURADO\]/        { emitir("POOL_SATURADO"); next }
+    /\[POOL_SATURADO_FIM\]/           { emitir("POOL_SATURADO_FIM"); next }
+    /\[METRICA_WEBSOCKET_SESSOES\]/   { emitir("SESSOES_WS"); next }
+    /\[LISTAGEM_PAINEL_LENTA\]/       { emitir("LISTAGEM_LENTA"); next }
+    /\[INBOX_INDISPONIVEL\]/          { print $1, "INBOX_503"; next }
+    /Revalidacao de assinatura indisponivel; evento nao entregue, assinatura mantida/ {
+      print $1, "EVENTO_NAO_ENTREGUE_ASSINATURA_MANTIDA"; next
+    }
+    /Falha ao entregar evento canonico na fila pessoal/ { print $1, "FALHA_FILA_PESSOAL"; next }
+    /Connection is not available, request timed out/ {
+      pool = "indeterminado"
+      if (/synapse-chat - Connection/) pool = "synapse-chat"
+      if (/synapse-geral - Connection/) pool = "synapse-geral"
+      print $1, "TIMEOUT_OBTENCAO_CONEXAO pool=" pool; next
+    }
+    /canceling statement due to statement timeout/ { print $1, "STATEMENT_TIMEOUT"; next }
+  ' >> "$saida"; then
+  printf 'coleta_logs=ok\n' >> "$saida"
+else
+  printf 'coleta_logs=falhou_ou_incompleta\n' >> "$saida"
+fi
+printf 'Diagnóstico local: %s\n' "$saida"
+```
+
+Revisar o arquivo antes de compartilhar. Erros podem aparecer várias vezes
+na pilha; não somar linhas como se cada uma fosse uma requisição. Da mesma
+forma, um GET cancelado no navegador não prova que a consulta em execução
+no PostgreSQL foi interrompida. A comparação necessária é por ordem dos
+fatos: erro/espera antes da perda de atualização, fechamento ou não do socket,
+resultado do snapshot/histórico, e entrega ou recuperação depois.
+
+## Diagnóstico reproduzido e correção da PR #360
 
 A consulta já paginava IDs antes de montar os cartões. Em `ATIVOS`, porém,
 o plano começava por ciclos visíveis (inclusive finalizados) e sondava
