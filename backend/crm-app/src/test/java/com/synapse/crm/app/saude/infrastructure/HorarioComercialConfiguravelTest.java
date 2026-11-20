@@ -179,6 +179,48 @@ class HorarioComercialConfiguravelTest {
         }
     }
 
+    @Nested
+    @DisplayName("fim do expediente (Configurações gerais)")
+    class FimDoExpediente {
+
+        private final java.time.LocalDate sabado = java.time.LocalDate.parse("2026-10-10");
+        private final java.time.LocalDate domingo = java.time.LocalDate.parse("2026-10-11");
+        private final java.time.LocalDate segunda = java.time.LocalDate.parse("2026-10-12");
+
+        @Test
+        @DisplayName("sem chave do dia, o fim é o da janela padrão")
+        void usaAJanelaPadrao() {
+            assertThat(horario.fimDoExpediente(segunda)).contains(java.time.LocalTime.of(18, 30));
+        }
+
+        @Test
+        @DisplayName("faixa do dia vale para o dia; fechado não tem fim de expediente")
+        void respeitaODia() {
+            banco.put("alerta.horario_cliente.sab", "08:00-12:00");
+            banco.put("alerta.horario_cliente.dom", "fechado");
+
+            assertThat(horario.fimDoExpediente(sabado)).contains(java.time.LocalTime.NOON);
+            assertThat(horario.fimDoExpediente(domingo)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("'padrao' no dia equivale a não ter chave: usa a janela padrão")
+        void padraoUsaAJanelaPadrao() {
+            banco.put("alerta.horario_cliente.seg", "padrao");
+
+            assertThat(horario.fimDoExpediente(segunda)).contains(java.time.LocalTime.of(18, 30));
+            assertThat(horario.permiteAvisarCliente(SEGUNDA_10H)).isTrue();
+        }
+
+        @Test
+        @DisplayName("sem janela padrão legível, não há fim de expediente")
+        void semJanelaPadrao() {
+            banco.clear();
+
+            assertThat(horario.fimDoExpediente(segunda)).isEmpty();
+        }
+    }
+
     private HorarioComercialConfiguravel novo(String fuso) {
         SynapseProperties propriedades =
                 new SynapseProperties(new SynapseProperties.Tenant("t", "Teste", fuso), null, null, null, Map.of());

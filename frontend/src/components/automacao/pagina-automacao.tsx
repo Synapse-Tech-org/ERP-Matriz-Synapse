@@ -29,6 +29,7 @@ import {
   useDatasFestivas, useMutacaoDataFestiva, useAlternarDataFestiva, useExcluirDataFestiva,
   useRegrasFidelizacao, useRegrasFollowUp, useTelemetriaAutomacao,
 } from "@/lib/automacao/use-automacao";
+import { pertenceAsConfiguracoesGerais } from "@/lib/gestao/configuracoes-gerais";
 import type {
   FidelizacaoPayload, FollowUpPayload, ParametroAutomacao, RegraFidelizacao,
   RegraFollowUp, StatusAutomacaoTelemetria, ConfiguracaoFidelizacaoParametro,
@@ -270,7 +271,8 @@ function GeralAutomacao({ textos, visualV2 = false }: { textos: Textos; visualV2
   const atualizarParametro = useAtualizarParametroAutomacao();
   const podeEditarParametros = capacidades.pode("automacao.editar_parametros");
   const preenchimento = parametros.data?.find((p) => p.chave === "ia.preenchimento_automatico");
-  const parametrosAvancados = parametros.data?.filter((p) => !p.chave.startsWith("clinica.") && (!visualV2 || ![
+  // As chaves de Gestão › Configurações gerais são editadas lá; aqui ficariam em dois lugares.
+  const parametrosAvancados = parametros.data?.filter((p) => !p.chave.startsWith("clinica.") && !pertenceAsConfiguracoesGerais(p.chave) && (!visualV2 || ![
     "automacao.habilitada", "automacao.saudacao", "ia.distribuicao.por_botoes", "ia.preenchimento_automatico",
     "ia.transferir_apos_mensagens", "ia.distribuicao.perguntar_preferencia", "ia.distribuicao.atendente_vinculado",
   ].includes(p.chave)));
