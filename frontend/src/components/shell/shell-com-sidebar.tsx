@@ -77,6 +77,16 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
   const { ativa: conversaEmTelaCheia } = useConversaEmTelaCheia();
   const mostrarBarraInferior = telaEstreita && !conversaEmTelaCheia;
 
+  // Sem as flags ainda não dá para saber se a tela é V1 ou V2: desenhar já seria mostrar o
+  // layout antigo por um instante no F5 e trocar logo depois. Com erro, segue no layout padrão.
+  if (funcionalidades.isPending) {
+    return (
+      <div className="flex min-h-0 flex-1 bg-[var(--fundo-canvas)]" data-slot="page-canvas" aria-busy="true">
+        <SinalizadorShellPronto />
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn("flex min-h-0 flex-1 overflow-hidden bg-[var(--fundo-canvas)]", visualV2 && [estilosV2.canvas, fonteFrontendV2.variable])}
