@@ -6,6 +6,7 @@ import type {
   EstadoAtendimentoSelecionado,
   EventoCanonicoAtendimentoTempoReal,
 } from "./types";
+import { atualizarPainelDeAtendimentos, pedidoDaNotificacao } from "./atualizacao-do-painel";
 
 const obterEstado = vi.hoisted(() => vi.fn());
 
@@ -122,13 +123,23 @@ describe("ReconciliadorEstadoAtendimento", () => {
     expect(cache.getQueryData(chaveEstadoAtendimento(cartao.atendimentoId))).toEqual(snapshot(3));
   });
 
-  it("invalida a inbox sem buscar snapshot para atendimento não selecionado", () => {
+  it("coalesce a invalidação do evento do ouvinte global e não busca snapshot de outra conversa", () => {
     const invalidar = vi.spyOn(cache, "invalidateQueries");
+    const remoto = evento("evento-remoto", 2);
 
-    expect(reconciliador.registrarSemSnapshot(evento("evento-remoto", 2))).toBe(true);
-    expect(reconciliador.registrarSemSnapshot(evento("evento-remoto", 2))).toBe(false);
+    expect(reconciliador.registrarSemSnapshot(remoto)).toBe(true);
+    atualizarPainelDeAtendimentos(cache, pedidoDaNotificacao(remoto));
+    expect(reconciliador.registrarSemSnapshot(remoto)).toBe(false);
 
     expect(obterEstado).not.toHaveBeenCalled();
-    expect(invalidar).toHaveBeenCalledOnce();
+    expect(invalidar.mock.calls).toHaveLength(2); // lista e contagem, uma vez cada
+    expect(invalidar.mock.calls.every(([, opcoes]) => opcoes?.cancelRefetch === false)).toBe(true);
+  });
+
+  it("uma simples leitura/revalidação do estado não provoca releitura da inbox", async () => {
+    obterEstado.mockResolvedValue(snapshot(2));
+    const invalidar = vi.spyOn(cache, "invalidateQueries");
+    await reconciliador.sincronizar(cartao.atendimentoId);
+    expect(invalidar).not.toHaveBeenCalled();
   });
 });
