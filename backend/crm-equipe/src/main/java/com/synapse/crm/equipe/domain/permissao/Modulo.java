@@ -6,8 +6,8 @@ import java.util.Optional;
 /**
  * Modulos do CRM que tem acoes configuraveis em Gestao.
  *
- * <p>So entra aqui o que esta implementado e disponivel na primeira entrega (docs/47). Banco de
- * Arquivos, importacao/exportacao e sub-abas futuras ficam fora de proposito:
+ * <p>So entra aqui o que esta implementado (docs/47). Importacao/exportacao e sub-abas futuras
+ * ficam fora de proposito:
  * permissao para algo que nao existe e controle fantasma.
  *
  * <p>{@code nivelMinimoPermitido} existe para modulos cuja leitura e estrutural (Atendimentos,
@@ -19,6 +19,7 @@ public enum Modulo {
     ATENDIMENTOS("atendimentos", NivelDeAcesso.VER, null),
     CONTATOS("contatos", NivelDeAcesso.VER, null),
     TAGS("tags", NivelDeAcesso.VER, null),
+    BANCO_ARQUIVOS("banco_arquivos", NivelDeAcesso.SEM_ACESSO, "banco_arquivos"),
     MENSAGENS_RAPIDAS("mensagens_rapidas", NivelDeAcesso.SEM_ACESSO, null),
     TEMPLATES("templates", NivelDeAcesso.SEM_ACESSO, null),
     RESUMO_IA("resumo_ia", NivelDeAcesso.SEM_ACESSO, null),

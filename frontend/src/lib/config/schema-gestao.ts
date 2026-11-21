@@ -20,6 +20,10 @@ const MODULOS_PADRAO: Record<string, { rotulo: string; descricao: string }> = {
     "rotulo": "Tags",
     "descricao": "Classificação de leads"
   },
+  "banco_arquivos": {
+    "rotulo": "Banco de Arquivos",
+    "descricao": "Catálogos, fotos e documentos para atendimentos"
+  },
   "mensagens_rapidas": {
     "rotulo": "Mensagens rápidas",
     "descricao": "Atalhos de resposta"
@@ -90,6 +94,11 @@ const CAPACIDADES_PADRAO: Record<string, string> = {
   "tags.aplicar": "Aplicar e remover tags nos leads",
   "tags.criar": "Criar tag",
   "tags.editar_excluir": "Editar e excluir tags",
+  "banco_arquivos.ver": "Consultar, visualizar e baixar arquivos",
+  "banco_arquivos.criar": "Enviar arquivos ao banco",
+  "banco_arquivos.editar": "Editar informações e visibilidade dos arquivos",
+  "banco_arquivos.excluir": "Excluir e restaurar arquivos",
+  "banco_arquivos.enviar": "Enviar arquivos pelo atendimento",
   "mensagens_rapidas.usar": "Usar mensagens rápidas",
   "mensagens_rapidas.criar": "Criar mensagens rápidas",
   "mensagens_rapidas.editar_excluir": "Editar e excluir mensagens rápidas",

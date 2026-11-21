@@ -84,6 +84,18 @@ public enum Capacidade {
     TAGS_EDITAR_EXCLUIR("tags.editar_excluir", Modulo.TAGS, NivelDeAcesso.GERENCIAR, Tipo.ACAO,
             true, gestao(), nenhum(), false),
 
+    // --- Banco de Arquivos ------------------------------------------------------------------
+    BANCO_ARQUIVOS_VER("banco_arquivos.ver", Modulo.BANCO_ARQUIVOS, NivelDeAcesso.VER, Tipo.ACAO,
+            false, todos(), nenhum(), true),
+    BANCO_ARQUIVOS_CRIAR("banco_arquivos.criar", Modulo.BANCO_ARQUIVOS, NivelDeAcesso.EDITAR, Tipo.ACAO,
+            false, gestao(), nenhum(), false, "banco_arquivos.ver"),
+    BANCO_ARQUIVOS_EDITAR("banco_arquivos.editar", Modulo.BANCO_ARQUIVOS, NivelDeAcesso.EDITAR, Tipo.ACAO,
+            false, gestao(), nenhum(), false, "banco_arquivos.ver"),
+    BANCO_ARQUIVOS_EXCLUIR("banco_arquivos.excluir", Modulo.BANCO_ARQUIVOS, NivelDeAcesso.GERENCIAR, Tipo.ACAO,
+            true, gestao(), EnumSet.of(SUBGESTOR), false, "banco_arquivos.ver"),
+    BANCO_ARQUIVOS_ENVIAR("banco_arquivos.enviar", Modulo.BANCO_ARQUIVOS, NivelDeAcesso.EDITAR, Tipo.ACAO,
+            true, todos(), nenhum(), true, "banco_arquivos.ver", "atendimentos.responder"),
+
     // --- Mensagens rapidas ------------------------------------------------------------------
     MENSAGENS_RAPIDAS_USAR("mensagens_rapidas.usar", Modulo.MENSAGENS_RAPIDAS, NivelDeAcesso.VER, Tipo.ACAO,
             false, todos(), nenhum(), true),

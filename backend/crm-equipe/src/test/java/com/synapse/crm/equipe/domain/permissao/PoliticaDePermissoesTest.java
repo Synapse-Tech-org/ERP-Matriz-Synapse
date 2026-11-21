@@ -18,7 +18,7 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 class PoliticaDePermissoesTest {
 
-    private static final Set<String> FLAGS = Set.of("dashboard", "campanhas", "cancelamentos", "relatorios");
+    private static final Set<String> FLAGS = Set.of("dashboard", "campanhas", "cancelamentos", "relatorios", "banco_arquivos");
     private static final ConfiguracaoDePermissoes VAZIA = ConfiguracaoDePermissoes.vazia();
 
     @ParameterizedTest
@@ -50,6 +50,46 @@ class PoliticaDePermissoesTest {
                 .isEqualTo(gestao ? Capacidade.Alcance.TODOS : Capacidade.Alcance.MEUS);
         assertThat(permitido.permite(Capacidade.ATENDIMENTOS_FINALIZAR))
                 .isEqualTo(PoliticaDePermissoes.calcular(papel, VAZIA, VAZIA, FLAGS).permite(Capacidade.ATENDIMENTOS_FINALIZAR));
+    }
+
+    @Test
+    void bancoDeArquivosExigeFlagAteParaAdministrador() {
+        var admin = PoliticaDePermissoes.calcular(PapelUsuario.ADMINISTRADOR, VAZIA, VAZIA, Set.of());
+        assertThat(admin.nivel(Modulo.BANCO_ARQUIVOS)).isEqualTo(NivelDeAcesso.SEM_ACESSO);
+        assertThat(admin.estado(Capacidade.BANCO_ARQUIVOS_VER).motivo()).isEqualTo(Motivo.FLAG_DESLIGADA);
+        assertThat(admin.permite(Capacidade.BANCO_ARQUIVOS_ENVIAR)).isFalse();
+    }
+
+    @Test
+    void atendentePodeConsultarEEnviarMasNaoAlterarAcervo() {
+        var atendente = PoliticaDePermissoes.calcular(PapelUsuario.ATENDENTE, VAZIA, VAZIA, FLAGS);
+        assertThat(atendente.permite(Capacidade.BANCO_ARQUIVOS_VER)).isTrue();
+        assertThat(atendente.permite(Capacidade.BANCO_ARQUIVOS_ENVIAR)).isTrue();
+        assertThat(atendente.permite(Capacidade.BANCO_ARQUIVOS_CRIAR)).isFalse();
+        assertThat(atendente.permite(Capacidade.BANCO_ARQUIVOS_EDITAR)).isFalse();
+        assertThat(atendente.permite(Capacidade.BANCO_ARQUIVOS_EXCLUIR)).isFalse();
+
+        var contaTeste = atendente.somenteLeitura();
+        assertThat(contaTeste.permite(Capacidade.BANCO_ARQUIVOS_ENVIAR)).isFalse();
+
+        var perfilSemResposta = acoes(Map.of(Capacidade.ATENDIMENTOS_RESPONDER, false));
+        var semResposta = PoliticaDePermissoes.calcular(PapelUsuario.ATENDENTE, perfilSemResposta, VAZIA, FLAGS);
+        assertThat(semResposta.estado(Capacidade.BANCO_ARQUIVOS_ENVIAR).motivo()).isEqualTo(Motivo.DEPENDENCIA);
+    }
+
+    @Test
+    void subgestorNasceSemExclusao() {
+        var subgestor = PoliticaDePermissoes.calcular(PapelUsuario.SUBGESTOR, VAZIA, VAZIA, FLAGS);
+        assertThat(subgestor.permite(Capacidade.BANCO_ARQUIVOS_CRIAR)).isTrue();
+        assertThat(subgestor.permite(Capacidade.BANCO_ARQUIVOS_EDITAR)).isTrue();
+        assertThat(subgestor.permite(Capacidade.BANCO_ARQUIVOS_EXCLUIR)).isFalse();
+
+        var concedida = new ConfiguracaoDePermissoes(
+                Map.of(Modulo.BANCO_ARQUIVOS, NivelDeAcesso.GERENCIAR),
+                Map.of(Capacidade.BANCO_ARQUIVOS_EXCLUIR, true));
+        PoliticaDePermissoes.validarExcecoes(PapelUsuario.SUBGESTOR, VAZIA, concedida, FLAGS);
+        var autorizado = PoliticaDePermissoes.calcular(PapelUsuario.SUBGESTOR, VAZIA, concedida, FLAGS);
+        assertThat(autorizado.permite(Capacidade.BANCO_ARQUIVOS_EXCLUIR)).isTrue();
     }
 
     @Test
@@ -277,7 +317,7 @@ class PoliticaDePermissoesTest {
                 .isInstanceOfSatisfying(PermissaoInvalidaException.class,
                         e -> assertThat(e.violacoes().get(0).codigo()).isEqualTo(Violacao.Codigo.PERFIL_FIXO));
         assertThatThrownBy(() -> ConfiguracaoDePermissoes.interpretar(
-                        Map.of("tags", "GERENCIAR", "banco_arquivos", "VER"),
+                        Map.of("tags", "GERENCIAR", "modulo_inexistente", "VER"),
                         Map.of("atendimentos.assumir_de_colega", true)))
                 .isInstanceOfSatisfying(PermissaoInvalidaException.class, e -> assertThat(e.violacoes())
                         .extracting(Violacao::codigo)

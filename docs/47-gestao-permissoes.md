@@ -94,11 +94,15 @@ registra os papéis históricos, não concede visão global ao novo papel.
 `CapacidadesReferenciadasTest` reprova o build se um `@PreAuthorize` citar um id fora do catálogo
 e se uma capacidade configurável não tiver nenhum ponto de aplicação.
 
+A flag `banco_arquivos` libera a biblioteca da instância. A Gestão controla `banco_arquivos.ver`
+(inclusive prévia e download), `.criar`, `.editar`, `.excluir` (inclusive restauração) e `.enviar`.
+O envio ao cliente também exige as permissões do atendimento escolhido. O anexo direto no chat
+continua regido por `atendimentos.responder`.
+
 ### 2.2 Excluídas, com motivo
 
 | Função existente | Motivo |
 |---|---|
-| Banco de Arquivos | Fora da primeira entrega (flag `banco_arquivos` desligada). Upload de anexo no chat **não** é Banco de Arquivos: está em `atendimentos.responder`. |
 | Relatórios, Horários, sub-abas do Dashboard | Fora de escopo / flags desligadas. Nenhum controle "Em breve". Campanhas entrou no catálogo após E220. |
 | Importação e exportação de leads (`/leads/importacao/**`, `/leads/exportar`) | Excluídas pelo pedido. Continuam com a regra que já tinham. |
 | Visibilidade de leads/contatos/timeline/mídias | Estrutural (RN-CRM-01, Specification, RLS). Exibida como "regra fixa", nunca configurável. |
@@ -287,7 +291,8 @@ ON CONFLICT (chave) DO UPDATE SET habilitado = TRUE;
 | Modal sem senha, com "Gestor" | senha inicial obrigatória; só Subgestor/Atendente (S delegado: só Atendente) | contrato atual; sem credencial implícita |
 | Ver conversas com Não/Meus/Equipe/Todos | Meus/Todos exibidos como regra fixa | RN-CRM-01; não existe "Equipe" |
 | "Assumir conversa de outro atendente" | ausente | ver 2.2 |
-| Banco de Arquivos, Relatórios no menu | fora | escopo; Campanhas entrou no catálogo após E220 |
+| Banco de Arquivos no menu | condicionado | feature flag e `banco_arquivos.ver` |
+| Relatórios no menu | fora neste recorte | escopo original da Gestão |
 | Cópia de gestor para atendente | recusada; cópias sempre recortadas pelo teto com prévia | não transmitir limite superior |
 | Exceção ligando "assumir colega"/"criar template" do atendente | impossível: "assumir" não existe; ações fora do teto são recusadas | teto |
 | Toggle ligado com nível abaixo do mínimo | bloqueado e explicado | coerência |

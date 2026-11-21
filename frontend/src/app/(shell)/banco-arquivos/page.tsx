@@ -1,3 +1,7 @@
-import { Placeholder } from "@/components/shell/placeholder";
+import { Suspense } from "react";
 
-export default function BancoArquivosEmConstrucao() { return <Placeholder />; }
+import { PaginaBancoDeArquivos } from "@/components/banco-arquivos/pagina-banco-de-arquivos";
+
+export default function BancoDeArquivos() {
+  return <Suspense><PaginaBancoDeArquivos /></Suspense>;
+}
