@@ -5,6 +5,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ErroDeApi } from "@/lib/api/errors";
+import { TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO } from "@/lib/atendimento/arquivos-do-composer";
 import type { ArquivoDoBanco, ResultadoDoBanco } from "@/lib/banco-arquivos/api";
 import { TextosSchema } from "@/lib/config/schema";
 import { TextosProvider } from "@/lib/config/textos-provider";
@@ -105,6 +106,31 @@ describe("Banco de Arquivos", () => {
     await waitFor(() => expect(api.listar).toHaveBeenLastCalledWith(expect.objectContaining({ tipo: "PDF", pagina: 0 }), expect.anything()));
     fireEvent.click(screen.getByRole("button", { name: textos.bancoArquivos.lista }));
     expect(await screen.findByRole("table", { name: textos.bancoArquivos.titulo })).toBeInTheDocument();
+  });
+
+  it("mostra os novos tipos no filtro e envia o tipo de vídeo para a API", async () => {
+    montar();
+    await screen.findByRole("button", { name: arquivo.nome });
+    fireEvent.click(screen.getByRole("button", { name: textos.bancoArquivos.maisTipos }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: textos.bancoArquivos.tipos.VIDEO }));
+    await waitFor(() => expect(api.listar).toHaveBeenLastCalledWith(expect.objectContaining({ tipo: "VIDEO", pagina: 0 }), expect.anything()));
+  });
+
+  it("usa toda a lista do chat no seletor e envia formatos novos mesmo com MIME ausente", async () => {
+    api.adicionar.mockResolvedValue(arquivo);
+    montar();
+    fireEvent.click(await screen.findByRole("button", { name: textos.bancoArquivos.enviarArquivos }));
+    const modal = screen.getByRole("dialog");
+    const input = modal.querySelector<HTMLInputElement>('input[type="file"]')!;
+    expect(input.accept.split(",")).toEqual(expect.arrayContaining(TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO.split(",")));
+    const permitidos = ["manual.doc", "valores.xls", "medidas.ppt", "apresentacao.pptx", "aviso.txt", "foto.webp", "recado.opus", "obra.mp4", "detalhe.3gp", "projeto.dwg"]
+      .map((nome) => new File(["conteudo"], nome));
+    const bloqueado = new File(["conteudo"], "executavel.exe");
+    fireEvent.change(input, { target: { files: [...permitidos, bloqueado] } });
+    fireEvent.click(within(modal).getByRole("button", { name: textos.bancoArquivos.enviar }));
+    await waitFor(() => expect(api.adicionar).toHaveBeenCalledTimes(permitidos.length));
+    expect(api.adicionar.mock.calls.map(([file]) => file)).toEqual(permitidos);
+    expect(await within(modal).findByText(textos.bancoArquivos.erroTipo)).toBeInTheDocument();
   });
 
   it("não reenvia itens concluídos nem dispara os itens restantes quando o servidor sinaliza rate limit", async () => {

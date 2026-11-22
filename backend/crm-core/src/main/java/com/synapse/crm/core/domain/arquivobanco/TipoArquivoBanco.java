@@ -1,5 +1,5 @@
 package com.synapse.crm.core.domain.arquivobanco;
 
 public enum TipoArquivoBanco {
-    PDF, XLSX, DOCX, DWG, IMAGEM
+    PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, DWG, IMAGEM, AUDIO, VIDEO
 }

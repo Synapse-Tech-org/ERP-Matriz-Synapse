@@ -121,7 +121,7 @@ class BancoArquivosController {
     }
 
     @Operation(summary = "Visualizar uma imagem da biblioteca",
-            description = "Fornece prévia autenticada de JPEG e PNG com cabeçalhos que impedem cache e interpretação como HTML.")
+            description = "Fornece prévia autenticada de JPEG, PNG e WebP com cabeçalhos que impedem cache e interpretação como HTML.")
     @GetMapping("/{id}/preview")
     void preview(@PathVariable UUID id, HttpServletResponse resposta) throws IOException {
         try (ArquivoAberto arquivo = abrir.paraVisualizacao(id)) {

@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import com.synapse.crm.core.domain.arquivobanco.ArquivoBanco.Metadados;
+import com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal;
 
 @Service
 public class EnviarArquivoBancoUseCase {
@@ -19,10 +20,12 @@ public class EnviarArquivoBancoUseCase {
 
     private final RegistrarArquivoBanco registro;
     private final BancoArquivosProperties limites;
+    private final DetectorDeTipoReal detector;
 
-    EnviarArquivoBancoUseCase(RegistrarArquivoBanco registro, BancoArquivosProperties limites) {
+    EnviarArquivoBancoUseCase(RegistrarArquivoBanco registro, BancoArquivosProperties limites, DetectorDeTipoReal detector) {
         this.registro = registro;
         this.limites = limites;
+        this.detector = detector;
     }
 
     @PreAuthorize("@capacidades.permite('banco_arquivos.criar')")
@@ -40,7 +43,7 @@ public class EnviarArquivoBancoUseCase {
         try {
             temporario = Files.createTempFile("synapse-banco-", ".upload");
             copiar(conteudo, temporario, tamanho);
-            FormatoDeArquivoBanco formato = FormatoDeArquivoBanco.verificar(nome, temporario);
+            FormatoDeArquivoBanco formato = FormatoDeArquivoBanco.verificar(nome, temporario, detector);
             return registro.executar(UUID.randomUUID(), nome, pastaValidada, descricaoValidada, formato, tamanho, temporario);
         } catch (IOException erro) {
             log.warn("Falha na leitura do upload do Banco de Arquivos", erro);

@@ -69,8 +69,9 @@
   white-space: nowrap;
 }
 .tipos button :global([data-slot="icone-frontend-v2"]) { font-size: 14px; }
-.tipos button[aria-pressed="true"] { border-color: var(--v2-contraste-escuro); background: var(--v2-contraste-escuro); color: var(--v2-contraste-claro); }
-.tipos button:hover:not([aria-pressed="true"]) { background: var(--muted); }
+.tipos button > svg { width: 14px; height: 14px; }
+.tipos button:is([aria-pressed="true"], [data-selecionado="true"]) { border-color: var(--v2-contraste-escuro); background: var(--v2-contraste-escuro); color: var(--v2-contraste-claro); }
+.tipos button:hover:not([aria-pressed="true"], [data-selecionado="true"]) { background: var(--muted); }
 
 .busca svg, .ordenacao svg, .armazenamento svg,
 .acaoIcone svg, .botaoDestaque svg, .botaoPerigo svg, .enviarArquivo svg, .modulos svg {
@@ -131,7 +132,10 @@
   color: var(--arquivo-cor);
 }
 :is(.iconeDoArquivo, .selo)[data-tipo="PDF"] { --arquivo-cor: var(--v2-vermelho); }
-:is(.iconeDoArquivo, .selo)[data-tipo="XLSX"] { --arquivo-cor: var(--v2-verde); }
+:is(.iconeDoArquivo, .selo):is([data-tipo="XLS"], [data-tipo="XLSX"]) { --arquivo-cor: var(--v2-verde); }
+:is(.iconeDoArquivo, .selo):is([data-tipo="PPT"], [data-tipo="PPTX"]) { --arquivo-cor: var(--v2-laranja); }
+:is(.iconeDoArquivo, .selo)[data-tipo="AUDIO"] { --arquivo-cor: var(--v2-turquesa); }
+:is(.iconeDoArquivo, .selo)[data-tipo="VIDEO"] { --arquivo-cor: var(--v2-indigo); }
 :is(.iconeDoArquivo, .selo)[data-tipo="DWG"] { --arquivo-cor: var(--v2-violeta); }
 :is(.iconeDoArquivo, .selo)[data-tipo="IMAGEM"] { --arquivo-cor: var(--cor-info); }
 

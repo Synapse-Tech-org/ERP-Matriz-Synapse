@@ -3,12 +3,13 @@ import { apiFetch, apiFetchArquivo, apiFetchBlob } from "@/lib/api/http-client";
 const ROTA = "/api/v1/banco-arquivos";
 
 export const PASTAS_DO_BANCO = ["catalogos", "tabelas", "contratos", "projetos", "orcamentos", "fotos"] as const;
-export const TIPOS_DO_BANCO = ["PDF", "XLSX", "DOCX", "IMAGEM", "DWG"] as const;
+export const TIPOS_DO_BANCO_EM_DESTAQUE = ["PDF", "XLSX", "DOCX", "IMAGEM", "DWG"] as const;
+export const TIPOS_DO_BANCO_ADICIONAIS = ["DOC", "XLS", "PPT", "PPTX", "TXT", "AUDIO", "VIDEO"] as const;
 export const ORDENS_DO_BANCO = ["recentes", "nome", "tamanho"] as const;
 export const CHAVE_DO_BANCO = ["banco-arquivos"] as const;
 
 export type PastaDoBanco = (typeof PASTAS_DO_BANCO)[number];
-export type TipoDoBanco = (typeof TIPOS_DO_BANCO)[number];
+export type TipoDoBanco = (typeof TIPOS_DO_BANCO_EM_DESTAQUE | typeof TIPOS_DO_BANCO_ADICIONAIS)[number];
 export type OrdemDoBanco = (typeof ORDENS_DO_BANCO)[number];
 
 export interface ArquivoDoBanco {

@@ -14,8 +14,8 @@ import com.synapse.crm.atendimento.application.midia.ResolverLeadDoAtendimentoUs
 import com.synapse.crm.atendimento.application.midia.TipoDeMidiaNaoPermitidoException;
 import com.synapse.crm.atendimento.domain.midia.TiposDeMidiaPermitidos;
 import com.synapse.crm.core.application.arquivobanco.AbrirArquivoBancoUseCase;
+import com.synapse.crm.sharedkernel.midia.ClassificadorDeAnexoExterno;
 import com.synapse.crm.sharedkernel.midia.LimiteDeAnexoRepositorio;
-import com.synapse.crm.sharedkernel.midia.RegrasDeAnexoBase;
 
 @Service
 public class EnviarArquivoBancoAoClienteUseCase {
@@ -45,11 +45,10 @@ public class EnviarArquivoBancoAoClienteUseCase {
         byte[] conteudo;
         try (arquivo) {
             String mime = arquivo.mimeType();
-            var tipo = TiposDeMidiaPermitidos.tipoDe(mime)
+            var categoria = ClassificadorDeAnexoExterno.categoriaDoMimeValidado(mime)
                     .orElseThrow(() -> new TipoDeMidiaNaoPermitidoException(mime));
-            var categoria = RegrasDeAnexoBase.categoriaDe(mime).orElseThrow();
             long limite = limites.limiteEmBytes(categoria)
-                    .orElseGet(() -> TiposDeMidiaPermitidos.tetoDaMetaEmBytes(tipo));
+                    .orElseGet(() -> TiposDeMidiaPermitidos.tetoDaMetaEmBytes(categoria));
             if (arquivo.tamanhoBytes() > limite) {
                 throw new AnexoExcedeuLimiteException(arquivo.tamanhoBytes(), limite);
             }

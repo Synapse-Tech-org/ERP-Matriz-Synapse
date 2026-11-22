@@ -20,7 +20,7 @@ import { ErroDeApi } from "@/lib/api/errors";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import {
   baixarArquivoDoBanco, CHAVE_DO_BANCO, listarArquivosDoBanco, obterArquivoDoBanco, ORDENS_DO_BANCO,
-  PASTAS_DO_BANCO, removerArquivoDoBanco, restaurarArquivoDoBanco, TIPOS_DO_BANCO,
+  PASTAS_DO_BANCO, removerArquivoDoBanco, restaurarArquivoDoBanco, TIPOS_DO_BANCO_ADICIONAIS, TIPOS_DO_BANCO_EM_DESTAQUE,
   type ArquivoDoBanco, type FiltrosDoBanco, type OrdemDoBanco, type PastaDoBanco, type TipoDoBanco,
 } from "@/lib/banco-arquivos/api";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -103,6 +103,7 @@ function BancoDeArquivos({ t }: { t: TextosDoBanco }) {
   const podeEnviar = capacidades.pode("banco_arquivos.enviar")
     && capacidades.pode("clientes.acessar") && capacidades.pode("atendimentos.responder");
   const totalPaginas = Math.max(1, Math.ceil((dados?.total ?? 0) / filtros.tamanho));
+  const tipoAdicional = TIPOS_DO_BANCO_ADICIONAIS.find((tipo) => tipo === filtros.tipo);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -215,11 +216,23 @@ function BancoDeArquivos({ t }: { t: TextosDoBanco }) {
             )}
           </div>
           <div className={estilos.tipos} role="group" aria-label={t.filtrarTipo}>
-            {[null, ...TIPOS_DO_BANCO].map((tipo: TipoDoBanco | null) => {
+            {[null, ...TIPOS_DO_BANCO_EM_DESTAQUE].map((tipo: TipoDoBanco | null) => {
               const icone = tipo ? ICONES_DOS_TIPOS[tipo].filtro : "apps-2-line";
               return <button type="button" key={tipo ?? "todos"} aria-pressed={filtros.tipo === tipo}
                 onClick={() => atualizarFiltros({ tipo })}><IconeFrontendV2 nome={icone} /> {t.tipos[tipo ?? "todos"]}</button>;
             })}
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<button type="button" data-selecionado={Boolean(tipoAdicional)} />}>
+                {tipoAdicional ? t.tipos[tipoAdicional] : t.maisTipos} <ChevronDown aria-hidden />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className={estilos.menuDeAcoes}>
+                {TIPOS_DO_BANCO_ADICIONAIS.map((tipo) => (
+                  <DropdownMenuItem key={tipo} onClick={() => atualizarFiltros({ tipo })}>
+                    <IconeFrontendV2 nome={ICONES_DOS_TIPOS[tipo].filtro} /> {t.tipos[tipo]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div className={estilos.ferramentasFinais}>
             {dados && <div className={estilos.armazenamento}>

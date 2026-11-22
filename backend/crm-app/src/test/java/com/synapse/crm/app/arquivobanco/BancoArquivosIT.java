@@ -25,6 +25,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -143,6 +145,69 @@ class BancoArquivosIT extends PostgresIT {
                 """, ocupado, QUOTA);
         assertThat(corpo(upload("Valido.pdf", PDF), 409).path("codigo").asText()).isEqualTo("BANCO_ARQUIVOS_QUOTA");
         assertThat(storage.contagemDeObjetos()).isEqualTo(objetosAntes);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "slides.doc,/word/vazio.doc,DOC,application/msword",
+            "pasta.docx,/word/sintetico.docx,DOCX,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "nota.ogg,/z-api/audio-sintetico.ogg,AUDIO,audio/ogg",
+            "video.mp4,/midia/chat-interno/video-validacao.mp4,VIDEO,video/mp4",
+            "foto.webp,/avatar/foto-grupo-128x96.webp,IMAGEM,image/webp"
+    })
+    void publicaNovosFormatosNoFiltroCorrespondenteComMimeCanonico(
+            String nome, String recurso, String tipo, String mime) throws Exception {
+        byte[] real = lerRecurso(recurso);
+        UUID id = guardar(nome, real);
+        String arquivo = ROTA + "/" + id;
+        JsonNode lista = corpo(chamar("GET", ROTA + "?tipo=" + tipo, null, null), 200);
+        JsonNode item = lista.path("itens").get(0);
+        assertThat(item.path("id").asText()).isEqualTo(id.toString());
+        assertThat(item.path("tipo").asText()).isEqualTo(tipo);
+        assertThat(item.path("mimeType").asText()).isEqualTo(mime);
+
+        var previa = chamar("GET", arquivo + "/preview", null, null);
+        if ("image/webp".equals(mime)) {
+            assertThat(previa.statusCode()).isEqualTo(200);
+            assertThat(previa.headers().firstValue("Content-Type")).hasValue(mime);
+            assertThat(previa.body()).isEqualTo(real);
+        } else {
+            assertThat(previa.statusCode()).isEqualTo(404);
+        }
+        var download = chamar("GET", arquivo + "/download", null, null);
+        assertThat(download.statusCode()).isEqualTo(200);
+        assertThat(download.headers().firstValue("Content-Type")).hasValue(mime);
+        assertThat(download.body()).isEqualTo(real);
+    }
+
+    @Test void recusaVideoRenomeadoParaM4aOuEmbaladoComMimeIncoerente() throws Exception {
+        byte[] video = lerRecurso("/midia/chat-interno/video-validacao.mp4");
+        corpo(upload("audio.m4a", video), 415);
+        corpo(upload("audio.mp3", video), 415);
+        corpo(upload("foto.webp", video), 415);
+    }
+
+    @Test void aceitaTextoPuroERecusaImagemWebpComDimensoesExcessivas() throws Exception {
+        byte[] texto = "Medidas de corte\nLargura 2,5 metros.".getBytes(StandardCharsets.UTF_8);
+        UUID id = guardar("medidas.txt", texto);
+        JsonNode dados = corpo(chamar("GET", ROTA + "/" + id, null, null), 200);
+        assertThat(dados.path("tipo").asText()).isEqualTo("TXT");
+        assertThat(dados.path("mimeType").asText()).isEqualTo("text/plain");
+
+        byte[] webp = lerRecurso("/avatar/foto-grupo-128x96.webp");
+        // O cabeçalho VP8L guarda largura e altura de 14 bits. 16384 × 16384 ultrapassa a cota de pixels.
+        webp[21] = (byte) 0xff;
+        webp[22] = (byte) 0xff;
+        webp[23] = (byte) 0xff;
+        webp[24] = 0x0f;
+        corpo(upload("enorme.webp", webp), 415);
+    }
+
+    private byte[] lerRecurso(String nome) throws IOException {
+        try (var arquivo = getClass().getResourceAsStream(nome)) {
+            assertThat(arquivo).as(nome).isNotNull();
+            return arquivo.readAllBytes();
+        }
     }
 
     private UUID guardar(String nome, byte[] bytes) throws Exception {

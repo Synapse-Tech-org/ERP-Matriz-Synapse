@@ -2,12 +2,11 @@ package com.synapse.crm.atendimento.domain.midia;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
-import com.synapse.crm.sharedkernel.midia.IsoBmffAudioOnly;
+import com.synapse.crm.sharedkernel.midia.CategoriaDeMidia;
+import com.synapse.crm.sharedkernel.midia.ClassificadorDeAnexoExterno;
 import com.synapse.crm.sharedkernel.midia.RegrasDeAnexoBase;
-import com.synapse.crm.sharedkernel.midia.ValidadorDeOggOpus;
 
 /**
  * Mapeador local de mimetypes para TipoMensagem do atendimento, e os tetos de tamanho da Meta Cloud API
@@ -25,16 +24,6 @@ public final class TiposDeMidiaPermitidos {
             TipoMensagem.DOCUMENTO, 100L * 1024 * 1024,
             TipoMensagem.VIDEO, 16L * 1024 * 1024);
 
-    /** Rotulos que o Tika da a um conteiner ISO-BMFF — MP4 comum ({@code isom}) sai como quicktime. */
-    private static final Set<String> CONTEINER_ISO_BMFF =
-            Set.of("video/mp4", "video/quicktime", "video/3gpp", "audio/mp4");
-
-    /** Marcas {@code ftyp} de MP4 que a Meta aceita como {@code video/mp4}. */
-    private static final Set<String> MARCAS_MP4 = Set.of(
-            "isom", "iso2", "iso4", "iso5", "iso6", "mp41", "mp42", "avc1", "dash", "mmp4");
-
-    private static final Set<String> MARCAS_3GP = Set.of("3gp4", "3gp5", "3gp6", "3gp7", "3gs7", "3g2a", "3g2b");
-
     private TiposDeMidiaPermitidos() {}
 
     /** Resultado da classificacao pelo conteudo: o tipo da mensagem e o mimetype que vai ao provedor. */
@@ -48,30 +37,22 @@ public final class TiposDeMidiaPermitidos {
      * (.mov, que a Meta nao aceita). Conteiner sem trilha de video segue o caminho de audio de antes.
      */
     public static Optional<Classificacao> classificar(String mimetypeDetectado, byte[] conteudo) {
-        // Tika reconhece o container Ogg genericamente. Nao ampliar a allowlist de containers:
-        // somente Opus completo no perfil ja permitido pode ser normalizado para audio/ogg.
-        if (mimetypeDetectado != null && Set.of("application/ogg", "audio/opus", "audio/x-opus+ogg").contains(mimetypeDetectado)) {
-            if (!ValidadorDeOggOpus.ehValido(conteudo)) return Optional.empty();
-            mimetypeDetectado = "audio/ogg";
-        }
-        String mimetype = IsoBmffAudioOnly.mimetypeDeAudioSeCamuflado(mimetypeDetectado, conteudo);
-        if (CONTEINER_ISO_BMFF.contains(mimetype) && IsoBmffAudioOnly.temTrilhaDeVideo(conteudo)) {
-            return mimetypeDeVideo(IsoBmffAudioOnly.marcaPrincipal(conteudo))
-                    .map(video -> new Classificacao(TipoMensagem.VIDEO, video));
-        }
-        return tipoDe(mimetype).map(tipo -> new Classificacao(tipo, mimetype));
+        return ClassificadorDeAnexoExterno.classificar(mimetypeDetectado, conteudo)
+                .map(resultado -> new Classificacao(tipoDaCategoria(resultado.categoria()), resultado.mimeType()));
     }
 
     /** Vazio quando o mimetype real nao esta na allowlist da base. Nunca devolve video. */
     public static Optional<TipoMensagem> tipoDe(String mimetypeReal) {
-        return RegrasDeAnexoBase.categoriaDe(mimetypeReal)
-                .map(categoria -> switch (categoria) {
-                    case IMAGEM -> TipoMensagem.IMAGEM;
-                    case AUDIO -> TipoMensagem.AUDIO;
-                    case DOCUMENTO -> TipoMensagem.DOCUMENTO;
-                    // A base nao mapeia video; so classificar() produz VIDEO, com trilha conferida.
-                    case VIDEO -> TipoMensagem.VIDEO;
-                });
+        return RegrasDeAnexoBase.categoriaDe(mimetypeReal).map(TiposDeMidiaPermitidos::tipoDaCategoria);
+    }
+
+    private static TipoMensagem tipoDaCategoria(CategoriaDeMidia categoria) {
+        return switch (categoria) {
+            case IMAGEM -> TipoMensagem.IMAGEM;
+            case AUDIO -> TipoMensagem.AUDIO;
+            case DOCUMENTO -> TipoMensagem.DOCUMENTO;
+            case VIDEO -> TipoMensagem.VIDEO;
+        };
     }
 
     public static long tetoDaMetaEmBytes(TipoMensagem tipo) {
@@ -82,13 +63,7 @@ public final class TiposDeMidiaPermitidos {
         return teto;
     }
 
-    private static Optional<String> mimetypeDeVideo(String marca) {
-        if (MARCAS_MP4.contains(marca)) {
-            return Optional.of("video/mp4");
-        }
-        if (MARCAS_3GP.contains(marca)) {
-            return Optional.of("video/3gpp");
-        }
-        return Optional.empty();
+    public static long tetoDaMetaEmBytes(CategoriaDeMidia categoria) {
+        return tetoDaMetaEmBytes(tipoDaCategoria(categoria));
     }
 }

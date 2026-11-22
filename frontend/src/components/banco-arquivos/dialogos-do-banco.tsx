@@ -13,9 +13,10 @@ import {
   adicionarArquivoAoBanco, editarArquivoDoBanco, PASTAS_DO_BANCO, visualizarArquivoDoBanco,
   type ArquivoDoBanco, type PastaDoBanco,
 } from "@/lib/banco-arquivos/api";
+import { ARQUIVOS_ACEITOS_NO_BANCO, extensao, formatoAceitoNoBanco, tipoParaIconeDaFila } from "@/lib/banco-arquivos/formatos";
 import { cn } from "@/lib/utils";
 
-import { extensao, EXTENSOES_ACEITAS, formatarBytes, formatarDataArquivo, IconeDoArquivo, mensagemDoErro, tipoDoNome, type TextosDoBanco } from "./apresentacao-do-arquivo";
+import { formatarBytes, formatarDataArquivo, IconeDoArquivo, mensagemDoErro, type TextosDoBanco } from "./apresentacao-do-arquivo";
 import estilos from "./banco-de-arquivos.module.css";
 
 interface PropsDialogo {
@@ -99,7 +100,7 @@ export function DialogoUploadDeArquivos({ t, onFechar, pastaInicial, arquivosIni
   }
 
   function validacao(arquivo: File) {
-    if (!tipoDoNome(arquivo.name)) return t.erroTipo;
+    if (!formatoAceitoNoBanco(arquivo)) return t.erroTipo;
     if (arquivo.size === 0) return t.erroInvalido;
     if (arquivo.size > limiteArquivoBytes) return t.erroTamanho;
     return null;
@@ -147,7 +148,7 @@ export function DialogoUploadDeArquivos({ t, onFechar, pastaInicial, arquivosIni
             <UploadCloud aria-hidden className={estilos.iconeUpload} />
             <strong>{t.uploadSoltar}</strong>
             <p>{t.uploadAlternativa}</p>
-            <input ref={input} type="file" hidden multiple accept={EXTENSOES_ACEITAS.join(",")}
+            <input ref={input} type="file" hidden multiple accept={ARQUIVOS_ACEITOS_NO_BANCO}
               onChange={(evento) => {
                 acrescentar(Array.from(evento.target.files ?? []));
                 evento.target.value = "";
@@ -159,7 +160,7 @@ export function DialogoUploadDeArquivos({ t, onFechar, pastaInicial, arquivosIni
               <ul className={estilos.fila}>
                 {fila.map(({ chave, arquivo, erro: erroDoItem }) => {
                   const problema = validacao(arquivo) ?? erroDoItem;
-                  const tipo = tipoDoNome(arquivo.name);
+                  const tipo = tipoParaIconeDaFila(arquivo);
                   return (
                     <li key={chave}>
                       {tipo ? <IconeDoArquivo tipo={tipo} /> : <FileText aria-hidden className="size-4 shrink-0" />}
@@ -261,7 +262,7 @@ function PreviaDeImagem({ arquivo, t }: { arquivo: ArquivoDoBanco; t: TextosDoBa
     let urlCriada: string | undefined;
     void visualizarArquivoDoBanco(arquivo.id).then((blob) => {
       if (!ativa) return;
-      if (!["image/jpeg", "image/png"].includes(blob.type)) throw new Error("MIME de prévia inesperado");
+      if (!["image/jpeg", "image/png", "image/webp"].includes(blob.type)) throw new Error("MIME de prévia inesperado");
       urlCriada = URL.createObjectURL(blob);
       setUrl(urlCriada);
     }).catch(() => { if (ativa) setErro(true); });

@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,6 +16,7 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -75,6 +79,39 @@ class DocumentoWordDetectorTest {
                 ole.writeFilesystem(bytes);
                 assertThat(detector.detectar(bytes.toByteArray())).isNotEqualTo(DocumentoWord.DOC);
             }
+        }
+    }
+
+    @Test void xlsRealEStreamsPowerPointSaoIdentificadosNosDoisCaminhos() throws Exception {
+        try (var excel = new HSSFWorkbook(); var bytes = new ByteArrayOutputStream()) {
+            excel.createSheet("Material").createRow(0).createCell(0).setCellValue("Vidro");
+            excel.write(bytes);
+            conferir(bytes.toByteArray(), "application/vnd.ms-excel");
+        }
+        byte[] atual = ByteBuffer.allocate(32).order(ByteOrder.LITTLE_ENDIAN)
+                .putShort((short) 0).putShort((short) 0x0ff6).putInt(24)
+                .putInt(0x14).putInt(0xe391c05f).putInt(0).array();
+        byte[] edicao = ByteBuffer.allocate(36).order(ByteOrder.LITTLE_ENDIAN)
+                .putShort((short) 0).putShort((short) 0x0ff5).putInt(28).array();
+        conferir(ole(Map.of("Current User", atual, "PowerPoint Document", edicao)), "application/vnd.ms-powerpoint");
+
+        ByteBuffer.wrap(atual).order(ByteOrder.LITTLE_ENDIAN).putInt(16, 1024);
+        conferir(ole(Map.of("Current User", atual, "PowerPoint Document", edicao)), "application/x-tika-msoffice");
+    }
+
+    @Test void oleDeIdentidadeAmbiguaOuComWorkbookFalsoNaoViraAnexoDeOffice() throws Exception {
+        byte[] workbookFalso = new byte[128];
+        conferir(ole(Map.of("Workbook", workbookFalso)), "application/x-tika-msoffice");
+        conferir(ole(Map.of("Workbook", workbookFalso, "WordDocument", new byte[32])), "application/x-tika-msoffice");
+    }
+
+    private static byte[] ole(Map<String, byte[]> streams) throws IOException {
+        try (var ole = new POIFSFileSystem(); var bytes = new ByteArrayOutputStream()) {
+            for (var stream : streams.entrySet()) {
+                ole.createDocument(new ByteArrayInputStream(stream.getValue()), stream.getKey());
+            }
+            ole.writeFilesystem(bytes);
+            return bytes.toByteArray();
         }
     }
 

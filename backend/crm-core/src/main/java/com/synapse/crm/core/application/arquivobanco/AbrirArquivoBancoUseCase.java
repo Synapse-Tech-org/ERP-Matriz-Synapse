@@ -29,7 +29,7 @@ public class AbrirArquivoBancoUseCase {
     public ArquivoAberto paraVisualizacao(UUID id) {
         ArquivoBanco arquivo = ativo(id);
         String mimeType = arquivo.metadados().mimeType();
-        if (!mimeType.equals("image/jpeg") && !mimeType.equals("image/png")) {
+        if (!FormatoDeArquivoBanco.temPreviaSegura(mimeType)) {
             throw FalhaArquivoBanco.naoEncontrado();
         }
         return abrir(arquivo);

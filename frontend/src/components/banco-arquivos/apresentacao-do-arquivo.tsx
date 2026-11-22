@@ -3,6 +3,7 @@
 import { IconeFrontendV2, type NomeIconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
 import { ErroDeApi } from "@/lib/api/errors";
 import type { ArquivoDoBanco, TipoDoBanco } from "@/lib/banco-arquivos/api";
+import { extensao } from "@/lib/banco-arquivos/formatos";
 import type { Textos } from "@/lib/config/schema";
 
 import estilos from "./banco-de-arquivos.module.css";
@@ -14,37 +15,24 @@ const DATA_CURTA = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-
 
 export const ICONES_DOS_TIPOS: Record<TipoDoBanco, { filtro: NomeIconeFrontendV2; arquivo: NomeIconeFrontendV2 }> = {
   PDF: { filtro: "file-pdf-2-line", arquivo: "file-pdf-2-fill" },
+  XLS: { filtro: "file-excel-2-line", arquivo: "file-excel-2-fill" },
   XLSX: { filtro: "file-excel-2-line", arquivo: "file-excel-2-fill" },
+  DOC: { filtro: "file-word-2-line", arquivo: "file-word-2-fill" },
   DOCX: { filtro: "file-word-2-line", arquivo: "file-word-2-fill" },
+  PPT: { filtro: "file-ppt-2-line", arquivo: "file-ppt-2-fill" },
+  PPTX: { filtro: "file-ppt-2-line", arquivo: "file-ppt-2-fill" },
+  TXT: { filtro: "file-text-line", arquivo: "file-text-fill" },
   IMAGEM: { filtro: "image-line", arquivo: "image-fill" },
+  AUDIO: { filtro: "file-music-line", arquivo: "file-music-fill" },
+  VIDEO: { filtro: "file-video-line", arquivo: "file-video-fill" },
   DWG: { filtro: "ruler-2-line", arquivo: "ruler-2-line" },
 };
-export const EXTENSOES_ACEITAS = [".pdf", ".docx", ".xlsx", ".dwg", ".jpg", ".jpeg", ".png"];
 
 export function formatarBytes(bytes: number) {
   if (bytes < 1024) return `${NUMERO.format(bytes)} B`;
   if (bytes < 1024 ** 2) return `${NUMERO.format(bytes / 1024)} KB`;
   if (bytes < 1024 ** 3) return `${NUMERO.format(bytes / 1024 ** 2)} MB`;
   return `${NUMERO.format(bytes / 1024 ** 3)} GB`;
-}
-
-export function extensao(nome: string) {
-  const ponto = nome.lastIndexOf(".");
-  return ponto > 0 ? nome.slice(ponto) : "";
-}
-
-export function tipoDoNome(nome: string): TipoDoBanco | null {
-  const sufixo = extensao(nome).toUpperCase().slice(1);
-  switch (sufixo) {
-    case "PDF":
-    case "XLSX":
-    case "DOCX":
-    case "DWG": return sufixo;
-    case "JPG":
-    case "JPEG":
-    case "PNG": return "IMAGEM";
-    default: return null;
-  }
 }
 
 export function formatarDataArquivo(arquivo: ArquivoDoBanco) {

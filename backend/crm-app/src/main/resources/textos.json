@@ -1383,6 +1383,7 @@
     "busca": "Buscar arquivo por nome ou descrição",
     "limparBusca": "Limpar busca",
     "filtrarTipo": "Filtrar por tipo",
+    "maisTipos": "Mais tipos",
     "ordenar": "Ordenar arquivos",
     "armazenamento": "Armazenamento do banco de arquivos",
     "usoArmazenamento": "{usado} de {limite}",
@@ -1444,7 +1445,7 @@
     "excluirDescricao": "“{nome}” será removido do banco de arquivos.",
     "editarTitulo": "Editar arquivo",
     "novoNome": "Nome do arquivo",
-    "uploadAjuda": "PDF, DOCX, XLSX, DWG, JPG e PNG · até {limite} por arquivo.",
+    "uploadAjuda": "PDF, Word, Excel, PowerPoint, TXT, JPG, PNG, WebP, OGG/Opus, MP3, M4A, AMR, AAC, MP4, 3GP e DWG · até {limite} por arquivo.",
     "uploadSoltar": "Arraste arquivos aqui",
     "uploadAlternativa": "ou selecione do seu computador",
     "uploadSelecionar": "Selecionar arquivos",
@@ -1455,10 +1456,17 @@
     "tipos": {
       "todos": "Todos",
       "PDF": "PDF",
-      "XLSX": "Planilhas",
-      "DOCX": "Documentos",
+      "XLSX": "XLSX",
+      "DOCX": "DOCX",
       "IMAGEM": "Imagens",
-      "DWG": "Projetos"
+      "DWG": "Projetos",
+      "DOC": "DOC",
+      "XLS": "XLS",
+      "PPT": "PPT",
+      "PPTX": "PPTX",
+      "TXT": "TXT",
+      "AUDIO": "Áudios",
+      "VIDEO": "Vídeos"
     },
     "pastas": {
       "catalogos": "Catálogos",
