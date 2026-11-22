@@ -43,7 +43,7 @@ export class ExecutarRodada {
         [id],
       );
       const anterior = await this.pool.query(
-        "SELECT id,iniciado_em FROM automacao_infra.followup_rodada ORDER BY iniciado_em DESC LIMIT 1",
+        "SELECT id,iniciado_em FROM automacao_infra.followup_rodada WHERE fluxo='followup-typescript' ORDER BY iniciado_em DESC LIMIT 1",
       );
       const ultima = anterior.rows[0];
       // Uma tentativa antiga nao abre novo orcamento depois de uma rodada mais recente.
@@ -69,7 +69,7 @@ export class ExecutarRodada {
       );
       // Temos a trava exclusiva: outra rodada ainda marcada running perdeu seu processo.
       await this.pool.query(
-        "UPDATE automacao_infra.followup_rodada SET status='crashed',finalizado_em=now(),motivo='PROCESSO_INTERROMPIDO' WHERE status='running' AND id<>$1",
+        "UPDATE automacao_infra.followup_rodada SET status='crashed',finalizado_em=now(),motivo='PROCESSO_INTERROMPIDO' WHERE fluxo='followup-typescript' AND status='running' AND id<>$1",
         [id],
       );
       let fase: FaseRodada = "BUSCAR_CONFIGURACAO_CRM";
@@ -143,7 +143,7 @@ export class ExecutarRodada {
         fase = "LIMPAR_HISTORICO";
         await this.pool.query(
           `DELETE FROM automacao_infra.followup_rodada r
-          WHERE r.status IN ('success','error') AND r.finalizado_em < now()-($1*interval '1 day')
+          WHERE r.fluxo='followup-typescript' AND r.status IN ('success','error') AND r.finalizado_em < now()-($1*interval '1 day')
           AND NOT EXISTS(SELECT 1 FROM public.follow_ups_temporary f WHERE f.execucao_id=r.id::text
             AND (f.status IN ('RESERVADO','EM_ENVIO','INCERTO') OR (f.status='ENVIADO' AND f.crm_mensagem_id IS NULL)))`,
           [this.config.retencaoDias],

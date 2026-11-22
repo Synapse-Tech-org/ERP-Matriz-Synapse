@@ -52,7 +52,7 @@ function url(valor: string): string {
 
 // So e chamada quando os DOIS toggles estao ligados. Filhos que nao usam
 // follow-up nao precisam cadastrar segredos dos provedores nem do worker.
-export function carregarFollowup(env: NodeJS.ProcessEnv): ConfiguracaoFollowup {
+export function carregarCanal(env: NodeJS.ProcessEnv): ConfiguracaoProvedor {
   const nomeProvedor = obrigatoria(env, "WHATSAPP_PROVEDOR");
   const tipo = nomeProvedor === "meta-cloud" ? "meta" : nomeProvedor;
   let provedor: ConfiguracaoProvedor;
@@ -84,7 +84,12 @@ export function carregarFollowup(env: NodeJS.ProcessEnv): ConfiguracaoFollowup {
       token: obrigatoria(env, "WHATSAPP_TOKEN"),
     };
   } else throw new Error("PROVEDOR_FOLLOWUP_NAO_SUPORTADO");
-  const regras: OpcoesRegras = { exigeJanela: tipo === "meta" };
+  return provedor;
+}
+
+export function carregarFollowup(env: NodeJS.ProcessEnv): ConfiguracaoFollowup {
+  const provedor = carregarCanal(env);
+  const regras: OpcoesRegras = { exigeJanela: provedor.tipo === "meta" };
   if (env.AUTOMACAO_FOLLOWUP_BOTAO_SIM_ID)
     regras.botaoSimId = env.AUTOMACAO_FOLLOWUP_BOTAO_SIM_ID;
   if (env.AUTOMACAO_FOLLOWUP_BOTAO_NAO_ID)

@@ -100,8 +100,9 @@ export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
     // Preserva a leitura do clone n8n. As rodadas TS possuem formato proprio,
     // sem simular serializacao interna de nodes ou depender da versao do n8n.
     return `SELECT ${s.campos} FROM ${this.schema}.execution_entity e${s.join}
-      UNION ALL SELECT 'fu_'||id::text,'followup-typescript','Follow-up TypeScript',status,
-        iniciado_em,finalizado_em,'schedule' FROM automacao_infra.followup_rodada`;
+      UNION ALL SELECT (CASE fluxo WHEN 'mensagens-sistematicas' THEN 'ms_' ELSE 'fu_' END)||id::text,fluxo,
+        CASE fluxo WHEN 'mensagens-sistematicas' THEN 'Mensagens sistematicas' ELSE 'Follow-up TypeScript' END,
+        status,iniciado_em,finalizado_em,'schedule' FROM automacao_infra.followup_rodada`;
   }
   async resumo(): Promise<{
     total: number;
@@ -150,6 +151,17 @@ export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
   async detalhar(id: string): Promise<DetalheExecucao | null> {
     this.pronto();
     if (/^fu_[a-f0-9-]{36}$/i.test(id)) return this.detalharFollowup(id);
+    if (/^ms_[a-f0-9-]{36}$/i.test(id)) {
+      const { rows: [r] } = await this.pool.query("SELECT status,iniciado_em AS inicio,finalizado_em AS fim,resultados FROM automacao_infra.followup_rodada WHERE fluxo='mensagens-sistematicas' AND id=$1", [id.slice(3)]);
+      if (!r) return null;
+      const envios = await this.pool.query("SELECT atendimento_id AS atendimento,status AS estado,provedor_id,crm_id,chave_envio AS chave,enviado_em FROM public.ev07_envios_automaticos WHERE rodada_id=$1 ORDER BY id LIMIT 200", [id.slice(3)]);
+      return { id, fluxoId: "mensagens-sistematicas", fluxoNome: "Mensagens sistematicas", status:r.status,
+        iniciadoEm:r.inicio.toISOString(), finalizadoEm:r.fim?.toISOString() ?? null, modo:"schedule", detalhesDisponiveis:true,
+        etapas:Object.entries(r.resultados).map(([nome,n]) => ({ nome: nome+" ("+n+")", duracaoMs:0,tentativas:1,
+          status:/FALHA|INCERTO|PENDENTE/.test(nome)?"erro":"sucesso" })),
+        atendimentos:envios.rows.map(e=>({ atendimentoId:e.atendimento,resultado:e.estado, duracaoMs:0,
+          comprovanteId:e.chave,statusEnvio:e.estado,provedorId:e.provedor_id,crmMensagemId:e.crm_id,motivo:null,enviadoEm:e.enviado_em?.toISOString() ?? null })) };
+    }
     const s = this.selecao();
     const r = await this.pool.query<ExecucaoResumo>(
       `SELECT ${s.campos} FROM ${this.schema}.execution_entity e${s.join} WHERE e.id::text=$1`,
@@ -181,7 +193,7 @@ export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
   private async detalharFollowup(id: string): Promise<DetalheExecucao | null> {
     const r = await this.pool.query(
       `SELECT id,status,iniciado_em,finalizado_em,padroes_utilizados,motivo
-      FROM automacao_infra.followup_rodada WHERE id=$1`,
+      FROM automacao_infra.followup_rodada WHERE fluxo='followup-typescript' AND id=$1`,
       [id.slice(3)],
     );
     const rodada = r.rows[0];

@@ -116,7 +116,7 @@ test("preparador recebe SQL e migracoes por arquivo sem depender da imagem TypeS
     assert.equal(destinos.get("/opt/automacao/aplicar-migracoes.sh"), "automacao-migrar-sh-v1");
     assert.equal(destinos.get("/opt/automacao/migrations/V2__criar_faq_institucional.sql"), "automacao-migracao-v2");
     const arquivos = readdirSync(join(raiz, "automacao/banco/migrations")).filter(f => /^V\d+__.*\.sql$/.test(f));
-    assert.equal(arquivos.length, 10);
+    assert.equal(arquivos.length, 11);
     for (const arquivo of arquivos) {
         const source = destinos.get("/opt/automacao/migrations/" + arquivo);
         assert.ok(source, "Migration nao montada: " + arquivo);

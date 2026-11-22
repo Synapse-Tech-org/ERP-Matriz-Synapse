@@ -13,7 +13,8 @@ export async function verificarAuxiliares(pool) {
   };
   for (const [tabela, colunas] of Object.entries(tabelas)) {
     const r = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=$1 ORDER BY ordinal_position", [tabela]);
-    const extensao = tabela === 'follow_ups_temporary' ? ['executor','chave_envio','execucao_id','botoes','motivo_operacional'] : [];
+    const extensao = tabela === 'follow_ups_temporary' ? ['executor','chave_envio','execucao_id','botoes','motivo_operacional'] :
+      tabela === 'ev07_envios_automaticos' ? ['rodada_id','atendimento_id','chave_envio','provedor_id','crm_id'] : [];
     assert.deepEqual(r.rows.map(c=>c.column_name), [...colunas, ...extensao], tabela);
     assert.equal(Number((await pool.query(`SELECT count(*) AS total FROM public.${tabela}`)).rows[0].total), 0, tabela);
   }

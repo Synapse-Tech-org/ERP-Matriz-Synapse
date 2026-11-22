@@ -7,6 +7,7 @@ import { RepositorioExecucoesPostgres } from "./operacao/postgres.js";
 import { IdentidadeCrm } from "./operacao/identidade.js";
 import { carregarFollowup } from "./followup/configuracao.js";
 import { RuntimeFollowup } from "./followup/runtime.js";
+import { RuntimeSistematicas } from "./sistematicas/runtime.js";
 
 const arquivoEnv = resolve(process.cwd(), ".env");
 if (existsSync(arquivoEnv)) process.loadEnvFile(arquivoEnv);
@@ -21,6 +22,9 @@ if (followupConfig && !banco) throw new Error("FOLLOWUP_EXIGE_BANCO_AUTOMACAO");
 if (followupConfig && banco?.schema !== "public")
   throw new Error("FOLLOWUP_EXIGE_SCHEMA_PUBLIC_DOS_CONTROLES_COMPARTILHADOS");
 let followup: RuntimeFollowup | undefined;
+let sistematicas: RuntimeSistematicas | undefined;
+const ativarSistematicas = configuracao.automacaoHabilitada && process.env.AUTOMACAO_SISTEMATICAS_HABILITADAS === "true";
+if (ativarSistematicas && !banco) throw new Error("SISTEMATICAS_EXIGEM_BANCO");
 const crmUrl =
   process.env.AUTOMACAO_CRM_URL ||
   (process.env.SYNAPSE_DOMINIO
@@ -63,6 +67,17 @@ async function prepararBanco(): Promise<void> {
         throw error;
       }
     }
+    if (ativarSistematicas && banco && !encerrando && !sistematicas) {
+      const candidato = new RuntimeSistematicas(banco, process.env, codigo => app.log.warn({ codigo }));
+      try {
+        await candidato.iniciar();
+        if (encerrando) await candidato.fechar();
+        else sistematicas = candidato;
+      } catch (erro) {
+        await candidato.fechar();
+        throw erro;
+      }
+    }
     app.log.info({ codigo: "BANCO_AUTOMACAO_PRONTO" });
   } catch {
     app.log.warn({ codigo: "BANCO_AUTOMACAO_AGUARDANDO_PROVISIONAMENTO" });
@@ -81,6 +96,7 @@ app.addHook("onClose", async () => {
   encerrando = true;
   if (novaTentativa) clearTimeout(novaTentativa);
   await followup?.fechar();
+  await sistematicas?.fechar();
   await repositorio?.fechar();
 });
 

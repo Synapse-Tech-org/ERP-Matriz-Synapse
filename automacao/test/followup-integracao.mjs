@@ -218,6 +218,9 @@ try {
         "UPDATE automacao_infra.followup_rodada SET iniciado_em=now()-interval '2 minutes',status='success',finalizado_em=now() WHERE id=$1",
         [idRodada],
     );
+    // Uma rodada de outro fluxo nao pode adiar o follow-up nem ser marcada como interrompida.
+    const sistematica = randomUUID();
+    await pool.query("INSERT INTO automacao_infra.followup_rodada(id,fluxo) VALUES ($1,'mensagens-sistematicas')", [sistematica]);
     const nova = randomUUID();
     await rodada.executar(nova);
     assert.equal(enviados, 1, "teto compartilhado da rodada");
@@ -252,6 +255,11 @@ try {
     await painel.preparar();
     const pagina = await painel.listar({ pagina: 0, tamanho: 20 });
     assert.ok(pagina.itens.some((e) => e.id === "fu_" + nova));
+    assert.ok(pagina.itens.some((e) => e.id === "ms_" + sistematica && e.status === "running"));
+    assert.equal(await painel.detalhar("fu_" + sistematica), null);
+    assert.equal(await painel.detalhar("ms_" + nova), null);
+    const ms = await painel.detalhar("ms_" + sistematica);
+    assert.equal(ms.fluxoId, "mensagens-sistematicas");
     const detalhe = await painel.detalhar("fu_" + nova);
     assert.ok(detalhe.etapas.some((e) => e.nome.includes("RECUSA_REGISTRADA")));
     assert.ok((await painel.resumo()).total >= 3);
