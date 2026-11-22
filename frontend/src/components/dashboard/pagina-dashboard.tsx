@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, createContext, useContext } from "react";
 import { ptBR } from "date-fns/locale";
 import {
   Bot,
@@ -356,7 +356,7 @@ export function PaginaDashboard() {
                   <IconeFrontendV2 nome="calendar-2-line" />
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false}>
+                <SelectContent alignItemWithTrigger={false} align="start">
                   {opcoesDeAno.map(({ valor, rotulo }) => <SelectItem key={valor} value={valor}>{rotulo}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -621,6 +621,7 @@ function ConteudoDashboard({
     <>
       <FaixaAoVivo status={dados.statusAoVivo} atualizadoEm={atualizadoEm} layoutV2={layoutV2} />
 
+      <SufixoDoComparativo.Provider value={dados.periodo.inicio ? textos.kpis.periodoAnterior : textos.kpis.mesAnterior}>
       <section
         data-slot="dashboard-indicadores"
         className={cn(
@@ -764,6 +765,7 @@ function ConteudoDashboard({
           </>
         )}
       </section>
+      </SufixoDoComparativo.Provider>
 
       <div data-slot="dashboard-analises" className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-12">
         <div className="min-w-0 xl:col-span-7">
@@ -799,6 +801,9 @@ interface KpiProps {
   campoSerie: CampoSerie;
 }
 
+/** Texto do selo de variação: "mês anterior" com meses selecionados, "período anterior" com recorte por dias. */
+const SufixoDoComparativo = createContext<string | null>(null);
+
 function Kpi({
   layoutV2,
   titulo,
@@ -813,6 +818,7 @@ function Kpi({
   campoSerie,
 }: KpiProps) {
   const textos = useTextos().dashboard;
+  const sufixoComparativo = useContext(SufixoDoComparativo) ?? textos.kpis.periodoAnterior;
   const formatarValor = (valorSerie: number) => {
     if (campoSerie === "tempoMedioSegundos") return formatarDuracao(valorSerie, textos.tempo);
     if (campoSerie === "taxaConversao" || campoSerie === "resolucaoPorIa") return `${percentual(valorSerie)}%`;
@@ -866,7 +872,7 @@ function Kpi({
                 <SeloDeTendencia
                   comparativo={comparativo}
                   quedaPositiva={quedaPositiva}
-                  sufixo={textos.kpis.periodoAnterior}
+                  sufixo={sufixoComparativo}
                   layoutV2={layoutV2}
                 />
               )}
@@ -882,7 +888,7 @@ function Kpi({
           <SeloDeTendencia
             comparativo={comparativo}
             quedaPositiva={quedaPositiva}
-            sufixo={textos.kpis.periodoAnterior}
+            sufixo={sufixoComparativo}
           />
         )}
       </CardHeader>
@@ -892,7 +898,7 @@ function Kpi({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
                 <p data-slot="dashboard-kpi-valor" className="font-semibold" data-testid={`kpi-${titulo}`}>{valor}</p>
-                {comparativo && <SeloDeTendencia comparativo={comparativo} quedaPositiva={quedaPositiva} sufixo={textos.kpis.periodoAnterior} layoutV2 />}
+                {comparativo && <SeloDeTendencia comparativo={comparativo} quedaPositiva={quedaPositiva} sufixo={sufixoComparativo} layoutV2 />}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">{apoio}</p>
             </div>
@@ -965,7 +971,9 @@ function SeloDeTendencia({
   sufixo: string;
   layoutV2?: boolean;
 }) {
-  const subiu = comparativo.valor >= 0;
+  // Variação zero é neutra (cinza, sem seta), como o "estável" do protótipo.
+  const estavel = comparativo.valor === 0;
+  const subiu = comparativo.valor > 0;
   const positivo = quedaPositiva ? !subiu : subiu;
   const texto = formatarComparativo(comparativo);
 
@@ -975,15 +983,17 @@ function SeloDeTendencia({
     <span
       className={cn(
         "shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
-        positivo
-          ? "bg-[color-mix(in_oklab,var(--cor-sucesso)_12%,transparent)] text-[var(--cor-sucesso)]"
-          : "bg-destructive/10 text-destructive",
+        estavel
+          ? "bg-muted text-muted-foreground"
+          : positivo
+            ? "bg-[color-mix(in_oklab,var(--cor-sucesso)_12%,transparent)] text-[var(--cor-sucesso)]"
+            : "bg-destructive/10 text-destructive",
       )}
       title={`${texto} ${sufixo}`}
       data-slot="dashboard-tendencia"
       data-testid="selo-tendencia"
     >
-      {layoutV2 && <IconeFrontendV2 nome={subiu ? "arrow-up-line" : "arrow-down-line"} />}
+      {layoutV2 && !estavel && <IconeFrontendV2 nome={subiu ? "arrow-up-line" : "arrow-down-line"} />}
       {texto}
       <span className="sr-only"> {sufixo}</span>
     </span>

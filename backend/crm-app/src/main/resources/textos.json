@@ -554,6 +554,9 @@
       "adicionarFiltro": "Adicionar filtro",
       "carregarMais": "Carregar mais conversas",
       "carregandoMais": "Carregando conversas...",
+      "desatualizada": "Não foi possível atualizar a lista. Mostrando a última versão disponível.",
+      "indisponivel": "Não foi possível carregar a lista de atendimentos.",
+      "tentarNovamente": "Tentar novamente",
       "finalizados": "Ver Finalizados"
     },
     "novoContato": {
@@ -2205,7 +2208,7 @@
       "ano": "Ano",
       "meses": "Meses",
       "anoInteiro": "Ano inteiro",
-      "originacao": "Período de originação",
+      "originacao": "Período",
       "intervalo": "{inicio} até {fim}",
       "de": "De",
       "ate": "Até",
@@ -2244,7 +2247,8 @@
       "novosLeads": "Novos leads",
       "novosLeadsApoio": "Criados no período",
       "resumoSerie": "mín {minMes} {min} · máx {maxMes} {max} · média {media}",
-      "periodoAnterior": "vs. período anterior"
+      "periodoAnterior": "vs. período anterior",
+      "mesAnterior": "vs. mês anterior"
     },
     "agora": {
       "rotulo": "Agora",
@@ -2473,6 +2477,11 @@
     }
   },
   "automacao": {
+    "emBreve": {
+      "selo": "Em breve",
+      "personalidade": "Personalidade da IA",
+      "parametro": "Este ajuste ainda não tem efeito nesta versão."
+    },
     "confirmacoesConsultas": {
       "rotulo": "Confirmações e lembretes",
       "titulo": "Confirmações e lembretes de consultas",

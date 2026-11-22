@@ -13,21 +13,31 @@ import java.util.Objects;
 
 import com.synapse.crm.relatorios.domain.IntervaloTemporal;
 
-/** Janelas temporais validadas do dashboard, sempre com fim exclusivo. */
+/**
+ * Janelas temporais validadas do dashboard, sempre com fim exclusivo.
+ *
+ * <p>{@code comparacaoAtual} e {@code comparacaoAnterior} alimentam o selo de variacao dos cards:
+ * com meses selecionados, o mes de referencia (o ultimo selecionado que ja comecou) contra o mes
+ * anterior; no mes corrente, do dia 1 ate hoje contra os mesmos dias do mes anterior. Com recorte
+ * por dias, o proprio recorte contra a janela imediatamente anterior de mesma duracao. A granularidade
+ * e de dia para a chave do cache (que usa o filtro inteiro) nao mudar a cada requisicao.
+ */
 public record FiltroTemporalDashboard(
         int ano,
         List<Integer> meses,
         LocalDate recorteInicio,
         LocalDate recorteFim,
         List<IntervaloTemporal> periodoAtual,
-        IntervaloTemporal periodoAnterior,
+        IntervaloTemporal comparacaoAtual,
+        IntervaloTemporal comparacaoAnterior,
         IntervaloTemporal periodoDeOriginacao,
         ZoneId fusoHorario) {
 
     public FiltroTemporalDashboard {
         meses = List.copyOf(meses);
         periodoAtual = List.copyOf(periodoAtual);
-        Objects.requireNonNull(periodoAnterior, "periodo anterior e obrigatorio");
+        Objects.requireNonNull(comparacaoAtual, "periodo de comparacao e obrigatorio");
+        Objects.requireNonNull(comparacaoAnterior, "periodo anterior e obrigatorio");
         Objects.requireNonNull(fusoHorario, "fuso horario e obrigatorio");
         if (meses.isEmpty() || periodoAtual.isEmpty()) {
             throw new FiltroDashboardInvalidoException("ao menos um mes deve ser selecionado");
@@ -55,7 +65,7 @@ public record FiltroTemporalDashboard(
         if (ano == null) {
             throw new FiltroDashboardInvalidoException("ano e obrigatorio sem recorte diario");
         }
-        return de(ano, meses, origemInicio, origemFim, fusoHorario);
+        return de(ano, meses, origemInicio, origemFim, fusoHorario, LocalDate.now(fusoHorario));
     }
 
     public static FiltroTemporalDashboard de(
@@ -64,6 +74,17 @@ public record FiltroTemporalDashboard(
             LocalDate origemInicio,
             LocalDate origemFim,
             ZoneId fusoHorario) {
+        return de(ano, mesesInformados, origemInicio, origemFim, fusoHorario, LocalDate.now(fusoHorario));
+    }
+
+    public static FiltroTemporalDashboard de(
+            int ano,
+            List<Integer> mesesInformados,
+            LocalDate origemInicio,
+            LocalDate origemFim,
+            ZoneId fusoHorario,
+            LocalDate hoje) {
+        Objects.requireNonNull(hoje, "data de hoje e obrigatoria");
         try {
             Year.of(ano);
         } catch (DateTimeException erro) {
@@ -80,20 +101,35 @@ public record FiltroTemporalDashboard(
         List<IntervaloTemporal> atuais = meses.stream()
                 .map(mes -> intervaloDoMes(YearMonth.of(ano, mes), fusoHorario))
                 .toList();
-        YearMonth primeiroMes = YearMonth.of(ano, meses.getFirst());
-        Instant fimAnterior = primeiroMes.atDay(1).atStartOfDay(fusoHorario).toInstant();
-        Instant inicioAnterior = primeiroMes
-                .minusMonths(meses.size())
-                .atDay(1)
-                .atStartOfDay(fusoHorario)
-                .toInstant();
+        YearMonth mesCorrente = YearMonth.from(hoje);
+        YearMonth referencia = meses.reversed().stream()
+                .map(mes -> YearMonth.of(ano, mes))
+                .filter(mes -> !mes.isAfter(mesCorrente))
+                .findFirst()
+                .orElse(YearMonth.of(ano, meses.getLast()));
+        YearMonth anterior = referencia.minusMonths(1);
+        IntervaloTemporal comparacaoAtual;
+        IntervaloTemporal comparacaoAnterior;
+        if (referencia.equals(mesCorrente)) {
+            int dia = hoje.getDayOfMonth();
+            comparacaoAtual = new IntervaloTemporal(
+                    inicioDoDia(referencia.atDay(1), fusoHorario),
+                    inicioDoDia(hoje.plusDays(1), fusoHorario));
+            comparacaoAnterior = new IntervaloTemporal(
+                    inicioDoDia(anterior.atDay(1), fusoHorario),
+                    inicioDoDia(anterior.atDay(Math.min(dia, anterior.lengthOfMonth())).plusDays(1), fusoHorario));
+        } else {
+            comparacaoAtual = intervaloDoMes(referencia, fusoHorario);
+            comparacaoAnterior = intervaloDoMes(anterior, fusoHorario);
+        }
         return new FiltroTemporalDashboard(
                 ano,
                 meses,
                 null,
                 null,
                 atuais,
-                new IntervaloTemporal(inicioAnterior, fimAnterior),
+                comparacaoAtual,
+                comparacaoAnterior,
                 origem,
                 fusoHorario);
     }
@@ -124,9 +160,15 @@ public record FiltroTemporalDashboard(
                 inicio,
                 fim,
                 List.of(atual),
+                atual,
                 anterior,
                 originacao(origemInicio, origemFim, fusoHorario),
                 fusoHorario);
+    }
+
+    /** Verdadeiro quando o selo compara exatamente o periodo exibido (dispensa nova consulta). */
+    public boolean comparacaoCobreOPeriodoAtual() {
+        return periodoAtual.equals(List.of(comparacaoAtual));
     }
 
     public Instant fimDoPeriodoAtual() {
@@ -163,6 +205,10 @@ public record FiltroTemporalDashboard(
             cursor = cursor.plusMonths(1);
         }
         return meses;
+    }
+
+    private static Instant inicioDoDia(LocalDate dia, ZoneId fusoHorario) {
+        return dia.atStartOfDay(fusoHorario).toInstant();
     }
 
     private static IntervaloTemporal intervaloDoMes(YearMonth mes, ZoneId fusoHorario) {

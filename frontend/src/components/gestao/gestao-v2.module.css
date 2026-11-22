@@ -311,3 +311,29 @@ button.permissoesPessoa:hover { background: var(--gestao-cinza); }
   --primary: var(--cor-destaque);
   --accent-foreground: var(--cor-destaque);
 }
+/* Modo escuro: tons fixos claros do protótipo trocados por equivalentes escuros. */
+:global(html.dark) :is(.moldura, .pagina, .formularioUsuario) {
+  --accent: color-mix(in srgb, var(--primary) 20%, var(--crm-v2-cartao));
+  --accent-foreground: color-mix(in srgb, var(--primary) 55%, var(--crm-v2-texto));
+  --gestao-texto-suave: var(--crm-v2-texto-fraco);
+  --gestao-sombra: none;
+}
+:global(html.dark) .indicador > div,
+:global(html.dark) .iconeOpcao,
+:global(html.dark) .iconePerfil[data-papel="ATENDENTE"] { color: var(--crm-v2-texto-padrao); }
+:global(html.dark) .indicador i { background: color-mix(in srgb, currentColor 18%, var(--crm-v2-cartao)); }
+:global(html.dark) .indicador[data-tom="verde"] i { background: color-mix(in srgb, #12855a 22%, var(--crm-v2-cartao)); }
+:global(html.dark) .indicador[data-tom="ambar"] i { background: color-mix(in srgb, #b4690e 22%, var(--crm-v2-cartao)); }
+:global(html.dark) .iconePerfil[data-papel="SUBGESTOR"] { background: color-mix(in srgb, #4f46e5 22%, var(--crm-v2-cartao)); }
+:global(html.dark) .iconePerfil[data-papel="OPERADOR"] { background: color-mix(in srgb, #12855a 22%, var(--crm-v2-cartao)); }
+:global(html.dark) .iconePerfil[data-papel="ATENDENTE"] { box-shadow: inset 0 0 0 1px var(--crm-v2-borda); }
+:global(html.dark) .linhaModulo :global([role="radiogroup"]) { background: var(--crm-v2-suave); }
+:global(html.dark) :is(.contagem, .expandirModulo, .permissoesPessoa small) { color: var(--crm-v2-texto-suave); }
+:global(html.dark) .acoesModulo li + li { border-top-color: var(--crm-v2-borda); }
+:global(html.dark) button.indicador:hover { border-color: var(--crm-v2-borda); }
+:global(html.dark) .avatarPessoa::after { border-color: var(--crm-v2-cartao); }
+:global(html.dark) .pagina .cartaoPerfil[aria-checked="true"] { box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 30%, transparent); }
+:global(html.dark) .pagina .abas :global([data-slot="tabs-trigger"]),
+:global(html.dark) .filtrosPapel button { color: var(--crm-v2-texto-suave); }
+:global(html.dark) .pagina .abas :global([data-slot="tabs-trigger"][data-active]),
+:global(html.dark) .filtrosPapel button[aria-pressed="true"] { color: var(--crm-v2-texto); background: var(--crm-v2-cartao); }

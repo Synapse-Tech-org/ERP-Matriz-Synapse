@@ -129,6 +129,38 @@ describe("painel operacional com componentes reais", () => {
     await waitFor(() => expect(api.mock.calls.filter(([url]) => url.includes("busca=Cliente+%26+Empresa"))).toHaveLength(2));
     expect(api.mock.calls.some(([url]) => url.includes("busca=Cli&"))).toBe(false);
   });
+  it("com a flag atendimentos_finalizados_so_no_menu, Finalizados sai das abas do gestor e fica no menu", async () => {
+    api.mockImplementation((url: string) => Promise.resolve(
+      url.includes("/fila?") ? { itens: [], proximoCursor: null } : url.includes("/etapas") || url.includes("/chat-interno") ? [] : snapshot()));
+    const { rerender, cache } = renderizar(<ListaConversas selecionadoId={null} visaoAtual="TODOS" painelOperacionalPermitido layoutV2
+      onAbrirAtendimento={vi.fn()} onAbrirFilaOperacional={vi.fn()} />);
+    expect(await screen.findByRole("tab", { name: /Finalizados/ })).toBeInTheDocument();
+
+    rerender(<QueryClientProvider client={cache}><ListaConversas selecionadoId={null} visaoAtual="TODOS" painelOperacionalPermitido layoutV2
+      finalizadosSoNoMenu onAbrirAtendimento={vi.fn()} onAbrirFilaOperacional={vi.fn()} /></QueryClientProvider>);
+    expect(screen.queryByRole("tab", { name: /Finalizados/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("tab")).toHaveLength(4);
+    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+    expect(await screen.findByRole("menuitem", { name: /Finalizados/ })).toBeInTheDocument();
+  });
+
+  it("no V2 o título sai da tela e a Visão geral vira botão próprio ao lado do +", async () => {
+    api.mockImplementation((url: string) => Promise.resolve(
+      url.includes("/fila?") ? { itens: [], proximoCursor: null } : url.includes("/etapas") || url.includes("/chat-interno") ? [] : snapshot()));
+    const voltar = vi.fn();
+    renderizar(<ListaConversas selecionadoId={null} visaoAtual="TODOS" painelOperacionalPermitido layoutV2
+      onAbrirAtendimento={vi.fn()} onAbrirFilaOperacional={vi.fn()} onVoltarPainel={voltar} onNovoContato={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "Atendimentos" })).toHaveClass("sr-only");
+    const botao = screen.getByRole("button", { name: "Voltar ao painel de Atendimentos" });
+    expect(botao).toHaveAttribute("data-slot", "lista-visao-geral");
+    expect(botao.nextElementSibling).toHaveAttribute("data-slot", "novo-atendimento");
+    const menu = screen.getByRole("button", { name: "Mais ações" });
+    expect(menu.parentElement).toHaveAttribute("data-slot", "lista-conversas-acoes");
+    expect(menu.parentElement?.firstElementChild).toBe(menu);
+    fireEvent.click(botao);
+    expect(voltar).toHaveBeenCalledOnce();
+  });
+
   it("mantém conversas internas participativas também na visão Ativos do painel operacional", async () => {
     const abrirInterno = vi.fn();
     api.mockImplementation((url: string) => Promise.resolve(

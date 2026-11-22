@@ -21,7 +21,7 @@ import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
 import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
 import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquivos";
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
-import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
+import { calcularBackoffMs, useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { ehAvisoPainelOperacional } from "@/lib/atendimento/aviso-painel-operacional";
 import {
   ProvedorDeAberturaDeConversa,
@@ -30,6 +30,7 @@ import {
 import {
   atualizarPainelDeAtendimentos,
   pedidoDaNotificacao,
+  removerAtendimentoRevogadoDaInbox,
 } from "@/lib/atendimento/atualizacao-do-painel";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoHistorico } from "@/lib/atendimento/reacoes-cache";
 import {
@@ -133,7 +134,11 @@ export function PaginaAtendimentosCliente({
   useLayoutEffect(() => {
     selecaoAtualRef.current = { id: atendimentoSelecionadoId };
   }, [atendimentoSelecionadoId]);
-  const [falhaDeSincronizacao, setFalhaDeSincronizacao] = useState<string | null>(null);
+  const [falhaDeSincronizacao, setFalhaDeSincronizacao] = useState<{
+    atendimentoId: string;
+    ciclo: number;
+    transitoria: boolean;
+  } | null>(null);
   const [atendimentoParaAbrirId, setAtendimentoParaAbrirId] = useState(atendimentoInicialId);
   const [erroDeAbertura, setErroDeAbertura] = useState<string | null>(null);
   const [atendimentos, setAtendimentos] = useState<ItemInbox[]>([]);
@@ -210,6 +215,8 @@ export function PaginaAtendimentosCliente({
   const { definir: definirConversaEmTelaCheia } = useConversaEmTelaCheia();
   const { data: configuracao } = useConfiguracaoComposer();
   const chatInternoHabilitado = flags?.includes("chat_interno") ?? false;
+  const abaInternoHabilitada = flags?.includes("atendimentos_aba_interno") ?? false;
+  const finalizadosSoNoMenu = flags?.includes("atendimentos_finalizados_so_no_menu") ?? false;
   const contatosInternos = useQuery({ queryKey: ["chat-interno", "contatos"], queryFn: listarContatosChat, enabled: chatInternoHabilitado });
   const selecionarConversaInterna = useCallback((conversaId: string) => {
     setConversaInternaId(conversaId);
@@ -526,11 +533,7 @@ export function PaginaAtendimentosCliente({
 
   const estadoSelecionadoQuery = useQuery({
     queryKey: ["atendimentos", "estado", atendimentoSelecionadoId],
-    queryFn: async () => {
-      const snapshot = await obterEstadoAtendimento(atendimentoSelecionadoId as string);
-      const atual = reconciliador.ultimoSnapshot(snapshot.cartao.atendimentoId);
-      return atual && atual.versao > snapshot.versao ? atual : snapshot;
-    },
+    queryFn: () => reconciliador.sincronizar(atendimentoSelecionadoId as string),
     enabled: acessoClientes && atendimentoSelecionadoId != null,
     retry: false,
   });
@@ -540,6 +543,13 @@ export function PaginaAtendimentosCliente({
       reconciliador.registrarSnapshot(estadoSelecionadoQuery.data);
     }
   }, [estadoSelecionadoQuery.data, reconciliador]);
+
+  const registrarFalhaDeSincronizacao = useCallback((atendimentoId: string, ciclo: number, erro: unknown) => {
+    const transitoria = ehFalhaTransitoria(erro);
+    setFalhaDeSincronizacao((atual) =>
+      atual?.atendimentoId === atendimentoId && atual.ciclo === ciclo && atual.transitoria === transitoria
+        ? atual : { atendimentoId, ciclo, transitoria });
+  }, []);
 
   const textoTransferido = textos.transferir.sucesso;
   const textoTransferidoPara = textos.transferir.sucessoPara;
@@ -599,7 +609,7 @@ export function PaginaAtendimentosCliente({
       invalidarParticipacao(evento.dados.atendimentoId);
       void reconciliador.receber(evento)
         .then((snapshot) => {
-          if (!snapshot || selecaoAtualRef.current !== selecaoDoEvento) return;
+          if (!snapshot || selecaoAtualRef.current !== selecaoDoEvento || cicloAtualRef.current !== cicloDoEvento) return;
           setFalhaDeSincronizacao(null);
           if (snapshot?.cartao.atendimentoId === selecaoDoEvento.id) {
             setSincronizacaoLiberada({
@@ -609,15 +619,15 @@ export function PaginaAtendimentosCliente({
           }
         })
         .catch((erro) => {
-          if (selecaoAtualRef.current !== selecaoDoEvento) return;
+          if (selecaoAtualRef.current !== selecaoDoEvento || cicloAtualRef.current !== cicloDoEvento) return;
           if ([403, 404].includes(statusHttpDoErro(erro) ?? 0)) {
             indisponibilizarAtendimento(evento.dados.atendimentoId, statusHttpDoErro(erro));
           } else {
-            setFalhaDeSincronizacao(evento.dados.atendimentoId);
+            registrarFalhaDeSincronizacao(evento.dados.atendimentoId, cicloDoEvento, erro);
           }
         });
     },
-    [cache, indisponibilizarAtendimento, reconciliador],
+    [cache, indisponibilizarAtendimento, reconciliador, registrarFalhaDeSincronizacao],
   );
 
   const { conexao, estado, ciclo } = useConexaoTempoReal(
@@ -635,6 +645,7 @@ export function PaginaAtendimentosCliente({
       });
       indisponibilizarAtendimento(atendimentoRevogado, undefined, "REVOGACAO_WEBSOCKET");
       // Proteção de visibilidade nunca espera a janela de coalescência (E209).
+      removerAtendimentoRevogadoDaInbox(cache, atendimentoRevogado);
       atualizarPainelDeAtendimentos(cache, { atendimentoId: atendimentoRevogado, urgente: true });
     },
     (evento) => {
@@ -739,14 +750,49 @@ export function PaginaAtendimentosCliente({
           if ([403, 404].includes(statusHttpDoErro(erro) ?? 0)) {
             indisponibilizarAtendimento(atendimentoSelecionadoId, statusHttpDoErro(erro));
           } else {
-            setFalhaDeSincronizacao(atendimentoSelecionadoId);
+            registrarFalhaDeSincronizacao(atendimentoSelecionadoId, cicloDaSincronizacao, erro);
           }
         }
       });
     return () => {
       cancelado = true;
     };
-  }, [atendimentoSelecionadoId, ciclo, estado, indisponibilizarAtendimento, reconciliador]);
+  }, [atendimentoSelecionadoId, ciclo, estado, indisponibilizarAtendimento, reconciliador, registrarFalhaDeSincronizacao]);
+
+  useEffect(() => {
+    if (!falhaDeSincronizacao?.transitoria || estado !== "conectado"
+      || falhaDeSincronizacao.ciclo !== ciclo
+      || falhaDeSincronizacao.atendimentoId !== atendimentoSelecionadoId) return;
+
+    // Só a conversa aberta e só depois de falha. Duas retentativas de leitura,
+    // escalonadas para não disputar imediatamente o mesmo pool saturado.
+    const maximoDeRetentativas = 2;
+    const selecao = selecaoAtualRef.current;
+    let cancelado = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const atual = () => !cancelado && selecaoAtualRef.current === selecao && cicloAtualRef.current === ciclo;
+    function tentar(tentativa: number, id: string) {
+      timer = setTimeout(async () => {
+        if (!atual()) return;
+        try {
+          const snapshot = await reconciliador.sincronizar(id);
+          if (!atual() || snapshot.cartao.atendimentoId !== id) return;
+          setFalhaDeSincronizacao(null);
+          setSincronizacaoLiberada({ atendimentoId: id, ciclo });
+        } catch (erro) {
+          if (!atual()) return;
+          const status = statusHttpDoErro(erro);
+          if (status === 403 || status === 404) indisponibilizarAtendimento(id, status);
+          else if (ehFalhaTransitoria(erro) && tentativa + 1 < maximoDeRetentativas) tentar(tentativa + 1, id);
+        }
+      }, calcularBackoffMs(tentativa));
+    }
+    tentar(0, falhaDeSincronizacao.atendimentoId);
+    return () => {
+      cancelado = true;
+      clearTimeout(timer);
+    };
+  }, [atendimentoSelecionadoId, ciclo, estado, falhaDeSincronizacao, indisponibilizarAtendimento, reconciliador]);
 
   useEffect(() => {
     if (!atendimentoSelecionadoId
@@ -842,6 +888,8 @@ export function PaginaAtendimentosCliente({
       }
     },
     incrementaisLiberados,
+    ciclo,
+    indisponibilizarAtendimento,
   );
   // Os cards acompanham a janela de mensagens já carregada: carregar mensagens mais antigas amplia a
   // janela e traz os cards desse trecho, sem nunca buscar a conversa inteira de uma vez.
@@ -870,14 +918,21 @@ export function PaginaAtendimentosCliente({
   }, [visaoAtendimento]);
   const aposAtendimentoFinalizado = useCallback((resumo: { id: string }) => {
     const selecaoDaFinalizacao = selecaoAtualRef.current;
+    const cicloDaFinalizacao = cicloAtualRef.current;
     setSincronizacaoLiberada(null);
     void reconciliador.sincronizar(resumo.id)
+      .then((snapshot) => {
+        if (selecaoAtualRef.current !== selecaoDaFinalizacao || cicloAtualRef.current !== cicloDaFinalizacao
+          || snapshot.cartao.atendimentoId !== selecaoDaFinalizacao.id) return;
+        setFalhaDeSincronizacao(null);
+        setSincronizacaoLiberada({ atendimentoId: resumo.id, ciclo: cicloDaFinalizacao });
+      })
       .catch((erro) => {
-        if (selecaoAtualRef.current !== selecaoDaFinalizacao) return;
+        if (selecaoAtualRef.current !== selecaoDaFinalizacao || cicloAtualRef.current !== cicloDaFinalizacao) return;
         if ([403, 404].includes(statusHttpDoErro(erro) ?? 0)) indisponibilizarAtendimento(resumo.id, statusHttpDoErro(erro));
-        else setFalhaDeSincronizacao(resumo.id);
+        else registrarFalhaDeSincronizacao(resumo.id, cicloDaFinalizacao, erro);
       });
-  }, [indisponibilizarAtendimento, reconciliador]);
+  }, [indisponibilizarAtendimento, reconciliador, registrarFalhaDeSincronizacao]);
 
   /**
    * Rede de segurança no instante do envio: rebusca o estado canônico e recusa ciclo finalizado ou
@@ -891,9 +946,11 @@ export function PaginaAtendimentosCliente({
     try {
       const snapshot = await reconciliador.sincronizar(atendimentoId);
       if (selecaoAtualRef.current !== selecaoDoEnvio) return false;
-      setFalhaDeSincronizacao(null);
       const permitido = snapshot.cartao.atendimentoId === atendimentoId && snapshot.podeEnviar;
-      setSincronizacaoLiberada(permitido ? { atendimentoId, ciclo } : null);
+      if (cicloAtualRef.current === ciclo && snapshot.cartao.atendimentoId === atendimentoId) {
+        setFalhaDeSincronizacao(null);
+        setSincronizacaoLiberada({ atendimentoId, ciclo });
+      }
       return permitido;
     } catch (erro) {
       if (selecaoAtualRef.current !== selecaoDoEnvio) return false;
@@ -919,16 +976,19 @@ export function PaginaAtendimentosCliente({
       staleTime: 0,
       retry: false,
     }).then(() => {
-      if (selecaoAtualRef.current !== selecao) return;
+      if (selecaoAtualRef.current !== selecao || cicloAtualRef.current !== cicloDaLeitura) return;
       setFalhaDeSincronizacao(null);
       setSincronizacaoLiberada({ atendimentoId, ciclo: cicloDaLeitura });
     }).catch((erro) => {
-      if (selecaoAtualRef.current !== selecao) return;
+      if (selecaoAtualRef.current !== selecao || cicloAtualRef.current !== cicloDaLeitura) return;
       if ([403, 404].includes(statusHttpDoErro(erro) ?? 0)) {
         indisponibilizarAtendimento(atendimentoId, statusHttpDoErro(erro));
-      } else setFalhaDeSincronizacao(atendimentoId);
+      } else registrarFalhaDeSincronizacao(atendimentoId, cicloDaLeitura, erro);
     });
-  }, [cache, indisponibilizarAtendimento, reconciliador]);
+  }, [cache, indisponibilizarAtendimento, reconciliador, registrarFalhaDeSincronizacao]);
+
+  const estadoPrecisaDeRecuperacao = estadoSelecionadoQuery.isError
+    || falhaDeSincronizacao?.atendimentoId === atendimentoSelecionadoId;
 
   const registrarFalhasDeMidia = useCallback((falhas: FalhaDeEnvioMidia[]) => {
     setFalhasDeMidia((atuais) => [...atuais, ...falhas]);
@@ -1140,6 +1200,8 @@ export function PaginaAtendimentosCliente({
         onAtendimentosAtualizados={atualizarAtendimentos}
         onAbrirAtendimento={selecionarAtendimento}
         chatInternoHabilitado={chatInternoHabilitado}
+        abaInternoHabilitada={abaInternoHabilitada}
+        finalizadosSoNoMenu={finalizadosSoNoMenu}
         contatosInternos={contatosInternos.data ?? []}
         contatosInternosCarregando={contatosInternos.isLoading || contatosInternos.isFetching}
         contatosInternosErro={contatosInternos.isError}
@@ -1157,12 +1219,13 @@ export function PaginaAtendimentosCliente({
       />
 
       <div data-slot="coluna-conversa" className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden", conversaEmColunaUnica && !conversaAberta && (!acessoPainel.permitido || filtroOperacional) && "hidden")}>
-        {atendimentoSelecionadoId && (estadoSelecionadoQuery.isError || falhaDeSincronizacao === atendimentoSelecionadoId) && (
+        {atendimentoSelecionadoId && (estadoPrecisaDeRecuperacao || mensagensQuery.isErrorRecuperacao) && (
           <div role="alert" className="flex items-center justify-between gap-2 bg-cor-atencao/10 px-3 py-2 text-sm text-foreground">
             <span>{textos.tempoReal.sincronizacaoFalhou}</span>
             <button type="button" className="shrink-0 rounded-md px-2 py-1 underline focus-visible:ring-2 focus-visible:ring-ring"
               disabled={estadoSelecionadoQuery.isFetching}
-              onClick={tentarAtualizarConversa}>{textos.tempoReal.sincronizacaoTentarNovamente}</button>
+              onClick={estadoPrecisaDeRecuperacao ? tentarAtualizarConversa : mensagensQuery.retentarRecuperacao}
+            >{textos.tempoReal.sincronizacaoTentarNovamente}</button>
           </div>
         )}
         {estado === "reconectando" && (

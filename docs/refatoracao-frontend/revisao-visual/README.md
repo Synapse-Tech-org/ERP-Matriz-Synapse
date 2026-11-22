@@ -90,8 +90,17 @@ preservados.
 - **Ordem de tabulação do composer.** O campo de texto sobe por CSS; a ordem no DOM continua
   ferramentas → campo → enviar.
 
+## Modo escuro
+
+No escuro só fundo, cartão e "muted" trocavam; texto, bordas, acento, canvas e a paleta das
+tags/avatares continuavam os do tema claro (o `<style>` do tema é injetado depois e vence o `.dark`).
+O bloco `html.dark` do `globals.css` passou a definir o conjunto completo, e as paletas fixas do V2
+(Agenda/Recursos, Gestão e sidebar) ganharam os equivalentes escuros. Conferido no escuro:
+Atendimentos (lista, conversa e ficha), Dashboard, Agenda, Tags, Campanhas, Configurações,
+Lembretes, Programadas, Rápidas, Templates, Gestão, Feedbacks e Administração.
+Evidências: `escuro-antes-1920.png`, `escuro-depois-*.png`.
+
 ## Não verificado
 
-- Tema escuro nas telas refeitas nesta rodada (só o tema claro foi capturado).
 - Campanhas com status "Em andamento" e "Pausada automaticamente" (não semeadas para não
   acionar o motor de envio no ambiente de teste).

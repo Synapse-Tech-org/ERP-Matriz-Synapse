@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import { obterEstadoAtendimento } from "./api";
+import { atualizarPainelDeAtendimentos, pedidoDaNotificacao } from "./atualizacao-do-painel";
 import type {
   EstadoAtendimentoSelecionado,
   EventoCanonicoAtendimentoTempoReal,
@@ -63,7 +64,7 @@ export class ReconciliadorEstadoAtendimento {
     const atendimentoId = evento.dados.atendimentoId;
     if (evento.dados.versao <= this.versaoConhecida(atendimentoId)) return false;
     this.versoes.set(atendimentoId, evento.dados.versao);
-    this.invalidarListas();
+    atualizarPainelDeAtendimentos(this.cache, pedidoDaNotificacao(evento));
     return true;
   }
 
@@ -82,6 +83,7 @@ export class ReconciliadorEstadoAtendimento {
       atendimentoId,
       Math.max(pendente, evento.dados.versao),
     );
+    atualizarPainelDeAtendimentos(this.cache, pedidoDaNotificacao(evento));
     return this.sincronizar(atendimentoId);
   }
 
@@ -123,17 +125,7 @@ export class ReconciliadorEstadoAtendimento {
       }
     } while (true);
 
-    this.invalidarListas();
     return this.ultimoSnapshot(atendimentoId) ?? snapshot;
-  }
-
-  private invalidarListas(): void {
-    void this.cache.invalidateQueries({
-      predicate: (consulta) => {
-        const [raiz, tipo] = consulta.queryKey;
-        return raiz === "atendimentos" && tipo !== "estado" && tipo !== "cartao";
-      },
-    });
   }
 
   private versaoConhecida(atendimentoId: string): number {

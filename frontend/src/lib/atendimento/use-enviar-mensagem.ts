@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ErroDeApi } from "@/lib/api/errors";
 
 import { enviarMensagem, enviarTemplate } from "./api";
+import { atualizarPainelDeAtendimentos } from "./atualizacao-do-painel";
 import { atualizarPaginaRecente, identidadeAutenticada } from "./cache-mensagens";
 import { confirmarEnvioNoHistorico } from "./confirmar-envio";
 import { reconciliarEnvioAmbiguo } from "./reconciliar-envio";
@@ -173,7 +174,7 @@ export function useEnviarMensagem(onMensagemEnviada?: () => void) {
         confirmarEnvioNoHistorico(atual, contexto.otimista, resposta, identidade),
       );
       if (resposta.transferiuOLead || reconciliada) {
-        queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
+        atualizarPainelDeAtendimentos(queryClient, { atendimentoId: resposta.atendimentoId });
       }
       onMensagemEnviada?.();
     },

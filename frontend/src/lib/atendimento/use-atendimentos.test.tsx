@@ -74,7 +74,7 @@ describe("useAtendimentos — paginação da inbox", () => {
     await waitFor(() => expect(result.current.data).toHaveLength(2));
 
     expect(result.current.data?.map((item) => item.atendimentoId)).toEqual(["um", "dois"]);
-    expect(api.listarInboxUnificada).toHaveBeenNthCalledWith(2, "TODOS", "cursor-1", 50, null);
+    expect(api.listarInboxUnificada).toHaveBeenNthCalledWith(2, "TODOS", "cursor-1", 50, null, expect.any(AbortSignal));
   });
 
   it("usa a inbox paginada também para FINALIZADOS", async () => {
@@ -87,7 +87,7 @@ describe("useAtendimentos — paginação da inbox", () => {
     const { result } = renderHook(() => useAtendimentos("FINALIZADOS"), { wrapper: wrapper(cache) });
 
     await waitFor(() => expect(result.current.data).toHaveLength(1));
-    expect(api.listarInboxUnificada).toHaveBeenCalledWith("FINALIZADOS", null, 50, null);
+    expect(api.listarInboxUnificada).toHaveBeenCalledWith("FINALIZADOS", null, 50, null, expect.any(AbortSignal));
     expect(api.listarAtendimentos).not.toHaveBeenCalled();
   });
 
@@ -102,7 +102,7 @@ describe("useAtendimentos — paginação da inbox", () => {
     });
 
     await waitFor(() => expect(result.current.data).toHaveLength(1));
-    expect(api.listarInboxUnificada).toHaveBeenCalledWith("PENDENTES", null, 50, "atendente-1");
+    expect(api.listarInboxUnificada).toHaveBeenCalledWith("PENDENTES", null, 50, "atendente-1", expect.any(AbortSignal));
   });
 
   it("preserva no cache os atendentes conhecidos ao aplicar um filtro", async () => {
@@ -133,7 +133,7 @@ describe("useAtendimentos — paginação da inbox", () => {
     const { result } = renderHook(() => useAtendimentos("ATIVOS"), { wrapper: wrapper(cache) });
 
     await waitFor(() => expect(result.current.data).toHaveLength(1));
-    expect(api.listarInboxUnificada).toHaveBeenCalledWith("ATIVOS", null, 50, null);
+    expect(api.listarInboxUnificada).toHaveBeenCalledWith("ATIVOS", null, 50, null, expect.any(AbortSignal));
     expect(api.listarAtendimentos).not.toHaveBeenCalled();
   });
 

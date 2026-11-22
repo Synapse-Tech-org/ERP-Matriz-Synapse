@@ -666,6 +666,65 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("historico")).toBe(historico);
   });
 
+  it("no V2 recupera os incrementais após 503 na reconexão sem fechar a conversa nem exigir F5", async () => {
+    const pagina = renderPagina();
+    act(() => {
+      pagina.queryClient.setQueryData(["config", "features"], ["atendimentos_layout_v2"]);
+      callbacks.abrir?.(cartaoInicial);
+    });
+    const historico = await screen.findByTestId("historico");
+    await waitFor(() => expect(callbacks.tempoRealDasMensagens?.incrementaisLiberados).toBe(true));
+
+    vi.useFakeTimers();
+    try {
+      obterCartao.mockRejectedValueOnce(new ErroDeApi(503, null, "pool ocupado"));
+      await act(async () => {
+        stomp.clientes.at(-1)?.onWebSocketClose?.();
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      expect(callbacks.tempoRealDasMensagens).toEqual({ estado: "conectado", incrementaisLiberados: false });
+      expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeInTheDocument();
+      expect(screen.getByTestId("composer")).toHaveAttribute("data-pode-enviar", "true");
+      expect(screen.getByTestId("historico")).toBe(historico);
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
+      expect(callbacks.tempoRealDasMensagens?.incrementaisLiberados).toBe(true);
+      expect(screen.queryByRole("button", { name: "Tentar novamente" })).not.toBeInTheDocument();
+      expect(screen.getByTestId("historico")).toBe(historico);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("limita as retentativas de estado após reconectar e oferece recuperação manual", async () => {
+    renderPagina();
+    act(() => callbacks.abrir?.(cartaoInicial));
+    await waitFor(() => expect(callbacks.tempoRealDasMensagens?.incrementaisLiberados).toBe(true));
+    vi.useFakeTimers();
+    try {
+      obterCartao.mockClear();
+      obterCartao.mockRejectedValue(new ErroDeApi(503, null, "pool ocupado"));
+      await act(async () => {
+        stomp.clientes.at(-1)?.onWebSocketClose?.();
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+      expect(obterCartao).toHaveBeenCalledTimes(3);
+      expect(callbacks.tempoRealDasMensagens?.incrementaisLiberados).toBe(false);
+      const historico = screen.getByTestId("historico");
+
+      obterCartao.mockResolvedValue(cartaoInicial);
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+      });
+      expect(obterCartao).toHaveBeenCalledTimes(4);
+      expect(callbacks.tempoRealDasMensagens?.incrementaisLiberados).toBe(true);
+      expect(screen.getByTestId("historico")).toBe(historico);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("revalidação de envio iniciada em A não autoriza envio depois da troca para B", async () => {
     renderPagina();
     act(() => callbacks.abrir?.(cartaoInicial));
@@ -783,11 +842,11 @@ describe("PaginaAtendimentosCliente", () => {
     }));
     // O canal amplo nao inicia um GET enquanto o POST de leitura esta pendente, eliminando a
     // possibilidade de o retorno stale reintroduzir o contador antigo.
-    expect(invalidar).not.toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }));
+    expect(invalidar).not.toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }), { cancelRefetch: false });
     expect(pagina.queryClient.getQueryData<ItemInbox[]>(["atendimentos"])?.[0]?.naoLidas).toBe(0);
 
     act(() => leitura.resolver?.());
-    await waitFor(() => expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] })));
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }), { cancelRefetch: false }));
   });
 
   it("gestor abre conversa de colega sem zerar o indicador operacional", async () => {
@@ -835,7 +894,7 @@ describe("PaginaAtendimentosCliente", () => {
         ocorridoEm: "2026-10-01T12:00:00Z",
       },
     }));
-    expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }));
+    expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }), { cancelRefetch: false });
   });
 
   it("continua invalidando a lista para mensagem nova de conversa fechada", () => {
@@ -858,7 +917,7 @@ describe("PaginaAtendimentosCliente", () => {
       },
     }));
 
-    expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }));
+    expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }), { cancelRefetch: false });
   });
 
   it("mantém o snapshot até o evento canônico e então reconcilia cabeçalho e painel", async () => {

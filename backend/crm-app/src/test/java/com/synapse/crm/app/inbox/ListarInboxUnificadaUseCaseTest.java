@@ -103,7 +103,7 @@ class ListarInboxUnificadaUseCaseTest {
     }
 
     @Test
-    void falhaDoChatInternoNaoEscondeClientes() {
+    void falhaDeUmaFonteNaoDevolvePaginaParcial() {
         UUID lead = UUID.randomUUID();
         when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(),
                 Mockito.anyBoolean(), Mockito.isNull(), Mockito.isNull()))
@@ -111,9 +111,8 @@ class ListarInboxUnificadaUseCaseTest {
         when(features.habilitadas()).thenReturn(List.of("chat_interno"));
         when(equipe.executarPaginado(Mockito.anyInt(), Mockito.isNull(), Mockito.isNull())).thenThrow(new IllegalStateException("indisponível"));
 
-        assertThat(caso.executar(VisaoAtendimento.TODOS, 50, null).itens())
-                .singleElement().extracting(InboxUnificada.Item::tipo)
-                .isEqualTo(InboxUnificada.Tipo.CLIENTE);
+        assertThatThrownBy(() -> caso.executar(VisaoAtendimento.TODOS, 50, null))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test

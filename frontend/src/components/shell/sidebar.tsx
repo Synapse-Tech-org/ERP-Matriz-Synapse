@@ -106,7 +106,7 @@ const ITENS_PRINCIPAIS_CLINICA = ["atendimentos", "agendaConsultas", "cancelamen
 
 const ICONES_SIDEBAR_V2: Partial<Record<string, [NomeIconeFrontendV2, NomeIconeFrontendV2]>> = {
   atendimentos: ["chat-smile-2-line", "chat-smile-2-fill"],
-  dashboard: ["dashboard-horizontal-line", "dashboard-horizontal-fill"],
+  dashboard: ["arrow-right-up-line", "arrow-right-up-fill"],
   agenda: ["contacts-book-3-line", "contacts-book-3-fill"],
   agendaConsultas: ["calendar-2-line", "calendar-2-line"],
   cancelamentos: ["calendar-close-line", "calendar-close-fill"],

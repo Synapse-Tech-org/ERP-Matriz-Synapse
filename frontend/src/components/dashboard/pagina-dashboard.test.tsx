@@ -53,7 +53,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       funilApoio: "Etapas do pipeline",
       filtros: { rotulo: "Filtros", ano: "Ano", meses: "Meses", anoInteiro: "Ano inteiro", originacao: "Originação", intervalo: "{inicio} até {fim}", de: "De", ate: "Até", limpar: "Limpar", selecioneMes: "Selecione", origemCompleta: "Complete" },
       meses: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
-      kpis: { rotulo: "Indicadores", atendimentos: "Atendimentos", atendimentosApoio: "{total} acumulados", conversao: "Conversão", conversaoApoio: "{vendas} vendas / {leads} leads", tempoMedio: "Tempo médio", tempoMedioApoio: "Atendimentos finalizados", vendas: "Vendas fechadas", vendasApoio: "{total} acumuladas", csat: "Avaliação", csatApoio: "{total} avaliações", resolucaoIa: "Resolução por IA", resolucaoIaApoio: "Sem transferência humana", novosLeads: "Novos leads", novosLeadsApoio: "Criados no período", resumoSerie: "mín {minMes} {min} · máx {maxMes} {max} · média {media}", periodoAnterior: "vs. período anterior" },
+      kpis: { rotulo: "Indicadores", atendimentos: "Atendimentos", atendimentosApoio: "{total} acumulados", conversao: "Conversão", conversaoApoio: "{vendas} vendas / {leads} leads", tempoMedio: "Tempo médio", tempoMedioApoio: "Atendimentos finalizados", vendas: "Vendas fechadas", vendasApoio: "{total} acumuladas", csat: "Avaliação", csatApoio: "{total} avaliações", resolucaoIa: "Resolução por IA", resolucaoIaApoio: "Sem transferência humana", novosLeads: "Novos leads", novosLeadsApoio: "Criados no período", resumoSerie: "mín {minMes} {min} · máx {maxMes} {max} · média {media}", periodoAnterior: "vs. período anterior", mesAnterior: "vs. mês anterior" },
       agora: { rotulo: "Agora", emIa: "Em IA", emAtendimento: "Em atendimento humano", leadsNovosHoje: "Leads novos hoje", vendasHoje: "Vendas hoje", atendentesOnline: "Atendentes online", atualizadoAgora: "atualizado agora", atualizadoSegundos: "atualizado há {segundos}s", atualizadoMinutos: "atualizado há {minutos}min" },
       secoes: { ranking: "Top atendentes · avaliação", equipe: "Equipe · desempenho", equipeApoio: "Atendimentos, vendas e nota média no período", equipeOrdenadoPor: "ordenado por vendas fechadas", funil: "Funil de conversão", horarioPico: "Horário de pico · mensagens por hora" },
       ranking: { vazio: "Sem avaliações", media: "{media}", quantidadeSingular: "{total} avaliação", quantidadePlural: "{total} avaliações", semResponsavelSingular: "{total} venda sem responsável atribuído", semResponsavelPlural: "{total} vendas sem responsável atribuído" },
@@ -221,7 +221,7 @@ describe("PaginaDashboard", () => {
     expect(screen.getAllByText("Vendas fechadas").length).toBeGreaterThan(0);
     expect(screen.getByText("Equipe · desempenho")).toBeInTheDocument();
     expect(screen.getAllByText("Ana Silva").length).toBeGreaterThan(0);
-    expect(seloComTexto("+25,0pp")).toHaveTextContent("+25,0pp vs. período anterior");
+    expect(seloComTexto("+25,0pp")).toHaveTextContent("+25,0pp vs. mês anterior");
     expect(screen.getAllByTestId("barra-funil")).toHaveLength(1);
     expect(screen.getAllByTestId("barra-horario")).toHaveLength(24);
     expect(screen.getByRole("button", { name: /Operacional/ })).toBeDisabled();
@@ -276,7 +276,7 @@ describe("PaginaDashboard", () => {
 
     expect(screen.getByText("Novos leads")).toBeInTheDocument();
     expect(screen.getByText("30")).toBeInTheDocument();
-    expect(seloComTexto("+14,0%")).toHaveTextContent("+14,0% vs. período anterior");
+    expect(seloComTexto("+14,0%")).toHaveTextContent("+14,0% vs. mês anterior");
   });
 
   it("funil mostra a linha Perdido como agregado à parte, sem entrar na sequência ordenada", () => {
@@ -381,6 +381,27 @@ describe("PaginaDashboard", () => {
     // avaliacaoMedia.comparativo é null no payload: o cartão de Avaliação fica sem selo.
     const cartaoAvaliacao = screen.getByText("Avaliação").closest('[data-slot="card"]');
     expect(within(cartaoAvaliacao as HTMLElement).queryByText(/período anterior/)).toBeNull();
+  });
+
+  it("selo compara com o mês anterior quando há meses selecionados e fica neutro na variação zero", () => {
+    const payload = { ...PAYLOAD_COM_DADOS,
+      taxaConversao: { ...PAYLOAD_COM_DADOS.taxaConversao, comparativo: { valor: 0, unidade: "PONTOS_PERCENTUAIS" } } };
+    useDashboardMock.mockReturnValue({ data: payload, isLoading: false, isError: false });
+    render(<PaginaDashboard />);
+
+    const selos = screen.getAllByTestId("selo-tendencia");
+    expect(selos.every((selo) => selo.getAttribute("title")?.endsWith("vs. mês anterior"))).toBe(true);
+    const estavel = selos.find((selo) => selo.textContent?.startsWith("0"));
+    expect(estavel).toHaveClass("bg-muted", "text-muted-foreground");
+    expect(seloComTexto("+20,0%")).not.toHaveClass("bg-muted");
+  });
+
+  it("com recorte por dias o selo continua comparando com o período anterior", () => {
+    useDashboardMock.mockReturnValue({ data: { ...PAYLOAD_COM_DADOS,
+      periodo: { ano: 2040, meses: [8], inicio: "2040-08-01", fim: "2040-08-07" } }, isLoading: false, isError: false });
+    render(<PaginaDashboard />);
+
+    expect(screen.getAllByTestId("selo-tendencia")[0].getAttribute("title")).toMatch(/vs. período anterior$/);
   });
 
   it("com tudo zerado: sem NaN, trilho do funil visivel e nenhum selo inventado", () => {
