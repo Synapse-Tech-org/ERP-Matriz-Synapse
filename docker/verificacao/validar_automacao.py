@@ -3,6 +3,24 @@ import json
 import sys
 import re
 import argparse
+from pathlib import Path
+
+
+def validar_configs(configs):
+    base = "/opt/automacao/"
+    esperados = {base + nome for nome in (
+        "provisionar.sh", "provisionar.sql", "clonar-estrutura.sh",
+        "marcador.sql", "aplicar-migracoes.sh",
+    )}
+    pasta = Path(__file__).resolve().parents[2] / "automacao/banco/migrations"
+    migracoes = list(pasta.glob("V*__*.sql"))
+    assert migracoes, f"Nenhuma migracao encontrada em {pasta}"
+    esperados.update(base + "migrations/" + arquivo.name for arquivo in migracoes)
+    destinos = {item["target"] for item in configs}
+    assert len(destinos) == len(configs), "Destino duplicado no preparador"
+    assert destinos == esperados, (
+        f"Configs ausentes: {sorted(esperados - destinos)}; extras: {sorted(destinos - esperados)}"
+    )
 
 
 def labels_de(servico):
@@ -78,11 +96,7 @@ def validar(compose, homologacao=False, digest_automacao=None):
     assert set(preparador["networks"]) == {"synapse-internal"}
     assert not preparador.get("ports") and not preparador.get("volumes")
     assert "depends_on" not in automacao, "Swarm nao deve depender de depends_on"
-    assert len(preparador["configs"]) == 15
-    destinos = {item["target"] for item in preparador["configs"]}
-    assert "/opt/automacao/aplicar-migracoes.sh" in destinos
-    assert "/opt/automacao/migrations/V2__criar_faq_institucional.sql" in destinos
-    assert "/opt/automacao/migrations/V10__executor_followup.sql" in destinos
+    validar_configs(preparador["configs"])
     assert preparador["command"] == ["sh", "/opt/automacao/provisionar.sh"]
 
 
