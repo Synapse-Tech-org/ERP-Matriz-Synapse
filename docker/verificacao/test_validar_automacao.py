@@ -56,6 +56,7 @@ def compose_base():
                     ("migracao-v8", "migrations/V8__criar_controle_de_segmentacoes.sql"),
                     ("migracao-v9", "migrations/V9__criar_cursores_de_segmentacao.sql"),
                     ("migracao-v10", "migrations/V10__executor_followup.sql"),
+                    ("migracao-v11", "migrations/V11__mensagens_sistematicas.sql"),
                 )],
                 "deploy": {"replicas": 0, "restart_policy": {"condition": "none"}, "labels": {"traefik.enable": "false"}},
             },
@@ -69,6 +70,13 @@ def compose_base():
 
 
 class SegurancaDaAutomacaoTest(unittest.TestCase):
+    def test_rejeita_stack_sem_migracao_de_sistematicas(self):
+        compose = compose_base()
+        configs = compose["services"]["automacao-banco"]["configs"]
+        configs[:] = [item for item in configs if item["source"] != "migracao-v11"]
+        with self.assertRaisesRegex(AssertionError, "V11__mensagens_sistematicas"):
+            validar(compose)
+
     def test_aceita_base_desligada_e_privada(self):
         validar(compose_base())
 
