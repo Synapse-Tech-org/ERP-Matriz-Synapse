@@ -3454,6 +3454,10 @@
     "comVinculos": "Classificação bloqueada: a conta possui vínculos operacionais ou históricos. Revise os identificadores técnicos, sem apagar ou reatribuir registros para contornar a proteção.",
     "salvo": "Classificação salva."
   },
+  "bancoArquivosNoAtendimento": {
+    "descricao": "Escolha um arquivo para enviar como mensagem nesta conversa.",
+    "vazio": "Nenhum arquivo encontrado."
+  },
   "bancoArquivosEnvio": {
     "titulo": "Enviar ao cliente",
     "busca": "Buscar atendimento aberto",

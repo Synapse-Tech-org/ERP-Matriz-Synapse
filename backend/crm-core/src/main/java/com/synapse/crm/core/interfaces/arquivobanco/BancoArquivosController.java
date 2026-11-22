@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletResponse;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ContentDisposition;
@@ -62,6 +63,8 @@ class BancoArquivosController {
         this.restaurar = restaurar;
     }
 
+    @Operation(summary = "Listar arquivos da biblioteca",
+            description = "Busca arquivos ativos por nome, descrição, pasta e tipo. Retorna metadados paginados e uso da cota da instância.")
     @GetMapping
     ListarArquivosBancoUseCase.Resultado listar(
             @RequestParam(required = false) String pasta, @RequestParam(required = false) TipoArquivoBanco tipo,
@@ -70,11 +73,14 @@ class BancoArquivosController {
         return listar.executar(pasta, tipo, busca, ordem, pagina, tamanho);
     }
 
+    @Operation(summary = "Consultar um arquivo", description = "Retorna os metadados de um arquivo ativo, sem entregar o binário.")
     @GetMapping("/{id}")
     Metadados obter(@PathVariable UUID id) {
         return obter.executar(id);
     }
 
+    @Operation(summary = "Adicionar um arquivo à biblioteca",
+            description = "Recebe um arquivo multipart com pasta e descrição opcional. Verifica extensão, conteúdo, tamanho e cota antes de armazenar.")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     Metadados enviar(@RequestPart MultipartFile arquivo, @RequestParam String pasta,
@@ -84,22 +90,29 @@ class BancoArquivosController {
         }
     }
 
+    @Operation(summary = "Editar metadados do arquivo",
+            description = "Altera nome, pasta e descrição de um arquivo ativo. A extensão permanece compatível com o conteúdo validado.")
     @PatchMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     Metadados editar(@PathVariable UUID id, @RequestBody Edicao entrada) {
         return editar.executar(id, entrada.nome(), entrada.pasta(), entrada.descricao());
     }
 
+    @Operation(summary = "Excluir um arquivo da biblioteca",
+            description = "Retira o arquivo da listagem e bloqueia acesso ao conteúdo. Mantém uma janela de restauração antes do expurgo.")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void excluir(@PathVariable UUID id) {
         excluir.executar(id);
     }
 
+    @Operation(summary = "Restaurar um arquivo excluído",
+            description = "Recoloca um arquivo na biblioteca se a janela de restauração ainda estiver aberta.")
     @PostMapping("/{id}/restaurar")
     Metadados restaurar(@PathVariable UUID id) {
         return restaurar.executar(id);
     }
 
+    @Operation(summary = "Baixar um arquivo privado", description = "Fornece o binário como anexo mediante autenticação e permissão de leitura.")
     @GetMapping("/{id}/download")
     void download(@PathVariable UUID id, HttpServletResponse resposta) throws IOException {
         try (ArquivoAberto arquivo = abrir.paraDownload(id)) {
@@ -107,6 +120,8 @@ class BancoArquivosController {
         }
     }
 
+    @Operation(summary = "Visualizar uma imagem da biblioteca",
+            description = "Fornece prévia autenticada de JPEG e PNG com cabeçalhos que impedem cache e interpretação como HTML.")
     @GetMapping("/{id}/preview")
     void preview(@PathVariable UUID id, HttpServletResponse resposta) throws IOException {
         try (ArquivoAberto arquivo = abrir.paraVisualizacao(id)) {

@@ -31,7 +31,7 @@
 | RF-CRM-08/09 | ✅ | `AtendimentoMensagensController`, `PainelDeAtendimentosController`, WebSocket (`tempo-real`) | `TempoRealIT`, `PainelDeAtendimentosControllerIT`, `AnexoMidiaIT` |
 | RF-CRM-10/11 | ✅ | `PainelDeAtendimentosController` (`GET /atendimentos?visao=`) | `PainelDeAtendimentosControllerIT` |
 | RF-CRM-12 | ✅ | `MensagemRapidaController` | `MensagensRapidasIT` |
-| RF-CRM-13 | ❌ **rebaixado de ✅** (estava junto de RF-CRM-12) | `arquivo_banco` existe só na migration (`V4__crm_core.sql`) — nenhum domain/application/interfaces em nenhum módulo | Nenhum (só `SchemaMigracoesIT`, que testa a tabela, não a feature) |
+| RF-CRM-13 | ✅ **sob a flag `banco_arquivos`** | Ação Banco de Arquivos no menu de anexos seleciona e envia um arquivo na conversa aberta. O envio mantém as permissões e a janela do canal. | `EnvioDeArquivoBancoIT` cobre enfileiramento, repetição idempotente e destino indisponível para outro atendente. |
 | RF-CRM-14 a 16 | ✅ | `TimelineDoLeadController`, `LembreteController`, `MensagemProgramadaController` | `PainelDoLeadIT`, `LembretesIT`, `MensagensProgramadasIT` |
 | RF-CRM-17 a 19 | ✅ | `LeadController`, `EtapaController`; `codigo` (V47) na ficha e no card da inbox | `LeadFichaIT` (gravação, recusa de letra, limpeza) |
 | RF-CRM-20/21/22 | ✅ | `PainelDeAtendimentosController` (`?visao=ATIVOS/PENDENTES/POTENCIAIS/TODOS`) | `PainelDeAtendimentosControllerIT` |
@@ -90,7 +90,7 @@
 | RF-CRM-50/77 (métricas, mini-dashboard) | ❌ **rebaixado de ✅** | Nenhum endpoint retorna contagem de leads por tag — `LeadTagRepositorio` não expõe agregação nenhuma. Confirmado ao construir `/tags` na E15: a tela real saiu sem mini-dashboard por este motivo exato | Nenhum |
 | RF-CRM-51 a 53 | ✅ | `MensagemRapidaController` | `MensagensRapidasIT` |
 | RF-CRM-54 (Horários) | ❌ **rebaixado de ✅** (achado pela E15, mas esta é a primeira vez que `docs/05` reflete isso — a E15 corrigiu `docs/09` e o menu, não esta matriz) | `horario_trabalho` só como migration — zero código de aplicação; agora com registro em `docs/09` §1.1 e flag `horarios = false` | Nenhum |
-| RF-CRM-55/56 (Banco de Arquivos) | ❌ **rebaixado de ✅** | `arquivo_banco` só como migration — mesmo achado de RF-CRM-13 | Nenhum |
+| RF-CRM-55/56 (Banco de Arquivos) | ✅ **sob a flag `banco_arquivos`** | Biblioteca por instância com armazenamento privado, grade e lista, busca e filtros, upload, download, edição, restauração e envio a um atendimento aberto. | `BancoArquivosIT`, `BancoArquivosSegurancaIT` e `EnvioDeArquivoBancoIT`. |
 | RF-CRM-57 a 64 | ✅ | `LembreteController`, `MensagemProgramadaController` | `LembretesIT`, `MensagensProgramadasIT` |
 | Disbrel D2 — setores e atribuição de integrante *(PR #296, não mergeada; desligado por padrão)* | 🟡 em PR | `SetorController`, V103, feature flag `setores` | `SetoresIT` (inclui o negativo: setor não dá acesso a lead) |
 | Disbrel D3a/b/c — rodízio por setor, atendente vinculado, chaves de distribuição *(PR #300, não mergeada)* | 🟡 em PR | `ListarAtendentesDisponiveisUseCase`, `AtendenteDisponivelRepositorioJdbc`, `VinculoDoLeadListener`, V104 | `DistribuicaoPorSetorEVinculadoIT` (+ ITs de rodízio/transferência sem edição) |

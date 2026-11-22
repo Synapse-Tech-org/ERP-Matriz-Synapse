@@ -1346,6 +1346,7 @@ export function PaginaAtendimentosCliente({
                   resposta={respostaDaTela}
                   onCancelarResposta={() => setRespostaAlvo(null)}
                   onMensagemEnviada={aposMensagemEnviada}
+                  bancoArquivosHabilitado={flags?.includes("banco_arquivos")}
                   onFalhasDeMidia={registrarFalhasDeMidia}
                   podeEnviar={podeResponder && Boolean(estadoSelecionado?.podeEnviar)}
                   onRevalidarEnvio={revalidarEnvio}

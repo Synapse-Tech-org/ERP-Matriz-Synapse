@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { File, Search, Send, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ErroDeApi } from "@/lib/api/errors";
-import { apiFetch } from "@/lib/api/http-client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import type { ArquivoDoBanco } from "@/lib/banco-arquivos/api";
+import { LIMITE_LEGENDA_ARQUIVO_BANCO, useEnviarArquivoDoBanco } from "@/lib/banco-arquivos/use-enviar-arquivo-do-banco";
 import { buscarDestinosDoEncaminhamento } from "@/lib/chat-interno/api";
 import { useTextos } from "@/lib/config/textos-provider";
 
@@ -26,14 +25,12 @@ export function DialogoEnviarArquivoDeBanco({ arquivo, onFechar }: Props) {
 
 function Envio({ arquivo, onFechar }: { arquivo: ArquivoDoBanco; onFechar: () => void }) {
   const textos = useTextos().bancoArquivosEnvio;
-  const cache = useQueryClient();
   const usuario = useAuthStore((estado) => estado.usuarioId);
   const [busca, setBusca] = useState("");
   const [termo, setTermo] = useState("");
   const [destinoId, setDestinoId] = useState<string | null>(null);
   const [legenda, setLegenda] = useState("");
-  const tentativa = useRef<{ destino: string; legenda: string; chave: string } | null>(null);
-  const enviando = useRef(false);
+  const envio = useEnviarArquivoDoBanco();
   const tipoIncompativel = arquivo.tipo === "DWG";
   const atendimentos = useQuery({
     queryKey: ["banco-arquivos", usuario, "destinos-de-envio", termo],
@@ -50,41 +47,14 @@ function Envio({ arquivo, onFechar }: { arquivo: ArquivoDoBanco; onFechar: () =>
     return () => window.clearTimeout(timer);
   }, [busca]);
 
-  const envio = useMutation({
-    mutationFn: ({ destino, legenda, chave }: NonNullable<typeof tentativa.current>) =>
-      apiFetch<{ atendimentoId: string; mensagemId: string }>(`/api/v1/banco-arquivos/${arquivo.id}/enviar`, {
-        method: "POST",
-        headers: { "Idempotency-Key": chave },
-        body: JSON.stringify({ atendimentoId: destino, legenda: legenda || null }),
-      }),
-    onSuccess: ({ atendimentoId }) => {
-      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
-      void cache.invalidateQueries({ queryKey: ["mensagens", atendimentoId] });
-    },
-    onSettled: () => { enviando.current = false; },
-  });
-
   function confirmar() {
-    if (!destino || tipoIncompativel || enviando.current) return;
-    const legendaLimpa = legenda.trim();
-    if (tentativa.current?.destino !== destino.atendimentoId || tentativa.current?.legenda !== legendaLimpa) {
-      tentativa.current = { destino: destino.atendimentoId, legenda: legendaLimpa, chave: crypto.randomUUID() };
-    }
-    enviando.current = true;
-    envio.mutate(tentativa.current);
+    if (!destino || tipoIncompativel) return;
+    envio.enviar({ arquivoId: arquivo.id, atendimentoId: destino.atendimentoId, legenda });
   }
 
   function fechar() {
-    if (!enviando.current) onFechar();
+    if (!envio.emAndamento()) onFechar();
   }
-
-  const erro = envio.error instanceof ErroDeApi ? envio.error : null;
-  const mensagemErro = erro?.problema?.motivo === "janela_fechada" ? textos.janelaFechada
-    : erro?.status === 413 ? textos.arquivoGrande
-    : erro?.status === 429 ? textos.limite
-    : erro?.status === 403 ? textos.semPermissao
-    : erro?.status === 404 || erro?.status === 409 ? textos.indisponivel
-    : textos.erroEnvio;
 
   return (
     <Dialog open onOpenChange={(aberto) => { if (!aberto) fechar(); }}>
@@ -143,8 +113,8 @@ function Envio({ arquivo, onFechar }: { arquivo: ArquivoDoBanco; onFechar: () =>
             </ul>
             <div className="px-6 pt-3">
               <Input className="h-[42px] rounded-xl" value={legenda} onChange={(evento) => setLegenda(evento.target.value)}
-                aria-label={textos.legenda} placeholder={textos.legenda} maxLength={1024} disabled={envio.isPending} />
-              {envio.isError && <p role="alert" className="mt-2 text-sm text-destructive">{mensagemErro}</p>}
+                aria-label={textos.legenda} placeholder={textos.legenda} maxLength={LIMITE_LEGENDA_ARQUIVO_BANCO} disabled={envio.isPending} />
+              {envio.mensagemErro && <p role="alert" className="mt-2 text-sm text-destructive">{envio.mensagemErro}</p>}
             </div>
           </>
         )}

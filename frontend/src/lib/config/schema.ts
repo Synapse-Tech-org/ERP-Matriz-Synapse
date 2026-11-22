@@ -1927,6 +1927,10 @@ export const TextosSchema = z.object({
     comVinculos: z.string().default("Classificação bloqueada: a conta possui vínculos operacionais ou históricos. Revise os identificadores técnicos, sem apagar ou reatribuir registros para contornar a proteção."),
     salvo: z.string().default("Classificação salva."),
   }).prefault({}),
+  bancoArquivosNoAtendimento: z.object({
+    descricao: z.string().default("Escolha um arquivo para enviar como mensagem nesta conversa."),
+    vazio: z.string().default("Nenhum arquivo encontrado."),
+  }).prefault({}),
   bancoArquivosEnvio: z.object({
     titulo: z.string().default("Enviar ao cliente"),
     busca: z.string().default("Buscar atendimento aberto"),
