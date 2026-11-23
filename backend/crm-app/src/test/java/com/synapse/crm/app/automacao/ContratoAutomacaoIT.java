@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -32,7 +33,6 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * O contrato {@code /internal/v1} e a configuracao da automacao (E07 §6).
