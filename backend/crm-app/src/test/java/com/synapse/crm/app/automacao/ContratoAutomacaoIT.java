@@ -10,6 +10,9 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_SUBGESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -29,6 +32,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * O contrato {@code /internal/v1} e a configuracao da automacao (E07 §6).
@@ -100,6 +104,30 @@ class ContratoAutomacaoIT extends PostgresIT {
     @Nested
     @DisplayName("configuracao de automacao")
     class Configuracao {
+
+        @Test
+        void mensagensSistematicas_expoemPadroesComoTextoNoContratoInterno() throws Exception {
+            var resposta = comToken(TOKEN_VALIDO, "/internal/v1/automation-config");
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            var parametros = new ObjectMapper()
+                    .readTree(resposta.getBody()).path("parametros");
+            var esperados = Map.of(
+                    "fidelizacao.excluir_finalizados", "true",
+                    "sistematicas.somente_horario_comercial", "false",
+                    "sistematicas.expediente", "[]",
+                    "sistematicas.meta.template_nome", "",
+                    "sistematicas.meta.template_idioma", "",
+                    "sistematicas.meta.parametro_texto", "");
+            var encontrados = new HashMap<String, String>();
+            for (var parametro : parametros) {
+                String chave = parametro.path("chave").asText();
+                if (esperados.containsKey(chave)) {
+                    assertThat(parametro.path("valor").isTextual()).isTrue();
+                    encontrados.put(chave, parametro.path("valor").textValue());
+                }
+            }
+            assertThat(encontrados).containsExactlyInAnyOrderEntriesOf(esperados);
+        }
 
         @Test
         @DisplayName("alterar um parametro reflete em /internal/v1 sem redeploy")
