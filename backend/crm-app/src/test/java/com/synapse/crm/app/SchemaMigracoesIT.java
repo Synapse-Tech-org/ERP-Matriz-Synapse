@@ -161,6 +161,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     "finalizacao_em_massa",
                     "finalizacao_em_massa_item",
                     "finalizacao_em_massa_aviso",
+                    // V126: uma linha por dia em que a finalizacao do fim do expediente rodou.
+                    "finalizacao_fim_expediente_execucao",
                     "outbox_evento",
                     "preferencia_usuario",
                     "regra_fidelizacao",
