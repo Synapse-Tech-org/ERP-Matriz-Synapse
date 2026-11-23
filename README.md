@@ -403,6 +403,8 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `DASHBOARD_CACHE_TTL` | Validade dos agregados históricos do Dashboard no Redis; padrão `30s`. Status ao vivo é consultado a cada leitura. |
 | `DASHBOARD_CACHE_WAIT` | Espera máxima por uma consulta equivalente em outra réplica antes de consultar o banco; padrão `1s`. |
 | `DASHBOARD_CACHE_MAX_BYTES` | Tamanho máximo de uma resposta agregada gravada no cache; padrão `131072` bytes. |
+| `DASHBOARD_CLIENTES_DO_SITE_HABILITADO` | Habilita o KPI de origem pela primeira mensagem no WhatsApp. Padrão `false`; requer a frase abaixo. |
+| `DASHBOARD_CLIENTES_DO_SITE_FRASE` | Frase integral configurada no botão WhatsApp da instância; padrão vazio. Veja [habilitação e semântica](docs/43-dashboard-performance.md#clientes-vindos-do-site). |
 | `AUTOMACAO_WEBHOOK_EVENTOS_URL` | URL completa do webhook do n8n que recebe, de forma assíncrona, o payload cru e `X-Hub-Signature-256` enviados pela Meta. |
 | `AUTOMACAO_AVALIACAO_URL` | Opcional, vazio desliga pesquisas após encerramento individual; não é o repasse cru. |
 | `AUTOMACAO_AVALIACAO_TOKEN` | Segredo privado do webhook de avaliação, somente no ambiente; default vazio. |

@@ -1484,6 +1484,8 @@ export const TextosSchema = z.object({
       transferencias: z.string().default("Transf. IA → humano"),
       leadsParados: z.string().default("Leads parados +2 meses"),
       leadsParadosApoio: z.string().default("Etapas abertas sem interação há mais de dois meses"),
+      clientesVindosDoSite: z.string().default("Clientes vindos do site"),
+      clientesVindosDoSiteApoio: z.string().default("Leads únicos pela primeira mensagem no WhatsApp"),
       aguardandoResposta: z.string().default("Aguardando 1ª resposta"),
       esquecidos: z.string().default("Esquecidos +1 hora"),
       indisponivel: z.string().default("Métrica indisponível"),

@@ -95,6 +95,7 @@ const TONS_KPI_V2 = {
   nps: "var(--v2-indigo)",
   transferencias: "var(--v2-violeta)",
   leadsParados: "var(--v2-vermelho)",
+  clientesVindosDoSite: `var(--v2-azul, ${TOM_NOVOS_LEADS})`,
 } as const;
 
 /*
@@ -764,6 +765,11 @@ function ConteudoDashboard({
               apoio={textos.v2.leadsParadosApoio} />
           </>
         )}
+        {dados.clientesVindosDoSite != null && (
+          <KpiSemSerie chave="clientesVindosDoSite" icone="user-add-fill"
+            valor={numero(dados.clientesVindosDoSite)}
+            apoio={textos.v2.clientesVindosDoSiteApoio} />
+        )}
       </section>
       </SufixoDoComparativo.Provider>
 
@@ -936,7 +942,7 @@ function KpiSemSerie({
   valor,
   apoio,
 }: {
-  chave: "primeiraResposta" | "nps" | "transferencias" | "leadsParados";
+  chave: "primeiraResposta" | "nps" | "transferencias" | "leadsParados" | "clientesVindosDoSite";
   icone: React.ComponentProps<typeof IconeFrontendV2>["nome"];
   valor?: string;
   apoio?: string;
@@ -948,11 +954,14 @@ function KpiSemSerie({
       <CardHeader>
         <span className="shrink-0 text-[var(--tom)]"><IconeFrontendV2 nome={icone} /></span>
         <CardTitle>{textos.v2[chave]}</CardTitle>
-        {chave !== "transferencias" && <span data-slot="dashboard-selo-novo">{textos.v2.seloNovo}</span>}
+        {chave !== "transferencias" && chave !== "clientesVindosDoSite" && (
+          <span data-slot="dashboard-selo-novo">{textos.v2.seloNovo}</span>
+        )}
       </CardHeader>
       <CardContent data-slot="dashboard-kpi-leitura">
         <div>
-          <span data-slot="dashboard-kpi-valor" aria-hidden={valor == null ? true : undefined}>{valor ?? textos.v2.valorIndisponivel}</span>
+          <span data-slot="dashboard-kpi-valor" data-testid={`kpi-${textos.v2[chave]}`}
+            aria-hidden={valor == null ? true : undefined}>{valor ?? textos.v2.valorIndisponivel}</span>
           <p className="text-xs text-muted-foreground">{valor == null ? textos.v2.indisponivel : apoio}</p>
         </div>
       </CardContent>

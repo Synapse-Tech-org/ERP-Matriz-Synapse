@@ -36,6 +36,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
         transferencias: "Transf. IA → humano",
         leadsParados: "Leads parados +2 meses",
         leadsParadosApoio: "Etapas abertas sem interação há mais de dois meses",
+        clientesVindosDoSite: "Clientes vindos do site",
+        clientesVindosDoSiteApoio: "Leads únicos pela primeira mensagem no WhatsApp",
         aguardandoResposta: "Aguardando 1ª resposta",
         esquecidos: "Esquecidos +1 hora",
         indisponivel: "Métrica indisponível",
@@ -140,6 +142,25 @@ describe("PaginaDashboard", () => {
   beforeEach(() => {
     funcionalidades.flags = [];
     telaEstreita.atual = false;
+  });
+
+  it.each([false, true])("mostra a contagem do site, inclusive zero, e omite quando desligada (V2: %s)", (v2) => {
+    funcionalidades.flags = v2 ? ["dashboard_layout_v2"] : [];
+    const id = "kpi-Clientes vindos do site";
+    useDashboardMock.mockImplementation((filtro) => ({
+      data: { ...PAYLOAD_COM_DADOS, clientesVindosDoSite: filtro.meses.includes(1) ? 2 : 0 },
+      isLoading: false, isError: false,
+    }));
+    const tela = render(<PaginaDashboard />);
+    expect(screen.getByTestId(id)).toHaveTextContent(/^2$/);
+    fireEvent.click(screen.getByRole("button", { name: "Jan" }));
+    expect(screen.getByTestId(id)).toHaveTextContent(/^0$/);
+    fireEvent.click(screen.getByRole("button", { name: "Expandida" }));
+    expect(screen.getByTestId(id)).toHaveTextContent(/^0$/);
+    useDashboardMock.mockReturnValue({ data: { ...PAYLOAD_COM_DADOS, clientesVindosDoSite: null }, isLoading: false });
+    tela.rerender(<PaginaDashboard />);
+    expect(screen.queryByText("Clientes vindos do site")).not.toBeInTheDocument();
+    expect(screen.getByTestId("kpi-Atendimentos")).toBeInTheDocument();
   });
 
   it("mantém o legado sem a flag específica do Dashboard", () => {

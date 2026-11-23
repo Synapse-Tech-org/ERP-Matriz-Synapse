@@ -61,6 +61,7 @@ class DashboardCustoIT extends PostgresIT {
         Medicao segunda = medir(token, URL, "segunda");
 
         assertThat(primeira.consultas()).isEqualTo(21);
+        assertThat(primeira.resposta().path("clientesVindosDoSite").isNull()).isTrue();
         assertThat(segunda.consultas()).isEqualTo(4);
         assertThat(segunda.resposta().path("periodo")).isEqualTo(primeira.resposta().path("periodo"));
         assertThat(segunda.resposta().path("atendimentos"))
