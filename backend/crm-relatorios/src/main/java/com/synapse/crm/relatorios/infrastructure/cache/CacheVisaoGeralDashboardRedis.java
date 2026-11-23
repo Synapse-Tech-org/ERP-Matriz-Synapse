@@ -20,6 +20,7 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.relatorios.application.dashboard.CacheVisaoGeralDashboard;
+import com.synapse.crm.relatorios.application.dashboard.ConfiguracaoClientesDoSite;
 import com.synapse.crm.relatorios.domain.dashboard.FiltroTemporalDashboard;
 import com.synapse.crm.relatorios.domain.dashboard.VisaoGeralDashboard;
 import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
@@ -42,6 +43,7 @@ class CacheVisaoGeralDashboardRedis implements CacheVisaoGeralDashboard {
     private final Duration tempoDeVida;
     private final Duration esperaMaxima;
     private final int tamanhoMaximo;
+    private final ConfiguracaoClientesDoSite clientesDoSite;
 
     CacheVisaoGeralDashboardRedis(
             StringRedisTemplate redis,
@@ -49,7 +51,8 @@ class CacheVisaoGeralDashboardRedis implements CacheVisaoGeralDashboard {
             UsuarioContext usuario,
             @Value("${synapse.dashboard.cache-ttl}") Duration tempoDeVida,
             @Value("${synapse.dashboard.cache-wait}") Duration esperaMaxima,
-            @Value("${synapse.dashboard.cache-max-bytes}") int tamanhoMaximo) {
+            @Value("${synapse.dashboard.cache-max-bytes}") int tamanhoMaximo,
+            ConfiguracaoClientesDoSite clientesDoSite) {
         if (tempoDeVida.isNegative()
                 || tempoDeVida.isZero()
                 || esperaMaxima.isNegative()
@@ -62,6 +65,7 @@ class CacheVisaoGeralDashboardRedis implements CacheVisaoGeralDashboard {
         this.tempoDeVida = tempoDeVida;
         this.esperaMaxima = esperaMaxima;
         this.tamanhoMaximo = tamanhoMaximo;
+        this.clientesDoSite = clientesDoSite;
     }
 
     @Override
@@ -148,6 +152,9 @@ class CacheVisaoGeralDashboardRedis implements CacheVisaoGeralDashboard {
     private String chavePara(FiltroTemporalDashboard filtro) {
         UsuarioAutenticado ator = usuario.atual();
         String escopo = ator.id() + "|" + ator.papel() + "|" + filtro;
+        if (clientesDoSite.padrao() != null) {
+            escopo += "|clientes-do-site:" + clientesDoSite.padrao();
+        }
         try {
             byte[] hash = MessageDigest.getInstance("SHA-256")
                     .digest(escopo.getBytes(StandardCharsets.UTF_8));

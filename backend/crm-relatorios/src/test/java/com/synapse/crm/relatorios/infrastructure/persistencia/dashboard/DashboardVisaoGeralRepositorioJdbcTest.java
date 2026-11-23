@@ -42,7 +42,8 @@ class DashboardVisaoGeralRepositorioJdbcTest {
 
     @BeforeEach
     void prepararConsultasSemDados() throws Exception {
-        repositorio = new DashboardVisaoGeralRepositorioJdbc(jdbc, vendas);
+        repositorio = new DashboardVisaoGeralRepositorioJdbc(jdbc, vendas,
+                new com.synapse.crm.relatorios.application.dashboard.ConfiguracaoClientesDoSite(false, ""));
         when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
         when(jdbc.queryForObject(
                         anyString(), org.mockito.ArgumentMatchers.<RowMapper<Object>>any(), any(Object[].class)))

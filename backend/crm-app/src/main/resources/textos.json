@@ -2174,6 +2174,10 @@
     }
   },
   "dashboard": {
+    "v2": {
+      "clientesVindosDoSite": "Clientes vindos do site",
+      "clientesVindosDoSiteApoio": "Leads únicos pela primeira mensagem no WhatsApp"
+    },
     "titulo": "Dashboard",
     "descricao": "Panorama executivo do atendimento, comercial e automação.",
     "carregando": "Carregando indicadores...",

@@ -391,6 +391,9 @@ synapse:
     cache-ttl: ${DASHBOARD_CACHE_TTL:30s}
     cache-wait: ${DASHBOARD_CACHE_WAIT:1s}
     cache-max-bytes: ${DASHBOARD_CACHE_MAX_BYTES:131072}
+    clientes-do-site:
+      habilitado: ${DASHBOARD_CLIENTES_DO_SITE_HABILITADO:false}
+      frase: ${DASHBOARD_CLIENTES_DO_SITE_FRASE:}
 
   # E225 (PR 5): observabilidade do banco, so log (nada muda de comportamento). Os pools Hikari sao logados por
   # minuto; um pool 100% emprestado por mais que o limiar gera WARN; uma listagem do painel acima do limite gera WARN.

@@ -26,7 +26,8 @@ public record VisaoGeralDashboard(
         List<PontoMensal> seriesMensais,
         ResultadosComerciais resultadosComerciais,
         Nps nps,
-        long leadsParados) {
+        long leadsParados,
+        Long clientesVindosDoSite) {
 
     public VisaoGeralDashboard {
         funil = List.copyOf(funil);
@@ -55,7 +56,8 @@ public record VisaoGeralDashboard(
                 seriesMensais,
                 resultadosComerciais,
                 nps,
-                leadsParados);
+                leadsParados,
+                clientesVindosDoSite);
     }
 
     public record Periodo(int ano, List<Integer> meses, LocalDate inicio, LocalDate fim) {
