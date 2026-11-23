@@ -1,5 +1,7 @@
 package com.synapse.crm.app;
 
+import static com.synapse.crm.app.config.FlywayValidacaoNoBootConfig.usarLockDeSessao;
+
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -26,7 +28,7 @@ public final class DarwinIdentidadeLocal {
         var postgres = new PostgreSQLContainer<>("postgres:15-alpine").withDatabaseName("darwin_visual");
         var redis = new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
         postgres.start(); redis.start();
-        Flyway.configure().dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+        usarLockDeSessao(Flyway.configure()).dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
                 .locations("classpath:db/migration", "classpath:db/seed")
                 .placeholders(Map.of("telefone_ddi_padrao", "55")).load().migrate();
         for (String pool : new String[]{"general", "chat"}) {

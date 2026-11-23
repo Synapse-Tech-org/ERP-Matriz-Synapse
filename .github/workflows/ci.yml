@@ -43,7 +43,8 @@ jobs:
       # ("Found more than one migration with version N") e derruba todos os ITs ~10 min depois. Aqui falha em segundos.
       - name: Migrations sem versao repetida
         run: |
-          repetidas=$(ls backend/crm-app/src/main/resources/db/migration | grep -E '^V[0-9]+__' | sed -E 's/^(V[0-9]+)__.*/\1/' | sort | uniq -d)
+          # O .sql.conf configura a migration correspondente, não é outra versão.
+          repetidas=$(ls backend/crm-app/src/main/resources/db/migration | grep -E '^V[0-9]+__.*\.sql$' | sed -E 's/^(V[0-9]+)__.*/\1/' | sort | uniq -d)
           if [ -n "$repetidas" ]; then
             echo "::error::Versao de migration repetida: $repetidas. Renumere a migration da PR mais nova (a numeracao segue a ordem de merge)."
             exit 1

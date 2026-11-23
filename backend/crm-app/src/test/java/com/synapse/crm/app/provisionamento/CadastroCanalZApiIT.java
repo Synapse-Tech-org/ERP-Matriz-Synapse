@@ -1,5 +1,6 @@
 package com.synapse.crm.app.provisionamento;
 
+import static com.synapse.crm.app.config.FlywayValidacaoNoBootConfig.usarLockDeSessao;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Files;
@@ -37,7 +38,7 @@ class CadastroCanalZApiIT extends PostgresIT {
         administrativo("CREATE DATABASE " + banco);
         String url = "jdbc:postgresql://" + POSTGRES.getHost() + ":" + POSTGRES.getMappedPort(5432) + "/" + banco;
         jdbc = new JdbcTemplate(new DriverManagerDataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword()));
-        Flyway.configure().dataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword())
+        usarLockDeSessao(Flyway.configure()).dataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword())
                 .locations("classpath:db/migration").placeholders(Map.of("telefone_ddi_padrao", "55"))
                 .load().migrate();
         for (String arquivo : List.of("cadastrar-canal-z-api.sql", "ativar-canal-z-api-homologacao.sql", "cadastrar-canal-evolution.sql", "ativar-canal-evolution-homologacao.sql")) {

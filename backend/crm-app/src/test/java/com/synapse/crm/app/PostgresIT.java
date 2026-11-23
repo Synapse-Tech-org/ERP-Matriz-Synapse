@@ -1,5 +1,7 @@
 package com.synapse.crm.app;
 
+import static com.synapse.crm.app.config.FlywayValidacaoNoBootConfig.usarLockDeSessao;
+
 import java.util.Map;
 
 import org.flywaydb.core.Flyway;
@@ -42,7 +44,7 @@ public abstract class PostgresIT {
         // O backend de produção agora valida sem migrar. O banco singleton dos ITs é preparado
         // explicitamente antes dos ApplicationContexts, como o runner operacional one-shot.
         // O seed continua restrito a este fixture de teste; nenhum contexto de produção o aplica.
-        Flyway.configure()
+        usarLockDeSessao(Flyway.configure())
                 .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
                 .locations("classpath:db/migration", "classpath:db/seed")
                 .baselineOnMigrate(true)

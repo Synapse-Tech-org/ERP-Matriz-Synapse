@@ -86,6 +86,10 @@ Para releases com V73 pendente, execute a etapa controlada antes de liberar a ve
 que já passaram da V73, o ciclo de migrations posteriores permanece automático. Nunca combine tags
 de frontend e backend de SHAs diferentes.
 
+Para a V128, consulte o [runbook do índice de outbox esgotada](./runbook-indice-outbox-esgotados.md).
+O boot normal executa a criação concorrente fora de transação, com lock Flyway de sessão;
+o runner exclusivo da V73 não se aplica a essa etapa.
+
 ---
 
 ## 3. Ambiente de homologação

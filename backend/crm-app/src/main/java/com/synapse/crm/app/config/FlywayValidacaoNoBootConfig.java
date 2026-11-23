@@ -3,8 +3,11 @@ package com.synapse.crm.app.config;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
 import org.flywaydb.core.api.MigrationVersion;
+import org.flywaydb.core.api.configuration.FluentConfiguration;
+import org.flywaydb.database.postgresql.PostgreSQLConfigurationExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.flyway.FlywayConfigurationCustomizer;
 import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +25,20 @@ public class FlywayValidacaoNoBootConfig {
     private static final Logger log = LoggerFactory.getLogger(FlywayValidacaoNoBootConfig.class);
     private static final MigrationVersion VERSAO_PESADA = MigrationVersion.fromVersion("73");
     private static final MigrationVersion VERSAO_ANTERIOR = MigrationVersion.fromVersion("72");
+
+    @Bean
+    FlywayConfigurationCustomizer locksDoFlywayNoBoot() {
+        return FlywayValidacaoNoBootConfig::usarLockDeSessao;
+    }
+
+    public static FluentConfiguration usarLockDeSessao(FluentConfiguration configuracao) {
+        // Evita que a transação do próprio Flyway detenha um snapshot enquanto aguarda
+        // CREATE INDEX CONCURRENTLY. O histórico segue serializado pelo advisory lock.
+        configuracao.getPluginRegister()
+                .getPlugin(PostgreSQLConfigurationExtension.class)
+                .setTransactionalLock(false);
+        return configuracao;
+    }
 
     @Bean
     public FlywayMigrationStrategy validarSchemaSemMigrarNoBoot() {

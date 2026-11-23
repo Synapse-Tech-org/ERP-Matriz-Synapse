@@ -1,5 +1,6 @@
 package com.synapse.migrationrunner;
 
+import static com.synapse.crm.app.config.FlywayValidacaoNoBootConfig.usarLockDeSessao;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -276,7 +277,7 @@ class FlywayMigrationRunnerIT extends PostgresIT {
     }
 
     private static Flyway flywayNormalDoBoot() {
-        return Flyway.configure()
+        return usarLockDeSessao(Flyway.configure())
                 .dataSource(DATA_SOURCE)
                 .locations("classpath:db/migration")
                 .baselineOnMigrate(true)

@@ -1,5 +1,6 @@
 package com.synapse.crm.app;
 
+import static com.synapse.crm.app.config.FlywayValidacaoNoBootConfig.usarLockDeSessao;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Files;
@@ -47,7 +48,7 @@ class SeedDemonstracaoIT {
         executarNoBancoAdministrativo("CREATE DATABASE " + banco);
 
         String url = url(banco);
-        Flyway.configure()
+        usarLockDeSessao(Flyway.configure())
                 .dataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword())
                 .locations("classpath:db/migration")
                 .placeholders(Map.of("telefone_ddi_padrao", "55"))

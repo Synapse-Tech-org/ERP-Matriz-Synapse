@@ -1,5 +1,7 @@
 package com.synapse.crm.app;
 
+import static com.synapse.crm.app.config.FlywayValidacaoNoBootConfig.usarLockDeSessao;
+
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
@@ -41,7 +43,7 @@ public final class MidiasFichaLocal {
         postgres.start();
         redis.start();
         minio.start();
-        Flyway.configure().dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+        usarLockDeSessao(Flyway.configure()).dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
                 .locations("classpath:db/migration", "classpath:db/seed")
                 .placeholders(Map.of("telefone_ddi_padrao", "55")).load().migrate();
         for (String pool : new String[] {"general", "chat"}) {

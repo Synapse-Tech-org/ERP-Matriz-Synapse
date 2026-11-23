@@ -1,5 +1,6 @@
 package com.synapse.crm.atendimento.infrastructure.canal;
 
+import static com.synapse.crm.app.config.FlywayValidacaoNoBootConfig.usarLockDeSessao;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -28,7 +29,7 @@ class TransicaoProdutivaZApiIT extends ZApiWebhookProtegidoIT {
         try(var c=java.sql.DriverManager.getConnection(POSTGRES.getJdbcUrl(),POSTGRES.getUsername(),POSTGRES.getPassword());var sql=c.createStatement()) {
             sql.execute("CREATE DATABASE "+BANCO);
         } catch(java.sql.SQLException erro){throw new ExceptionInInitializerError(erro);}
-        org.flywaydb.core.Flyway.configure().dataSource(URL_BANCO,POSTGRES.getUsername(),POSTGRES.getPassword())
+        usarLockDeSessao(org.flywaydb.core.Flyway.configure()).dataSource(URL_BANCO,POSTGRES.getUsername(),POSTGRES.getPassword())
                 .locations("classpath:db/migration","classpath:db/seed").placeholders(Map.of("telefone_ddi_padrao","55")).load().migrate();
     }
     @org.springframework.boot.test.context.TestConfiguration(proxyBeanMethods=false)

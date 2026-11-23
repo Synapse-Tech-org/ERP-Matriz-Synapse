@@ -1,5 +1,6 @@
 package com.synapse.crm.app;
 
+import static com.synapse.crm.app.config.FlywayValidacaoNoBootConfig.usarLockDeSessao;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.Connection;
@@ -159,7 +160,7 @@ class LeituraPorUsuarioMigrationIT {
     }
 
     private Flyway flyway(MigrationVersion alvo) {
-        var configuracao = Flyway.configure()
+        var configuracao = usarLockDeSessao(Flyway.configure())
                 .dataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword())
                 .locations("classpath:db/migration")
                 .placeholders(Map.of("telefone_ddi_padrao", "55"));
