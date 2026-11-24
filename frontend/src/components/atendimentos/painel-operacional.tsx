@@ -183,9 +183,11 @@ export function ListaFilaOperacional({ consulta, onAbrir, tabela = false, compac
   const t = catalogo.painelOperacional;
   const itens = consulta.data?.pages.flatMap(p => p.itens) ?? [];
   const mesclados = [
-    ...itens.map(item => ({ tipo: "CLIENTE" as const, id:item.atendimentoId, horario:item.atividadeEm, item })),
-    ...internos.filter(item => item.tipo === "EQUIPE_INTERNA").map(item => ({ tipo: "INTERNO" as const, id:item.conversaId, horario:item.ultimaMensagemEm ?? "", item })),
-  ].sort((a,b) => (b.horario ?? "").localeCompare(a.horario ?? "") || b.id.localeCompare(a.id));
+    ...itens.map(item => ({ tipo: "CLIENTE" as const, id: item.atendimentoId, horario: Date.parse(item.atividadeEm) || 0, item })),
+    ...internos.filter(item => item.tipo === "EQUIPE_INTERNA").map(item => ({
+      tipo: "INTERNO" as const, id: item.conversaId, horario: Date.parse(item.ultimaMensagemEm ?? "") || 0, item,
+    })),
+  ].sort((a, b) => b.horario - a.horario || b.id.localeCompare(a.id));
   return <div aria-live="polite">
     {consulta.isLoading && <Skeleton className="h-20 w-full" aria-label={t.carregando} />}
     {consulta.isError && <div role="alert" className="p-3 text-sm"><p>{t.erro}</p><Button variant="outline" onClick={() => void consulta.refetch()}>{t.tentar}</Button></div>}

@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -175,7 +174,6 @@ vi.mock("@/lib/config/textos-provider", () => ({
         ativos: "Ativos",
         pendentes: "Pendentes",
         potenciais: "Potenciais",
-        internos: "Interno",
       },
       filtros: { etapa: "Etapa", atendente: "Atendente" },
       finalizar: {
@@ -201,13 +199,6 @@ vi.mock("@/lib/config/textos-provider", () => ({
 }));
 
 vi.mock("@/components/notificacoes/central-de-avisos", () => ({ CentralDeAvisos: () => null }));
-
-vi.mock("@/lib/chat-interno/api", async (original) => ({
-  ...(await original<typeof import("@/lib/chat-interno/api")>()),
-  listarConversasChat: vi.fn(async () => [
-    { id: "interna-1", tipo: "DIRETA", participantes: "Colega da equipe", ultimaMensagem: null, ultimaMensagemEm: null, naoLidas: 0 },
-  ]),
-}));
 
 import { ListaConversas } from "./lista-conversas";
 
@@ -468,35 +459,17 @@ describe("ListaConversas", () => {
     expect(screen.getAllByRole("button", { name: "Mais ações" })).toHaveLength(1);
   });
 
-  it("no V2 com chat interno, a aba Interno só aparece com a flag atendimentos_aba_interno", () => {
-    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={cliente}>
-        <ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} chatInternoHabilitado layoutV2 />
-      </QueryClientProvider>,
-    );
-    expect(screen.queryByRole("tab", { name: /Interno/ })).not.toBeInTheDocument();
-  });
-
-  it("no V2 com chat interno e a flag, a aba Interno lista só as conversas internas e as abre", async () => {
+  it("no V2 sem painel, Ativos usa os cartões da inbox unificada e não tem aba Interno", () => {
     const abrir = vi.fn();
-    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={cliente}>
-        <ListaConversas selecionadoId={null} onAbrirAtendimento={abrir} chatInternoHabilitado abaInternoHabilitada layoutV2 />
-      </QueryClientProvider>,
-    );
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={abrir} chatInternoHabilitado layoutV2 />);
 
-    fireEvent.click(await screen.findByRole("tab", { name: /Interno/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Ativos/ }));
 
-    fireEvent.click(await screen.findByRole("button", { name: /Colega da equipe/ }));
-    expect(abrir).toHaveBeenCalledWith(expect.objectContaining({ tipo: "EQUIPE_INTERNA", conversaId: "interna-1" }));
-    expect(screen.queryByRole("button", { name: /Equipe comercial/ })).not.toBeInTheDocument();
-  });
-
-  it("fora do V2 a aba Interno não existe", () => {
-    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} chatInternoHabilitado />);
     expect(screen.queryByRole("tab", { name: /Interno/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Ativos/, selected: true })).toHaveTextContent("1");
+    expect(screen.getByRole("button", { name: /Ana Vidros/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Equipe comercial/ }));
+    expect(abrir).toHaveBeenCalledWith(cartoes[2]);
   });
 
   it("seleciona conversa interna pelo tipo e conversaId", () => {
