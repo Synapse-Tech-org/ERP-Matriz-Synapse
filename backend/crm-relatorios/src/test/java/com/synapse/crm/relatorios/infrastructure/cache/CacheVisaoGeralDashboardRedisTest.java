@@ -50,7 +50,8 @@ class CacheVisaoGeralDashboardRedisTest {
                 .thenReturn(new UsuarioAutenticado(
                         UUID.fromString("11111111-1111-1111-1111-111111111111"), PapelUsuario.GESTOR, false));
         cache = new CacheVisaoGeralDashboardRedis(
-                redis, new ObjectMapper(), usuario, Duration.ofSeconds(30), Duration.ofSeconds(1), 131072);
+                redis, new ObjectMapper(), usuario, Duration.ofSeconds(30), Duration.ofSeconds(1), 131072,
+                new com.synapse.crm.relatorios.application.dashboard.ConfiguracaoClientesDoSite(false, ""));
     }
 
     @Test

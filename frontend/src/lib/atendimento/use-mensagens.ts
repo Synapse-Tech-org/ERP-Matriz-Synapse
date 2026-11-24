@@ -2,22 +2,52 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 import { ehFalhaTransitoria, statusHttpDoErro } from "./abertura-atendimento";
 import { mensagensDesde, paginaMensagens } from "./api";
-import { atualizarPaginaRecente, type DadosDoHistorico } from "./cache-mensagens";
+import { atualizarPaginaRecente, type ChaveDoHistorico, type DadosDoHistorico } from "./cache-mensagens";
+import { criarLeituraConcorrenteDoHistorico } from "./historico-leitura-concorrente";
 import { atualizarReacaoDoClienteDoHistorico, atualizarReacoesDoHistorico } from "./reacoes-cache";
 import { calcularBackoffMs, type ConexaoTempoReal, type EstadoConexao, mesclarMensagens } from "./tempo-real";
 import type {
   EventoCanonicoAtendimentoTempoReal,
   EventoTempoReal,
   MensagemResposta,
+  StatusTempoReal,
 } from "./types";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { definirConversaAtiva } from "./servico-notificacoes-tempo-real";
+import { useHistoricoPorAvisos } from "./use-historico-por-avisos";
 
 const MAX_REPETICOES_TRANSITORIAS = 2;
+const LIMITE_STATUS_EM_ESPERA = 128;
+
+function aplicarStatus(cache: QueryClient, chave: ChaveDoHistorico, eventos: StatusTempoReal[]): void {
+  cache.setQueryData<DadosDoHistorico>(chave, (atual) => {
+    if (!atual) return atual;
+    let mudou = false;
+    const pages = atual.pages.map((pagina) => {
+      let mensagens = pagina.mensagens;
+      for (const evento of eventos) {
+        const afetadas = mensagens.filter((mensagem) => mensagem.id === evento.mensagemId
+          || (evento.idempotencyKey != null && mensagem.idempotencyKey === evento.idempotencyKey));
+        if (afetadas.length === 0) continue;
+        mensagens = mesclarMensagens(mensagens, afetadas.map((mensagem) => ({
+          ...mensagem,
+          id: evento.mensagemId,
+          statusEntrega: evento.statusEntrega,
+          erroEntrega: evento.statusEntrega === "FALHOU" ? mensagem.erroEntrega : null,
+          idempotencyKey: mensagem.idempotencyKey ?? evento.idempotencyKey ?? null,
+        })));
+      }
+      if (mensagens === pagina.mensagens) return pagina;
+      mudou = true;
+      return { ...pagina, mensagens };
+    });
+    return mudou ? { ...atual, pages } : atual;
+  });
+}
 
 function esperarRecuperacao(indice: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
@@ -63,10 +93,12 @@ export function useMensagens(
 ) {
   const queryClient = useQueryClient();
   const queryKey = useMemo(() => ["mensagens", atendimentoId] as const, [atendimentoId]);
+  const [leituraConcorrente] = useState(criarLeituraConcorrenteDoHistorico);
   const ultimoInstanteRef = useRef<number | null>(null);
   const lacunaRef = useRef<LacunaDoHistorico | null>(null);
   const aberturaSemCacheRef = useRef(false);
   const revogadoRef = useRef(false);
+  const statusEmEsperaRef = useRef<StatusTempoReal[]>([]);
   const [tentativaManual, setTentativaManual] = useState(0);
   const [falha, setFalha] = useState<{
     atendimentoId: string; cicloConexao: number; tentativaManual: number;
@@ -98,9 +130,19 @@ export function useMensagens(
     incrementaisLiberadosRef.current = incrementaisLiberados;
   }, [incrementaisLiberados]);
 
+  useEffect(() => {
+    // Não reaplicar eventos de outra conversa, seleção ou ciclo de conexão.
+    statusEmEsperaRef.current = [];
+  }, [atendimentoParaAssinar, cicloConexao, estadoConexao]);
+
   const query = useInfiniteQuery({
     queryKey,
-    queryFn: ({ pageParam, signal }) => paginaMensagens(atendimentoId as string, pageParam, signal),
+    queryFn: async ({ pageParam, signal }) => {
+      const base = queryClient.getQueryData<DadosDoHistorico>(queryKey);
+      const pagina = await paginaMensagens(atendimentoId as string, pageParam, signal);
+      return leituraConcorrente.marcarPagina(pagina, base);
+    },
+    structuralSharing: leituraConcorrente.compartilhar,
     initialPageParam: null as string | null,
     getNextPageParam: (ultima) => ultima.proximoCursor ?? undefined,
     enabled: atendimentoId != null,
@@ -113,6 +155,16 @@ export function useMensagens(
         : [],
     [query.data],
   );
+
+  const notificarRecuperada = useCallback(() => onMensagemRecebidaRef.current?.(), []);
+  const sinalizarAcessoPerdido = useCallback((alvo: string, status: number) => {
+    revogadoRef.current = true;
+    statusEmEsperaRef.current = [];
+    onAcessoAoHistoricoPerdidoRef.current?.(alvo, status);
+  }, []);
+  useHistoricoPorAvisos(queryClient, queryKey, conexao,
+    estadoConexao === "conectado" && atendimentoId === atendimentoParaAssinar,
+    incrementaisLiberados, cicloConexao, notificarRecuperada, sinalizarAcessoPerdido);
 
   useEffect(() => {
     ultimoInstanteRef.current = null;
@@ -137,7 +189,13 @@ export function useMensagens(
       // Na primeira conexao e em toda reconexao, o snapshot autorizado governa antes dos
       // incrementais. Frames recebidos nessa janela sao recuperados pelo backfill HTTP abaixo.
       if (!incrementaisLiberadosRef.current) {
-        if (lacunaRef.current) lacunaRef.current.descartouIncremental = true;
+        if (evento.tipo === "STATUS" && evento.dados.mensagemId) {
+          const espera = statusEmEsperaRef.current;
+          if (espera.length >= LIMITE_STATUS_EM_ESPERA) espera.shift();
+          espera.push(evento.dados);
+        } else if (lacunaRef.current) {
+          lacunaRef.current.descartouIncremental = true;
+        }
         return;
       }
       if (evento.tipo === "MENSAGEM") {
@@ -166,39 +224,7 @@ export function useMensagens(
         onMensagemRecebidaRef.current?.();
       } else if (evento.tipo === "STATUS") {
         if (!evento.dados.mensagemId) return;
-        queryClient.setQueryData<DadosDoHistorico>(queryKey, (atual) =>
-          atual
-            ? {
-                ...atual,
-                pages: atual.pages.map((pagina) => ({
-                  ...pagina,
-                  mensagens: mesclarMensagens(
-                    pagina.mensagens,
-                    pagina.mensagens
-                      .filter(
-                        (mensagem) =>
-                          mensagem.id === evento.dados.mensagemId
-                          || (evento.dados.idempotencyKey != null
-                            && mensagem.idempotencyKey === evento.dados.idempotencyKey),
-                      )
-                      .map((mensagem) => ({
-                        ...mensagem,
-                        id: evento.dados.mensagemId,
-                        statusEntrega: evento.dados.statusEntrega,
-                        // Um status posterior do backend reconcilia qualquer marcador local
-                        // transitório; motivo de erro só pertence a FALHOU persistido.
-                        erroEntrega:
-                          evento.dados.statusEntrega === "FALHOU"
-                            ? mensagem.erroEntrega
-                            : null,
-                        idempotencyKey:
-                          mensagem.idempotencyKey ?? evento.dados.idempotencyKey ?? null,
-                      })),
-                  ),
-                })),
-              }
-            : atual,
-        );
+        aplicarStatus(queryClient, queryKey, [evento.dados]);
       } else if (evento.tipo === "REACAO") {
         atualizarReacoesDoHistorico(
           queryClient,
@@ -227,6 +253,14 @@ export function useMensagens(
   useEffect(() => {
     ultimoInstanteRef.current = ultimoInstanteConfirmado(mensagens, ultimoInstanteRef.current);
   }, [mensagens]);
+
+  useEffect(() => {
+    if (!atendimentoId || atendimentoId !== atendimentoParaAssinar || estadoConexao !== "conectado"
+      || !incrementaisLiberados || !query.data || revogadoRef.current || statusEmEsperaRef.current.length === 0) return;
+    const confirmados = statusEmEsperaRef.current;
+    statusEmEsperaRef.current = [];
+    aplicarStatus(queryClient, queryKey, confirmados);
+  }, [atendimentoId, atendimentoParaAssinar, estadoConexao, incrementaisLiberados, query.data, queryClient, queryKey]);
 
   useEffect(() => {
     if (!atendimentoId || atendimentoId !== atendimentoParaAssinar || revogadoRef.current) return;
