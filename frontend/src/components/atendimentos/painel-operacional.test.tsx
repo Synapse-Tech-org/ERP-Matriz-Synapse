@@ -244,6 +244,51 @@ describe("painel operacional com componentes reais", () => {
     await waitFor(() => expect(api.mock.calls.some(([url]) => url.includes("etapaId=etapa-real"))).toBe(true));
     expect(screen.queryByRole("button", { name: /Grupo sintético/ })).not.toBeInTheDocument();
   });
+  it("com a aba Interno habilitada, Pendentes pode abrir o recorte exclusivo e Ativos volta a mesclar as listas", async () => {
+    const abrirInterno = vi.fn();
+    let resumo = { id: "grupo", tipo: "GRUPO", participantes: "Grupo sintético", ultimaMensagem: "Reunião", ultimaMensagemEm: "2026-10-14T13:00:00Z", naoLidas: 3 };
+    api.mockImplementation((url: string) => Promise.resolve(
+      url.includes("/fila?") ? { itens: [{ atendimentoId: "atendimento-real", leadId: "lead-real", leadNome: "Cliente Sintético", leadFotoUrl: null,
+        leadEmpresa: null, naoLidas: 0, atividadeEm: "2026-10-14T12:00:00Z" }], proximoCursor: null }
+      : url.includes("/chat-interno/conversas") ? [resumo]
+      : url.includes("/etapas") ? [] : snapshot(),
+    ));
+    function ListaComVisoes() {
+      const [visao, setVisao] = useState<VisaoAtendimento>("PENDENTES");
+      const [filtro, setFiltro] = useState<FiltroOperacional | null>(null);
+      return <ListaConversas selecionadoId={null} visaoAtual={visao} filtroOperacional={filtro} painelOperacionalPermitido chatInternoHabilitado abaInternoHabilitada layoutV2
+        onVisaoAlterada={setVisao} onFiltroOperacionalAlterado={setFiltro} onAbrirAtendimento={abrirInterno} />;
+    }
+    const { cache } = renderizar(<ListaComVisoes />);
+    const cliente = { name: "Abrir atendimento de Cliente Sintético" };
+    const grupo = { name: /Grupo sintético/ };
+    expect(await screen.findByRole("button", cliente)).toBeInTheDocument();
+    expect(screen.queryByRole("button", grupo)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /^Interno/ }));
+    const interno = await screen.findByRole("button", grupo);
+    expect(screen.getByRole("tab", { name: /^Interno/, selected: true })).toBeInTheDocument();
+    expect(screen.queryByRole("button", cliente)).not.toBeInTheDocument();
+    expect(within(interno).getByText("3", { exact: true })).toBeInTheDocument();
+
+    resumo = { ...resumo, ultimaMensagem: "Nova mensagem no grupo", ultimaMensagemEm: "2026-10-14T14:00:00Z", naoLidas: 5 };
+    await act(async () => {
+      const pedido = pedidoDaNotificacao({ tipo: "CHAT_INTERNO_MENSAGEM", dados: { conversaId: resumo.id,
+        mensagemId: "mensagem-do-grupo", remetenteId: "outro-participante", tipo: "TEXTO",
+        conteudo: resumo.ultimaMensagem, enviadoEm: resumo.ultimaMensagemEm } });
+      atualizarPainelDeAtendimentos(cache, { ...pedido, atualizarContagem: false });
+    });
+    expect(await within(interno).findByText("Nova mensagem no grupo")).toBeInTheDocument();
+    expect(within(interno).getByText("5", { exact: true })).toBeInTheDocument();
+    fireEvent.click(interno);
+    expect(abrirInterno).toHaveBeenCalledWith(expect.objectContaining({ tipo: "EQUIPE_INTERNA", conversaId: "grupo" }));
+
+    fireEvent.click(screen.getByRole("tab", { name: /^Ativos/ }));
+    expect(await screen.findByRole("button", cliente)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", grupo)).toHaveLength(1);
+    expect(within(screen.getByRole("button", grupo)).getByText("5", { exact: true })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /^Ativos/, selected: true })).toHaveTextContent("4");
+  });
   it("renderiza indicadores completos, sem somar Pendentes novamente ao total", async () => {
     renderizar(<PainelOperacional onFiltrar={vi.fn()} onAbrir={vi.fn()} />);
     await screen.findByRole("heading", { name: "Equipe" });
