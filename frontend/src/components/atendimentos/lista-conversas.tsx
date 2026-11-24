@@ -656,7 +656,7 @@ function ListaConversasBase({
               </Fragment>
             ))
           )}
-          {!operacional && !mostrandoInternos && hasNextPage && !isError && (
+          {!operacional && hasNextPage && !isError && (
             <div ref={fimDaLista} className="p-3 text-center text-xs text-muted-foreground" aria-live="polite">
               {isFetchingNextPage ? textos.lista.carregandoMais : textos.lista.carregarMais}
             </div>
