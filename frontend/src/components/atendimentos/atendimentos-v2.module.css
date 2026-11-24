@@ -979,3 +979,10 @@
   border-radius: 50%;
   box-shadow: var(--sombra-primaria);
 }
+
+/* A aba opcional Interno divide a faixa de navegação com as visões de clientes. */
+.pagina :global([data-slot="abas-conversas"][data-com-internos]) :global([data-slot="tabs-trigger"]) {
+  flex: 1 1 auto;
+  padding-inline: 3px;
+  font-size: 10.5px;
+}
