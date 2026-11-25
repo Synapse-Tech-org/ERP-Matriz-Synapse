@@ -34,12 +34,13 @@ import com.synapse.crm.sharedkernel.permissao.VerificadorDeCapacidades;
 
 class BancoArquivosFilterTest {
     private static final String BASE = "/api/v1/banco-arquivos";
+    private static final String ARQUIVO = "/b2d8c24a-87c1-4dfc-a0e0-b87ae163d86e";
     private static final UUID USUARIO_ID = UUID.randomUUID();
     private static final long TETO_UPLOAD = DataSize.ofMegabytes(26).toBytes();
     private static final Cota COTA = new Cota(3, 6);
     private static final LimitesDeRequisicoesDoBancoProperties PROPRIEDADES = new LimitesDeRequisicoesDoBancoProperties(
             Duration.ofMinutes(1), Duration.ofMillis(500), 2, 8, DataSize.ofMegabytes(26), DataSize.ofKilobytes(16),
-            1, 1, 1, COTA, COTA, COTA, COTA);
+            1, 1, 1, 1, COTA, COTA, COTA, COTA, COTA);
 
     private final UsuarioContext usuario = mock(UsuarioContext.class);
     private final VerificadorDeCapacidades capacidades = mock(VerificadorDeCapacidades.class);
@@ -49,17 +50,22 @@ class BancoArquivosFilterTest {
             usuario, capacidades, limite, PROPRIEDADES, Jackson2ObjectMapperBuilder.json().build());
 
     @ParameterizedTest
-    @CsvSource(textBlock = """
-            GET, '', LEITURA, ver
-            GET, /arquivo, LEITURA, ver
-            HEAD, /arquivo/preview, DOWNLOAD, ver
-            GET, /arquivo/download, DOWNLOAD, ver
-            POST, '', UPLOAD, criar
-            PATCH, /arquivo, ESCRITA, editar
-            DELETE, /arquivo, ESCRITA, excluir
-            POST, /arquivo/restaurar, ESCRITA, excluir
-            POST, /arquivo/enviar, ESCRITA, enviar
-            """)
+    @CsvSource({
+        "GET, '', LEITURA, ver",
+        "GET, " + ARQUIVO + ", LEITURA, ver",
+        "HEAD, " + ARQUIVO + "/preview, DOWNLOAD, ver",
+        "GET, " + ARQUIVO + "/download, DOWNLOAD, ver",
+        "GET, " + ARQUIVO + "/miniatura, MINIATURA, ver",
+        "POST, '', UPLOAD, criar",
+        "PATCH, " + ARQUIVO + ", ESCRITA, editar",
+        "DELETE, " + ARQUIVO + ", ESCRITA, excluir",
+        "POST, " + ARQUIVO + "/restaurar, ESCRITA, excluir",
+        "POST, " + ARQUIVO + "/enviar, ESCRITA, enviar",
+        "GET, /pastas, LEITURA, ver",
+        "POST, /pastas, ESCRITA, gerenciar_pastas",
+        "PATCH, /pastas/pastaA, ESCRITA, gerenciar_pastas",
+        "PATCH, " + ARQUIVO + "/pasta, ESCRITA, editar"
+    })
     void cadaOperacaoExigeCapacidadeECotaProprias(String metodo, String sufixo, Categoria categoria, String acao)
             throws Exception {
         permitir(acao);
@@ -102,9 +108,31 @@ class BancoArquivosFilterTest {
     }
 
     @Test
+    void patchDaColecaoDePastasNaoCaiNaRotaDeArquivo() throws Exception {
+        autenticar();
+        var resposta = new MockHttpServletResponse();
+
+        filtro.doFilter(requisicao("PATCH", BASE + "/pastas", 20), resposta, cadeia);
+
+        assertThat(resposta.getStatus()).isEqualTo(404);
+        verifyNoInteractions(capacidades, limite, cadeia);
+    }
+
+    @Test
+    void miniaturaNaoUsaCotaSemPermissaoDeLeitura() throws Exception {
+        autenticar();
+        var resposta = new MockHttpServletResponse();
+
+        filtro.doFilter(requisicao("GET", BASE + ARQUIVO + "/miniatura", -1), resposta, cadeia);
+
+        assertThat(resposta.getStatus()).isEqualTo(403);
+        verifyNoInteractions(limite, cadeia);
+    }
+
+    @Test
     void negaMultipartEmEnvioParaImpedirUsoDoParserForaDoUpload() throws Exception {
         permitir("enviar");
-        var requisicao = requisicao("POST", BASE + "/arquivo/enviar", TETO_UPLOAD);
+        var requisicao = requisicao("POST", BASE + ARQUIVO + "/enviar", TETO_UPLOAD);
         requisicao.setContentType(MediaType.MULTIPART_FORM_DATA_VALUE);
         var resposta = new MockHttpServletResponse();
 
@@ -134,7 +162,7 @@ class BancoArquivosFilterTest {
     void rotaCodificadaTambemPassaPeloLimite() throws Exception {
         permitir("ver");
         when(limite.aguardar(USUARIO_ID, Categoria.DOWNLOAD)).thenReturn(Duration.ofSeconds(1));
-        var requisicao = requisicao("GET", "/api/v1/banco-%61rquivos/arquivo/do%77nload", -1);
+        var requisicao = requisicao("GET", "/api/v1/banco-%61rquivos" + ARQUIVO + "/do%77nload", -1);
         var resposta = new MockHttpServletResponse();
 
         filtro.doFilter(requisicao, resposta, cadeia);

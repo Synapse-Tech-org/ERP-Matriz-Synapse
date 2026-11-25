@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import com.synapse.crm.core.domain.arquivobanco.ArquivoBanco.Metadados;
+import com.synapse.crm.core.domain.arquivobanco.PastaArquivoBanco;
 import com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal;
 
 @Service
@@ -37,7 +38,7 @@ public class EnviarArquivoBancoUseCase {
             throw new FalhaArquivoBanco(FalhaArquivoBanco.Motivo.LIMITE_ARQUIVO, "O arquivo excede o limite permitido.");
         }
         String nome = EntradaArquivoBanco.nome(nomeOriginal);
-        String pastaValidada = EntradaArquivoBanco.pasta(pasta);
+        String pastaValidada = pasta == null ? PastaArquivoBanco.ID_GERAL : EntradaArquivoBanco.pasta(pasta);
         String descricaoValidada = EntradaArquivoBanco.descricao(descricao, limites.limiteDescricao());
         Path temporario = null;
         try {

@@ -5,7 +5,9 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ADMINISTRADO
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.login;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -22,6 +24,10 @@ import javax.imageio.ImageIO;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,6 +61,7 @@ class BancoArquivosIT extends PostgresIT {
 
     private final HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
     private final List<UUID> criados = new ArrayList<>();
+    private final List<String> pastasCriadas = new ArrayList<>();
     private boolean flagAnterior;
     private String token;
 
@@ -68,14 +75,15 @@ class BancoArquivosIT extends PostgresIT {
     @AfterEach void limparBanco() {
         criados.forEach(id -> db.query("DELETE FROM arquivo_banco WHERE id=? RETURNING url",
                 (rs, linha) -> rs.getString("url"), id).forEach(storage::remover));
+        pastasCriadas.forEach(id -> db.update("DELETE FROM pasta_arquivo_banco WHERE id = ?", id));
         db.update("UPDATE feature_flag SET habilitado=? WHERE chave='banco_arquivos'", flagAnterior);
     }
 
     @Test void listaBuscaRenomeiaBaixaExcluiERestauraUmArquivoReal() throws Exception {
         UUID id = guardar("Orçamento.pdf", PDF);
-        JsonNode lista = corpo(chamar("GET", ROTA + "?pasta=catalogos&tipo=PDF&busca=vidro&ordem=nome&tamanho=1", null, null), 200);
+        JsonNode lista = corpo(chamar("GET", ROTA + "?pasta=geral&tipo=PDF&busca=vidro&ordem=nome&tamanho=1", null, null), 200);
         assertThat(lista.path("total").asInt()).isEqualTo(1);
-        assertThat(lista.path("contagemPorPasta").path("catalogos").asInt()).isEqualTo(1);
+        assertThat(lista.path("contagemPorPasta").path("geral").asInt()).isEqualTo(1);
         assertThat(lista.path("itens").path(0).path("id").asText()).isEqualTo(id.toString());
         assertThat(lista.path("usadoBytes").asInt()).isEqualTo(PDF.length);
         assertThat(lista.path("limiteBytes").asLong()).isEqualTo(QUOTA);
@@ -83,13 +91,13 @@ class BancoArquivosIT extends PostgresIT {
 
         String arquivo = ROTA + "/" + id;
         corpo(chamar("PATCH", arquivo, "application/json", """
-                {"nome":"Novo.exe","pasta":"orcamentos","descricao":"Compra"}
+                {"nome":"Novo.exe","descricao":"Compra"}
                 """.getBytes(StandardCharsets.UTF_8)), 400);
         JsonNode editado = corpo(chamar("PATCH", arquivo, "application/json", """
-                {"nome":"Novo orçamento.pdf","pasta":"orcamentos","descricao":"Compra"}
+                {"nome":"Novo orçamento.pdf","descricao":"Compra"}
                 """.getBytes(StandardCharsets.UTF_8)), 200);
         assertThat(editado.path("nome").asText()).isEqualTo("Novo orçamento.pdf");
-        assertThat(editado.path("pasta").asText()).isEqualTo("orcamentos");
+        assertThat(editado.path("pasta").asText()).isEqualTo("geral");
 
         var download = chamar("GET", arquivo + "/download", null, null);
         assertThat(download.statusCode()).isEqualTo(200);
@@ -141,10 +149,105 @@ class BancoArquivosIT extends PostgresIT {
         criados.add(ocupado);
         db.update("""
                 INSERT INTO arquivo_banco (id,nome,pasta,tipo,mime_type,tamanho_bytes,url)
-                VALUES (?,'ocupado.pdf','catalogos','PDF','application/pdf',?,'fixture/teste-quota')
+                VALUES (?,'ocupado.pdf','geral','PDF','application/pdf',?,'fixture/teste-quota')
                 """, ocupado, QUOTA);
         assertThat(corpo(upload("Valido.pdf", PDF), 409).path("codigo").asText()).isEqualTo("BANCO_ARQUIVOS_QUOTA");
         assertThat(storage.contagemDeObjetos()).isEqualTo(objetosAntes);
+    }
+
+    @Test void miniaturasRasterPrivadasParaJpegPngWebpEPrimeiraPaginaPdf() throws Exception {
+        var jpeg = new ByteArrayOutputStream();
+        assertThat(ImageIO.write(new BufferedImage(640, 320, BufferedImage.TYPE_INT_RGB), "jpeg", jpeg)).isTrue();
+        UUID idJpeg = guardar("Foto.jpg", jpeg.toByteArray());
+        UUID idPng = guardar("Foto.png", imagem());
+        UUID idWebp = guardar("Foto.webp", lerRecurso("/avatar/foto-grupo-128x96.webp"));
+        UUID idPdf = guardar("Paginas.pdf", pdfDeDuasPaginas());
+        for (UUID id : List.of(idJpeg, idPng, idWebp, idPdf)) {
+            var resposta = chamar("GET", ROTA + "/" + id + "/miniatura", null, null);
+            assertThat(resposta.statusCode()).isEqualTo(200);
+            assertThat(resposta.headers().firstValue("Content-Type")).hasValue("image/png");
+            assertThat(resposta.headers().firstValue("Cache-Control")).hasValueSatisfying(
+                    valor -> assertThat(valor).contains("private", "no-cache"));
+            assertThat(resposta.headers().firstValue("X-Content-Type-Options")).hasValue("nosniff");
+            assertThat(resposta.headers().firstValue("Content-Security-Policy")).hasValueSatisfying(
+                    valor -> assertThat(valor).contains("sandbox"));
+            BufferedImage imagem = ImageIO.read(new ByteArrayInputStream(resposta.body()));
+            assertThat(imagem).isNotNull();
+            assertThat(Math.max(imagem.getWidth(), imagem.getHeight())).isBetween(1, 320);
+            if (id.equals(idPdf)) {
+                assertThat(imagem.getRGB(imagem.getWidth() / 2, imagem.getHeight() / 2)).isEqualTo(Color.RED.getRGB());
+            }
+        }
+
+        String rotaPdf = ROTA + "/" + idPdf;
+        var semToken = HttpRequest.newBuilder(url(rotaPdf + "/miniatura")).GET().build();
+        assertThat(http.send(semToken, HttpResponse.BodyHandlers.discarding()).statusCode()).isEqualTo(401);
+        assertThat(chamar("DELETE", rotaPdf, null, null).statusCode()).isEqualTo(204);
+        corpo(chamar("GET", rotaPdf + "/miniatura", null, null), 404);
+
+        UUID invalido = guardar("SemPrevia.pdf", PDF);
+        var semPrevia = chamar("GET", ROTA + "/" + invalido + "/miniatura", null, null);
+        assertThat(semPrevia.statusCode()).isEqualTo(204);
+        assertThat(semPrevia.body()).isEmpty();
+        assertThat(semPrevia.headers().firstValue("Cache-Control")).hasValue("no-store");
+    }
+
+    private static byte[] pdfDeDuasPaginas() throws IOException {
+        try (var pdf = new PDDocument(); var saida = new ByteArrayOutputStream()) {
+            for (Color cor : List.of(Color.RED, Color.BLUE)) {
+                var pagina = new PDPage(new PDRectangle(320, 160));
+                pdf.addPage(pagina);
+                try (var conteudo = new PDPageContentStream(pdf, pagina)) {
+                    conteudo.setNonStrokingColor(cor);
+                    conteudo.addRect(0, 0, 320, 160);
+                    conteudo.fill();
+                }
+            }
+            pdf.save(saida);
+            return saida.toByteArray();
+        }
+    }
+
+    @Test void organizaArquivosEmPastasDinamicasMantendoGeralProtegida() throws Exception {
+        String rotasDasPastas = ROTA + "/pastas";
+        JsonNode pastas = corpo(chamar("GET", rotasDasPastas, null, null), 200);
+        assertThat(pastas.size()).isEqualTo(1);
+        assertThat(pastas.path(0)).isEqualTo(json.readTree("""
+                {"id":"geral","nome":"Geral","geral":true}
+                """));
+        JsonNode primeira = enviarJson("POST", rotasDasPastas, "{\"nome\":\"  Clientes  \"}", 201);
+        String destino = primeira.path("id").asText();
+        pastasCriadas.add(destino);
+        assertThat(primeira.path("nome").asText()).isEqualTo("Clientes");
+        assertThat(primeira.path("geral").asBoolean()).isFalse();
+        enviarJson("POST", rotasDasPastas, "{\"nome\":\"clientes\"}", 409);
+        enviarJson("POST", rotasDasPastas, "{\"nome\":\"geraL\"}", 409);
+        enviarJson("POST", rotasDasPastas, "{\"nome\":\"pasta/subpasta\"}", 400);
+        enviarJson("PATCH", rotasDasPastas + "/geral", "{\"nome\":\"Outra\"}", 409);
+
+        UUID arquivo = guardar("pedido.pdf", PDF);
+        String rotaDoArquivo = ROTA + "/" + arquivo;
+        enviarJson("PATCH", rotaDoArquivo + "/pasta", "{\"pasta\":\"" + UUID.randomUUID() + "\"}", 404);
+        JsonNode movido = enviarJson("PATCH", rotaDoArquivo + "/pasta", "{\"pasta\":\"" + destino + "\"}", 200);
+        assertThat(movido.path("pasta").asText()).isEqualTo(destino);
+        assertThat(movido.path("descricao").asText()).contains("de vidro");
+        assertThat(movido.path("nome").asText()).isEqualTo("pedido.pdf");
+        JsonNode editado = enviarJson("PATCH", rotaDoArquivo, "{\"nome\":\"editado.pdf\",\"descricao\":\"Compra\"}", 200);
+        assertThat(editado.path("pasta").asText()).isEqualTo(destino);
+        var renomeada = enviarJson("PATCH", rotasDasPastas + "/" + destino, "{\"nome\":\"Pedidos\"}", 200);
+        assertThat(renomeada.path("id").asText()).isEqualTo(destino);
+        assertThat(renomeada.path("nome").asText()).isEqualTo("Pedidos");
+        JsonNode lista = corpo(chamar("GET", ROTA + "?pasta=" + destino, null, null), 200);
+        assertThat(lista.path("contagemPorPasta").path(destino).asInt()).isEqualTo(1);
+        assertThat(lista.path("itens").path(0).path("id").asText()).isEqualTo(arquivo.toString());
+        assertThat(enviarJson("PATCH", rotaDoArquivo + "/pasta", "{\"pasta\":\"geral\"}", 200)
+                .path("pasta").asText()).isEqualTo("geral");
+        assertThat(chamar("DELETE", rotaDoArquivo, null, null).statusCode()).isEqualTo(204);
+        enviarJson("PATCH", rotaDoArquivo + "/pasta", "{\"pasta\":\"geral\"}", 404);
+    }
+
+    private JsonNode enviarJson(String metodo, String caminho, String dados, int status) throws Exception {
+        return corpo(chamar(metodo, caminho, "application/json", dados.getBytes(StandardCharsets.UTF_8)), status);
     }
 
     @ParameterizedTest
@@ -222,8 +325,7 @@ class BancoArquivosIT extends PostgresIT {
     private HttpResponse<byte[]> upload(String nome, byte[] bytes) throws Exception {
         String boundary = "synapse-" + UUID.randomUUID();
         try (var corpo = new ByteArrayOutputStream()) {
-            corpo.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"pasta\"\r\n\r\ncatalogos\r\n"
-                    + "--" + boundary + "\r\nContent-Disposition: form-data; name=\"descricao\"\r\n\r\nMostruário de vidro\r\n"
+            corpo.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"descricao\"\r\n\r\nMostruário de vidro\r\n"
                     + "--" + boundary + "\r\nContent-Disposition: form-data; name=\"arquivo\"; filename=\"" + nome
                     + "\"\r\nContent-Type: application/octet-stream\r\n\r\n").getBytes(StandardCharsets.UTF_8));
             corpo.write(bytes);

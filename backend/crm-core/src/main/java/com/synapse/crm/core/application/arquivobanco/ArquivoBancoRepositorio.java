@@ -31,6 +31,8 @@ public interface ArquivoBancoRepositorio {
 
     Optional<Metadados> alterar(UUID id, String nome, String pasta, String descricao);
 
+    Optional<Metadados> mover(UUID id, String pasta);
+
     boolean excluir(UUID id, Instant expiraEm);
 
     Optional<Metadados> restaurar(UUID id, Instant agora);

@@ -95,8 +95,9 @@
 
 .resultados { flex: 1; min-height: 0; overflow: auto; padding: 0 4px 4px 2px; }
 .resumo { display: flex; min-height: 24px; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 12px; }
-.resumo h2 button { display: flex; align-items: center; gap: 5px; border-radius: 5px; font-size: 15.5px; font-weight: 600; letter-spacing: -0.015em; }
-.resumo h2 svg { width: 14px; height: 14px; color: var(--muted-foreground); }
+.resumo h2 { min-width: 0; max-width: 100%; }
+.resumo h2 button { display: flex; max-width: 100%; align-items: center; gap: 5px; border-radius: 5px; font-size: 15.5px; font-weight: 600; letter-spacing: -0.015em; }
+.resumo h2 svg { width: 14px; height: 14px; flex: none; color: var(--muted-foreground); }
 .resumo > span { color: var(--texto-fraco, var(--muted-foreground)); font-size: 13px; }
 .estado { padding-block: 20px; color: var(--muted-foreground); font-size: 13px; }
 
@@ -124,6 +125,16 @@
 .miniatura[data-tipo="IMAGEM"] {
   background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--v2-azul) 10%, var(--card)) 0 10px, color-mix(in srgb, var(--v2-azul) 6%, var(--card)) 10px 20px);
 }
+.miniaturaReal {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--muted);
+  object-fit: contain;
+}
+.miniatura[data-tipo="IMAGEM"] .miniaturaReal { object-fit: cover; }
 .iconeImagem { color: color-mix(in srgb, var(--cor-info) 60%, var(--muted-foreground)); }
 .iconeImagem :global([data-slot="icone-frontend-v2"]) { font-size: 30px; }
 .iconeDoArquivo, .selo {
@@ -198,8 +209,8 @@
 .enviarArquivo { min-width: 0; min-height: 34px; padding: 0 8px; border-radius: 10px; background: color-mix(in srgb, var(--primary) 9%, var(--card)); color: var(--primary); font-size: 13px; }
 .enviarArquivo:hover { background: color-mix(in srgb, var(--primary) 16%, var(--card)); }
 :is(.botaoDestaque, .botaoPerigo, .botaoSecundario, .acaoIcone):disabled { opacity: 0.55; cursor: not-allowed; }
-.menuDeAcoes { min-width: 200px; padding: 5px; border-radius: 14px; font-size: 13.5px; }
-.menuDeAcoes :global([data-slot="dropdown-menu-item"]) { min-height: 36px; padding-inline: 10px; border-radius: 10px; cursor: pointer; }
+.menuDeAcoes { min-width: 200px; max-width: min(320px, calc(100vw - 16px)); padding: 5px; border-radius: 14px; font-size: 13.5px; }
+.menuDeAcoes :is(:global([data-slot="dropdown-menu-item"]), :global([data-slot="dropdown-menu-sub-trigger"])) { min-height: 36px; padding-inline: 10px; border-radius: 10px; cursor: pointer; }
 
 .lista { overflow-x: auto; padding: 8px; }
 .lista table { width: 100%; min-width: 680px; table-layout: fixed; border-spacing: 0; border-collapse: separate; font-size: 13px; }
@@ -253,7 +264,7 @@
 .fila li small { color: var(--muted-foreground); font-size: 11.5px; }
 .fila li .erro, .erro { color: var(--destructive); }
 .campo { display: grid; gap: 6px; font-size: 13px; font-weight: 500; }
-.campo .selecionarPasta, .campo textarea, .nomeEditavel { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); font-weight: 400; }
+.campo .selecionarPasta, .campo textarea, .campo > input, .nomeEditavel { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); font-weight: 400; }
 .campo .selecionarPasta { min-height: 40px; }
 .campo textarea { min-height: 62px; resize: vertical; }
 .nomeEditavel { display: flex; align-items: center; gap: 8px; }

@@ -104,8 +104,8 @@ export async function apiFetch<T>(caminho: string, opcoes: OpcoesRequisicao = {}
 }
 
 /** Mesmo fluxo de autorização/refresh para respostas binárias (fotos e outros arquivos). */
-export async function apiFetchBlob(caminho: string): Promise<Blob> {
-  return (await apiFetchRespostaBinaria(caminho)).blob();
+export async function apiFetchBlob(caminho: string, signal?: AbortSignal): Promise<Blob> {
+  return (await apiFetchRespostaBinaria(caminho, signal)).blob();
 }
 
 /** Nome confirmado pelo backend; nunca infere um arquivo a partir de uma URL assinada. */
@@ -119,18 +119,18 @@ export async function apiFetchArquivo(caminho: string): Promise<{ blob: Blob; no
   return { blob: await resposta.blob(), nome };
 }
 
-async function apiFetchRespostaBinaria(caminho: string): Promise<Response> {
+async function apiFetchRespostaBinaria(caminho: string, signal?: AbortSignal): Promise<Response> {
   const accessToken = useAuthStore.getState().accessToken;
   const cabecalhos = new Headers();
   if (accessToken) cabecalhos.set("Authorization", `Bearer ${accessToken}`);
-  let resposta = await fetch(`${API_URL}${caminho}`, { headers: cabecalhos });
+  let resposta = await fetch(`${API_URL}${caminho}`, { headers: cabecalhos, signal });
   if (resposta.status === 401) {
     const renovou = await renovarAccessToken();
     if (renovou) {
       const novoToken = useAuthStore.getState().accessToken;
       const novosCabecalhos = new Headers();
       if (novoToken) novosCabecalhos.set("Authorization", `Bearer ${novoToken}`);
-      resposta = await fetch(`${API_URL}${caminho}`, { headers: novosCabecalhos });
+      resposta = await fetch(`${API_URL}${caminho}`, { headers: novosCabecalhos, signal });
     } else {
       irParaLoginSemLoop();
     }

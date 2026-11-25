@@ -101,10 +101,19 @@ class ArquivoBancoRepositorioJdbc implements ArquivoBancoRepositorio {
     @Override
     public Optional<Metadados> alterar(UUID id, String nome, String pasta, String descricao) {
         return jdbc.query("""
-                UPDATE arquivo_banco SET nome = ?, pasta = ?, descricao_metadados = ?
+                UPDATE arquivo_banco SET nome = ?, pasta = COALESCE(?, pasta), descricao_metadados = ?
                 WHERE id = ? AND mime_type IS NOT NULL AND exclusao_expira_em IS NULL
                 RETURNING
                 """ + CAMPOS, ArquivoBancoRepositorioJdbc::metadados, nome, pasta, descricao, id).stream().findFirst();
+    }
+
+    @Override
+    public Optional<Metadados> mover(UUID id, String pasta) {
+        return jdbc.query("""
+                UPDATE arquivo_banco SET pasta = ?
+                WHERE id = ? AND mime_type IS NOT NULL AND exclusao_expira_em IS NULL
+                RETURNING
+                """ + CAMPOS, ArquivoBancoRepositorioJdbc::metadados, pasta, id).stream().findFirst();
     }
 
     @Override

@@ -2,7 +2,8 @@ package com.synapse.crm.core.application.arquivobanco;
 
 public class FalhaArquivoBanco extends RuntimeException {
     public enum Motivo {
-        ENTRADA_INVALIDA, FORMATO_INVALIDO, LIMITE_ARQUIVO, QUOTA, NAO_ENCONTRADO, INDISPONIVEL
+        ENTRADA_INVALIDA, FORMATO_INVALIDO, LIMITE_ARQUIVO, QUOTA, NAO_ENCONTRADO, INDISPONIVEL,
+        PASTA_NAO_ENCONTRADA, NOME_PASTA_EM_USO, PASTA_GERAL_PERMANENTE
     }
 
     private final Motivo motivo;
@@ -23,5 +24,13 @@ public class FalhaArquivoBanco extends RuntimeException {
 
     public static FalhaArquivoBanco naoEncontrado() {
         return new FalhaArquivoBanco(Motivo.NAO_ENCONTRADO, "Arquivo indisponível.");
+    }
+
+    public static FalhaArquivoBanco pastaNaoEncontrada() {
+        return new FalhaArquivoBanco(Motivo.PASTA_NAO_ENCONTRADA, "Pasta indisponível.");
+    }
+
+    public static FalhaArquivoBanco nomeDePastaEmUso() {
+        return new FalhaArquivoBanco(Motivo.NOME_PASTA_EM_USO, "Já existe uma pasta com esse nome.");
     }
 }

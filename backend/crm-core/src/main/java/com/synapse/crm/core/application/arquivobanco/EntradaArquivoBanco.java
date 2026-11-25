@@ -2,19 +2,44 @@ package com.synapse.crm.core.application.arquivobanco;
 
 import java.text.Normalizer;
 import java.util.Locale;
-import java.util.Set;
+import java.util.regex.Pattern;
+
+import com.synapse.crm.core.domain.arquivobanco.PastaArquivoBanco;
 
 final class EntradaArquivoBanco {
-    private static final Set<String> PASTAS = Set.of(
-            "catalogos", "tabelas", "contratos", "projetos", "orcamentos", "fotos");
+    private static final Pattern UUID_CANONICO = Pattern.compile(
+            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
 
     private EntradaArquivoBanco() {}
 
     static String pasta(String valor) {
-        if (valor == null || !PASTAS.contains(valor)) {
+        if (valor == null || (!PastaArquivoBanco.ID_GERAL.equals(valor) && !UUID_CANONICO.matcher(valor).matches())) {
             throw invalida("Pasta inválida.");
         }
         return valor;
+    }
+
+    static String pastaExistente(String valor, PastaArquivoBancoRepositorio pastas) {
+        String id = pasta(valor);
+        if (!pastas.existe(id)) {
+            throw FalhaArquivoBanco.pastaNaoEncontrada();
+        }
+        return id;
+    }
+
+    static String nomeDePasta(String valor) {
+        if (valor == null) {
+            throw invalida("Informe o nome da pasta.");
+        }
+        String nome = Normalizer.normalize(valor.strip(), Normalizer.Form.NFC);
+        if (nome.isBlank() || nome.codePointCount(0, nome.length()) > 80 || nome.equals(".") || nome.equals("..")
+                || nome.codePoints().anyMatch(EntradaArquivoBanco::invalidoNoNome)) {
+            throw invalida("Nome de pasta inválido.");
+        }
+        if (PastaArquivoBanco.ID_GERAL.equalsIgnoreCase(nome)) {
+            throw FalhaArquivoBanco.nomeDePastaEmUso();
+        }
+        return nome;
     }
 
     static String nome(String valor) {

@@ -38,7 +38,7 @@ class LimiteDistribuidoDoBancoTest {
         var cota = new Cota(1, 2);
         var propriedades = new LimitesDeRequisicoesDoBancoProperties(
                 Duration.ofMinutes(1), Duration.ofMillis(150), 2, 8,
-                DataSize.ofMegabytes(26), DataSize.ofKilobytes(16), 1, 1, 1, cota, cota, cota, cota);
+                DataSize.ofMegabytes(26), DataSize.ofKilobytes(16), 1, 1, 1, 1, cota, cota, cota, cota, cota);
         var limite = new LimiteDistribuidoDoBanco(redis, propriedades);
 
         try {

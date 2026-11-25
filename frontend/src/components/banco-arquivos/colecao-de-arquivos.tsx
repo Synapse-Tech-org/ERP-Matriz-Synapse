@@ -1,12 +1,15 @@
 "use client";
 
-import { Link2, Pencil, Trash2 } from "lucide-react";
+import { FolderInput, FolderOpen, Link2, Pencil, Trash2 } from "lucide-react";
 
 import { IconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import type { ArquivoDoBanco } from "@/lib/banco-arquivos/api";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+  DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { ArquivoDoBanco, PastaDoBanco } from "@/lib/banco-arquivos/api";
 
-import { formatarBytes, formatarDataArquivo, IconeDoArquivo, SeloDoArquivo, type TextosDoBanco } from "./apresentacao-do-arquivo";
+import { formatarBytes, formatarDataArquivo, IconeDoArquivo, MiniaturaDoArquivo, SeloDoArquivo, type TextosDoBanco } from "./apresentacao-do-arquivo";
 import estilos from "./banco-de-arquivos.module.css";
 
 interface Acoes {
@@ -15,11 +18,17 @@ interface Acoes {
   copiar: (arquivo: ArquivoDoBanco) => void;
   enviar?: (arquivo: ArquivoDoBanco) => void;
   editar?: (arquivo: ArquivoDoBanco) => void;
+  mover?: {
+    executar: (arquivo: ArquivoDoBanco, pasta: PastaDoBanco) => void;
+    pastas: PastaDoBanco[];
+    ocupado: boolean;
+  };
   excluir?: (arquivo: ArquivoDoBanco) => void;
   baixando: string | null;
 }
 
 function AcoesDoArquivo({ arquivo, acoes, t }: { arquivo: ArquivoDoBanco; acoes: Acoes; t: TextosDoBanco }) {
+  const mover = acoes.mover;
   return (
     <div className={estilos.acoes}>
       {acoes.enviar && (
@@ -38,6 +47,19 @@ function AcoesDoArquivo({ arquivo, acoes, t }: { arquivo: ArquivoDoBanco; acoes:
         <DropdownMenuContent align="end" className={estilos.menuDeAcoes}>
           <DropdownMenuItem onClick={() => acoes.copiar(arquivo)}><Link2 aria-hidden />{t.copiarLink}</DropdownMenuItem>
           {acoes.editar && <DropdownMenuItem onClick={() => acoes.editar?.(arquivo)}><Pencil aria-hidden />{t.editar}</DropdownMenuItem>}
+          {mover && mover.pastas.length > 0 && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger disabled={mover.ocupado}><FolderInput aria-hidden />{t.pastas.mover}</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className={estilos.menuDeAcoes}>
+                {mover.pastas.map((pasta) => (
+                  <DropdownMenuItem key={pasta.id} disabled={pasta.id === arquivo.pasta}
+                    onClick={() => mover.executar(arquivo, pasta)}>
+                    <FolderOpen aria-hidden /><span className="min-w-0 truncate" title={pasta.nome}>{pasta.nome}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
           {acoes.excluir && <>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={() => acoes.excluir?.(arquivo)}>
@@ -93,13 +115,7 @@ export function ColecaoDeArquivos({ arquivos, acoes, t, vista }: {
     <ul className={estilos.grade} aria-label={t.titulo}>
       {arquivos.map((arquivo) => (
         <li className={estilos.cartao} key={arquivo.id}>
-          <button type="button" className={estilos.miniatura} data-tipo={arquivo.tipo}
-            aria-label={`${t.detalhes} · ${arquivo.nome}`} onClick={() => acoes.abrir(arquivo)}>
-            {arquivo.tipo === "IMAGEM" ? (
-              <span className={estilos.iconeImagem}><IconeFrontendV2 nome="image-2-line" /></span>
-            ) : <IconeDoArquivo tipo={arquivo.tipo} grande />}
-            <SeloDoArquivo arquivo={arquivo} />
-          </button>
+          <MiniaturaDoArquivo arquivo={arquivo} abrir={acoes.abrir} t={t} />
           <div className={estilos.cartaoConteudo}>
             <button type="button" className={estilos.nomeNaGrade} title={arquivo.nome} onClick={() => acoes.abrir(arquivo)}>{arquivo.nome}</button>
             <small>{formatarBytes(arquivo.tamanhoBytes)} · <time dateTime={arquivo.criadoEm}>{formatarDataArquivo(arquivo)}</time></small>

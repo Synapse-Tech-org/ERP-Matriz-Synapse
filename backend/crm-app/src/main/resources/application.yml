@@ -199,6 +199,20 @@ synapse:
     maximo-paginas: 100
     maximo-busca: 200
   banco-arquivos:
+    miniaturas:
+      tamanho-entrada: 8MB
+      lado-saida: 320
+      pixels-imagem: 16000000
+      paginas-pdf: 100
+      lado-pdf-pontos: 14400
+      operadores-pdf: 30000
+      operandos-por-operador-pdf: 4096
+      pixels-embutidos-pdf: 12000000
+      memoria-pdf: 2MB
+      armazenamento-temporario-pdf: 32MB
+      trabalhadores: 2
+      fila: 8
+      prazo: 3s
     limites-requisicoes:
       janela: 1m
       timeout-redis: 500ms
@@ -209,9 +223,11 @@ synapse:
       tamanho-json: 16KB
       uploads-simultaneos: 2
       downloads-simultaneos: 3
+      miniaturas-simultaneas: 10
       envios-simultaneos: 2
       leitura: { usuario: 120, instancia: 600 }
       download: { usuario: 20, instancia: 60 }
+      miniatura: { usuario: 120, instancia: 480 }
       upload: { usuario: 6, instancia: 20 }
       escrita: { usuario: 15, instancia: 90 }
   telefone:

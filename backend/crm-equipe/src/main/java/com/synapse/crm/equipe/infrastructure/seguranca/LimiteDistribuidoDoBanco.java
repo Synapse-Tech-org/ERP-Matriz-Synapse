@@ -46,6 +46,7 @@ class LimiteDistribuidoDoBanco {
     enum Categoria {
         LEITURA,
         DOWNLOAD,
+        MINIATURA,
         UPLOAD,
         ESCRITA
     }
@@ -67,6 +68,7 @@ class LimiteDistribuidoDoBanco {
         var cota = switch (categoria) {
             case LEITURA -> propriedades.leitura();
             case DOWNLOAD -> propriedades.download();
+            case MINIATURA -> propriedades.miniatura();
             case UPLOAD -> propriedades.upload();
             case ESCRITA -> propriedades.escrita();
         };

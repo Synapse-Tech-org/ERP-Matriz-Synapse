@@ -22,9 +22,11 @@ record LimitesDeRequisicoesDoBancoProperties(
         @NotNull DataSize tamanhoJson,
         @Positive int uploadsSimultaneos,
         @Positive int downloadsSimultaneos,
+        @Positive int miniaturasSimultaneas,
         @Positive int enviosSimultaneos,
         @Valid @NotNull Cota leitura,
         @Valid @NotNull Cota download,
+        @Valid @NotNull Cota miniatura,
         @Valid @NotNull Cota upload,
         @Valid @NotNull Cota escrita) {
 

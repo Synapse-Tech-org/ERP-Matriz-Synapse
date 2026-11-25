@@ -16,10 +16,13 @@ import com.synapse.crm.core.domain.arquivobanco.TipoArquivoBanco;
 @Service
 public class ListarArquivosBancoUseCase {
     private final ArquivoBancoRepositorio arquivos;
+    private final PastaArquivoBancoRepositorio pastas;
     private final BancoArquivosProperties limites;
 
-    public ListarArquivosBancoUseCase(ArquivoBancoRepositorio arquivos, BancoArquivosProperties limites) {
+    public ListarArquivosBancoUseCase(ArquivoBancoRepositorio arquivos, PastaArquivoBancoRepositorio pastas,
+            BancoArquivosProperties limites) {
         this.arquivos = arquivos;
+        this.pastas = pastas;
         this.limites = limites;
     }
 
@@ -27,7 +30,7 @@ public class ListarArquivosBancoUseCase {
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Resultado executar(String pasta, TipoArquivoBanco tipo, String busca, Ordem ordem, int pagina, int tamanho) {
         if (pasta != null) {
-            EntradaArquivoBanco.pasta(pasta);
+            EntradaArquivoBanco.pastaExistente(pasta, pastas);
         }
         String termo = busca == null ? "" : busca.strip();
         if (pagina < 0 || tamanho < 1 || tamanho > 100 || termo.length() > 200 || termo.indexOf(0) >= 0) {

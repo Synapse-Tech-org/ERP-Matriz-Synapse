@@ -22,14 +22,17 @@ class RegistrarArquivoBanco {
     private static final Logger log = LoggerFactory.getLogger(RegistrarArquivoBanco.class);
 
     private final ArquivoBancoRepositorio arquivos;
+    private final PastaArquivoBancoRepositorio pastas;
     private final ArmazenamentoArquivoBanco armazenamento;
     private final BancoArquivosProperties limites;
     private final UsuarioContext usuario;
     private final Clock relogio;
 
-    RegistrarArquivoBanco(ArquivoBancoRepositorio arquivos, ArmazenamentoArquivoBanco armazenamento,
+    RegistrarArquivoBanco(ArquivoBancoRepositorio arquivos, PastaArquivoBancoRepositorio pastas,
+            ArmazenamentoArquivoBanco armazenamento,
             BancoArquivosProperties limites, UsuarioContext usuario, Clock relogio) {
         this.arquivos = arquivos;
+        this.pastas = pastas;
         this.armazenamento = armazenamento;
         this.limites = limites;
         this.usuario = usuario;
@@ -40,6 +43,9 @@ class RegistrarArquivoBanco {
     @Auditable(acao = "ENVIAR_ARQUIVO_BANCO", entidadeTipo = "ARQUIVO_BANCO", capturarDados = false)
     public Metadados executar(UUID id, String nome, String pasta, String descricao, FormatoDeArquivoBanco formato,
             long tamanho, Path conteudo) {
+        if (!pastas.existe(pasta)) {
+            throw FalhaArquivoBanco.pastaNaoEncontrada();
+        }
         if (!arquivos.reservarEscrita()) {
             throw new FalhaArquivoBanco(FalhaArquivoBanco.Motivo.INDISPONIVEL,
                     "O Banco de Arquivos está recebendo outro envio. Tente novamente.");

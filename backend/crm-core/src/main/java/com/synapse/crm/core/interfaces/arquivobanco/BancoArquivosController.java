@@ -33,6 +33,7 @@ import com.synapse.crm.core.application.arquivobanco.EditarArquivoBancoUseCase;
 import com.synapse.crm.core.application.arquivobanco.EnviarArquivoBancoUseCase;
 import com.synapse.crm.core.application.arquivobanco.ExcluirArquivoBancoUseCase;
 import com.synapse.crm.core.application.arquivobanco.ListarArquivosBancoUseCase;
+import com.synapse.crm.core.application.arquivobanco.MoverArquivoBancoUseCase;
 import com.synapse.crm.core.application.arquivobanco.ObterArquivoBancoUseCase;
 import com.synapse.crm.core.application.arquivobanco.RestaurarArquivoBancoUseCase;
 import com.synapse.crm.core.domain.arquivobanco.ArquivoBanco.Metadados;
@@ -48,17 +49,19 @@ class BancoArquivosController {
     private final AbrirArquivoBancoUseCase abrir;
     private final EnviarArquivoBancoUseCase enviar;
     private final EditarArquivoBancoUseCase editar;
+    private final MoverArquivoBancoUseCase mover;
     private final ExcluirArquivoBancoUseCase excluir;
     private final RestaurarArquivoBancoUseCase restaurar;
 
     BancoArquivosController(ListarArquivosBancoUseCase listar, ObterArquivoBancoUseCase obter,
             AbrirArquivoBancoUseCase abrir, EnviarArquivoBancoUseCase enviar, EditarArquivoBancoUseCase editar,
-            ExcluirArquivoBancoUseCase excluir, RestaurarArquivoBancoUseCase restaurar) {
+            MoverArquivoBancoUseCase mover, ExcluirArquivoBancoUseCase excluir, RestaurarArquivoBancoUseCase restaurar) {
         this.listar = listar;
         this.obter = obter;
         this.abrir = abrir;
         this.enviar = enviar;
         this.editar = editar;
+        this.mover = mover;
         this.excluir = excluir;
         this.restaurar = restaurar;
     }
@@ -80,10 +83,10 @@ class BancoArquivosController {
     }
 
     @Operation(summary = "Adicionar um arquivo à biblioteca",
-            description = "Recebe um arquivo multipart com pasta e descrição opcional. Verifica extensão, conteúdo, tamanho e cota antes de armazenar.")
+            description = "Recebe um arquivo multipart. Sem pasta explícita, usa a Geral. Verifica extensão, conteúdo, tamanho e cota antes de armazenar.")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    Metadados enviar(@RequestPart MultipartFile arquivo, @RequestParam String pasta,
+    Metadados enviar(@RequestPart MultipartFile arquivo, @RequestParam(required = false) String pasta,
             @RequestParam(required = false) String descricao) throws IOException {
         try (var conteudo = arquivo.getInputStream()) {
             return enviar.executar(arquivo.getOriginalFilename(), arquivo.getSize(), conteudo, pasta, descricao);
@@ -91,10 +94,17 @@ class BancoArquivosController {
     }
 
     @Operation(summary = "Editar metadados do arquivo",
-            description = "Altera nome, pasta e descrição de um arquivo ativo. A extensão permanece compatível com o conteúdo validado.")
+            description = "Altera nome e descrição de um arquivo ativo. A pasta é preservada quando ausente. A extensão original permanece.")
     @PatchMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     Metadados editar(@PathVariable UUID id, @RequestBody Edicao entrada) {
         return editar.executar(id, entrada.nome(), entrada.pasta(), entrada.descricao());
+    }
+
+    @Operation(summary = "Mover um arquivo para outra pasta",
+            description = "Altera somente a pasta de um arquivo ativo na biblioteca.")
+    @PatchMapping(path = "/{id}/pasta", consumes = MediaType.APPLICATION_JSON_VALUE)
+    Metadados mover(@PathVariable UUID id, @RequestBody Destino entrada) {
+        return mover.executar(id, entrada.pasta());
     }
 
     @Operation(summary = "Excluir um arquivo da biblioteca",
@@ -142,4 +152,6 @@ class BancoArquivosController {
     }
 
     record Edicao(String nome, String pasta, String descricao) {}
+
+    record Destino(String pasta) {}
 }

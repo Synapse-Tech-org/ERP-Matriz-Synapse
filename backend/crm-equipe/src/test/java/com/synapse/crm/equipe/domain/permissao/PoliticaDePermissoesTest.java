@@ -67,6 +67,7 @@ class PoliticaDePermissoesTest {
         assertThat(atendente.permite(Capacidade.BANCO_ARQUIVOS_ENVIAR)).isTrue();
         assertThat(atendente.permite(Capacidade.BANCO_ARQUIVOS_CRIAR)).isFalse();
         assertThat(atendente.permite(Capacidade.BANCO_ARQUIVOS_EDITAR)).isFalse();
+        assertThat(atendente.permite(Capacidade.BANCO_ARQUIVOS_GERENCIAR_PASTAS)).isFalse();
         assertThat(atendente.permite(Capacidade.BANCO_ARQUIVOS_EXCLUIR)).isFalse();
 
         var contaTeste = atendente.somenteLeitura();
@@ -75,6 +76,22 @@ class PoliticaDePermissoesTest {
         var perfilSemResposta = acoes(Map.of(Capacidade.ATENDIMENTOS_RESPONDER, false));
         var semResposta = PoliticaDePermissoes.calcular(PapelUsuario.ATENDENTE, perfilSemResposta, VAZIA, FLAGS);
         assertThat(semResposta.estado(Capacidade.BANCO_ARQUIVOS_ENVIAR).motivo()).isEqualTo(Motivo.DEPENDENCIA);
+    }
+
+    @Test
+    void gestaoPodeConcederPastasAoAtendenteSemDarEdicaoDeArquivos() {
+        var pastas = Capacidade.BANCO_ARQUIVOS_GERENCIAR_PASTAS;
+        assertThat(pastas.delegavel()).isTrue();
+        var perfil = new ConfiguracaoDePermissoes(Map.of(Modulo.BANCO_ARQUIVOS, NivelDeAcesso.EDITAR), Map.of(pastas, true));
+        PoliticaDePermissoes.validarPerfil(PapelUsuario.ATENDENTE, perfil, FLAGS);
+        var atendente = PoliticaDePermissoes.calcular(PapelUsuario.ATENDENTE, perfil, VAZIA, FLAGS);
+        assertThat(atendente.permite(pastas)).isTrue();
+        assertThat(atendente.permite(Capacidade.BANCO_ARQUIVOS_EDITAR)).isFalse();
+        assertThat(atendente.somenteLeitura().permite(pastas)).isFalse();
+        assertThat(PoliticaDePermissoes.calcular(PapelUsuario.ATENDENTE, perfil, VAZIA, Set.of()).permite(pastas)).isFalse();
+
+        var subgestor = PoliticaDePermissoes.calcular(PapelUsuario.SUBGESTOR, VAZIA, VAZIA, FLAGS);
+        assertThat(subgestor.permite(pastas)).isTrue();
     }
 
     @Test

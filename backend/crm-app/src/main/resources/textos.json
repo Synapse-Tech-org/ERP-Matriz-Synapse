@@ -1469,12 +1469,15 @@
       "VIDEO": "Vídeos"
     },
     "pastas": {
-      "catalogos": "Catálogos",
-      "tabelas": "Tabelas de preço",
-      "contratos": "Contratos",
-      "projetos": "Projetos",
-      "orcamentos": "Orçamentos",
-      "fotos": "Fotos de obras"
+      "criar": "Nova pasta",
+      "renomear": "Renomear pasta",
+      "nome": "Nome da pasta",
+      "mover": "Enviar para",
+      "criada": "Pasta criada.",
+      "renomeada": "Pasta renomeada.",
+      "arquivoMovido": "Arquivo movido para {pasta}.",
+      "erroLista": "Não foi possível carregar as pastas.",
+      "nomeIndisponivel": "Já existe uma pasta com esse nome."
     },
     "ordens": {
       "recentes": "Mais recentes",

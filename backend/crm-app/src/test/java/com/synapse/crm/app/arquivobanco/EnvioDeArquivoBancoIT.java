@@ -155,7 +155,7 @@ class EnvioDeArquivoBancoIT extends PostgresIT {
 
     private UUID carregarArquivo(String nome, byte[] bytes) throws IOException, InterruptedException {
         String boundary = "synapse-arquivo-teste";
-        String abertura = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"pasta\"\r\n\r\ncatalogos\r\n"
+        String abertura = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"pasta\"\r\n\r\ngeral\r\n"
                 + "--" + boundary + "\r\nContent-Disposition: form-data; name=\"arquivo\"; filename=\"" + nome + "\"\r\n"
                 + "Content-Type: application/octet-stream\r\n\r\n";
         var corpo = HttpRequest.BodyPublishers.concat(HttpRequest.BodyPublishers.ofString(abertura),

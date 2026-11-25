@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDownWideNarrow, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, FolderOpen,
-  HardDrive, LayoutGrid, List, Search, Trash2, Upload, UploadCloud, X,
+  FolderPlus, HardDrive, LayoutGrid, List, Pencil, Search, Trash2, Upload, UploadCloud, X,
 } from "lucide-react";
 
 import { ExigeCapacidade } from "@/components/gestao/exige-capacidade";
@@ -13,14 +13,14 @@ import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import recursosV2 from "@/components/shell/agenda-recursos-v2.module.css";
 import { IconeFrontendV2 } from "@/components/shell/icone-frontend-v2";
 import listaV2 from "@/components/shell/lista-v2.module.css";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErroDeApi } from "@/lib/api/errors";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import {
-  baixarArquivoDoBanco, CHAVE_DO_BANCO, listarArquivosDoBanco, obterArquivoDoBanco, ORDENS_DO_BANCO,
-  PASTAS_DO_BANCO, removerArquivoDoBanco, restaurarArquivoDoBanco, TIPOS_DO_BANCO_ADICIONAIS, TIPOS_DO_BANCO_EM_DESTAQUE,
+  baixarArquivoDoBanco, CHAVE_DO_BANCO, listarArquivosDoBanco, listarPastasDoBanco, moverArquivoDoBanco,
+  obterArquivoDoBanco, ORDENS_DO_BANCO, removerArquivoDoBanco, restaurarArquivoDoBanco, TIPOS_DO_BANCO_ADICIONAIS, TIPOS_DO_BANCO_EM_DESTAQUE,
   type ArquivoDoBanco, type FiltrosDoBanco, type OrdemDoBanco, type PastaDoBanco, type TipoDoBanco,
 } from "@/lib/banco-arquivos/api";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 import { formatarBytes, ICONES_DOS_TIPOS, mensagemDoErro, type TextosDoBanco } from "./apresentacao-do-arquivo";
 import estilos from "./banco-de-arquivos.module.css";
 import { ColecaoDeArquivos } from "./colecao-de-arquivos";
-import { DialogoDoBanco, DialogoDetalhesArquivo, DialogoEditarArquivo, DialogoUploadDeArquivos } from "./dialogos-do-banco";
+import { DialogoDoBanco, DialogoDetalhesArquivo, DialogoEditarArquivo, DialogoSalvarPasta, DialogoUploadDeArquivos } from "./dialogos-do-banco";
 import { DialogoEnviarArquivoDeBanco } from "./dialogo-enviar-arquivo-de-banco";
 
 const FILTROS_INICIAIS: FiltrosDoBanco = { pasta: null, tipo: null, busca: "", ordem: "recentes", pagina: 0, tamanho: 25 };
@@ -79,6 +79,7 @@ function BancoDeArquivos({ t }: { t: TextosDoBanco }) {
   const [arquivoParaEditar, setArquivoParaEditar] = useState<ArquivoDoBanco | null>(null);
   const [arquivoParaExcluir, setArquivoParaExcluir] = useState<ArquivoDoBanco | null>(null);
   const [arquivoParaEnviar, setArquivoParaEnviar] = useState<ArquivoDoBanco | null>(null);
+  const [pastaEmEdicao, setPastaEmEdicao] = useState<PastaDoBanco | null>();
   const [arrastando, setArrastando] = useState(false);
   const [baixando, setBaixando] = useState<string | null>(null);
   const downloadEmAndamento = useRef(false);
@@ -89,6 +90,15 @@ function BancoDeArquivos({ t }: { t: TextosDoBanco }) {
     retry: podeRepetir,
   });
   const dados = consulta.data;
+  const chavePastas = [...CHAVE_DO_BANCO, usuario, "pastas"] as const;
+  const consultaPastas = useQuery({
+    queryKey: chavePastas,
+    queryFn: ({ signal }) => listarPastasDoBanco(signal),
+    retry: podeRepetir,
+  });
+  const pastas = consultaPastas.data ?? [];
+  const pastaGeral = pastas.find(({ geral }) => geral);
+  const pastaAtiva = pastas.find(({ id }) => id === filtros.pasta);
   const detalheNaLista = dados?.itens.find(({ id }) => id === idDetalhe);
   const detalhe = useQuery({
     queryKey: [...CHAVE_DO_BANCO, usuario, "arquivo", idDetalhe],
@@ -97,8 +107,9 @@ function BancoDeArquivos({ t }: { t: TextosDoBanco }) {
     retry: podeRepetir,
   });
   const arquivoDetalhe = detalheNaLista ?? detalhe.data;
-  const podeCarregar = capacidades.pode("banco_arquivos.criar") && Boolean(dados?.limiteArquivoBytes);
+  const podeCarregar = capacidades.pode("banco_arquivos.criar") && Boolean(dados?.limiteArquivoBytes && pastaGeral);
   const podeEditar = capacidades.pode("banco_arquivos.editar");
+  const podeGerenciarPastas = capacidades.pode("banco_arquivos.gerenciar_pastas");
   const podeExcluir = capacidades.pode("banco_arquivos.excluir");
   const podeEnviar = capacidades.pode("banco_arquivos.enviar")
     && capacidades.pode("clientes.acessar") && capacidades.pode("atendimentos.responder");
@@ -175,6 +186,28 @@ function BancoDeArquivos({ t }: { t: TextosDoBanco }) {
     },
     onError: (erro) => setAviso((atual) => ({ ...atual, texto: mensagemDoErro(erro, t), erro: true })),
   });
+  const mover = useMutation({
+    mutationFn: ({ arquivo, pasta }: { arquivo: ArquivoDoBanco; pasta: PastaDoBanco }) => moverArquivoDoBanco(arquivo.id, pasta.id),
+    onSuccess: (_, { arquivo, pasta }) => {
+      if (filtros.pagina > 0 && filtros.pasta && filtros.pasta !== pasta.id
+        && dados?.itens.length === 1 && dados.itens[0]?.id === arquivo.id) {
+        atualizarFiltros({ pagina: filtros.pagina - 1 });
+      }
+      atualizarBanco();
+      setAviso({ texto: t.pastas.arquivoMovido.replace("{pasta}", pasta.nome) });
+    },
+    onError: (erro) => setAviso({ texto: mensagemDoErro(erro, t), erro: true }),
+  });
+
+  function concluirEdicaoDaPasta(salva: PastaDoBanco) {
+    cache.setQueryData<PastaDoBanco[]>(chavePastas, (atuais) => atuais?.some(({ id }) => id === salva.id)
+      ? atuais.map((pasta) => pasta.id === salva.id ? salva : pasta)
+      : [...(atuais ?? []), salva]);
+    setPastaEmEdicao(undefined);
+    setAviso({ texto: pastaEmEdicao ? t.pastas.renomeada : t.pastas.criada });
+    atualizarFiltros({ pasta: salva.id });
+    void cache.invalidateQueries({ queryKey: chavePastas });
+  }
 
   function aoArrastar(evento: DragEvent<HTMLDivElement>) {
     if (!evento.dataTransfer.types.includes("Files")) return;
@@ -264,21 +297,29 @@ function BancoDeArquivos({ t }: { t: TextosDoBanco }) {
             <h2>
               <DropdownMenu>
                 <DropdownMenuTrigger render={<button type="button" title={t.pastasTitulo} />}>
-                  {filtros.pasta ? t.pastas[filtros.pasta] : t.todosArquivos} <ChevronDown aria-hidden />
+                  <span className="min-w-0 truncate">{pastaAtiva?.nome ?? t.todosArquivos}</span><ChevronDown aria-hidden />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className={estilos.menuDeAcoes}>
                   <DropdownMenuItem onClick={() => atualizarFiltros({ pasta: null })}>{t.todosArquivos}</DropdownMenuItem>
-                  {PASTAS_DO_BANCO.map((pasta: PastaDoBanco) => (
-                    <DropdownMenuItem key={pasta} onClick={() => atualizarFiltros({ pasta })}>
-                      <FolderOpen aria-hidden /><span className="flex-1">{t.pastas[pasta]}</span>
-                      {dados && <span>{dados.contagemPorPasta[pasta] ?? 0}</span>}
+                  {pastas.map((pasta) => (
+                    <DropdownMenuItem key={pasta.id} onClick={() => atualizarFiltros({ pasta: pasta.id })}>
+                      <FolderOpen aria-hidden /><span className="min-w-0 flex-1 truncate">{pasta.nome}</span>
+                      {dados && <span>{dados.contagemPorPasta[pasta.id] ?? 0}</span>}
                     </DropdownMenuItem>
                   ))}
+                  {podeGerenciarPastas && <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setPastaEmEdicao(null)}><FolderPlus aria-hidden />{t.pastas.criar}</DropdownMenuItem>
+                    {pastaAtiva && !pastaAtiva.geral && (
+                      <DropdownMenuItem onClick={() => setPastaEmEdicao(pastaAtiva)}><Pencil aria-hidden />{t.pastas.renomear}</DropdownMenuItem>
+                    )}
+                  </>}
                 </DropdownMenuContent>
               </DropdownMenu>
             </h2>
             {dados && <span>{dados.total === 1 ? t.totalSingular : t.total.replace("{total}", String(dados.total))}</span>}
           </div>
+          {consultaPastas.isError && <ErroDeCarregamento mensagem={mensagemDoErro(consultaPastas.error, t, t.pastas.erroLista)} onTentarNovamente={consultaPastas.refetch} />}
           {consulta.isPending && <p role="status" className={estilos.estado}>{t.carregando}</p>}
           {consulta.isError && <ErroDeCarregamento mensagem={mensagemDoErro(consulta.error, t, t.erroLista)} onTentarNovamente={consulta.refetch} />}
           {dados && dados.itens.length === 0 && (
@@ -296,6 +337,9 @@ function BancoDeArquivos({ t }: { t: TextosDoBanco }) {
               baixando,
               enviar: podeEnviar ? setArquivoParaEnviar : undefined,
               editar: podeEditar ? setArquivoParaEditar : undefined,
+              mover: podeEditar && pastas.length > 1
+                ? { executar: (arquivo, pasta) => mover.mutate({ arquivo, pasta }), pastas, ocupado: mover.isPending }
+                : undefined,
               excluir: podeExcluir ? (arquivo) => { excluir.reset(); setArquivoParaExcluir(arquivo); } : undefined,
             }} />
           )}
@@ -312,11 +356,18 @@ function BancoDeArquivos({ t }: { t: TextosDoBanco }) {
         {podeCarregar && arrastando && <div className={estilos.arrastando}><UploadCloud aria-hidden /><strong>{t.soltar}</strong></div>}
       </div>
 
-      {podeCarregar && selecionados && dados && (
-        <DialogoUploadDeArquivos t={t} arquivosIniciais={selecionados} pastaInicial={filtros.pasta ?? PASTAS_DO_BANCO[0]}
+      {podeCarregar && selecionados && dados && pastaGeral && (
+        <DialogoUploadDeArquivos t={t} arquivosIniciais={selecionados} pastas={pastas} pastaInicial={pastaGeral.id}
           limiteArquivoBytes={dados.limiteArquivoBytes} limiteDescricao={dados.limiteDescricao}
           onFechar={() => setSelecionados(null)} onAlteracao={atualizarBanco}
-          onConcluir={() => { setSelecionados(null); setAviso({ texto: t.arquivosEnviados }); }} />
+          onConcluir={(pasta) => {
+            setSelecionados(null);
+            if (filtros.pasta && filtros.pasta !== pasta) atualizarFiltros({ pasta });
+            setAviso({ texto: t.arquivosEnviados });
+          }} />
+      )}
+      {podeGerenciarPastas && pastaEmEdicao !== undefined && (
+        <DialogoSalvarPasta t={t} pasta={pastaEmEdicao} onFechar={() => setPastaEmEdicao(undefined)} onConcluir={concluirEdicaoDaPasta} />
       )}
       {podeEditar && arquivoParaEditar && (
         <DialogoEditarArquivo t={t} arquivo={arquivoParaEditar} limiteDescricao={dados?.limiteDescricao}
@@ -336,7 +387,7 @@ function BancoDeArquivos({ t }: { t: TextosDoBanco }) {
       )}
       {podeEnviar && arquivoParaEnviar && <DialogoEnviarArquivoDeBanco arquivo={arquivoParaEnviar} onFechar={() => setArquivoParaEnviar(null)} />}
       {idDetalhe && (arquivoDetalhe ? (
-        <DialogoDetalhesArquivo t={t} arquivo={arquivoDetalhe} baixando={baixando === arquivoDetalhe.id}
+        <DialogoDetalhesArquivo t={t} arquivo={arquivoDetalhe} nomeDaPasta={pastas.find(({ id }) => id === arquivoDetalhe.pasta)?.nome} baixando={baixando === arquivoDetalhe.id}
           onBaixar={() => void baixar(arquivoDetalhe)} onFechar={() => router.replace(pathname, { scroll: false })} />
       ) : (
         <DialogoDoBanco t={t} titulo={t.detalhes} descricao="" onFechar={() => router.replace(pathname, { scroll: false })}>

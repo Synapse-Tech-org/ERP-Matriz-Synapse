@@ -12,10 +12,13 @@ import com.synapse.crm.sharedkernel.auditoria.Auditable;
 @Service
 public class EditarArquivoBancoUseCase {
     private final ArquivoBancoRepositorio arquivos;
+    private final PastaArquivoBancoRepositorio pastas;
     private final BancoArquivosProperties limites;
 
-    public EditarArquivoBancoUseCase(ArquivoBancoRepositorio arquivos, BancoArquivosProperties limites) {
+    public EditarArquivoBancoUseCase(ArquivoBancoRepositorio arquivos, PastaArquivoBancoRepositorio pastas,
+            BancoArquivosProperties limites) {
         this.arquivos = arquivos;
+        this.pastas = pastas;
         this.limites = limites;
     }
 
@@ -24,7 +27,7 @@ public class EditarArquivoBancoUseCase {
     @Auditable(acao = "EDITAR_ARQUIVO_BANCO", entidadeTipo = "ARQUIVO_BANCO", capturarDados = false)
     public Metadados executar(UUID id, String nome, String pasta, String descricao) {
         String nomeValidado = EntradaArquivoBanco.nome(nome);
-        String pastaValidada = EntradaArquivoBanco.pasta(pasta);
+        String pastaValidada = pasta == null ? null : EntradaArquivoBanco.pastaExistente(pasta, pastas);
         String descricaoValidada = EntradaArquivoBanco.descricao(descricao, limites.limiteDescricao());
         Metadados atual = arquivos.ativo(id).orElseThrow(FalhaArquivoBanco::naoEncontrado).metadados();
         if (!EntradaArquivoBanco.extensao(atual.nome()).equals(EntradaArquivoBanco.extensao(nomeValidado))) {

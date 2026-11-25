@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ErroDeApi } from "@/lib/api/errors";
 import { TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO } from "@/lib/atendimento/arquivos-do-composer";
-import type { ArquivoDoBanco, ResultadoDoBanco } from "@/lib/banco-arquivos/api";
+import type { ArquivoDoBanco, PastaDoBanco, ResultadoDoBanco } from "@/lib/banco-arquivos/api";
 import { TextosSchema } from "@/lib/config/schema";
 import { TextosProvider } from "@/lib/config/textos-provider";
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
@@ -17,6 +17,10 @@ const api = vi.hoisted(() => ({
   listar: vi.fn(),
   obter: vi.fn(),
   adicionar: vi.fn(),
+  listarPastas: vi.fn(),
+  criarPasta: vi.fn(),
+  renomearPasta: vi.fn(),
+  mover: vi.fn(),
   flag: true,
   arquivoNaUrl: "",
 }));
@@ -26,6 +30,10 @@ vi.mock("@/lib/banco-arquivos/api", async (importar) => ({
   listarArquivosDoBanco: api.listar,
   obterArquivoDoBanco: api.obter,
   adicionarArquivoAoBanco: api.adicionar,
+  listarPastasDoBanco: api.listarPastas,
+  criarPastaDoBanco: api.criarPasta,
+  renomearPastaDoBanco: api.renomearPasta,
+  moverArquivoDoBanco: api.mover,
 }));
 vi.mock("@/lib/config/use-funcionalidades", () => ({
   useFuncionalidadesHabilitadas: () => ({ data: api.flag ? ["banco_arquivos"] : [] }),
@@ -50,6 +58,8 @@ const resposta: ResultadoDoBanco = {
   itens: [arquivo], total: 1, contagemPorPasta: { catalogos: 1 },
   usadoBytes: 50, limiteBytes: 5000, limiteArquivoBytes: 100, limiteDescricao: 1000,
 };
+const geral: PastaDoBanco = { id: "geral", nome: "Geral", geral: true };
+const catalogos: PastaDoBanco = { id: "catalogos", nome: "Catálogos", geral: false };
 
 function montar() {
   return render(
@@ -66,6 +76,10 @@ describe("Banco de Arquivos", () => {
     api.listar.mockReset().mockResolvedValue(resposta);
     api.adicionar.mockReset();
     api.obter.mockReset();
+    api.listarPastas.mockReset().mockResolvedValue([geral, catalogos]);
+    api.criarPasta.mockReset();
+    api.renomearPasta.mockReset();
+    api.mover.mockReset();
   });
 
   it("bloqueia a URL direta quando o módulo está desligado", () => {
@@ -73,6 +87,7 @@ describe("Banco de Arquivos", () => {
     montar();
     expect(screen.getByRole("status")).toHaveTextContent(textos.bancoArquivos.desativado);
     expect(api.listar).not.toHaveBeenCalled();
+    expect(api.listarPastas).not.toHaveBeenCalled();
   });
 
   it("bloqueia inclusive a consulta pelo link direto quando a leitura é negada", () => {
@@ -82,6 +97,7 @@ describe("Banco de Arquivos", () => {
     expect(screen.getByRole("heading", { name: textos.gestao.acesso.semAcessoTitulo })).toBeInTheDocument();
     expect(api.listar).not.toHaveBeenCalled();
     expect(api.obter).not.toHaveBeenCalled();
+    expect(api.listarPastas).not.toHaveBeenCalled();
   });
 
   it("mantém os arquivos acessíveis sem expor upload, edição, exclusão ou envio sem capacidade", async () => {
@@ -97,6 +113,7 @@ describe("Banco de Arquivos", () => {
     expect(await screen.findByRole("menuitem", { name: textos.bancoArquivos.copiarLink })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: textos.bancoArquivos.editar })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: textos.bancoArquivos.excluir })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: textos.bancoArquivos.pastas.mover })).not.toBeInTheDocument();
   });
 
   it("usa o filtro no backend e alterna para a tabela com a mesma resposta", async () => {
@@ -145,5 +162,75 @@ describe("Banco de Arquivos", () => {
     expect(api.adicionar).toHaveBeenCalledTimes(2);
     expect(within(modal).queryByText("ok.pdf")).not.toBeInTheDocument();
     expect(within(modal).getByText("restante.pdf")).toBeInTheDocument();
+  });
+
+  it("seleciona uma pasta real no filtro mas usa Geral por padrão em um novo upload", async () => {
+    api.adicionar.mockResolvedValue({ ...arquivo, pasta: geral.id });
+    montar();
+    fireEvent.click(await screen.findByRole("button", { name: textos.bancoArquivos.enviarArquivos }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: textos.bancoArquivos.cancelar }));
+
+    fireEvent.click(screen.getByRole("button", { name: textos.bancoArquivos.todosArquivos }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /^Catálogos/ }));
+    await waitFor(() => expect(api.listar).toHaveBeenLastCalledWith(expect.objectContaining({ pasta: catalogos.id }), expect.anything()));
+
+    fireEvent.click(await screen.findByRole("button", { name: textos.bancoArquivos.enviarArquivos }));
+    const modal = screen.getByRole("dialog");
+    expect(within(modal).getByRole("combobox", { name: textos.bancoArquivos.pasta })).toHaveTextContent(geral.nome);
+    const novo = new File(["ok"], "novo.pdf");
+    fireEvent.change(modal.querySelector('input[type="file"]')!, { target: { files: [novo] } });
+    fireEvent.click(within(modal).getByRole("button", { name: textos.bancoArquivos.enviar }));
+    await waitFor(() => expect(api.adicionar).toHaveBeenCalledWith(novo, geral.id, ""));
+  });
+
+  it("permite criar e renomear pasta personalizada com o mesmo identificador", async () => {
+    const criada = { id: "c830631e-45c0-43c0-940e-6474da5e5f9d", nome: "Executivos", geral: false };
+    api.criarPasta.mockImplementation(async () => {
+      api.listarPastas.mockResolvedValue([geral, catalogos, criada]);
+      return criada;
+    });
+    api.renomearPasta.mockImplementation(async (_, nome) => {
+      const renomeada = { ...criada, nome };
+      api.listarPastas.mockResolvedValue([geral, catalogos, renomeada]);
+      return renomeada;
+    });
+    montar();
+    fireEvent.click(await screen.findByRole("button", { name: textos.bancoArquivos.todosArquivos }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: textos.bancoArquivos.pastas.criar }));
+    const criacao = screen.getByRole("dialog");
+    fireEvent.change(within(criacao).getByRole("textbox", { name: textos.bancoArquivos.pastas.nome }), { target: { value: criada.nome } });
+    fireEvent.click(within(criacao).getByRole("button", { name: textos.bancoArquivos.pastas.criar }));
+    expect(api.criarPasta).toHaveBeenCalledWith(criada.nome);
+    fireEvent.click(await screen.findByRole("button", { name: criada.nome }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: textos.bancoArquivos.pastas.renomear }));
+    const edicao = screen.getByRole("dialog");
+    fireEvent.change(within(edicao).getByRole("textbox", { name: textos.bancoArquivos.pastas.nome }), { target: { value: "Projetos executivos" } });
+    fireEvent.click(within(edicao).getByRole("button", { name: textos.bancoArquivos.salvar }));
+    expect(api.renomearPasta).toHaveBeenCalledWith(criada.id, "Projetos executivos");
+    expect(await screen.findByRole("button", { name: "Projetos executivos" })).toBeInTheDocument();
+  });
+
+  it("mantém as pastas navegáveis sem expor gestão a quem não tem a capacidade", async () => {
+    definirCapacidadesDeTeste({ negadas: ["banco_arquivos.gerenciar_pastas"] });
+    montar();
+    await screen.findByRole("button", { name: textos.bancoArquivos.enviarArquivos });
+    fireEvent.click(screen.getByRole("button", { name: textos.bancoArquivos.todosArquivos }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /^Catálogos/ }));
+    fireEvent.click(await screen.findByRole("button", { name: catalogos.nome }));
+    expect(screen.queryByRole("menuitem", { name: textos.bancoArquivos.pastas.criar })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: textos.bancoArquivos.pastas.renomear })).not.toBeInTheDocument();
+  });
+
+  it("move pelo submenu Enviar para e mostra a pasta atual desabilitada", async () => {
+    api.mover.mockResolvedValue({ ...arquivo, pasta: geral.id });
+    montar();
+    await screen.findByRole("button", { name: textos.bancoArquivos.enviarArquivos });
+    fireEvent.click(screen.getByRole("button", { name: textos.bancoArquivos.maisAcoes }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: textos.bancoArquivos.pastas.mover }));
+    const destino = await screen.findByRole("menuitem", { name: geral.nome });
+    expect(screen.getByRole("menuitem", { name: catalogos.nome })).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(destino);
+    await waitFor(() => expect(api.mover).toHaveBeenCalledWith(arquivo.id, geral.id));
+    await screen.findByText(textos.bancoArquivos.pastas.arquivoMovido.replace("{pasta}", geral.nome));
   });
 });

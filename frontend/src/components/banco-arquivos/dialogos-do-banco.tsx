@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ErroDeApi } from "@/lib/api/errors";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import {
-  adicionarArquivoAoBanco, editarArquivoDoBanco, PASTAS_DO_BANCO, visualizarArquivoDoBanco,
+  adicionarArquivoAoBanco, criarPastaDoBanco, editarArquivoDoBanco, renomearPastaDoBanco, visualizarArquivoDoBanco,
   type ArquivoDoBanco, type PastaDoBanco,
 } from "@/lib/banco-arquivos/api";
 import { ARQUIVOS_ACEITOS_NO_BANCO, extensao, formatoAceitoNoBanco, tipoParaIconeDaFila } from "@/lib/banco-arquivos/formatos";
@@ -46,19 +46,22 @@ export function DialogoDoBanco({ t, onFechar, titulo, descricao, children, ocupa
   );
 }
 
-function SeletorDePasta({ t, pasta, onChange, desabilitado }: {
+function SeletorDePasta({ t, pasta, pastas, onChange, desabilitado }: {
   t: TextosDoBanco;
-  pasta: PastaDoBanco;
-  onChange: (pasta: PastaDoBanco) => void;
+  pasta: string;
+  pastas: PastaDoBanco[];
+  onChange: (pasta: string) => void;
   desabilitado?: boolean;
 }) {
   return (
     <div className={estilos.campo}>
       <span>{t.pasta}</span>
-      <Select value={pasta} onValueChange={(valor: PastaDoBanco | null) => { if (valor) onChange(valor); }} disabled={desabilitado}>
-        <SelectTrigger className={estilos.selecionarPasta} aria-label={t.pasta}><SelectValue>{t.pastas[pasta]}</SelectValue></SelectTrigger>
+      <Select value={pasta} onValueChange={(valor) => { if (valor) onChange(valor); }} disabled={desabilitado}>
+        <SelectTrigger className={estilos.selecionarPasta} aria-label={t.pasta}>
+          <SelectValue>{pastas.find(({ id }) => id === pasta)?.nome}</SelectValue>
+        </SelectTrigger>
         <SelectContent alignItemWithTrigger={false}>
-          {PASTAS_DO_BANCO.map((id) => <SelectItem key={id} value={id}>{t.pastas[id]}</SelectItem>)}
+          {pastas.map(({ id, nome }) => <SelectItem key={id} value={id}>{nome}</SelectItem>)}
         </SelectContent>
       </Select>
     </div>
@@ -79,13 +82,14 @@ function paraItens(arquivos: File[]) {
   return [...new Map(itens.map((item) => [item.chave, item])).values()];
 }
 
-export function DialogoUploadDeArquivos({ t, onFechar, pastaInicial, arquivosIniciais, limiteArquivoBytes, limiteDescricao, onAlteracao, onConcluir }: PropsDialogo & {
-  pastaInicial: PastaDoBanco;
+export function DialogoUploadDeArquivos({ t, onFechar, pastaInicial, pastas, arquivosIniciais, limiteArquivoBytes, limiteDescricao, onAlteracao, onConcluir }: PropsDialogo & {
+  pastaInicial: string;
+  pastas: PastaDoBanco[];
   arquivosIniciais: File[];
   limiteArquivoBytes: number;
   limiteDescricao: number;
   onAlteracao: () => void;
-  onConcluir: () => void;
+  onConcluir: (pasta: string) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [fila, setFila] = useState<ItemDaFila[]>(() => paraItens(arquivosIniciais));
@@ -133,7 +137,7 @@ export function DialogoUploadDeArquivos({ t, onFechar, pastaInicial, arquivosIni
     setFila(restantes);
     setOcupado(false);
     if (enviados > 0) onAlteracao();
-    if (restantes.length === 0) onConcluir();
+    if (restantes.length === 0) onConcluir(pasta);
     else setErro(true);
   }
 
@@ -179,7 +183,7 @@ export function DialogoUploadDeArquivos({ t, onFechar, pastaInicial, arquivosIni
               </ul>
             )}
           </div>
-          <SeletorDePasta t={t} pasta={pasta} onChange={setPasta} desabilitado={ocupado} />
+          <SeletorDePasta t={t} pasta={pasta} pastas={pastas} onChange={setPasta} desabilitado={ocupado} />
           <label className={estilos.campo}>
             <span>{t.descricaoArquivo}</span>
             <textarea value={descricao} onChange={(evento) => setDescricao(evento.target.value)}
@@ -206,7 +210,6 @@ export function DialogoEditarArquivo({ t, onFechar, arquivo, limiteDescricao, on
 }) {
   const sufixo = extensao(arquivo.nome);
   const [nome, setNome] = useState(arquivo.nome.slice(0, arquivo.nome.length - sufixo.length));
-  const [pasta, setPasta] = useState(arquivo.pasta);
   const [descricao, setDescricao] = useState(arquivo.descricao ?? "");
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -217,7 +220,7 @@ export function DialogoEditarArquivo({ t, onFechar, arquivo, limiteDescricao, on
     setOcupado(true);
     setErro(null);
     try {
-      await editarArquivoDoBanco(arquivo.id, { nome: nome.trim() + sufixo, pasta, descricao: descricao.trim() });
+      await editarArquivoDoBanco(arquivo.id, { nome: nome.trim() + sufixo, descricao: descricao.trim() });
       onConcluir();
     } catch (falha) {
       setErro(mensagemDoErro(falha, t));
@@ -237,7 +240,6 @@ export function DialogoEditarArquivo({ t, onFechar, arquivo, limiteDescricao, on
               <span aria-hidden>{sufixo}</span>
             </span>
           </label>
-          <SeletorDePasta t={t} pasta={pasta} onChange={setPasta} desabilitado={ocupado} />
           <label className={estilos.campo}>
             <span>{t.descricaoArquivo}</span>
             <textarea value={descricao} onChange={(evento) => setDescricao(evento.target.value)} maxLength={limiteDescricao} disabled={ocupado} />
@@ -247,6 +249,54 @@ export function DialogoEditarArquivo({ t, onFechar, arquivo, limiteDescricao, on
         <div className={estilos.rodapeDialogo}>
           <button type="button" className={estilos.botaoSecundario} onClick={onFechar} disabled={ocupado}>{t.cancelar}</button>
           <button type="submit" className={estilos.botaoDestaque} disabled={ocupado || !nome.trim()}>{ocupado ? t.aguarde : t.salvar}</button>
+        </div>
+      </form>
+    </DialogoDoBanco>
+  );
+}
+
+export function DialogoSalvarPasta({ t, onFechar, pasta, onConcluir }: PropsDialogo & {
+  pasta: PastaDoBanco | null;
+  onConcluir: (pasta: PastaDoBanco) => void;
+}) {
+  const [nome, setNome] = useState(pasta?.nome ?? "");
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const nomeLimpo = nome.trim();
+  const podeSalvar = nomeLimpo && nomeLimpo !== pasta?.nome;
+
+  async function salvar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (ocupado || !podeSalvar) return;
+    setOcupado(true);
+    setErro(null);
+    try {
+      const salva = pasta ? await renomearPastaDoBanco(pasta.id, nomeLimpo) : await criarPastaDoBanco(nomeLimpo);
+      onConcluir(salva);
+    } catch (falha) {
+      setErro(falha instanceof ErroDeApi && falha.status === 409 ? t.pastas.nomeIndisponivel : mensagemDoErro(falha, t));
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <DialogoDoBanco t={t} onFechar={onFechar} ocupado={ocupado}
+      titulo={pasta ? t.pastas.renomear : t.pastas.criar} descricao={pasta?.nome ?? ""}>
+      <form onSubmit={salvar}>
+        <div className={estilos.corpoDialogo}>
+          <label className={estilos.campo}>
+            <span>{t.pastas.nome}</span>
+            <input type="text" required value={nome} onChange={(evento) => setNome(evento.target.value)}
+              maxLength={80} disabled={ocupado} />
+          </label>
+          {erro && <p role="alert" className={estilos.erro}>{erro}</p>}
+        </div>
+        <div className={estilos.rodapeDialogo}>
+          <button type="button" className={estilos.botaoSecundario} onClick={onFechar} disabled={ocupado}>{t.cancelar}</button>
+          <button type="submit" className={estilos.botaoDestaque} disabled={ocupado || !podeSalvar}>
+            {ocupado ? t.aguarde : pasta ? t.salvar : t.pastas.criar}
+          </button>
         </div>
       </form>
     </DialogoDoBanco>
@@ -277,8 +327,9 @@ function PreviaDeImagem({ arquivo, t }: { arquivo: ArquivoDoBanco; t: TextosDoBa
   return <div className={estilos.previa}><Image fill unoptimized src={url} alt={arquivo.nome} /></div>;
 }
 
-export function DialogoDetalhesArquivo({ t, onFechar, arquivo, onBaixar, baixando }: PropsDialogo & {
+export function DialogoDetalhesArquivo({ t, onFechar, arquivo, nomeDaPasta, onBaixar, baixando }: PropsDialogo & {
   arquivo: ArquivoDoBanco;
+  nomeDaPasta?: string;
   onBaixar: () => void;
   baixando: boolean;
 }) {
@@ -288,7 +339,7 @@ export function DialogoDetalhesArquivo({ t, onFechar, arquivo, onBaixar, baixand
         {arquivo.tipo === "IMAGEM" && <PreviaDeImagem key={arquivo.id} arquivo={arquivo} t={t} />}
         {arquivo.descricao && <p className="whitespace-pre-wrap break-words">{arquivo.descricao}</p>}
         <dl className={estilos.metadados}>
-          <div><dt>{t.pasta}</dt><dd>{t.pastas[arquivo.pasta]}</dd></div>
+          {nomeDaPasta && <div><dt>{t.pasta}</dt><dd>{nomeDaPasta}</dd></div>}
           <div><dt>{t.tamanho}</dt><dd>{formatarBytes(arquivo.tamanhoBytes)}</dd></div>
           <div><dt>{t.adicionado}</dt><dd><time dateTime={arquivo.criadoEm}>{formatarDataArquivo(arquivo)}</time></dd></div>
         </dl>

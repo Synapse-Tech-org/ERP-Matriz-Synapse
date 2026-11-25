@@ -36,6 +36,7 @@ import com.synapse.crm.sharedkernel.permissao.VerificadorDeCapacidades;
 class BancoArquivosFilter extends OncePerRequestFilter {
 
     private static final String BASE = "/api/v1/banco-arquivos";
+    private static final String ARQUIVO = "/{id:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}}";
     private static final PathPattern PREFIXO = PathPatternParser.defaultInstance.parse(BASE + "/{*subcaminho}");
 
     private final UsuarioContext usuario;
@@ -45,6 +46,7 @@ class BancoArquivosFilter extends OncePerRequestFilter {
     private final ObjectMapper json;
     private final Semaphore uploads;
     private final Semaphore downloads;
+    private final Semaphore miniaturas;
     private final Semaphore envios;
 
     BancoArquivosFilter(
@@ -60,6 +62,7 @@ class BancoArquivosFilter extends OncePerRequestFilter {
         this.json = json;
         this.uploads = new Semaphore(propriedades.uploadsSimultaneos());
         this.downloads = new Semaphore(propriedades.downloadsSimultaneos());
+        this.miniaturas = new Semaphore(propriedades.miniaturasSimultaneas());
         this.envios = new Semaphore(propriedades.enviosSimultaneos());
     }
 
@@ -92,6 +95,7 @@ class BancoArquivosFilter extends OncePerRequestFilter {
         Semaphore concorrencia = switch (operacao) {
             case CRIAR -> uploads;
             case DOWNLOAD, PREVER -> downloads;
+            case MINIATURA -> miniaturas;
             case ENVIAR -> envios;
             default -> null;
         };
@@ -179,14 +183,20 @@ class BancoArquivosFilter extends OncePerRequestFilter {
 
     private enum Operacao {
         LISTAR("GET", "", Categoria.LEITURA, Capacidade.BANCO_ARQUIVOS_VER, TamanhoCorpo.SEM_CORPO),
-        DETALHAR("GET", "/{id}", Categoria.LEITURA, Capacidade.BANCO_ARQUIVOS_VER, TamanhoCorpo.SEM_CORPO),
-        DOWNLOAD("GET", "/{id}/download", Categoria.DOWNLOAD, Capacidade.BANCO_ARQUIVOS_VER, TamanhoCorpo.SEM_CORPO),
-        PREVER("GET", "/{id}/preview", Categoria.DOWNLOAD, Capacidade.BANCO_ARQUIVOS_VER, TamanhoCorpo.SEM_CORPO),
+        LISTAR_PASTAS("GET", "/pastas", Categoria.LEITURA, Capacidade.BANCO_ARQUIVOS_VER, TamanhoCorpo.SEM_CORPO),
+        DETALHAR("GET", ARQUIVO, Categoria.LEITURA, Capacidade.BANCO_ARQUIVOS_VER, TamanhoCorpo.SEM_CORPO),
+        DOWNLOAD("GET", ARQUIVO + "/download", Categoria.DOWNLOAD, Capacidade.BANCO_ARQUIVOS_VER, TamanhoCorpo.SEM_CORPO),
+        PREVER("GET", ARQUIVO + "/preview", Categoria.DOWNLOAD, Capacidade.BANCO_ARQUIVOS_VER, TamanhoCorpo.SEM_CORPO),
+        MINIATURA("GET", ARQUIVO + "/miniatura", Categoria.MINIATURA, Capacidade.BANCO_ARQUIVOS_VER, TamanhoCorpo.SEM_CORPO),
         CRIAR("POST", "", Categoria.UPLOAD, Capacidade.BANCO_ARQUIVOS_CRIAR, TamanhoCorpo.UPLOAD),
-        EDITAR("PATCH", "/{id}", Categoria.ESCRITA, Capacidade.BANCO_ARQUIVOS_EDITAR, TamanhoCorpo.JSON),
-        EXCLUIR("DELETE", "/{id}", Categoria.ESCRITA, Capacidade.BANCO_ARQUIVOS_EXCLUIR, TamanhoCorpo.SEM_CORPO),
-        RESTAURAR("POST", "/{id}/restaurar", Categoria.ESCRITA, Capacidade.BANCO_ARQUIVOS_EXCLUIR, TamanhoCorpo.SEM_CORPO),
-        ENVIAR("POST", "/{id}/enviar", Categoria.ESCRITA, Capacidade.BANCO_ARQUIVOS_ENVIAR, TamanhoCorpo.JSON);
+        CRIAR_PASTA("POST", "/pastas", Categoria.ESCRITA, Capacidade.BANCO_ARQUIVOS_GERENCIAR_PASTAS, TamanhoCorpo.JSON),
+        RENOMEAR_PASTA("PATCH", "/pastas/{id}", Categoria.ESCRITA,
+                Capacidade.BANCO_ARQUIVOS_GERENCIAR_PASTAS, TamanhoCorpo.JSON),
+        EDITAR("PATCH", ARQUIVO, Categoria.ESCRITA, Capacidade.BANCO_ARQUIVOS_EDITAR, TamanhoCorpo.JSON),
+        MOVER("PATCH", ARQUIVO + "/pasta", Categoria.ESCRITA, Capacidade.BANCO_ARQUIVOS_EDITAR, TamanhoCorpo.JSON),
+        EXCLUIR("DELETE", ARQUIVO, Categoria.ESCRITA, Capacidade.BANCO_ARQUIVOS_EXCLUIR, TamanhoCorpo.SEM_CORPO),
+        RESTAURAR("POST", ARQUIVO + "/restaurar", Categoria.ESCRITA, Capacidade.BANCO_ARQUIVOS_EXCLUIR, TamanhoCorpo.SEM_CORPO),
+        ENVIAR("POST", ARQUIVO + "/enviar", Categoria.ESCRITA, Capacidade.BANCO_ARQUIVOS_ENVIAR, TamanhoCorpo.JSON);
 
         private final String metodo;
         private final PathPattern caminho;

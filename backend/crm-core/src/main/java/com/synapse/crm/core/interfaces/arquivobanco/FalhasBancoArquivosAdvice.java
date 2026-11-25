@@ -17,8 +17,8 @@ class FalhasBancoArquivosAdvice {
             case ENTRADA_INVALIDA -> HttpStatus.BAD_REQUEST;
             case FORMATO_INVALIDO -> HttpStatus.UNSUPPORTED_MEDIA_TYPE;
             case LIMITE_ARQUIVO -> HttpStatus.PAYLOAD_TOO_LARGE;
-            case QUOTA -> HttpStatus.CONFLICT;
-            case NAO_ENCONTRADO -> HttpStatus.NOT_FOUND;
+            case QUOTA, NOME_PASTA_EM_USO, PASTA_GERAL_PERMANENTE -> HttpStatus.CONFLICT;
+            case NAO_ENCONTRADO, PASTA_NAO_ENCONTRADA -> HttpStatus.NOT_FOUND;
             case INDISPONIVEL -> HttpStatus.SERVICE_UNAVAILABLE;
         };
         ProblemDetail detalhe = ProblemDetail.forStatusAndDetail(status, erro.getMessage());
