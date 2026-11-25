@@ -3,9 +3,11 @@ export const TIPOS_DE_ANEXO_ACEITOS =
 
 /**
  * E215: só o atendimento envia vídeo (MP4 e 3GP, os que a Meta aceita). O chat interno continua com a
- * lista base. .mov (QuickTime) fica de fora de propósito — o servidor também o recusa.
+ * lista base. As extensões permitem escolher mídias mesmo quando o navegador não fornece um MIME.
+ * .mov (QuickTime) fica de fora de propósito — o servidor também o recusa como vídeo.
  */
-export const TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO = `${TIPOS_DE_ANEXO_ACEITOS},video/mp4,video/3gpp,.mp4,.3gp`;
+export const TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO =
+  `${TIPOS_DE_ANEXO_ACEITOS},video/mp4,video/3gpp,audio/x-aac,.jpg,.jpeg,.png,.webp,.ogg,.oga,.opus,.mp3,.m4a,.amr,.aac,.mp4,.m4v,.3gp,.3gpp`;
 
 export function arquivoCompativel(arquivo: File, accept: string): boolean {
   const regras = accept
@@ -63,6 +65,7 @@ const EXTENSAO_POR_MIMETYPE: Record<string, string> = {
   "audio/mpeg": ".mp3",
   "audio/wav": ".wav",
   "audio/mp4": ".m4a",
+  "audio/x-aac": ".aac",
   "application/pdf": ".pdf",
   "application/msword": ".doc",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",

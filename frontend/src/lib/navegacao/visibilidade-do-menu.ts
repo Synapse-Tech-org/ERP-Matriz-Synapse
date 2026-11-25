@@ -14,6 +14,7 @@ const CAPACIDADE_DO_ITEM: Record<string, string> = {
   relatorios: "relatorios.ver",
   automacao: "automacao.ver",
   templatesWhatsApp: "templates.ver",
+  bancoArquivos: "banco_arquivos.ver",
   mensagensRapidas: "mensagens_rapidas.usar",
   mensagensProgramadas: "mensagens_programadas.ver",
   lembretes: "lembretes.ver",

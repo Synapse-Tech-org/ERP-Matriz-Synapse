@@ -18,8 +18,8 @@ import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
+import org.apache.poi.poifs.filesystem.DirectoryNode;
 import org.apache.poi.poifs.filesystem.DocumentEntry;
-import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 
 /** Identificação estrutural, não antivírus, renderizador ou validador de todo o conteúdo Word. */
 final class DetectorDeDocumentoWord {
@@ -39,7 +39,7 @@ final class DetectorDeDocumentoWord {
     static String detectar(Path arquivo, String detectado) throws IOException {
         byte[] cabecalho;
         try (var entrada = Files.newInputStream(arquivo)) { cabecalho = entrada.readNBytes(8); }
-        if (ole(cabecalho)) return docValido(arquivo) ? DOC : "application/x-tika-msoffice";
+        if (ole(cabecalho)) return DetectorDeDocumentoOfficeBinario.detectar(arquivo);
         if (cabecalho.length < 4 || cabecalho[0] != 'P' || cabecalho[1] != 'K')
             return Set.of(DOC, DOCX).contains(detectado) ? "application/octet-stream" : detectado;
         if (!diretorioZipLimitado(arquivo)) return "application/zip";
@@ -49,7 +49,7 @@ final class DetectorDeDocumentoWord {
     }
 
     static boolean recipiente(String detectado) {
-        return Set.of(DOC, DOCX, "application/x-tika-msoffice", "application/x-ole-storage",
+        return Set.of(DOC, DOCX, "application/vnd.ms-excel", "application/vnd.ms-powerpoint", "application/x-tika-msoffice", "application/x-ole-storage",
                 "application/x-tika-ooxml", "application/zip").contains(detectado);
     }
 
@@ -58,9 +58,8 @@ final class DetectorDeDocumentoWord {
                 (byte)0xa1,(byte)0xb1,0x1a,(byte)0xe1});
     }
 
-    private static boolean docValido(Path arquivo) {
-        try (var fs = new POIFSFileSystem(arquivo.toFile(), true)) {
-            var raiz = fs.getRoot();
+    static boolean docValido(DirectoryNode raiz) {
+        try {
             if (!(raiz.getEntry("WordDocument") instanceof DocumentEntry documento) || documento.getSize() < 32)
                 return false;
             try (var entrada = raiz.createDocumentInputStream("WordDocument")) {

@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Clock,
   File,
+  Folder,
   LayoutTemplate,
   Mic,
   Paperclip,
@@ -20,6 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { DialogoBancoNoAtendimento } from "@/components/banco-arquivos/dialogo-banco-no-atendimento";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Popover,
@@ -70,6 +72,7 @@ type Props = {
   onFalhasDeMidia?: (falhas: FalhaDeEnvioMidia[]) => void;
   podeEnviar?: boolean;
   onRevalidarEnvio?: () => Promise<boolean>;
+  bancoArquivosHabilitado?: boolean;
   /** Layout V2: atalho de mensagens rápidas e seta de envio do protótipo. */
   visualV2?: boolean;
   ref?: Ref<ComposerHandle>;
@@ -143,6 +146,7 @@ export function Composer({
   onFalhasDeMidia,
   podeEnviar = true,
   onRevalidarEnvio,
+  bancoArquivosHabilitado = false,
   visualV2 = false,
   ref,
 }: Props) {
@@ -161,6 +165,7 @@ export function Composer({
   const [falhasArquivos, setFalhasArquivos] = useState<Map<File, string>>(new Map());
   const [agendamentoAberto, setAgendamentoAberto] = useState(false);
   const [painelTemplateAberto, setPainelTemplateAberto] = useState(false);
+  const [bancoAbertoPara, setBancoAbertoPara] = useState<string | null>(null);
   const [menuAnexoAberto, setMenuAnexoAberto] = useState(false);
   const [modoMenuAnexo, setModoMenuAnexo] = useState<"acoes" | "mensagens-rapidas">("acoes");
   const [envioBloqueado, setEnvioBloqueado] = useState(false);
@@ -176,6 +181,10 @@ export function Composer({
   const podeUsarRapidas = capacidades.pode("mensagens_rapidas.usar");
   const podeVerTemplates = capacidades.pode("templates.ver");
   const podeAgendar = capacidades.pode("mensagens_programadas.criar");
+  const podeEnviarDoBanco = bancoArquivosHabilitado
+    && podeEnviar && conversa.status !== "FINALIZADO" && !convite?.pendente
+    && capacidades.pode("banco_arquivos.ver") && capacidades.pode("banco_arquivos.enviar")
+    && capacidades.pode("clientes.acessar") && capacidades.pode("atendimentos.responder");
   const rapidas = useQuery({
     queryKey: ["mensagens-rapidas", "minhas", "gerais"],
     queryFn: async () => {
@@ -221,6 +230,7 @@ export function Composer({
     setFalhasArquivos(new Map());
     setAgendamentoAberto(false);
     setPainelTemplateAberto(false);
+    setBancoAbertoPara(null);
     setMenuAnexoAberto(false);
     setModoMenuAnexo("acoes");
     setEnvioBloqueado(false);
@@ -853,6 +863,17 @@ export function Composer({
                       }}
                       disabled={!podeEnviar || gravador.fase !== "INATIVO"}
                     />
+                    {podeEnviarDoBanco && (
+                      <AcaoMenuAnexo
+                        label={catalogo.bancoArquivos.titulo}
+                        icone={Folder}
+                        aoSelecionar={() => {
+                          fecharMenuAnexo();
+                          setBancoAbertoPara(conversa.atendimentoId);
+                        }}
+                        disabled={gravador.fase !== "INATIVO" || enviar.isPending || enviarMidia.isPending}
+                      />
+                    )}
                     {podeVerTemplates && capacidadeDoCanal.data?.gerenciaTemplates !== false && (
                       <AcaoMenuAnexo
                         label={textos.anexoMenuTemplates}
@@ -1044,6 +1065,18 @@ export function Composer({
           </p>
         )}
         {modalDeTemplates}
+        {podeEnviarDoBanco && bancoAbertoPara === conversa.atendimentoId && (
+          <DialogoBancoNoAtendimento
+            key={bancoAbertoPara}
+            atendimentoId={bancoAbertoPara}
+            onFechar={() => setBancoAbertoPara(null)}
+            onConfirmarEnvio={confirmarEnvioPermitido}
+            onEnviado={() => {
+              setBancoAbertoPara(null);
+              onMensagemEnviada?.();
+            }}
+          />
+        )}
         <FormularioMensagemProgramada
           key={agendamentoAberto ? "agendamento-aberto" : "agendamento-fechado"}
           aberto={agendamentoAberto && podeAgendar}

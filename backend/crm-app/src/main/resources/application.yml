@@ -86,11 +86,24 @@ server:
 resilience4j:
   bulkhead:
     instances:
+      banco-arquivos-limite:
+        max-concurrent-calls: 8
+        max-wait-duration: 0
       chat-interno-download:
         max-concurrent-calls: ${CHAT_INTERNO_DOWNLOAD_CONCORRENCIA:2}
         max-wait-duration: 0
   circuitbreaker:
     instances:
+      banco-arquivos-storage:
+        sliding-window-size: 10
+        minimum-number-of-calls: 3
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+      banco-arquivos-limite:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
       chat-interno-download:
         sliding-window-size: ${CHAT_INTERNO_DOWNLOAD_CB_JANELA:10}
         minimum-number-of-calls: ${CHAT_INTERNO_DOWNLOAD_CB_MINIMO:5}
@@ -185,6 +198,22 @@ synapse:
     maximo-dias: 90
     maximo-paginas: 100
     maximo-busca: 200
+  banco-arquivos:
+    limites-requisicoes:
+      janela: 1m
+      timeout-redis: 500ms
+      threads-redis: 2
+      fila-redis: 8
+      # Arquivo: 25MiB no domínio. O corpo multipart inclui cabeçalhos e metadados.
+      tamanho-upload: 26MB
+      tamanho-json: 16KB
+      uploads-simultaneos: 2
+      downloads-simultaneos: 3
+      envios-simultaneos: 2
+      leitura: { usuario: 120, instancia: 600 }
+      download: { usuario: 20, instancia: 60 }
+      upload: { usuario: 6, instancia: 20 }
+      escrita: { usuario: 15, instancia: 90 }
   telefone:
     # Configuracao da instancia: filhos de outro pais trocam somente esta variavel.
     ddi-padrao: ${TELEFONE_DDI_PADRAO:55}

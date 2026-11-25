@@ -23,7 +23,7 @@ describe("TextosSchema", () => {
     expect(TextosSchema.parse(catalogo).atendimentos.mensagem.motivosFalhaEntrega.Z_API_CITACAO_SEM_CORRELACAO)
       .toContain("Remova a citação");
   });
-  it.each(["gestao", "erros", "painelOperacional", "cancelamentos", "setores"] as const)(
+  it.each(["gestao", "erros", "painelOperacional", "cancelamentos", "setores", "bancoArquivos"] as const)(
     "completa catálogo inteiro ausente: %s, preservando os defaults internos",
     (secao) => {
       const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");

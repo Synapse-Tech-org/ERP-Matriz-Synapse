@@ -26,6 +26,12 @@ describe("E215 — vídeo só no atendimento", () => {
     expect(arquivoCompativel(mp4, TIPOS_DE_ANEXO_ACEITOS)).toBe(false);
     expect(TIPOS_DE_ANEXO_ACEITOS).not.toContain("video/");
   });
+
+  it("aceita extensões de áudio, vídeo e WebP mesmo sem MIME no atendimento", () => {
+    const arquivos = ["amostra.aac", "voz.opus", "clip.3gpp", "foto.webp"].map((nome) => arquivo(nome, ""));
+    expect(filtrarArquivos(arquivos, TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO).aceitos).toEqual(arquivos);
+    expect(arquivoCompativel(arquivo("projeto.dwg", "image/vnd.dwg"), TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO)).toBe(false);
+  });
 });
 
 function arquivo(nome: string, tipo: string): File {

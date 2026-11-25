@@ -1,6 +1,26 @@
 import { describe, expect, it } from "vitest";
 
+import type { MinhasPermissoes } from "@/lib/gestao/types";
+
 import { areaDeFeedbackVisivel, itemDeMenuVisivel } from "./visibilidade-do-menu";
+
+it("exibe Banco de Arquivos somente com flag e leitura autorizadas", () => {
+  const permissoes = (permitido: boolean): MinhasPermissoes => ({
+    usuarioId: "atendente",
+    papel: "ATENDENTE",
+    revisao: 1,
+    acessaGestao: false,
+    editaPerfis: false,
+    editaExcecoes: false,
+    capacidades: {
+      "banco_arquivos.ver": { permitido, motivo: permitido ? "PERMITIDO" : "DESLIGADO", alcance: null },
+    },
+  });
+
+  expect(itemDeMenuVisivel("bancoArquivos", "GESTOR", [], "banco_arquivos", true, permissoes(true))).toBe(false);
+  expect(itemDeMenuVisivel("bancoArquivos", "GESTOR", ["banco_arquivos"], "banco_arquivos", true, permissoes(false))).toBe(false);
+  expect(itemDeMenuVisivel("bancoArquivos", "ATENDENTE", ["banco_arquivos"], "banco_arquivos", true, permissoes(true))).toBe(true);
+});
 
 describe("menu de cancelamentos", () => {
   it("exige flag e capacidade efetiva, inclusive para concessao ao atendente", () => {

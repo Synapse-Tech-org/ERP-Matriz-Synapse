@@ -1,5 +1,5 @@
 import { createRef } from "react";
-import { createEvent, fireEvent, render, screen, waitFor, act } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen, waitFor, within, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,6 +13,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 const mutateMidia = vi.fn();
 const mutateTexto = vi.fn();
 const onCancelarResposta = vi.fn();
+const enviarArquivoDoBanco = vi.fn();
 const estadoMidia: { isError: boolean; error: Error | null } = {
   isError: false,
   error: null,
@@ -45,6 +46,26 @@ vi.mock("@/lib/atendimento/use-enviar-midia", () => ({
     mutateAsync: (variaveis: unknown) => Promise.resolve(mutateMidia(variaveis)),
     isPending: false,
     ...estadoMidia,
+  }),
+}));
+
+vi.mock("@/lib/banco-arquivos/use-enviar-arquivo-do-banco", () => ({
+  LIMITE_LEGENDA_ARQUIVO_BANCO: 1024,
+  useEnviarArquivoDoBanco: () => ({
+    enviar: enviarArquivoDoBanco,
+    isPending: false,
+    emAndamento: () => false,
+  }),
+}));
+
+vi.mock("@/lib/banco-arquivos/api", async (original) => ({
+  ...await original<typeof import("@/lib/banco-arquivos/api")>(),
+  listarArquivosDoBanco: async () => ({
+    total: 2,
+    itens: [
+      { id: "arquivo-1", nome: "Catálogo.pdf", tipo: "PDF", tamanhoBytes: 123 },
+      { id: "arquivo-2", nome: "Projeto.dwg", tipo: "DWG", tamanhoBytes: 321 },
+    ],
   }),
 }));
 
@@ -110,6 +131,25 @@ vi.mock("@/components/mensagens/painel-emoji-composer", () => ({
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
+    bancoArquivos: {
+      titulo: "Banco de Arquivos",
+      todosArquivos: "Todos os arquivos",
+      busca: "Buscar arquivo",
+      fechar: "Fechar",
+      carregando: "Carregando arquivos…",
+      cancelar: "Cancelar",
+    },
+    bancoArquivosNoAtendimento: {
+      descricao: "Escolha um arquivo para enviar como mensagem nesta conversa.",
+      vazio: "Nenhum arquivo encontrado.",
+    },
+    bancoArquivosEnvio: {
+      enviar: "Enviar arquivo",
+      enviando: "Enviando…",
+      legenda: "Legenda opcional",
+      semPermissao: "Sem permissão",
+      tipoIncompativel: "Tipo não aceito pelo WhatsApp",
+    },
     atendimentos: {
       cabecalho: {
         conviteComposerTitulo: "Você foi convidado para participar deste atendimento.",
@@ -320,6 +360,65 @@ describe("Composer — anexo", () => {
       configurable: true,
       value: vi.fn(),
     });
+  });
+
+  it("oculta o banco de arquivos com a flag desligada ou sem permissão de envio", async () => {
+    const cliente = new QueryClient();
+    const elemento = (habilitado: boolean) => (
+      <TooltipProvider><QueryClientProvider client={cliente}>
+        <Composer conversa={conversa} bancoArquivosHabilitado={habilitado} />
+      </QueryClientProvider></TooltipProvider>
+    );
+    const tela = render(elemento(false));
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+    await screen.findByRole("menuitem", { name: "Arquivos" });
+    expect(screen.queryByRole("menuitem", { name: "Banco de Arquivos" })).not.toBeInTheDocument();
+    definirCapacidadesDeTeste({ negadas: ["banco_arquivos.enviar"] });
+    tela.rerender(elemento(true));
+    expect(screen.queryByRole("menuitem", { name: "Banco de Arquivos" })).not.toBeInTheDocument();
+  });
+
+  it("seleciona do banco e envia para o atendimento aberto após revalidar", async () => {
+    const revalidar = vi.fn().mockResolvedValue(true);
+    const cliente = new QueryClient();
+    render(
+      <TooltipProvider><QueryClientProvider client={cliente}>
+        <Composer conversa={conversa} bancoArquivosHabilitado onRevalidarEnvio={revalidar} />
+      </QueryClientProvider></TooltipProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Banco de Arquivos" }));
+    const modal = await screen.findByRole("dialog", { name: "Banco de Arquivos" });
+    expect(await within(modal).findByRole("button", { name: /Projeto.dwg/ })).toBeDisabled();
+    fireEvent.click(within(modal).getByRole("button", { name: /Catálogo.pdf/ }));
+    fireEvent.change(within(modal).getByRole("textbox", { name: "Legenda opcional" }), { target: { value: "Segue o catálogo" } });
+    fireEvent.click(within(modal).getByRole("button", { name: "Enviar arquivo" }));
+    await waitFor(() => expect(enviarArquivoDoBanco).toHaveBeenCalledWith({
+      arquivoId: "arquivo-1", atendimentoId: conversa.atendimentoId, legenda: "Segue o catálogo",
+    }, expect.objectContaining({ onSuccess: expect.any(Function) })));
+    expect(revalidar).toHaveBeenCalledTimes(1);
+  });
+
+  it("descarta o envio se a conversa muda enquanto a permissão é revalidada", async () => {
+    let liberar!: (permitido: boolean) => void;
+    const revalidar = vi.fn(() => new Promise<boolean>((resolve) => { liberar = resolve; }));
+    const cliente = new QueryClient();
+    const elemento = (atendimentoId: string) => (
+      <TooltipProvider><QueryClientProvider client={cliente}>
+        <Composer conversa={{ ...conversa, atendimentoId }} bancoArquivosHabilitado onRevalidarEnvio={revalidar} />
+      </QueryClientProvider></TooltipProvider>
+    );
+    const tela = render(elemento(conversa.atendimentoId));
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Banco de Arquivos" }));
+    const modal = await screen.findByRole("dialog", { name: "Banco de Arquivos" });
+    fireEvent.click(await within(modal).findByRole("button", { name: /Catálogo.pdf/ }));
+    fireEvent.click(within(modal).getByRole("button", { name: "Enviar arquivo" }));
+    await waitFor(() => expect(revalidar).toHaveBeenCalledTimes(1));
+    tela.rerender(elemento("outra-conversa"));
+    await act(async () => liberar(true));
+    expect(screen.queryByRole("dialog", { name: "Banco de Arquivos" })).not.toBeInTheDocument();
+    expect(enviarArquivoDoBanco).not.toHaveBeenCalled();
   });
 
   it.each(["SAIDA_SUSPENSA_TRANSICAO_CANAL", "REFERENCIA_DE_OUTRO_CANAL"])("recupera texto recusado por %s sem novo envio", async (codigo) => {

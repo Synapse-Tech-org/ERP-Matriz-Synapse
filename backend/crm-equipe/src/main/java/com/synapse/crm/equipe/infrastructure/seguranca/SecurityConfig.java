@@ -5,6 +5,7 @@ import java.util.List;
 
 import javax.crypto.spec.SecretKeySpec;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +24,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -30,6 +32,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.synapse.crm.equipe.application.autenticacao.CodificadorDeSenha;
 import com.synapse.crm.sharedkernel.identidade.ClaimsJwt;
+import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
+import com.synapse.crm.sharedkernel.permissao.VerificadorDeCapacidades;
 
 /**
  * Cadeia de filtros e emissao/validacao de JWT.
@@ -54,6 +58,11 @@ public class SecurityConfig {
             SenhaProvisoriaFilter filtroSenhaProvisoria,
             SessaoVigenteFilter filtroSessaoVigente,
             ContaDeTesteFilter filtroContaDeTeste,
+            UsuarioContext usuario,
+            VerificadorDeCapacidades capacidades,
+            LimiteDistribuidoDoBanco limiteDoBanco,
+            LimitesDeRequisicoesDoBancoProperties propriedadesDoBanco,
+            ObjectMapper json,
             CorsConfigurationSource corsConfigurationSource)
             throws Exception {
         return http.csrf(csrf -> csrf.disable())
@@ -77,6 +86,8 @@ public class SecurityConfig {
                 // ativo. Mesma ancora do filtro acima; a ordem de registro o coloca depois dele.
                 .addFilterAfter(filtroSessaoVigente, BearerTokenAuthenticationFilter.class)
                 .addFilterAfter(filtroContaDeTeste, SessaoVigenteFilter.class)
+                .addFilterAfter(new BancoArquivosFilter(usuario, capacidades, limiteDoBanco, propriedadesDoBanco, json),
+                        AuthorizationFilter.class)
                 .authorizeHttpRequests(rotas -> rotas
                         // E29: trocar a propria senha exige um Bearer token valido — sem isto a
                         // rota cairia no permitAll de /api/v1/auth/** logo abaixo, e qualquer
@@ -189,7 +200,7 @@ public class SecurityConfig {
         configuracao.setAllowedOrigins(List.of(propriedades.frontendOrigem()));
         configuracao.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuracao.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
-        configuracao.setExposedHeaders(List.of("Content-Disposition", "X-Lista-Truncada", "X-Lista-Teto"));
+        configuracao.setExposedHeaders(List.of("Content-Disposition", "X-Lista-Truncada", "X-Lista-Teto", "Retry-After"));
 
         UrlBasedCorsConfigurationSource fonte = new UrlBasedCorsConfigurationSource();
         fonte.registerCorsConfiguration("/**", configuracao);
