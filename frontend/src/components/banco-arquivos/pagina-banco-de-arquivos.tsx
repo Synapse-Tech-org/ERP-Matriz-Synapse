@@ -194,7 +194,7 @@ function BancoDeArquivos({ t }: { t: TextosDoBanco }) {
         atualizarFiltros({ pagina: filtros.pagina - 1 });
       }
       atualizarBanco();
-      setAviso({ texto: t.pastas.arquivoMovido.replace("{pasta}", pasta.nome) });
+      setAviso({ texto: t.pastas.arquivoMovido.replace("{pasta}", () => pasta.nome) });
     },
     onError: (erro) => setAviso({ texto: mensagemDoErro(erro, t), erro: true }),
   });

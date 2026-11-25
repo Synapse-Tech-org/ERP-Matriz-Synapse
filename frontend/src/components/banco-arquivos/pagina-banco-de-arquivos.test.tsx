@@ -222,15 +222,18 @@ describe("Banco de Arquivos", () => {
   });
 
   it("move pelo submenu Enviar para e mostra a pasta atual desabilitada", async () => {
-    api.mover.mockResolvedValue({ ...arquivo, pasta: geral.id });
+    const manuais: PastaDoBanco = { id: "056f5802-8b86-4acf-a7cf-b0b984e72936", nome: "Manuais $&", geral: false };
+    api.listarPastas.mockResolvedValue([geral, catalogos, manuais]);
+    api.mover.mockResolvedValue({ ...arquivo, pasta: manuais.id });
     montar();
     await screen.findByRole("button", { name: textos.bancoArquivos.enviarArquivos });
     fireEvent.click(screen.getByRole("button", { name: textos.bancoArquivos.maisAcoes }));
     fireEvent.click(await screen.findByRole("menuitem", { name: textos.bancoArquivos.pastas.mover }));
-    const destino = await screen.findByRole("menuitem", { name: geral.nome });
+    const destino = await screen.findByRole("menuitem", { name: manuais.nome });
+    expect(screen.getByRole("menuitem", { name: geral.nome })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: catalogos.nome })).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(destino);
-    await waitFor(() => expect(api.mover).toHaveBeenCalledWith(arquivo.id, geral.id));
-    await screen.findByText(textos.bancoArquivos.pastas.arquivoMovido.replace("{pasta}", geral.nome));
+    await waitFor(() => expect(api.mover).toHaveBeenCalledWith(arquivo.id, manuais.id));
+    await screen.findByText(`Arquivo movido para ${manuais.nome}.`);
   });
 });
