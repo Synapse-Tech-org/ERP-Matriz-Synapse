@@ -182,6 +182,21 @@ class UsuariosDeTesteIT extends PostgresIT {
         assertThat(semProtecao).isEmpty();
     }
 
+    @Test
+    void bancoRecusaContaDeTesteComoAlvoOuAutorDoAjusteOperacional() {
+        var teste = criar(true);
+        var comum = criar(null);
+        String inserir = """
+                INSERT INTO presenca_gestao_historico
+                    (usuario_id, autor_id, estado_anterior, estado_novo, registrado_em, valido_ate)
+                VALUES (?, ?, 'ONLINE', 'PAUSA', now(), now() + interval '1 hour')
+                """;
+        assertThatThrownBy(() -> jdbc.update(inserir, teste, comum))
+                .hasStackTraceContaining("CONTA_TESTE_SOMENTE_LEITURA");
+        assertThatThrownBy(() -> jdbc.update(inserir, comum, teste))
+                .hasStackTraceContaining("CONTA_TESTE_SOMENTE_LEITURA");
+    }
+
     @Test void guardPreservaCriacaoDeConversaComRoleRestritaMasRecusaDestinoTeste() {
         UUID comum=criar(null); UUID teste=criar(true);
         var normal=chamar(gestor(),HttpMethod.POST,"/api/v1/chat-interno/conversas/direta",Map.of("usuarioId",comum));

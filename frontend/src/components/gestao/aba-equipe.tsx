@@ -46,6 +46,7 @@ import { AbaExcecoes } from "./aba-excecoes";
 import { DialogoUsuario } from "./dialogo-usuario";
 import { PainelDeSetores, SetorDoIntegrante } from "./painel-de-setores";
 import { DialogoClassificacaoTeste } from "./dialogo-classificacao-teste";
+import { PainelPresencaOperacional } from "./painel-presenca-operacional";
 
 const COR_PRESENCA: Record<StatusPresenca, string> = {
   ONLINE: "var(--cor-sucesso)",
@@ -98,6 +99,7 @@ export function AbaEquipe({
   const [busca, setBusca] = useState("");
   const [filtroPapel, setFiltroPapel] = useState<Papel | "">("");
   const [detalheId, setDetalheId] = useState<string | null>(null);
+  const [statusPara, setStatusPara] = useState<UsuarioEquipe | null>(null);
   const [abaDetalhe, setAbaDetalhe] = useState<"geral" | "permissoes">("geral");
   const [detalheSujo, setDetalheSujo] = useState(false);
   const confirmarDetalhe = useConfirmacaoDeDescarte(detalheSujo, textos);
@@ -159,6 +161,11 @@ export function AbaEquipe({
     const podeGerenciar = gerenciavel(u);
     return (
       <div className={layoutV2 ? visual.acoesPessoa : "ml-auto flex max-w-[4.75rem] flex-wrap justify-end gap-1.5 sm:max-w-none sm:flex-nowrap"}>
+                      {!layoutV2 && (
+                        <AcaoDaLinha rotulo={`${textos.presencaOperacional.titulo}: ${u.nome}`} onClick={() => setStatusPara(u)}>
+                          <Activity className="size-4" />
+                        </AcaoDaLinha>
+                      )}
                       {(!layoutV2 || !onAbrirExcecoes) && visiveisNasExcecoes.has(u.id) && (
                         <AcaoDaLinha rotulo={preencher(textos.equipe.acoes.permissoes, { nome: u.nome })} onClick={() => acaoNoDetalhe(() => { if (onAbrirExcecoes) onAbrirExcecoes(u.id); else onAbrirPerfil(u.papel); })}>
                           <ShieldCheck className="size-4" />
@@ -421,19 +428,30 @@ export function AbaEquipe({
           <div className={visual.corpoDetalhe}>
             {abaDetalhe === "permissoes" && onAbrirExcecoes && visiveisNasExcecoes.has(detalhe.id) ? <AbaExcecoes
               embutida textos={textos} minhas={minhas} usuarioInicial={detalhe.id} onSujoChange={setDetalheSujo} />
-              : <VisaoGeralIntegranteV2 key={detalhe.id + (edicao ? "-edicao" : "")} usuario={detalhe} textos={textos}
+              : <><VisaoGeralIntegranteV2 key={detalhe.id + (edicao ? "-edicao" : "")} usuario={detalhe} textos={textos}
                 funcoes={funcoesPermitidas} podeAlterarFuncao={gerenciavel(detalhe) && pode(minhas, "equipe.editar") && pode(minhas, "equipe.alterar_papel")}
                 avaliacao={avaliacaoPorId.get(detalhe.id)} atendimentos={desempenho.data?.porAtendente.find((u) => u.atendenteId === detalhe.id)?.atendimentos}
                 quantidadeExcecoes={excecoesPorId.get(detalhe.id) ?? 0}
                 podeAlterarIa={detalhe.ativo && !detalhe.usuarioTeste && pode(minhas, "equipe.disponibilidade_ia") && !disponibilidade.isPending}
                 onIa={(disponivelParaIa) => disponibilidade.mutate({ id: detalhe.id, disponivelParaIa })}
                 onPermissoes={onAbrirExcecoes && visiveisNasExcecoes.has(detalhe.id) ? () => trocarAbaDetalhe("permissoes") : undefined}
-                onSujoChange={setDetalheSujo} />}
+                onSujoChange={setDetalheSujo} />
+                <PainelPresencaOperacional key={detalhe.id} usuarioId={detalhe.id}
+                  textos={textos.presencaOperacional} disponivelParaIa={detalhe.disponivelParaIa === true} />
+              </>}
           </div>
         </DialogContent>
         {edicao && <DialogoUsuario layoutV2 textos={textos} existente={edicao} funcoesPermitidas={funcoesPermitidas}
           podeAlterarFuncao={false} onFechar={() => setEdicao(null)} />}
         {confirmarDetalhe.dialogo}
+      </Dialog>}
+      {statusPara && <Dialog open onOpenChange={(aberto) => !aberto && setStatusPara(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{statusPara.nome}</DialogTitle>
+            <DialogDescription>{textos.presencaOperacional.titulo}</DialogDescription></DialogHeader>
+          <PainelPresencaOperacional usuarioId={statusPara.id} textos={textos.presencaOperacional}
+            disponivelParaIa={statusPara.disponivelParaIa === true} />
+        </DialogContent>
       </Dialog>}
       {novoAberto && (
         <DialogoUsuario layoutV2={layoutV2} textos={textos} funcoesPermitidas={funcoesPermitidas} podeAlterarFuncao podeClassificarTeste={adm} onFechar={onFecharNovo} />

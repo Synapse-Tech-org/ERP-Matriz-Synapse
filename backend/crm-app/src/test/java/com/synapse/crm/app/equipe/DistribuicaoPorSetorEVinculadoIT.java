@@ -248,6 +248,23 @@ class DistribuicaoPorSetorEVinculadoIT extends PostgresIT {
     // --- D3b: atendente vinculado --------------------------------------------------------------------------------
 
     @Test
+    void vinculoEmPausaCaiNoRodizioESegundaTentativaNaoTrocaDono() {
+        ligarVinculado();
+        UUID vinculado = criarAtendente("VINCULADO-PAUSA", null);
+        UUID coberturaNormal = criarAtendente("ATIVO", null);
+        UUID atendimento = criarAtendimentoNaIa("vinculado-em-pausa");
+        vincular(leadDe(atendimento), vinculado);
+        jdbc.update(
+                "UPDATE usuario SET presenca_gestao = 'PAUSA', presenca_gestao_ate = now() + interval '1 hour' WHERE id = ?",
+                vinculado);
+
+        assertThat(transferirProximo(atendimento, "pausa-1", null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(dono(atendimento)).isEqualTo(coberturaNormal);
+        assertThat(transferirProximo(atendimento, "pausa-2", null).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(dono(atendimento)).isEqualTo(coberturaNormal);
+    }
+
+    @Test
     @DisplayName("desligado: receber um lead nao grava vinculo e um vinculo existente nao e honrado")
     void desligadoNaoGravaNemHonra() {
         UUID x = criarAtendente("X", null);
