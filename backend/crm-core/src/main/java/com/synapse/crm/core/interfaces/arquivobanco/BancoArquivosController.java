@@ -103,7 +103,7 @@ class BancoArquivosController {
     @Operation(summary = "Mover um arquivo para outra pasta",
             description = "Altera somente a pasta de um arquivo ativo na biblioteca.")
     @PatchMapping(path = "/{id}/pasta", consumes = MediaType.APPLICATION_JSON_VALUE)
-    Metadados mover(@PathVariable UUID id, @RequestBody Destino entrada) {
+    Metadados mover(@PathVariable UUID id, @RequestBody DestinoDoArquivoBanco entrada) {
         return mover.executar(id, entrada.pasta());
     }
 
@@ -153,5 +153,5 @@ class BancoArquivosController {
 
     record Edicao(String nome, String pasta, String descricao) {}
 
-    record Destino(String pasta) {}
+    record DestinoDoArquivoBanco(String pasta) {}
 }
