@@ -258,6 +258,12 @@ try {
     assert.ok(pagina.itens.some((e) => e.id === "ms_" + sistematica && e.status === "running"));
     assert.equal(await painel.detalhar("fu_" + sistematica), null);
     assert.equal(await painel.detalhar("ms_" + nova), null);
+    const filtrada = await painel.listar({ pagina: 0, tamanho: 20, fluxoId: "mensagens-sistematicas", status: "running" });
+    assert.equal(filtrada.total, 1);
+    assert.equal(filtrada.itens[0].id, "ms_" + sistematica);
+    const vazia = await painel.listar({ pagina: 0, tamanho: 20, fluxoId: "mensagens-sistematicas", status: "error" });
+    assert.equal(vazia.total, 0);
+    assert.deepEqual(vazia.itens, []);
     const ms = await painel.detalhar("ms_" + sistematica);
     assert.equal(ms.fluxoId, "mensagens-sistematicas");
     const detalhe = await painel.detalhar("fu_" + nova);

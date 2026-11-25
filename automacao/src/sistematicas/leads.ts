@@ -3,7 +3,7 @@ import type { Lead } from "./regras.js";
 
 export class LeadsCrm {
   constructor(private pool: Pool) {}
-  async pagina(apos: string | null, permitidos: readonly string[]) {
+  async pagina(apos: string | null, permitidos: readonly string[] | null) {
     const c = await this.pool.connect();
     try {
       await c.query("BEGIN READ ONLY");
@@ -15,7 +15,7 @@ export class LeadsCrm {
         FROM public.lead l LEFT JOIN LATERAL (
           SELECT id,status FROM public.atendimento WHERE lead_id=l.id ORDER BY iniciado_em DESC,id DESC LIMIT 1
         ) a ON true WHERE ($1::uuid IS NULL OR l.id>$1)
-          AND regexp_replace(l.telefone,'[^0-9]','','g')=ANY($2::text[])
+          AND ($2::text[] IS NULL OR regexp_replace(l.telefone,'[^0-9]','','g')=ANY($2::text[]))
         ORDER BY l.id LIMIT 200`, [apos, permitidos]);
       await c.query("COMMIT");
       return r.rows;

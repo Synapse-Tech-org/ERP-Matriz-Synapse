@@ -19,16 +19,17 @@ No serviço Compose da **instância de teste** (ex.: homologação → crm-teste
 | Nome | Valor inicial seguro | Ao homologar |
 | --- | --- | --- |
 | `AUTOMACAO_SISTEMATICAS_HABILITADAS` | `false` | `true` somente na instância escolhida, junto da chave geral já existente `AUTOMACAO_HABILITADA=true`. Não é necessário ligar o follow-up. |
-| `AUTOMACAO_SISTEMATICAS_NUMEROS_TESTE` | vazio enquanto desligada | Um ou mais números internacionais completos, com país e DDD, só dígitos, separados por vírgula. É uma lista de destinatários permitidos; não redireciona mensagens de outras pessoas. |
+| `AUTOMACAO_NUMEROS_TESTE` | vazio enquanto desligada | Um ou mais números internacionais completos, com país e DDD, só dígitos, separados por vírgula. É uma lista de destinatários permitidos; não redireciona mensagens de outras pessoas. |
 
-Com o módulo ligado, lista vazia ou inválida impede o início do executor. A versão analisada não tem modo irrestrito. Não mudar `WHATSAPP_RESTRICAO_NUMEROS_HABILITADA`: é outra proteção e afeta o CRM. A lista nova **não protege retroativamente o follow-up existente**. Para testar só sistemáticas, manter o follow-up desligado na homologação.
+A restrição compartilhada AUTOMACAO_RESTRICAO_NUMEROS_HABILITADA tem padrão true: lista vazia bloqueia todos; lista inválida impede iniciar o executor. false libera todos os candidatos elegíveis. Não mudar `WHATSAPP_RESTRICAO_NUMEROS_HABILITADA`: é outra proteção e afeta o CRM. Após atualizar a imagem, a lista protege tanto o follow-up quanto as sistemáticas. Imagens antigas não recebem essa proteção. Para testar só sistemáticas, manter o follow-up desligado na homologação.
 
 O Provider usa `docker/dokploy-stack.yml`, não `automacao/compose.yml`. O primeiro lista explicitamente as envs do serviço. Escrever apenas na aba Environment dá um valor para o Dokploy substituir, mas não acrescenta a variável à lista que o processo Node recebe. A proposta no Git é referenciar, não preencher:
 
 ```yaml
 # Dentro do environment já existente de services.automacao
 AUTOMACAO_SISTEMATICAS_HABILITADAS: ${AUTOMACAO_SISTEMATICAS_HABILITADAS:-false}
-AUTOMACAO_SISTEMATICAS_NUMEROS_TESTE: ${AUTOMACAO_SISTEMATICAS_NUMEROS_TESTE:-}
+AUTOMACAO_NUMEROS_TESTE: ${AUTOMACAO_NUMEROS_TESTE:-}
+AUTOMACAO_RESTRICAO_NUMEROS_HABILITADA: ${AUTOMACAO_RESTRICAO_NUMEROS_HABILITADA:-true}
 ```
 
 Não são duas novas senhas. A primeira é uma chave liga/desliga; a segunda é uma lista operacional privada. Token interno, senhas e chaves de WhatsApp continuam no mecanismo existente por instância. Não colocar valores literais no YAML, nem trocar tag, rede, porta ou credenciais para fazer esse repasse. Salvar em Environment não altera um processo já em execução; a aplicação da configuração exige um deploy autorizado, com imagem contendo o executor.

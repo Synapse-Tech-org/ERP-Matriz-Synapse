@@ -3,7 +3,8 @@ import { PgBoss } from "pg-boss";
 import type { ConfiguracaoBanco } from "../operacao/configuracao.js";
 import { carregarCanal } from "../followup/configuracao.js";
 import { HttpJson } from "../followup/http.js";
-import { criarCanal, publicoDeTeste } from "./canal.js";
+import { carregarRestricaoNumeros } from "../compartilhado/restricao-numeros.js";
+import { criarCanal } from "./canal.js";
 import { CrmSistematicas } from "./crm.js";
 import { LeadsCrm } from "./leads.js";
 import { RodadaSistematica } from "./rodada.js";
@@ -14,7 +15,8 @@ export class RuntimeSistematicas {
   private readonly fila: PgBoss;
   private readonly rodada: RodadaSistematica;
   constructor(banco: ConfiguracaoBanco, env: NodeJS.ProcessEnv, avisar: (codigo: string) => void) {
-    const numeros = publicoDeTeste(env.AUTOMACAO_SISTEMATICAS_NUMEROS_TESTE);
+    const restricao = carregarRestricaoNumeros(env);
+    const numeros = restricao.habilitada ? new Set(restricao.numeros) : null;
     const canal = carregarCanal(env);
     if (!env.SYNAPSE_TOKEN_INTERNO || !env.POSTGRES_DB || !env.POSTGRES_USER || !env.POSTGRES_PASSWORD)
       throw new Error("CONFIG_CRM_SISTEMATICAS_AUSENTE");

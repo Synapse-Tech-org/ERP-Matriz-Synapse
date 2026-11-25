@@ -12,6 +12,8 @@ export interface EstadoOperacao {
   automacaoHabilitada: boolean;
   followUpHabilitado: boolean;
   executorDisponivel: boolean;
+  sistematicasHabilitadas?: boolean;
+  sistematicasDisponiveis?: boolean;
   resumo: {
     total: number;
     sucesso: number;
@@ -51,13 +53,14 @@ export const api = {
     chamar<{ usuario: Usuario }>("/sessao", { email, senha }),
   sair: () => chamar("/sair", {}),
   estado: () => chamar<EstadoOperacao>("/status"),
-  listar: (pagina: number, status: string) =>
+  listar: (pagina: number, status: string, fluxoId = "") =>
     chamar<PaginaExecucoes>(
       "/execucoes?" +
         new URLSearchParams({
           pagina: String(pagina),
           tamanho: "20",
           ...(status ? { status } : {}),
+          ...(fluxoId ? { fluxoId } : {}),
         }),
     ),
   detalhar: (id: string) =>

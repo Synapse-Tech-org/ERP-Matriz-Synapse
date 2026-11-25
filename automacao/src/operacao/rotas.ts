@@ -7,6 +7,8 @@ export interface DependenciasOperacao {
   readonly repositorio?: RepositorioExecucoes | undefined;
   readonly token?: string | undefined;
   readonly executorDisponivel?: () => boolean;
+  readonly sistematicasHabilitadas?: () => boolean;
+  readonly sistematicasDisponiveis?: () => boolean;
 }
 
 export function registrarOperacao(
@@ -48,6 +50,8 @@ export function registrarConsultasOperacao(
         automacaoHabilitada: config.automacaoHabilitada,
         followUpHabilitado: config.followUpHabilitado,
         executorDisponivel: deps.executorDisponivel?.() === true,
+        sistematicasHabilitadas: deps.sistematicasHabilitadas?.() === true,
+        sistematicasDisponiveis: deps.sistematicasDisponiveis?.() === true,
         resumo: estado === "PRONTO" ? await deps.repositorio!.resumo() : null,
       };
     } catch {
@@ -70,6 +74,7 @@ export function registrarConsultasOperacao(
             },
             tamanho: { type: "integer", minimum: 1, maximum: 100, default: 20 },
             status: { type: "string", pattern: "^[a-z_]{1,32}$" },
+            fluxoId: { type: "string", pattern: "^[A-Za-z0-9_-]{1,128}$" },
           },
         },
       },

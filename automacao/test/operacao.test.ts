@@ -89,6 +89,27 @@ function repositorio(): RepositorioExecucoes {
   };
 }
 
+test("filtro por fluxo combina situacao, preserva pagina e status expoe sistematicas", async () => {
+  const repo = repositorio();
+  const app = criarAplicacao(carregarConfiguracao({}), {
+    repositorio: repo, token: "fixture",
+    sistematicasHabilitadas: () => true,
+    sistematicasDisponiveis: () => false,
+  });
+  const headers = { "x-automacao-token": "fixture" };
+  try {
+    const r = await app.inject({ url: "/internal/v1/operacao/execucoes?fluxoId=mensagens-sistematicas&status=error&pagina=2", headers });
+    assert.equal(r.statusCode, 200);
+    assert.equal(r.json().fluxoId, "mensagens-sistematicas");
+    assert.equal(r.json().status, "error");
+    assert.equal(r.json().pagina, 2);
+    assert.equal((await app.inject({ url: "/internal/v1/operacao/execucoes?fluxoId=invalid%27", headers })).statusCode, 400);
+    const status = (await app.inject({ url: "/internal/v1/operacao/status", headers })).json();
+    assert.equal(status.sistematicasHabilitadas, true);
+    assert.equal(status.sistematicasDisponiveis, false);
+  } finally { await app.close(); }
+});
+
 test("banco opcional, configuracao parcial recusada e pool limitado", () => {
   assert.equal(carregarBanco({}), undefined);
   assert.throws(() => carregarBanco({ AUTOMACAO_DB_NAME: "automacao" }));

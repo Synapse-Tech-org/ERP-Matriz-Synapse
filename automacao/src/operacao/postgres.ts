@@ -131,8 +131,17 @@ export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
   async listar(filtro: FiltroExecucoes): Promise<PaginaExecucoes> {
     this.pronto();
     const values: (string | number)[] = [];
-    const where = filtro.status ? " WHERE e.status=$1" : "";
-    if (filtro.status) values.push(filtro.status);
+    const condicoes: string[] = [];
+    // Ambos os filtros sao parametrizados e usados no total e na pagina.
+    if (filtro.status) {
+      values.push(filtro.status);
+      condicoes.push(`e.status=${values.length}`);
+    }
+    if (filtro.fluxoId) {
+      values.push(filtro.fluxoId);
+      condicoes.push(`e."fluxoId"=${values.length}`);
+    }
+    const where = condicoes.length ? " WHERE " + condicoes.join(" AND ") : "";
     const count = await this.pool.query<{ total: string }>(
       `SELECT count(*) AS total FROM (${this.execucoes()}) e${where}`,
       values,

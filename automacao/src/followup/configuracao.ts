@@ -1,4 +1,5 @@
 import type { ConfiguracaoBanco } from "../operacao/configuracao.js";
+import { carregarRestricaoNumeros } from "../compartilhado/restricao-numeros.js";
 import type { OpcoesRegras } from "./configuracao-crm.js";
 import { PADROES_FOLLOWUP as P } from "./padroes.js";
 import type { ConfiguracaoProvedor } from "./provedores.js";
@@ -144,12 +145,6 @@ export function carregarFollowup(env: NodeJS.ProcessEnv): ConfiguracaoFollowup {
     },
     provedor,
     regras,
-    restricao: {
-      habilitada: booleano(env.WHATSAPP_RESTRICAO_NUMEROS_HABILITADA, true),
-      numeros: (env.WHATSAPP_NUMEROS_PERMITIDOS || "")
-        .split(/[,;\s]+/)
-        .filter(Boolean)
-        .map((n) => n.replace(/\D/g, "")),
-    },
+    restricao: carregarRestricaoNumeros(env),
   };
 }

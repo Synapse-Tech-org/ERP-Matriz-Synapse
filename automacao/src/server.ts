@@ -41,6 +41,8 @@ const app = criarAplicacao(
     repositorio,
     token: process.env.AUTOMACAO_TOKEN,
     executorDisponivel: () => followup?.estado() === true,
+    sistematicasHabilitadas: () => ativarSistematicas,
+    sistematicasDisponiveis: () => sistematicas !== undefined,
   },
   {
     identidade: crmUrl ? new IdentidadeCrm(crmUrl) : undefined,

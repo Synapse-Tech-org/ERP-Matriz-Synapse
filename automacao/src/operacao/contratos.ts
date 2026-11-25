@@ -40,6 +40,7 @@ export interface FiltroExecucoes {
   pagina: number;
   tamanho: number;
   status?: string;
+  fluxoId?: string;
 }
 export interface PaginaExecucoes {
   itens: ExecucaoResumo[];

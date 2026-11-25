@@ -11,7 +11,7 @@ const contar = (r: Contagem, motivo: string) => { r[motivo] = (r[motivo] ?? 0) +
 
 export class RodadaSistematica {
   constructor(private db: Pool, private crm: Pick<CrmSistematicas,"configuracao"|"catalogo"|"reservar"|"registrar">,
-    private leads: Pick<LeadsCrm,"pagina">, private canal: CanalSistematico, private numeros: ReadonlySet<string>,
+    private leads: Pick<LeadsCrm,"pagina">, private canal: CanalSistematico, private numeros: ReadonlySet<string> | null,
     private fuso: string, private meta: boolean, private agora = () => new Date()) {}
 
   async executar() {
@@ -45,10 +45,10 @@ export class RodadaSistematica {
     } : undefined;
     let cursor: string | null = null;
     for (;;) {
-      const pagina: Lead[] = await this.leads.pagina(cursor, [...this.numeros]);
+      const pagina: Lead[] = await this.leads.pagina(cursor, this.numeros ? [...this.numeros] : null);
       for (const lead of pagina) {
         cursor = lead.id;
-        if (!this.numeros.has(lead.telefone)) { contar(resultados, "FORA_DO_PUBLICO"); continue; }
+        if (this.numeros && !this.numeros.has(lead.telefone)) { contar(resultados, "FORA_DO_PUBLICO"); continue; }
         const pedidos: Candidato[] = [];
         if (catalogo.ids.has(lead.id)) pedidos.push({ tipo: "ANIVERSARIO", regra: "ANIVERSARIO", ciclo: dia.slice(0,4), texto: catalogo.aniversario });
         for (const f of catalogo.festivas) pedidos.push({ tipo: "FESTIVA", regra: f.id, ciclo: dia, texto: f.mensagem });

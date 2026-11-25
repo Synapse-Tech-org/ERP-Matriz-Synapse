@@ -133,7 +133,7 @@ function painel(usuario: Usuario): void {
   let total = 0;
   let ocupado = false;
   root.innerHTML =
-    '<header class="topbar"><div class="brand"><img src="/painel/synapse-logo.svg" alt="Synapse"><span id="product"></span></div><div class="account"><span id="user"></span><span id="logout"></span></div></header><main class="workspace"><div class="page-heading"><div><div class="eyebrow" id="mode"></div><h1 id="heading"></h1></div><div class="connection" id="connection"><span id="db-icon"></span><span id="db-state"></span></div></div><section class="metrics" aria-label="Resumo"><div><span id="label-total"></span><strong id="total">--</strong></div><div><span id="label-success"></span><strong id="success">--</strong></div><div><span id="label-error"></span><strong id="errors">--</strong></div><div><span id="label-running"></span><strong id="running">--</strong></div></section><div class="toolbar"><label class="filter"><span id="status-label"></span><select id="status"></select></label><div class="toolbar-right"><label class="auto"><input id="automatic" type="checkbox"><span id="auto-label"></span></label><span id="refresh"></span></div></div><div id="notice" role="status"></div><div class="table-wrap"><table><thead><tr><th id="col-id"></th><th id="col-flow"></th><th id="col-status"></th><th id="col-start"></th><th id="col-duration"></th><th><span class="sr-only" id="col-details"></span></th></tr></thead><tbody id="rows"></tbody></table><div class="empty" id="empty"><span id="empty-icon"></span><p id="empty-message"></p></div></div><footer class="pagination"><span id="page-summary"></span><div><span id="prev"></span><span id="page-number"></span><span id="next"></span></div></footer><div class="runtime"><span id="automation"></span><span id="executor"></span></div></main>';
+    '<header class="topbar"><div class="brand"><img src="/painel/synapse-logo.svg" alt="Synapse"><span id="product"></span></div><div class="account"><span id="user"></span><span id="logout"></span></div></header><main class="workspace"><div class="page-heading"><div><div class="eyebrow" id="mode"></div><h1 id="heading"></h1></div><div class="connection" id="connection"><span id="db-icon"></span><span id="db-state"></span></div></div><section class="metrics" aria-label="Resumo"><div><span id="label-total"></span><strong id="total">--</strong></div><div><span id="label-success"></span><strong id="success">--</strong></div><div><span id="label-error"></span><strong id="errors">--</strong></div><div><span id="label-running"></span><strong id="running">--</strong></div></section><div class="toolbar"><label class="filter"><span id="status-label"></span><select id="status"></select></label><label class="filter"><span>Fluxo</span><select id="flow"><option value="">Todos os fluxos</option><option value="followup-typescript">Follow-up TypeScript</option><option value="mensagens-sistematicas">Mensagens sistemáticas</option></select></label><div class="toolbar-right"><label class="auto"><input id="automatic" type="checkbox"><span id="auto-label"></span></label><span id="refresh"></span></div></div><div id="notice" role="status"></div><div class="table-wrap"><table><thead><tr><th id="col-id"></th><th id="col-flow"></th><th id="col-status"></th><th id="col-start"></th><th id="col-duration"></th><th><span class="sr-only" id="col-details"></span></th></tr></thead><tbody id="rows"></tbody></table><div class="empty" id="empty"><span id="empty-icon"></span><p id="empty-message"></p></div></div><footer class="pagination"><span id="page-summary"></span><div><span id="prev"></span><span id="page-number"></span><span id="next"></span></div></footer><div class="runtime"><span id="automation"></span><span id="executor"></span></div></main>';
   for (const [id, label] of Object.entries({
     product: t.produto,
     user: usuario.nome,
@@ -179,6 +179,11 @@ function painel(usuario: Usuario): void {
   });
   selecionar("next").append(next);
   const status = selecionar<HTMLSelectElement>("status");
+  const fluxo = selecionar<HTMLSelectElement>("flow");
+  fluxo.addEventListener("change", () => {
+    pagina = 0;
+    void carregar();
+  });
   for (const value of [
     "",
     "success",
@@ -223,7 +228,10 @@ function painel(usuario: Usuario): void {
       );
       text("automation", (estado.automacaoHabilitada ? t.ativa : t.desativada)
         + " | Follow-up " + (estado.followUpHabilitado ? "ativado" : "desativado"));
-      text("executor", estado.executorDisponivel ? "" : t.executorPendente);
+      text("executor", [
+        "Follow-up: " + (!estado.followUpHabilitado ? "desligado" : estado.executorDisponivel ? "executor iniciado" : "executor pendente"),
+        "Sistemáticas: " + (estado.sistematicasHabilitadas === undefined ? "versão sem diagnóstico" : !estado.sistematicasHabilitadas ? "desligadas" : estado.sistematicasDisponiveis ? "executor iniciado" : "executor pendente"),
+      ].join(" | "));
       for (const [id, key] of [
         ["total", "total"],
         ["success", "sucesso"],
@@ -243,7 +251,7 @@ function painel(usuario: Usuario): void {
         total = 0;
         return;
       }
-      const data = await api.listar(pagina, status.value);
+      const data = await api.listar(pagina, status.value, fluxo.value);
       if (versao !== geracao) return;
       total = data.total;
       selecionar("empty").hidden = data.itens.length > 0;
