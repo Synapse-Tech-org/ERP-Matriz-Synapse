@@ -38,20 +38,23 @@ class PastasBancoArquivosController {
         this.renomear = renomear;
     }
 
-    @Operation(summary = "Listar pastas da biblioteca")
+    @Operation(summary = "Listar pastas da biblioteca",
+            description = "Lista as pastas da instância com a pasta permanente Geral no início.")
     @GetMapping
     List<PastaArquivoBanco> listar() {
         return listar.executar();
     }
 
-    @Operation(summary = "Criar uma pasta da biblioteca")
+    @Operation(summary = "Criar uma pasta da biblioteca",
+            description = "Cria uma pasta com nome único para quem tem permissão de gerenciar pastas.")
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     PastaArquivoBanco criar(@RequestBody NomeDePasta entrada) {
         return criar.executar(UUID.randomUUID(), entrada.nome());
     }
 
-    @Operation(summary = "Renomear uma pasta da biblioteca")
+    @Operation(summary = "Renomear uma pasta da biblioteca",
+            description = "Altera o nome de uma pasta personalizada e mantém o vínculo com seus arquivos.")
     @PatchMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     PastaArquivoBanco renomear(@PathVariable String id, @RequestBody NomeDePasta entrada) {
         return renomear.executar(id, entrada.nome());
