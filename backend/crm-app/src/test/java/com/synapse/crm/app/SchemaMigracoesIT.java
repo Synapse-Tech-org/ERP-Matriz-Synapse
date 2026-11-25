@@ -144,6 +144,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     "mensagem_rapida",
                     "mensagem_reacao",
                     "mensagem_reacao_cliente",
+                    // V131: pasta Geral permanente e pastas gerenciadas por instância.
+                    "pasta_arquivo_banco",
                     // V83 (Gestao, docs/47)
                     "permissao_politica",
                     "permissao_perfil",
