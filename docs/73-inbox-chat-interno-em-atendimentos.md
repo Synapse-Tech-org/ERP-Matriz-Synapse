@@ -6,12 +6,13 @@
 
 Conversas internas aparecem em `TODOS` e `ATIVOS`, não nos recortes exclusivos de clientes (`PENDENTES`, `POTENCIAIS` e `FINALIZADOS`). A inbox padrão combina as fontes no servidor e consome seu cursor. A variante do painel operacional mantém a leitura de conversas internas pela API existente, sempre filtrada pelo usuário autenticado; exibe-as em `TODOS` e `ATIVOS`, fora de filtros operacionais específicos.
 
-No V2 não há aba separada **Interno**. O frontend ignora a antiga flag
-`atendimentos_aba_interno`; não é preciso mudar a configuração existente.
-`chat_interno` continua governando o recurso. Na lista lateral do painel
-operacional, clicar em **Ativos** não é um filtro exclusivo de clientes;
-filtrar por responsável, fila de entrada, etapa ou sinal operacional continua
-sendo. Os totais de atendimentos do painel não incluem conversas internas.
+No V2, `atendimentos_aba_interno` controla a aba **Interno**, que mostra só
+conversas do Chat Interno. Ela também exige `chat_interno`. A aba
+dedicada não retira essas conversas de **Ativos** nem de **Todos**.
+No painel operacional, a aba e a lista mista compartilham o resumo interno
+por usuário. Filtrar por responsável, fila de entrada, etapa ou sinal
+operacional continua restringindo a lista mista a clientes, sem afetar a aba
+**Interno**. Os totais de atendimentos do painel não incluem conversas internas.
 
 ## Atualização sem recarregar
 

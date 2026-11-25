@@ -30,6 +30,11 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
     private static final String SQL_ESTRATEGIA =
             "SELECT valor FROM configuracao_automacao WHERE chave = ?";
 
+    // Ajuste Online nunca substitui a presença própria/automática. Pausa e Offline têm precedência até expirar.
+    private static final String FILTRO_SEM_BLOQUEIO_DE_PRESENCA =
+            " AND NOT COALESCE(u.presenca_gestao IN ('OFFLINE', 'PAUSA')"
+                    + " AND u.presenca_gestao_ate > CURRENT_TIMESTAMP, FALSE)";
+
     private static final String SQL_MENOR_CARGA =
             """
             WITH carga AS (
@@ -65,10 +70,11 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
              WHERE d.disponivel_para_ia = TRUE AND u.ativo = TRUE AND NOT u.usuario_teste
                -- Espelha PapelUsuario.recebeAtendimento()
                AND u.papel IN ('ATENDENTE', 'SUBGESTOR') AND u.status_presenca = 'ONLINE'
+               %s
              ORDER BY COALESCE(c.atendimentos_abertos, 0),
                       r.ultimo_recebido_em NULLS FIRST,
                       u.id
-            """;
+            """.formatted(FILTRO_SEM_BLOQUEIO_DE_PRESENCA);
 
     private static final String SQL_SEQUENCIAL =
             """
@@ -98,9 +104,10 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
              WHERE d.disponivel_para_ia = TRUE AND u.ativo = TRUE AND NOT u.usuario_teste
                -- Espelha PapelUsuario.recebeAtendimento()
                AND u.papel IN ('ATENDENTE', 'SUBGESTOR') AND u.status_presenca = 'ONLINE'
+               %s
              ORDER BY r.ultimo_recebido_em NULLS FIRST,
                       u.id
-            """;
+            """.formatted(FILTRO_SEM_BLOQUEIO_DE_PRESENCA);
 
     /**
      * Mesmos filtros, na mesma ordem, de {@link #SQL_MENOR_CARGA} e {@link #SQL_SEQUENCIAL}, mas contando em vez de
@@ -118,14 +125,15 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
                    count(*) FILTER (WHERE u.ativo = TRUE
                                       AND u.papel IN ('ATENDENTE', 'SUBGESTOR')
                                       AND d.disponivel_para_ia = TRUE
-                                      AND u.status_presenca = 'ONLINE') AS online,
+                                      AND u.status_presenca = 'ONLINE'
+                                      %s) AS online,
                    count(*) FILTER (WHERE u.ativo = TRUE
                                       AND u.papel IN ('ATENDENTE', 'SUBGESTOR')
                                       AND d.atendente_id IS NULL) AS sem_registro
               FROM usuario u
               LEFT JOIN disponibilidade_atendente_ia d ON d.atendente_id = u.id
              WHERE NOT u.usuario_teste
-            """;
+            """.formatted(FILTRO_SEM_BLOQUEIO_DE_PRESENCA);
 
     /**
      * Filtros de setor (D3a), acrescentados aos SQLs acima somente quando o escopo nao e GLOBAL. Com a capacidade
@@ -140,7 +148,7 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
              AND EXISTS (SELECT 1 FROM usuario_setor us JOIN setor s ON s.id = us.setor_id
                           WHERE us.usuario_id = u.id AND s.recebe_da_triagem = TRUE AND s.ativo = TRUE)""";
 
-    private static final String FILTRO_SETOR_QUE_NAO_RECEBE =
+    static final String FILTRO_SETOR_QUE_NAO_RECEBE =
             """
              AND NOT EXISTS (SELECT 1 FROM usuario_setor us JOIN setor s ON s.id = us.setor_id
                               WHERE us.usuario_id = u.id AND (s.recebe_da_triagem = FALSE OR s.ativo = FALSE))""";
@@ -155,7 +163,8 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
                AND d.disponivel_para_ia = TRUE AND u.ativo = TRUE AND NOT u.usuario_teste
                -- Espelha PapelUsuario.recebeAtendimento()
                AND u.papel IN ('ATENDENTE', 'SUBGESTOR') AND u.status_presenca = 'ONLINE'
-            """;
+               %s
+            """.formatted(FILTRO_SEM_BLOQUEIO_DE_PRESENCA);
 
     private final JdbcTemplate jdbc;
     private final JdbcTemplate configuracaoJdbc;

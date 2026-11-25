@@ -2910,6 +2910,42 @@
       "telefone": "Telefone"
   },
   "gestao": {
+    "presencaOperacional": {
+      "titulo": "Status operacional",
+      "alterar": "Alterar status",
+      "status": "Novo status",
+      "crm": "Presença no CRM",
+      "efetivo": "Status efetivo",
+      "liberacao": "Liberação para receber da IA",
+      "ligada": "Liberado",
+      "desligada": "Desligada",
+      "motivo": "Situação no rodízio",
+      "validade": "Válido até ({fuso})",
+      "data": "Selecionar data",
+      "hora": "Hora",
+      "minuto": "Minuto",
+      "onlineManual": "Online manual é um ajuste operacional. Não confirma conexão nem torna a pessoa elegível sem presença Online no CRM.",
+      "erro": "Não foi possível consultar o status operacional.",
+      "erroSalvar": "Não foi possível salvar. Informe um horário futuro válido no fuso da instância.",
+      "salvando": "Salvando…",
+      "carregando": "Carregando status…",
+      "tentar": "Tentar novamente",
+      "salvar": "Salvar status",
+      "cancelar": "Cancelar",
+      "estados": { "ONLINE": "Online", "OFFLINE": "Offline", "AUSENTE": "Ausente", "PAUSA": "Em pausa" },
+      "motivos": {
+        "APTO": "Elegível para o rodízio global",
+        "INATIVO": "Usuário inativo",
+        "CONTA_DE_TESTE": "Conta de teste",
+        "PAPEL_INELEGIVEL": "Função não elegível",
+        "FORA_DO_SETOR": "Setor não recebe da triagem",
+        "DISTRIBUICAO_DESLIGADA": "Distribuição desligada",
+        "EM_PAUSA": "Em pausa",
+        "OFFLINE_PELA_GESTAO": "Offline definido pela gestão",
+        "AUSENTE": "Ausente",
+        "SEM_PRESENCA_ONLINE": "Sem presença Online no CRM"
+      }
+    },
     "v2": {
       "editarDados": "Editar dados",
       "editarDadosDescricao": "Nome e e-mail de acesso. A função é alterada no painel da pessoa.",

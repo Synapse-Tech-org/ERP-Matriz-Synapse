@@ -60,6 +60,7 @@ type Props = {
   onAtendimentosAtualizados?: (atendimentos: ItemInbox[]) => void;
   onAbrirAtendimento: (cartao: ItemInbox) => void;
   chatInternoHabilitado?: boolean;
+  abaInternoHabilitada?: boolean;
   /** Flag `atendimentos_finalizados_so_no_menu`: gestor acessa Finalizados só pelo menu da lista. */
   finalizadosSoNoMenu?: boolean;
   contatosInternos?: ChatContato[];
@@ -103,9 +104,18 @@ type EstadoOperacionalDaLista = {
   etapa: string | null;
   setEtapa: (etapa: string | null) => void;
   etapas: [string, string][];
-  internos: ItemInbox[];
-  internosErro: boolean;
-  recarregarInternos: () => void;
+  mostrarInternos: boolean;
+};
+
+const ABA_INTERNA = "INTERNOS";
+type ConversaInterna = Extract<ItemInbox, { tipo: "EQUIPE_INTERNA" }>;
+type ConsultaInterna = Pick<
+  ReturnType<typeof useQuery<Awaited<ReturnType<typeof listarConversasChat>>>>,
+  "data" | "isError" | "isLoading" | "refetch"
+>;
+type PropsDaLista = Props & {
+  operacional?: EstadoOperacionalDaLista;
+  abaInterna?: { selecionada: boolean; selecionar: (selecionada: boolean) => void };
 };
 
 /** Conversas do chat interno no formato de cartão da lista, filtradas pela busca. */
@@ -113,9 +123,10 @@ function cartoesDasConversasInternas(
   conversas: Awaited<ReturnType<typeof listarConversasChat>> | undefined,
   busca: string,
   textos: ReturnType<typeof useTextos>["chatInterno"],
-): ItemInbox[] {
+): ConversaInterna[] {
+  const termo = busca.trim().toLocaleLowerCase("pt-BR");
   return (conversas ?? [])
-    .filter((c) => (c.participantes ?? "").toLocaleLowerCase().includes(busca.toLocaleLowerCase()))
+    .filter((c) => (c.participantes ?? "").toLocaleLowerCase("pt-BR").includes(termo))
     .map((c) => ({ tipo: "EQUIPE_INTERNA", atendimentoId: null, conversaId: c.id,
       nome: c.participantes || textos.titulo, avatarUrl: c.fotoUrl ?? null,
       identificadorVisual: c.id, ultimaMensagemPreview: previewUltimaMensagem(c.ultimaMensagem, textos.sistema),
@@ -123,16 +134,31 @@ function cartoesDasConversasInternas(
 }
 
 export function ListaConversas(props: Props) {
+  const [somenteInternos, setSomenteInternos] = useState(false);
+  const abaInterna = props.layoutV2 && props.chatInternoHabilitado && props.abaInternoHabilitada
+    ? { selecionada: somenteInternos, selecionar: setSomenteInternos }
+    : undefined;
   return props.painelOperacionalPermitido
-    ? <ListaConversasComPainel {...props} />
-    : <ListaConversasBase {...props} />;
+    ? <ListaConversasComPainel {...props} abaInterna={abaInterna} />
+    : abaInterna
+      ? <ListaConversasComConsultaInterna {...props} abaInterna={abaInterna} />
+      : <ListaConversasBase {...props} />;
+}
+
+/** Um resumo autorizado alimenta Interno e, quando há painel, também a lista mista. */
+function ListaConversasComConsultaInterna(props: PropsDaLista) {
+  const usuarioId = useAuthStore((estado) => estado.usuarioId);
+  const consultaInterna = useQuery({
+    queryKey: ["atendimentos", "internos-painel", usuarioId],
+    queryFn: listarConversasChat,
+    enabled: props.abaInterna?.selecionada === true || props.operacional?.mostrarInternos === true,
+  });
+  return <ListaConversasBase {...props} consultaInterna={consultaInterna} />;
 }
 
 /** Os hooks novos só existem quando o recurso foi efetivamente autorizado. */
-function ListaConversasComPainel(props: Props) {
-  const catalogo = useTextos();
+function ListaConversasComPainel(props: PropsDaLista) {
   const papel = useAuthStore(s => s.papel);
-  const usuarioId = useAuthStore(s => s.usuarioId);
   const [busca, setBusca] = useState("");
   const [buscaAplicada, setBuscaAplicada] = useState("");
   // Agrupamento técnico de digitação; não altera prazo/regra de atendimento.
@@ -155,21 +181,14 @@ function ListaConversasComPainel(props: Props) {
     && (filtro.recorte === "EM_ABERTO" || filtro.recorte === "ATIVOS")
     && !filtro.atendenteId && !filtro.entrada && !filtro.etapaId
     && (!filtro.sinal || filtro.sinal === "TODOS");
-  const internos = useQuery({ queryKey: ["atendimentos", "internos-painel", usuarioId],
-    queryFn: listarConversasChat, enabled: mostrarInternos });
-  const cartoesInternos = useMemo(
-    () => cartoesDasConversasInternas(internos.data, busca, catalogo.chatInterno),
-    [internos.data, busca, catalogo.chatInterno],
-  );
   const digitando = busca !== buscaAplicada;
-  return <ListaConversasBase {...props} operacional={{
+  return <ListaConversasComConsultaInterna {...props} operacional={{
     fila: digitando ? { ...fila, data: undefined, isLoading: true } : fila,
     snapshot: digitando ? { ...snapshot, data: undefined } : snapshot,
     busca, setBusca, etapa, setEtapa,
     etapas: (etapas.data ?? []).map(e => [e.id,e.nome]),
-    internos: mostrarInternos ? cartoesInternos : [],
-    internosErro: mostrarInternos && internos.isError,
-    recarregarInternos: () => { void internos.refetch(); } }} />;
+    mostrarInternos,
+  }} />;
 }
 
 function ListaConversasBase({
@@ -199,7 +218,9 @@ function ListaConversasBase({
   layoutV2,
   onAbrirFilaOperacional,
   operacional,
-}: Props & { operacional?: EstadoOperacionalDaLista }) {
+  abaInterna,
+  consultaInterna,
+}: PropsDaLista & { consultaInterna?: ConsultaInterna }) {
   const catalogo = useTextos();
   const textos = catalogo.atendimentos;
   const papel = useAuthStore((estado) => estado.papel);
@@ -223,9 +244,16 @@ function ListaConversasBase({
       ? visaoEscolhida
       : abas[0];
   const abaAtiva = ehAbaDeAtendimento(visao) ? visao : "";
+  const recorteNaBarra = filtroOperacional?.recorte;
+  const abaDaFila = recorteNaBarra === "EM_ABERTO" ? "TODOS" : recorteNaBarra ?? abaAtiva;
+  const mostrandoInternos = abaInterna?.selecionada === true;
   const [buscaLegada, setBuscaLegada] = useState("");
   const busca = operacional?.busca ?? buscaLegada;
   const setBusca = operacional?.setBusca ?? setBuscaLegada;
+  const cartoesInternos = useMemo(
+    () => cartoesDasConversasInternas(consultaInterna?.data, busca, catalogo.chatInterno),
+    [consultaInterna?.data, busca, catalogo.chatInterno],
+  );
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const buscaRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -296,7 +324,7 @@ function ListaConversasBase({
 
   useEffect(() => {
     const alvo = fimDaLista.current;
-    if (operacional || !alvo || !hasNextPage || isFetching || isError) return;
+    if (operacional || mostrandoInternos || !alvo || !hasNextPage || isFetching || isError) return;
     const observador = new IntersectionObserver(
       (entradas) => {
         if (entradas[0]?.isIntersecting) void fetchNextPage();
@@ -305,7 +333,7 @@ function ListaConversasBase({
     );
     observador.observe(alvo);
     return () => observador.disconnect();
-  }, [fetchNextPage, hasNextPage, isError, isFetching, operacional]);
+  }, [fetchNextPage, hasNextPage, isError, isFetching, mostrandoInternos, operacional]);
 
   useEffect(() => {
     onVisaoAlterada?.(visao);
@@ -329,6 +357,7 @@ function ListaConversasBase({
   }, [cartoes, leadInicialGatilho, leadInicialId, onAbrirAtendimento]);
 
   function escolherVisao(proxima: VisaoAtendimento) {
+    if (mostrandoInternos) abaInterna?.selecionar(false);
     if (painelOperacionalPermitido) {
       onFiltroOperacionalAlterado?.({ ...filtroOperacional, recorte: proxima === "TODOS" ? "EM_ABERTO" : proxima,
         ...(proxima === "FINALIZADOS" ? { sinal: "TODOS" as const } : {}) });
@@ -406,7 +435,7 @@ function ListaConversasBase({
       )
     : -1;
 
-  const botaoFiltros = (
+  const botaoFiltros = !mostrandoInternos && (
     <Button type="button" variant="outline" size="icon-sm" className="min-h-10 min-w-10"
       aria-label={textos.lista.filtros} aria-expanded={filtrosAbertos}
       disabled={etapas.length === 0 && !temFiltroDeAtendente} onClick={() => setFiltrosAbertos((abertos) => !abertos)}>
@@ -461,6 +490,12 @@ function ListaConversasBase({
               </DropdownMenuContent>
             </DropdownMenu>
   );
+
+  const classeDaAba = cn(
+    "min-w-0 shrink-0 gap-1 rounded-full border border-border px-3 py-1.5 text-[0.75rem] shadow-none after:hidden data-active:border-primary data-active:bg-primary data-active:text-primary-foreground md:rounded-none md:border-0 md:px-0.5 md:pt-1 md:pb-2.5 md:text-[0.6875rem] md:data-active:bg-transparent md:data-active:text-foreground md:data-active:after:bg-primary md:after:opacity-0 md:data-active:after:opacity-100",
+    painelOperacionalPermitido && "h-auto min-h-14 flex-col-reverse rounded-none border-0 px-0 text-[0.625rem] data-active:bg-transparent data-active:text-primary after:block group-data-horizontal/tabs:after:bottom-0 after:bg-primary",
+  );
+  const erroInternos = (mostrandoInternos || operacional?.mostrarInternos) && consultaInterna?.isError;
 
   return (
     <div data-slot="lista-conversas" className={cn("flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background", painelOperacionalPermitido && "bg-card", className)}>
@@ -521,7 +556,7 @@ function ListaConversasBase({
           />
           {layoutV2 && <kbd aria-hidden="true">/</kbd>}
         </div>
-        {filtroOperacional && <div className="mt-3 flex flex-wrap items-center gap-1 text-xs">
+        {!mostrandoInternos && filtroOperacional && <div className="mt-3 flex flex-wrap items-center gap-1 text-xs">
           {filtroOperacional.recorte && filtroOperacional.recorte !== "EM_ABERTO" && <button type="button" className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary" aria-label={catalogo.painelOperacional.remover.replace("{filtro}", ({ NOVAS: catalogo.painelOperacional.novas, ATIVOS: catalogo.painelOperacional.ativos, PENDENTES: catalogo.painelOperacional.pendentes, POTENCIAIS: catalogo.painelOperacional.potenciais, SEM_RESPOSTA: catalogo.painelOperacional.comAtraso, FINALIZADOS: catalogo.painelOperacional.finalizados })[filtroOperacional.recorte])} onClick={() => onFiltroOperacionalAlterado?.({ ...filtroOperacional, recorte: "EM_ABERTO" })}>{({ NOVAS: catalogo.painelOperacional.novas, ATIVOS: catalogo.painelOperacional.ativos, PENDENTES: catalogo.painelOperacional.pendentes, POTENCIAIS: catalogo.painelOperacional.potenciais, SEM_RESPOSTA: catalogo.painelOperacional.comAtraso, FINALIZADOS: catalogo.painelOperacional.finalizados })[filtroOperacional.recorte]}<X className="size-3" aria-hidden /></button>}
           {(filtroOperacional.atendenteId || filtroOperacional.entrada) && <button type="button" className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary" aria-label={catalogo.painelOperacional.remover.replace("{filtro}", nomeFiltroOperacional ?? catalogo.painelOperacional.entrada)} onClick={() => onFiltroOperacionalAlterado?.({ ...filtroOperacional, atendenteId: undefined, entrada: undefined })}>{nomeFiltroOperacional ?? catalogo.painelOperacional.entrada}<X className="size-3" aria-hidden /></button>}
           {filtroOperacional.sinal && filtroOperacional.sinal !== "TODOS" && <button type="button" className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary" onClick={() => onFiltroOperacionalAlterado?.({ ...filtroOperacional, sinal: "TODOS" })} aria-label={catalogo.painelOperacional.remover.replace("{filtro}", filtroOperacional.sinal === "NOVAS" ? catalogo.painelOperacional.novas : catalogo.painelOperacional.comAtraso)}>{filtroOperacional.sinal === "NOVAS" ? catalogo.painelOperacional.novas : catalogo.painelOperacional.comAtraso}<X className="size-3" aria-hidden /></button>}
@@ -542,11 +577,16 @@ function ListaConversasBase({
       </div>
 
       <Tabs
-        value={filtroOperacional ? filtroOperacional.recorte === "EM_ABERTO" ? "TODOS" : filtroOperacional.recorte : abaAtiva}
-        onValueChange={(valor) => escolherVisao(valor as VisaoAtendimento)}
+        value={mostrandoInternos ? ABA_INTERNA : abaDaFila}
+        onValueChange={(valor) => {
+          if (valor === ABA_INTERNA) abaInterna?.selecionar(true);
+          else if (mostrandoInternos && valor === abaDaFila) abaInterna?.selecionar(false);
+          else escolherVisao(valor as VisaoAtendimento);
+        }}
       >
         <TabsList
           data-slot="abas-conversas"
+          data-com-internos={abaInterna ? true : undefined}
           variant="line"
           className={cn(
             "mx-4 mt-3 flex h-auto w-[calc(100%-2rem)] justify-start gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden p-0 md:grid md:gap-1 md:overflow-x-hidden",
@@ -557,23 +597,33 @@ function ListaConversasBase({
             <TabsTrigger
               key={item}
               value={item}
-              className={cn("min-w-0 shrink-0 gap-1 rounded-full border border-border px-3 py-1.5 text-[0.75rem] shadow-none after:hidden data-active:border-primary data-active:bg-primary data-active:text-primary-foreground md:rounded-none md:border-0 md:px-0.5 md:pt-1 md:pb-2.5 md:text-[0.6875rem] md:data-active:bg-transparent md:data-active:text-foreground md:data-active:after:bg-primary md:after:opacity-0 md:data-active:after:opacity-100", painelOperacionalPermitido && "h-auto min-h-14 flex-col-reverse rounded-none border-0 px-0 text-[0.625rem] data-active:bg-transparent data-active:text-primary after:block group-data-horizontal/tabs:after:bottom-0 after:bg-primary")}
+              className={classeDaAba}
             >
               {item === "FINALIZADOS" ? catalogo.painelOperacional.finalizadosAba : textos.visoes[ROTULO_VISAO[item as VisaoDeAba]]}
               {(painelOperacionalPermitido || contagens) && (
                 <Badge
-                  variant={item === visao ? "default" : "secondary"}
-                  className={cn("shrink-0 px-1 text-[0.625rem] data-active:bg-primary-foreground/20", painelOperacionalPermitido && "bg-transparent px-0 text-sm font-bold", painelOperacionalPermitido && (item === (filtroOperacional ? filtroOperacional.recorte === "EM_ABERTO" ? "TODOS" : filtroOperacional.recorte : abaAtiva) ? "text-primary" : "text-muted-foreground"))}
+                  variant={!mostrandoInternos && item === visao ? "default" : "secondary"}
+                  className={cn("shrink-0 px-1 text-[0.625rem] data-active:bg-primary-foreground/20", painelOperacionalPermitido && "bg-transparent px-0 text-sm font-bold", painelOperacionalPermitido && (!mostrandoInternos && item === abaDaFila ? "text-primary" : "text-muted-foreground"))}
                 >
                   {painelOperacionalPermitido ? snapshotOperacional?.data ? contagensOperacionais[item] : "—" : contagens?.[item]}
                 </Badge>
               )}
             </TabsTrigger>
           ))}
+          {abaInterna && (
+            <TabsTrigger value={ABA_INTERNA} className={classeDaAba}>
+              {textos.visoes.internos}
+              <Badge variant={mostrandoInternos ? "default" : "secondary"}
+                className={cn("shrink-0 px-1 text-[0.625rem]", painelOperacionalPermitido
+                  && cn("bg-transparent px-0 text-sm font-bold", mostrandoInternos ? "text-primary" : "text-muted-foreground"))}>
+                {consultaInterna?.data?.length ?? "—"}
+              </Badge>
+            </TabsTrigger>
+          )}
         </TabsList>
       </Tabs>
 
-      {filtrosAbertos && (etapas.length > 0 || temFiltroDeAtendente) && (
+      {!mostrandoInternos && filtrosAbertos && (etapas.length > 0 || temFiltroDeAtendente) && (
         <div className="flex flex-wrap gap-2 border-b border-border px-4 py-2 text-xs">
           {etapas.length > 0 && (
             <Seletor
@@ -609,7 +659,7 @@ function ListaConversasBase({
         </div>
       )}
 
-      {!operacional && isError && (
+      {!mostrandoInternos && !operacional && isError && (
         <div className="shrink-0 border-b p-3 text-sm text-muted-foreground">
           <p role="alert">{data?.length ? textos.lista.desatualizada : textos.lista.indisponivel}</p>
           <Button type="button" variant="ghost" disabled={isFetching} onClick={() => void refetch({ cancelRefetch: false })}>
@@ -619,10 +669,30 @@ function ListaConversasBase({
       )}
       <ScrollArea className="min-h-0 flex-1 overflow-hidden" data-slot="lista-conversas-scroll">
         <div className="pt-4" data-slot="lista-conversas-itens">
-          {operacional ? <>
-            <ListaFilaOperacional compacta={layoutV2} consulta={operacional.fila} referencia={operacional.snapshot.data} selecionadoId={selecionadoId} onAbrir={onAbrirFilaOperacional ?? (() => undefined)} internos={operacional.internos} onAbrirInterno={onAbrirAtendimento} />
-            {operacional.internosErro && <div role="alert" className="p-3 text-xs"><p>{catalogo.painelOperacional.erroInternos}</p><Button variant="ghost" onClick={operacional.recarregarInternos}>{catalogo.painelOperacional.tentar}</Button></div>}
-          </> : isLoading ? (
+          {erroInternos && (
+            <div role="alert" className="p-3 text-xs">
+              <p>{catalogo.painelOperacional.erroInternos}</p>
+              <Button variant="ghost" onClick={() => void consultaInterna?.refetch()}>{catalogo.painelOperacional.tentar}</Button>
+            </div>
+          )}
+          {mostrandoInternos ? (
+            consultaInterna?.isLoading ? (
+              <div className="space-y-2 p-3"><Skeleton className="h-14 w-full" /></div>
+            ) : cartoesInternos.length > 0 ? (
+              <ul>
+                {cartoesInternos.map((cartao) => (
+                  <li key={cartao.conversaId}>
+                    <CartaoConversa cartao={cartao} selecionado={cartao.conversaId === selecionadoId}
+                      onAbrirAtendimento={() => onAbrirAtendimento(cartao)} />
+                  </li>
+                ))}
+              </ul>
+            ) : !erroInternos ? <p className="p-4 text-center text-sm text-muted-foreground">{textos.cartao.vazio}</p> : null
+          ) : operacional ? (
+            <ListaFilaOperacional compacta={layoutV2} consulta={operacional.fila} referencia={operacional.snapshot.data}
+              selecionadoId={selecionadoId} onAbrir={onAbrirFilaOperacional ?? (() => undefined)}
+              internos={operacional.mostrarInternos ? cartoesInternos : []} onAbrirInterno={onAbrirAtendimento} />
+          ) : isLoading ? (
             <div className="space-y-2 p-3">
               {Array.from({ length: 5 }).map((_, indice) => (
                 <Skeleton key={indice} className="h-14 w-full" />
@@ -656,7 +726,7 @@ function ListaConversasBase({
               </Fragment>
             ))
           )}
-          {!operacional && hasNextPage && !isError && (
+          {!mostrandoInternos && !operacional && hasNextPage && !isError && (
             <div ref={fimDaLista} className="p-3 text-center text-xs text-muted-foreground" aria-live="polite">
               {isFetchingNextPage ? textos.lista.carregandoMais : textos.lista.carregarMais}
             </div>

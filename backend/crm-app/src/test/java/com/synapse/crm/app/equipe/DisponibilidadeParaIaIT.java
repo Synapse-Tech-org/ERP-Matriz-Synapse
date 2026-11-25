@@ -8,6 +8,8 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Map;
 import java.util.UUID;
 
@@ -48,6 +50,9 @@ class DisponibilidadeParaIaIT extends PostgresIT {
 
     @Autowired
     private ObjectMapper json;
+
+    @Autowired
+    private ZoneId fuso;
 
     private UUID ana;
     private UUID bruno;
@@ -130,6 +135,70 @@ class DisponibilidadeParaIaIT extends PostgresIT {
 
         assertThat(disponiveis()).doesNotContain(ana.toString());
         assertThat(jdbc.queryForObject("SELECT disponivel_para_ia FROM disponibilidade_atendente_ia WHERE atendente_id=?", Boolean.class, ana)).isTrue();
+    }
+
+    @Test
+    void pausaDaGestaoSobreviveAOnlineDoAtendenteEAoExpirarVoltaSemRelogar() throws Exception {
+        String rota = "/api/v1/usuarios/" + ana + "/status-operacional";
+        patchComoGestor(ana, true);
+        chamarPresenca(ana, "ONLINE");
+        try {
+            var pausa = chamar(EMAIL_GESTOR, SENHA_GESTOR, rota, ajuste("PAUSA"));
+            assertThat(pausa.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(json.readTree(pausa.getBody()).at("/presenca/statusEfetivo").asText()).isEqualTo("PAUSA");
+            assertThat(json.readTree(pausa.getBody()).at("/presenca/motivoRodizio").asText()).isEqualTo("EM_PAUSA");
+            assertThat(disponiveis()).doesNotContain(ana.toString());
+            assertThat(chamarPresenca(ana, "OFFLINE").getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(chamarPresenca(ana, "ONLINE").getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(disponiveis()).doesNotContain(ana.toString());
+            assertThat(jdbc.queryForMap(
+                    "SELECT autor_id, estado_anterior, estado_novo FROM presenca_gestao_historico WHERE usuario_id=?", ana))
+                    .containsEntry("autor_id", gestor).containsEntry("estado_anterior", "ONLINE").containsEntry("estado_novo", "PAUSA");
+            jdbc.update("UPDATE usuario SET presenca_gestao_ate = now() - interval '1 second' WHERE id=?", ana);
+            var depois = chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET, rota, null);
+            assertThat(json.readTree(depois.getBody()).at("/presenca/statusEfetivo").asText()).isEqualTo("ONLINE");
+            assertThat(disponiveis()).contains(ana.toString());
+        } finally {
+            limparAjuste();
+        }
+    }
+
+    @Test
+    void onlineOperacionalNaoTornaAtendenteOfflineElegivel() throws Exception {
+        String rota = "/api/v1/usuarios/" + ana + "/status-operacional";
+        patchComoGestor(ana, true);
+        try {
+            var resposta = chamar(EMAIL_GESTOR, SENHA_GESTOR, rota, ajuste("ONLINE"));
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            var corpo = json.readTree(resposta.getBody());
+            assertThat(corpo.at("/presenca/statusEfetivo").asText()).isEqualTo("ONLINE");
+            assertThat(corpo.at("/presenca/presencaNoCrm").asText()).isEqualTo("OFFLINE");
+            assertThat(corpo.at("/presenca/motivoRodizio").asText()).isEqualTo("SEM_PRESENCA_ONLINE");
+            assertThat(disponiveis()).doesNotContain(ana.toString());
+        } finally {
+            limparAjuste();
+        }
+    }
+
+    @Test
+    void ajusteRecusaAtendenteEVencimentoPassadoSemAuditarMudanca() {
+        String rota = "/api/v1/usuarios/" + ana + "/status-operacional";
+        assertThat(chamar(EMAIL_ANA, SENHA_ATENDENTE, rota, ajuste("PAUSA")).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chamar(EMAIL_GESTOR, SENHA_GESTOR, rota,
+                Map.of("status", "PAUSA", "validoAte", LocalDateTime.now(fuso).minusHours(1).toString())).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM presenca_gestao_historico WHERE usuario_id=?", Integer.class, ana))
+                .isZero();
+    }
+
+    private Map<String, String> ajuste(String status) {
+        return Map.of("status", status, "validoAte", LocalDateTime.now(fuso).plusHours(1).toString());
+    }
+
+    private void limparAjuste() {
+        jdbc.update("UPDATE usuario SET presenca_gestao = NULL, presenca_gestao_ate = NULL WHERE id=?", ana);
+        jdbc.update("DELETE FROM presenca_gestao_historico WHERE usuario_id=?", ana);
     }
 
     @Test

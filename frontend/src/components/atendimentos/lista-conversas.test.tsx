@@ -1,10 +1,18 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/atendimento/painel-operacional", async (original) => ({
   ...(await original<typeof import("@/lib/atendimento/painel-operacional")>()),
   useFilaOperacional: () => ({}),
   useSnapshotOperacional: () => ({}),
+}));
+
+vi.mock("@/lib/chat-interno/api", () => ({
+  listarConversasChat: async () => [{
+    id: "conversa-1", tipo: "GRUPO", participantes: "Equipe comercial",
+    ultimaMensagem: "Vamos revisar a proposta", ultimaMensagemEm: "2026-08-16T12:45:00Z", naoLidas: 2,
+  }],
 }));
 
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
@@ -174,6 +182,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         ativos: "Ativos",
         pendentes: "Pendentes",
         potenciais: "Potenciais",
+        internos: "Interno",
       },
       filtros: { etapa: "Etapa", atendente: "Atendente" },
       finalizar: {
@@ -470,6 +479,33 @@ describe("ListaConversas", () => {
     expect(screen.getByRole("button", { name: /Ana Vidros/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Equipe comercial/ }));
     expect(abrir).toHaveBeenCalledWith(cartoes[2]);
+  });
+
+  it("no V2 sem painel, Interno é exclusivo e voltar a Ativos recupera a lista mista", async () => {
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const abrir = vi.fn();
+    render(
+      <QueryClientProvider client={cache}>
+        <ListaConversas selecionadoId={null} onAbrirAtendimento={abrir}
+          chatInternoHabilitado abaInternoHabilitada layoutV2 />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /Ativos/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Interno/ }));
+    expect(screen.queryByRole("button", { name: /Ana Vidros/ })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: /Equipe comercial/ }));
+    expect(abrir).toHaveBeenCalledWith(expect.objectContaining({ tipo: "EQUIPE_INTERNA", conversaId: "conversa-1" }));
+
+    fireEvent.click(screen.getByRole("tab", { name: /Ativos/ }));
+    expect(screen.getByRole("button", { name: /Ana Vidros/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Equipe comercial/ })).toHaveLength(1);
+  });
+
+  it.each([[false, true], [true, false]])("não oferece Interno sem as duas condições: V2=%s, chat=%s", (layoutV2, chatInternoHabilitado) => {
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()}
+      abaInternoHabilitada layoutV2={layoutV2} chatInternoHabilitado={chatInternoHabilitado} />);
+    expect(screen.queryByRole("tab", { name: /Interno/ })).not.toBeInTheDocument();
   });
 
   it("seleciona conversa interna pelo tipo e conversaId", () => {
