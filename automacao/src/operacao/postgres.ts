@@ -135,11 +135,11 @@ export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
     // Ambos os filtros sao parametrizados e usados no total e na pagina.
     if (filtro.status) {
       values.push(filtro.status);
-      condicoes.push(`e.status=${values.length}`);
+      condicoes.push(`e.status=$${values.length}`);
     }
     if (filtro.fluxoId) {
       values.push(filtro.fluxoId);
-      condicoes.push(`e."fluxoId"=${values.length}`);
+      condicoes.push(`e."fluxoId"=$${values.length}`);
     }
     const where = condicoes.length ? " WHERE " + condicoes.join(" AND ") : "";
     const count = await this.pool.query<{ total: string }>(
