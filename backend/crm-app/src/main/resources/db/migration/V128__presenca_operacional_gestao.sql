@@ -20,3 +20,8 @@ CREATE TABLE presenca_gestao_historico (
 
 CREATE INDEX idx_presenca_gestao_historico_usuario ON presenca_gestao_historico (usuario_id, registrado_em DESC);
 CREATE INDEX idx_presenca_gestao_historico_autor ON presenca_gestao_historico (autor_id);
+
+-- A view da V107 identifica ambas as FKs. Novas tabelas operacionais precisam do guard da V107 explicitamente.
+CREATE TRIGGER impedir_vinculo_conta_teste
+    BEFORE INSERT OR UPDATE OF usuario_id, autor_id ON presenca_gestao_historico
+    FOR EACH ROW EXECUTE FUNCTION app_impedir_vinculo_conta_teste('usuario_id', 'autor_id');
