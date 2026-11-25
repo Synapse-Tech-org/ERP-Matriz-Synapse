@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ShieldCheck, UserPlus, UserRoundCog, Users } from "lucide-react";
+import { Settings2, ShieldCheck, UserPlus, UserRoundCog, Users } from "lucide-react";
 
 import { CabecalhoListaV2 } from "@/components/shell/cabecalho-lista-v2";
 import { Button } from "@/components/ui/button";
@@ -16,17 +16,22 @@ import { FLAG_EXCECOES, type MinhasPermissoes, type Papel } from "@/lib/gestao/t
 import { useMinhasPermissoes, usePerfis, usePermissoesDaEquipe } from "@/lib/gestao/use-gestao";
 
 import visual from "./gestao-v2.module.css";
+import { AbaConfiguracoesGerais } from "./aba-configuracoes-gerais";
 import { AbaEquipe } from "./aba-equipe";
 import { AbaExcecoes } from "./aba-excecoes";
 import { AbaPermissoes } from "./aba-permissoes";
 import { pode, useConfirmacaoDeDescarte, type TextosGestao } from "./apoio";
 
-type Aba = "equipe" | "permissoes" | "excecoes";
-const ABAS: readonly Aba[] = ["equipe", "permissoes", "excecoes"];
+type Aba = "equipe" | "permissoes" | "excecoes" | "geral";
+const ABAS: readonly Aba[] = ["equipe", "permissoes", "excecoes", "geral"];
 
-/** Aba pedida na URL; Exceções desligada ("Em breve") não abre nem por link direto. */
-function normalizarAba(valor: string | null, excecoesHabilitadas: boolean): Aba {
+/**
+ * Aba pedida na URL; Exceções desligada ("Em breve") não abre nem por link direto, e Configurações
+ * gerais só abre para quem pode ver os parâmetros (`automacao.ver`, a mesma regra do backend).
+ */
+function normalizarAba(valor: string | null, excecoesHabilitadas: boolean, geralVisivel: boolean): Aba {
   if (valor === "excecoes" && !excecoesHabilitadas) return "equipe";
+  if (valor === "geral" && !geralVisivel) return "equipe";
   return ABAS.includes(valor as Aba) ? (valor as Aba) : "equipe";
 }
 
@@ -71,7 +76,8 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
   const funcionalidades = useFuncionalidadesHabilitadas();
   const layoutV2 = funcionalidades.data?.includes("gestao_layout_v2") === true;
   const excecoesHabilitadas = funcionalidades.data?.includes(FLAG_EXCECOES) === true;
-  const aba = normalizarAba(parametros.get("aba"), excecoesHabilitadas);
+  const geralVisivel = pode(minhas, "automacao.ver");
+  const aba = normalizarAba(parametros.get("aba"), excecoesHabilitadas, geralVisivel);
   const perfilDaUrl = parametros.get("perfil") as Papel | null;
   const usuarioDaUrl = parametros.get("usuario");
   const [sujo, setSujo] = useState(false);
@@ -95,13 +101,15 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
     equipe: equipe.data ? ativos : undefined,
     permissoes: perfis.data?.length,
     excecoes: permissoes.data ? comExcecoes : undefined,
+    geral: undefined,
   };
-  const icones = { equipe: Users, permissoes: ShieldCheck, excecoes: UserRoundCog } as const;
+  const icones = { equipe: Users, permissoes: ShieldCheck, excecoes: UserRoundCog, geral: Settings2 } as const;
+  const abaVisivel = (item: Aba) => (item !== "geral" || geralVisivel) && (!layoutV2 || item !== "excecoes" || aba === "excecoes");
 
   const abas = (
-    <Tabs value={aba} onValueChange={(valor) => navegar(normalizarAba(String(valor), excecoesHabilitadas))} className={layoutV2 ? visual.abas : "mt-4"}>
+    <Tabs value={aba} onValueChange={(valor) => navegar(normalizarAba(String(valor), excecoesHabilitadas, geralVisivel))} className={layoutV2 ? visual.abas : "mt-4"}>
           <TabsList variant={layoutV2 ? "default" : "line"} aria-label={textos.abas.rotulo} className="h-auto max-w-full justify-start gap-4 overflow-x-auto p-0">
-            {ABAS.filter((item) => !layoutV2 || item !== "excecoes" || aba === "excecoes").map((a) => {
+            {ABAS.filter(abaVisivel).map((a) => {
               const Icone = icones[a];
               const emBreve = a === "excecoes" && !excecoesHabilitadas;
               return (
@@ -112,7 +120,7 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
                     <span className="rounded-md bg-muted px-1.5 py-px text-[10px] font-bold text-muted-foreground">
                       {textos.abas.emBreve}
                     </span>
-                  ) : layoutV2 && a === "permissoes" ? (
+                  ) : layoutV2 && (a === "permissoes" || a === "geral") ? (
                     <span className={visual.beta}>{textos.v2.beta}</span>
                   ) : contadores[a] != null && (
                     <span className="rounded-md bg-muted px-1.5 py-px text-[10px] font-bold text-muted-foreground tabular-nums">
@@ -140,7 +148,7 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
                 {selo(textos, minhas)}
               </span>
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">{layoutV2 && aba !== "excecoes" ? (aba === "equipe" ? textos.v2.equipeDescricao : textos.v2.perfisDescricao) : textos.descricoes[aba]}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{layoutV2 && (aba === "equipe" || aba === "permissoes") ? (aba === "equipe" ? textos.v2.equipeDescricao : textos.v2.perfisDescricao) : textos.descricoes[aba]}</p>
           </div>
           {layoutV2 && abas}
           {aba === "equipe" && pode(minhas, "equipe.criar") && (
@@ -178,6 +186,7 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
         {aba === "excecoes" && (
           <AbaExcecoes key={usuarioDaUrl ?? "padrao"} textos={textos} minhas={minhas} usuarioInicial={usuarioDaUrl ?? undefined} onSujoChange={setSujo} />
         )}
+        {aba === "geral" && <AbaConfiguracoesGerais textos={textos} editavel={pode(minhas, "automacao.editar_parametros")} />}
       </main>
       {confirmacao.dialogo}
     </div>

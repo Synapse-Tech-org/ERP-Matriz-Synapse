@@ -330,6 +330,7 @@ describe("useEnviarMensagem", () => {
         receber = callback;
       }),
       fecharConversa: vi.fn(),
+      adicionarOuvinteDeNotificacao: () => () => undefined,
     } as unknown as ConexaoTempoReal;
     const { result, rerender } = renderHook(
       ({ liberado }: { liberado: boolean }) => useMensagens(

@@ -2,6 +2,7 @@ package com.synapse.crm.app.saude.infrastructure;
 
 import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -20,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.app.config.SynapseProperties;
+import com.synapse.crm.app.saude.application.ExpedienteDaInstancia;
 import com.synapse.crm.app.saude.application.HorarioComercialDoCliente;
 import com.synapse.crm.automacaoconfig.application.ConfiguracaoAutomacaoRepositorio;
 
@@ -31,11 +33,15 @@ import com.synapse.crm.automacaoconfig.application.ConfiguracaoAutomacaoReposito
  * {@code HH:mm-HH:mm} (início inclusivo, fim exclusivo) ou {@code fechado} (nunca avisa o cliente naquele dia).
  * Chave ausente = o dia usa a janela padrão, exatamente como antes. Valor ilegível também cai na janela padrão
  * (e avisa no log): errar para o lado de avisar é melhor do que silenciar um alerta crítico por um erro de digitação.
+ * O valor {@code padrao} diz explicitamente "este dia usa a janela padrão" — é o que a aba Configurações gerais
+ * grava, porque o CRUD só edita linhas que já existem e não apaga chave.
+ *
+ * <p>A mesma janela define o fim do expediente usado pela finalização diária de atendimentos.
  *
  * <p>O dia da semana e a hora são os do fuso da instância ({@code synapse.tenant.timezone}), nunca os do UTC.
  */
 @Component
-class HorarioComercialConfiguravel implements HorarioComercialDoCliente {
+class HorarioComercialConfiguravel implements HorarioComercialDoCliente, ExpedienteDaInstancia {
 
     static final String CHAVE_INICIO = "alerta.horario_cliente.inicio";
     static final String CHAVE_FIM = "alerta.horario_cliente.fim";
@@ -44,6 +50,7 @@ class HorarioComercialConfiguravel implements HorarioComercialDoCliente {
     private static final Logger log = LoggerFactory.getLogger(HorarioComercialConfiguravel.class);
     private static final Pattern FAIXA = Pattern.compile("^(\\d{2}:\\d{2})-(\\d{2}:\\d{2})$");
     private static final String FECHADO = "fechado";
+    static final String PADRAO = "padrao";
 
     private static final Map<DayOfWeek, String> SIGLA_DO_DIA = new EnumMap<>(Map.of(
             DayOfWeek.MONDAY, "seg",
@@ -101,7 +108,7 @@ class HorarioComercialConfiguravel implements HorarioComercialDoCliente {
     private void atualizarDia(DayOfWeek dia) {
         String chave = PREFIXO_DIA + SIGLA_DO_DIA.get(dia);
         Optional<String> valor = configuracoes.porChave(chave).map(c -> c.valor());
-        if (valor.isEmpty()) {
+        if (valor.isEmpty() || ehPadrao(valor.get())) {
             ultimaJanelaPorDia.remove(dia);
             return;
         }
@@ -112,6 +119,42 @@ class HorarioComercialConfiguravel implements HorarioComercialDoCliente {
             ultimaJanelaPorDia.remove(dia);
             log.warn("Valor ilegivel em {}; o dia usa a janela padrao. Esperado HH:mm-HH:mm ou fechado.", chave);
         }
+    }
+
+    /**
+     * Lê direto do banco, sem o cache do alerta: quem pergunta é um job que roda a cada minuto e prefere
+     * não agir a agir com um horário antigo. Erro de leitura sobe para quem chamou decidir.
+     */
+    @Override
+    public Optional<LocalTime> fimDoExpediente(LocalDate dia) {
+        String chaveDoDia = PREFIXO_DIA + SIGLA_DO_DIA.get(dia.getDayOfWeek());
+        Optional<String> doDia = configuracoes.porChave(chaveDoDia).map(c -> c.valor()).filter(v -> !ehPadrao(v));
+        if (doDia.isPresent()) {
+            Optional<Optional<Janela>> lida = interpretar(doDia.get());
+            if (lida.isPresent()) {
+                return lida.get().map(Janela::fim);
+            }
+            log.warn("Valor ilegivel em {}; o dia usa a janela padrao. Esperado HH:mm-HH:mm, fechado ou padrao.", chaveDoDia);
+        }
+        return janelaPadrao().map(Janela::fim);
+    }
+
+    private Optional<Janela> janelaPadrao() {
+        Optional<String> inicio = configuracoes.porChave(CHAVE_INICIO).map(c -> c.valor());
+        Optional<String> fim = configuracoes.porChave(CHAVE_FIM).map(c -> c.valor());
+        if (inicio.isEmpty() || fim.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(new Janela(LocalTime.parse(inicio.get().strip()), LocalTime.parse(fim.get().strip())));
+        } catch (DateTimeParseException | IllegalArgumentException e) {
+            log.warn("Janela padrao ilegivel em {} e {}; sem fim de expediente.", CHAVE_INICIO, CHAVE_FIM);
+            return Optional.empty();
+        }
+    }
+
+    private static boolean ehPadrao(String valor) {
+        return PADRAO.equals(valor.strip().toLowerCase(Locale.ROOT));
     }
 
     /** Vazio = ilegível; {@code Optional.of(Optional.empty())} = fechado; senão, a janela do dia. */

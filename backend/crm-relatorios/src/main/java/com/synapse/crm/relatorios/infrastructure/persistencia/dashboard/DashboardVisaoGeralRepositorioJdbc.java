@@ -18,6 +18,7 @@ import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.synapse.crm.relatorios.application.dashboard.ConfiguracaoClientesDoSite;
 import com.synapse.crm.relatorios.application.dashboard.DashboardVisaoGeralRepositorio;
 import com.synapse.crm.relatorios.application.vendas.AgregacaoDeVendasRepositorio;
 import com.synapse.crm.relatorios.domain.IntervaloTemporal;
@@ -34,11 +35,13 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
 
     private final JdbcTemplate jdbc;
     private final AgregacaoDeVendasRepositorio vendas;
+    private final ConfiguracaoClientesDoSite clientesDoSite;
 
     DashboardVisaoGeralRepositorioJdbc(
-            JdbcTemplate jdbc, AgregacaoDeVendasRepositorio vendas) {
+            JdbcTemplate jdbc, AgregacaoDeVendasRepositorio vendas, ConfiguracaoClientesDoSite clientesDoSite) {
         this.jdbc = jdbc;
         this.vendas = vendas;
+        this.clientesDoSite = clientesDoSite;
     }
 
     @Override
@@ -166,7 +169,39 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                         avaliacaoAtual.nps(),
                         avaliacaoAtual.respostasNps(),
                         Comparativo.pontos(avaliacaoComparada.nps(), avaliacaoAnterior.nps())),
-                leadsMensais.parados());
+                leadsMensais.parados(),
+                clientesDoSite.padrao() == null ? null : contarClientesDoSite(filtro, clientesDoSite.padrao()));
+    }
+
+    private long contarClientesDoSite(FiltroTemporalDashboard filtro, String padrao) {
+        FiltroSql temporal = periodos("m.enviado_em", filtro.periodoAtual());
+        List<Object> parametros = new ArrayList<>(temporal.parametros());
+        String clausula = temporal.clausula();
+        if (filtro.periodoDeOriginacao() != null) {
+            FiltroSql coorte = intervalo("l.criado_em", filtro.periodoDeOriginacao());
+            clausula = "(" + clausula + ") AND " + coorte.clausula();
+            parametros.addAll(coorte.parametros());
+        }
+        parametros.add(padrao);
+        // Começa pelas candidatas do período e usa o índice por atendimento/instante
+        // para excluir mensagens que não são a primeira do lead (inclusive de outro mês).
+        return jdbc.queryForObject("""
+                SELECT count(DISTINCT l.id)
+                  FROM mensagem m
+                  JOIN atendimento a ON a.id = m.atendimento_id
+                  JOIN lead l ON l.id = a.lead_id
+                  JOIN canal c ON c.id = a.canal_id AND c.tipo = 'WHATSAPP'
+                 WHERE (%s)
+                   AND m.remetente_tipo = 'LEAD' AND m.tipo = 'TEXTO'
+                   AND m.conteudo ~* ?
+                   AND NOT EXISTS (
+                       SELECT 1 FROM mensagem anterior
+                        WHERE anterior.atendimento_id = m.atendimento_id
+                          AND anterior.remetente_tipo = 'LEAD'
+                          AND anterior.enviado_em <= m.enviado_em
+                          AND (anterior.enviado_em, anterior.id) < (m.enviado_em, m.id)
+                   )
+                """.formatted(clausula), Long.class, parametros.toArray());
     }
 
     private VisaoGeralDashboard.ResultadosComerciais resultadosComerciais(FiltroTemporalDashboard filtro) {

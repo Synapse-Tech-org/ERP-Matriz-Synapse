@@ -93,3 +93,58 @@ medição de cardinalidade representativa ou `EXPLAIN (ANALYZE, BUFFERS)` em bas
 equivalente à operação foi obtida. Portanto, a paridade P1 permanece em draft e não
 está autorizada para deploy com base somente nesses números. Não foi proposto índice
 nem migration sem evidência de plano e impacto na escrita.
+## Clientes vindos do site
+
+O mesmo `GET /api/v1/dashboard/visao-geral` devolve `clientesVindosDoSite`:
+`null` sem configuração ativa, número (inclusive zero) quando ativo. Não há
+endpoint novo nem mudança nas permissões do Dashboard ou no RLS. O campo
+indica mensagens compatíveis com a origem do site; não indica visita, clique
+ou uma origem comprovada fora do WhatsApp.
+
+O indicador conta leads distintos, pela data da primeira mensagem do lead em
+cada atendimento associado a um canal WhatsApp, inclusive ciclos históricos.
+Se a primeira mensagem tiver sido uma mídia ou outro texto, a frase posterior
+não conta. Mensagens de atendentes, IA e sistema não interferem na ordem das
+mensagens recebidas. Empates no instante usam o ID para desempate determinístico.
+A comparação ignora caixa e espaços repetidos, incluindo tabulações e quebras
+de linha; acentos, pontuação e restante do texto precisam corresponder. O recorte
+usa os mesmos intervalos e fuso do Dashboard; caso o filtro de originação
+esteja preenchido, também aplica a coorte de criação do lead.
+
+**Dokploy — ação da operação somente na Estrutural:** ao publicar uma imagem
+com esta alteração, configurar no ambiente da stack:
+
+```dotenv
+DASHBOARD_CLIENTES_DO_SITE_HABILITADO=true
+DASHBOARD_CLIENTES_DO_SITE_FRASE="Olá. Vim pelo site e Quero solicitar um orçamento."
+```
+
+O valor efetivo da frase não deve conter aspas tipográficas nem aspas literais.
+Demais instâncias não precisam mudar configuração; flag desligada ou frase
+vazia oculta o card e não executa sua consulta. A consulta adicional é só da
+leitura fria, compartilhada pelo cache já existente; a frase também separa
+as chaves do cache. Não há migration, reprocessamento ou alteração no caminho
+de envio/recebimento. Para desabilitar, voltar a flag a `false` na instância.
+
+Em PostgreSQL 15 local, o `EXPLAIN (ANALYZE, BUFFERS)` da instrução anual
+executada pelo endpoint, com RLS de gestor, usou 6.000 leads, 12.000
+atendimentos e 576.000 mensagens sintéticas distribuídas ao longo do ano.
+Das 200 mensagens iniciais compatíveis, resultaram 100 leads únicos. A
+versão inicial, que normalizava cada texto, levou 843 ms. O padrão literal
+ancorado levou 287 ms (12.132 acessos a buffers já em cache), com varredura
+na partição de teste e 200 sondagens indexadas por atendimento/instante
+para confirmar a primeira mensagem. Não é estimativa de latência em
+produção: o resultado é para o SQL isolado, em cache de páginas quente, com
+todo o ano de teste armazenado em `mensagem_default`. Não foi necessário
+criar índice.
+
+O plano pode ser repetido em PostgreSQL descartável (Java 21 e Docker). Rode
+somente o benchmark abaixo, fora da suíte normal: a massa sintética altera
+estatísticas e é descartada no fim da JVM, junto com o banco de teste.
+
+```sh
+cd backend
+./mvnw -pl crm-app -am verify \
+  '-Dit.test=DashboardClientesDoSiteIT#planoComVolumeRepresentativo' \
+  -Dfailsafe.failIfNoSpecifiedTests=false -Dsynapse.dashboard.benchmark-site=true
+```

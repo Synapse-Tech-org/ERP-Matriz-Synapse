@@ -2280,6 +2280,10 @@
     }
   },
   "dashboard": {
+    "v2": {
+      "clientesVindosDoSite": "Clientes vindos do site",
+      "clientesVindosDoSiteApoio": "Leads únicos pela primeira mensagem no WhatsApp"
+    },
     "titulo": "Dashboard",
     "descricao": "Panorama executivo do atendimento, comercial e automação.",
     "carregando": "Carregando indicadores...",
@@ -3099,14 +3103,86 @@
     "descricoes": {
       "equipe": "Pessoas, funções e presença da equipe",
       "permissoes": "Defina o que cada perfil pode ver e fazer em cada módulo do CRM",
-      "excecoes": "Ajustes individuais por cima do perfil · valem só para a pessoa selecionada"
+      "excecoes": "Ajustes individuais por cima do perfil · valem só para a pessoa selecionada",
+      "geral": "Regras de funcionamento que valem para toda a instância"
     },
     "abas": {
       "equipe": "Equipe",
       "permissoes": "Permissões",
       "excecoes": "Exceções por usuário",
+      "geral": "Configurações gerais",
       "rotulo": "Áreas da Gestão",
       "emBreve": "Em breve"
+    },
+    "configuracoesGerais": {
+      "somenteLeitura": "Seu perfil pode consultar estas configurações, mas não alterá-las.",
+      "erro": "Não foi possível carregar as configurações.",
+      "salvar": "Salvar",
+      "salvando": "Salvando…",
+      "erroSalvar": "Não foi possível salvar. Tente de novo.",
+      "erroFaixa": "Use um valor entre {min} e {max}.",
+      "secoes": {
+        "atendimentos": "Atendimentos",
+        "expediente": "Horário de funcionamento",
+        "avaliacao": "Avaliação do atendimento"
+      },
+      "fimExpediente": {
+        "titulo": "Finalizar atendimentos no fim do expediente",
+        "descricao": "Todos os dias, encerra os atendimentos sem mensagens desde o horário escolhido. Não envia pesquisa de avaliação e não mexe nos atendimentos que estão com a IA.",
+        "quando": "Quando finalizar",
+        "usarExpediente": "No fim do expediente de cada dia",
+        "horarioFixo": "Em um horário fixo",
+        "horario": "Horário"
+      },
+      "inativos": {
+        "titulo": "Finalizar atendimentos parados",
+        "descricao": "Encerra o atendimento humano que ficou sem mensagens por mais tempo que o limite.",
+        "limite": "Parado há mais de"
+      },
+      "semResposta": {
+        "titulo": "Atraso sem resposta",
+        "descricao": "Tempo sem resposta ao cliente até o atendimento aparecer como atrasado."
+      },
+      "presenca": {
+        "titulo": "Presença automática",
+        "descricao": "Marca o atendente como online ao entrar no CRM e offline depois de um tempo sem conexão. Desligada, a presença muda só pelo clique."
+      },
+      "audio": {
+        "titulo": "Duração máxima do áudio",
+        "descricao": "Limite de cada áudio gravado no chat."
+      },
+      "expediente": {
+        "descricao": "Define o fim do expediente usado na finalização diária e a janela em que o alerta de saúde avisa o cliente.",
+        "padrao": "Expediente padrão",
+        "inicio": "Início",
+        "fim": "Fim",
+        "porDia": "Por dia da semana",
+        "igualAoPadrao": "Igual ao padrão",
+        "fechado": "Fechado",
+        "proprio": "Horário próprio",
+        "erroFaixa": "O fim precisa ser depois do início.",
+        "dias": {
+          "seg": "Segunda",
+          "ter": "Terça",
+          "qua": "Quarta",
+          "qui": "Quinta",
+          "sex": "Sexta",
+          "sab": "Sábado",
+          "dom": "Domingo"
+        }
+      },
+      "avaliacao": {
+        "titulo": "Pesquisa de avaliação",
+        "descricao": "Envia a pesquisa ao cliente quando o atendimento é finalizado por um atendente.",
+        "nps": "Pergunta de recomendação (NPS)",
+        "npsDescricao": "Inclui na pesquisa a pergunta de 0 a 10.",
+        "npsPergunta": "Texto da pergunta"
+      },
+      "unidades": {
+        "minutos": "minutos",
+        "horas": "horas",
+        "segundos": "segundos"
+      }
     },
     "carregando": "Carregando…",
     "erro": "Não foi possível carregar a Gestão.",

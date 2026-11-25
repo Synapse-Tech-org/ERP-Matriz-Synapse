@@ -11,6 +11,7 @@ export interface VisaoGeralDashboard {
   novosLeads: { noPeriodo: number; comparativo: Comparativo | null };
   nps?: { valor: number | null; respostas: number; comparativo: Comparativo | null };
   leadsParados?: number;
+  clientesVindosDoSite?: number | null;
   tempoMedioAtendimento: { segundos: number | null; comparativo: Comparativo | null };
   avaliacaoMedia: {
     media: number | null;

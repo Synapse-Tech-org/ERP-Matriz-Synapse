@@ -980,7 +980,7 @@
   box-shadow: var(--sombra-primaria);
 }
 
-/* Com a aba "Interno" são seis abas na faixa de 326px: cada uma ocupa o que o rótulo pede. */
+/* A aba opcional Interno divide a faixa de navegação com as visões de clientes. */
 .pagina :global([data-slot="abas-conversas"][data-com-internos]) :global([data-slot="tabs-trigger"]) {
   flex: 1 1 auto;
   padding-inline: 3px;

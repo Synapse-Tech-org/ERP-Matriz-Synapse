@@ -140,6 +140,33 @@ public class FinalizarAtendimentoUseCase {
     }
 
     /**
+     * Finalização diária no fim do expediente (aba Configurações gerais da Gestão).
+     *
+     * <p>Mesmas travas do job de inatividade, refeitas sob lock: só {@code EM_ATENDIMENTO} (quem está com
+     * a IA segue na fila de Potenciais), nunca negociação sem resultado escolhido, e quem falou depois do
+     * horário de corte continua aberto. Diferente da Automação, <b>não</b> enfileira pesquisa de avaliação:
+     * o encerramento é do relógio, não do atendente, e dispararia a pesquisa para todos os clientes juntos.
+     */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(
+            transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
+            noRollbackFor = {
+                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class,
+                ResultadoVendaObrigatorioException.class
+            })
+    public java.util.Optional<Atendimento> executarNoFimDoExpediente(UUID atendimentoId, Instant corte) {
+        Atendimento aberto = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
+        if (aberto.status() != StatusAtendimento.EM_ATENDIMENTO || aberto.emNegociacao()) {
+            return java.util.Optional.empty();
+        }
+        Instant ultimaInteracao = atendimentos.ultimaMensagemEm(atendimentoId).orElse(aberto.iniciadoEm());
+        if (!ultimaInteracao.isBefore(corte)) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.of(finalizar(aberto, null, Origem.FIM_DO_EXPEDIENTE));
+    }
+
+    /**
      * Finaliza um item da finalizacao em massa. O escopo foi congelado e autorizado no pedido, sob a RLS de
      * quem pediu; aqui so se confirma, sob lock, que nada mudou desde entao: o atendimento segue aberto, e do
      * mesmo atendente (quem seria avisado), e a ultima atividade continua dentro do periodo (uma mensagem
@@ -241,7 +268,7 @@ public class FinalizarAtendimentoUseCase {
             avaliacao.preparar(finalizado);
         }
 
-        if (origem == Origem.AUTOMACAO) {
+        if (origem == Origem.AUTOMACAO || origem == Origem.FIM_DO_EXPEDIENTE) {
             eventos.publishEvent(new EventoDeAtendimento.AtendimentoFinalizadoPelaAutomacao(
                     aberto.leadId(), aberto.id(), agora));
         } else {
@@ -268,5 +295,5 @@ public class FinalizarAtendimentoUseCase {
         }
     }
 
-    private enum Origem { INDIVIDUAL, LOTE, AUTOMACAO }
+    private enum Origem { INDIVIDUAL, LOTE, AUTOMACAO, FIM_DO_EXPEDIENTE }
 }

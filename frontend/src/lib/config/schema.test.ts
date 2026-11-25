@@ -129,6 +129,8 @@ describe("TextosSchema", () => {
           transferencias: "Transf. IA → humano",
           leadsParados: "Leads parados +2 meses",
           leadsParadosApoio: "Etapas abertas sem interação há mais de dois meses",
+          clientesVindosDoSite: "Clientes vindos do site",
+          clientesVindosDoSiteApoio: "Leads únicos pela primeira mensagem no WhatsApp",
           aguardandoResposta: "Aguardando 1ª resposta",
           esquecidos: "Esquecidos +1 hora",
           indisponivel: "Métrica indisponível",
