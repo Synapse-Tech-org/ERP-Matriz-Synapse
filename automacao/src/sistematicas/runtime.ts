@@ -39,7 +39,8 @@ export class RuntimeSistematicas {
     await this.fila.start();
     await this.fila.createQueue("sistematicas-hora", { policy: "singleton", retryLimit: 0, expireInSeconds: 3600 });
     await this.fila.work("sistematicas-hora", { localConcurrency: 1 }, async () => this.rodada.executar());
-    await this.fila.schedule("sistematicas-hora", "0 * * * *");
+    // Atualiza o mesmo agendamento persistido, sem criar uma segunda rotina.
+    await this.fila.schedule("sistematicas-hora", "*/20 * * * *");
   }
   async fechar() {
     try { await this.fila.stop({ graceful: true, timeout: 60000 }); }

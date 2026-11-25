@@ -2,6 +2,24 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { calendario, dentroDoExpediente, fidelizacao, lerPolitica, personalizar, type Lead } from "../src/sistematicas/regras.js";
 import { criarCanal, publicoDeTeste } from "../src/sistematicas/canal.js";
+import { RuntimeSistematicas } from "../src/sistematicas/runtime.js";
+
+test("inicializacao atualiza a mesma fila para vinte minutos sem executar rodada", async () => {
+  const agendamentos: string[][] = [];
+  const filas: string[] = [];
+  // Exercita o metodo real sem abrir banco, iniciar cron ou chamar WhatsApp.
+  const runtime: RuntimeSistematicas = Object.assign(Object.create(RuntimeSistematicas.prototype), {
+    fila: {
+      async start() {},
+      async createQueue(nome: string) { filas.push(nome); },
+      async work() {},
+      async schedule(nome: string, cron: string) { agendamentos.push([nome, cron]); },
+    },
+  });
+  await runtime.iniciar();
+  assert.deepEqual(filas, ["sistematicas-hora"]);
+  assert.deepEqual(agendamentos, [["sistematicas-hora", "*/20 * * * *"]]);
+});
 
 const agora = new Date("2026-11-23T12:00:00Z");
 const padrao = lerPolitica(new Map());

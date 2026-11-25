@@ -16,6 +16,13 @@ O executor le parametros de GET /internal/v1/automation-config a cada rodada. Ch
 
 Por padrao o executor nao inicia. Somente o servico automacao precisa receber AUTOMACAO_HABILITADA=true, AUTOMACAO_SISTEMATICAS_HABILITADAS=true e AUTOMACAO_NUMEROS_TESTE (lista de numeros internacionais completos separados por virgulas, sem '+' nem pontuacao). Mantem as configuracoes existentes do banco tecnico, CRM e canal. O fuso vem de SYNAPSE_TIMEZONE ou TZ. Nao alterar WHATSAPP_RESTRICAO_NUMEROS_HABILITADA: ela afeta webhooks do CRM. AUTOMACAO_RESTRICAO_NUMEROS_HABILITADA e true por padrao; false libera os candidatos elegiveis de ambos os modulos. Lista vazia com restricao ligada bloqueia todos. A Stack repassa essas envs ao container. Na aba Environment da homologacao, adicione as chaves ausentes ou edite seus valores, sem duplicar linhas.
 
-Hora cheia: carregar configuracao, selecionar candidatos, personalizar, reservar no CRM, gravar tentativa no banco tecnico, enviar pelo canal escolhido, salvar o ID de aceite e registrar no atendimento. Timeout nao autoriza nova mensagem. Registro pendente e repetido sem repetir WhatsApp. Aceite nao prova entrega no aparelho.
+A cada 20 minutos (:00, :20 e :40): carregar configuracao, selecionar candidatos, personalizar, reservar no CRM, gravar tentativa no banco tecnico, enviar pelo canal escolhido, salvar o ID de aceite e registrar no atendimento. Timeout nao autoriza nova mensagem. Registro pendente e repetido sem repetir WhatsApp. Aceite nao prova entrega no aparelho.
+
+O intervalo ainda e fixo no codigo (cron */20 * * * *). Nao existe controle
+desse intervalo no frontend nem consumo de sistematicas.intervalo_minutos.
+Essa chave nao fazia parte do contrato de seis parametros enviado ao CRM.
+Ao iniciar a imagem atualizada, o executor substitui o cron do mesmo job
+sistematicas-hora. O nome legado da fila foi preservado para nao duplicar
+agendamentos. Tarefas antigas ja enfileiradas nao sao apagadas pelo ajuste.
 
 A V11 do banco de automacao e aplicada pelo preparador da aplicacao. O painel lista as rodadas como Mensagens sistematicas. Homologar com credenciais da instancia de teste e destinatario controlado, conferir painel, CRM e aparelho. Antes de qualquer virada: verificar registros do n8n para nao repetir ocorrencias antigas, desligar o agendamento equivalente e aprovar o publico de producao. Nao habilitar os dois executores em paralelo para o mesmo publico.
