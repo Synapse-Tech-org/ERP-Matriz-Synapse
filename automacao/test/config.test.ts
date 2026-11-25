@@ -1,14 +1,28 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { carregarConfiguracao } from '../src/config.js';
+import { selecionarTratador } from '../src/conversa/modo.js';
 
 test('follow-up desabilitado por padrao e servidor restrito ao localhost', () => {
   assert.deepEqual(carregarConfiguracao({}), {
+    modoConversa: null,
     host: '127.0.0.1',
     port: 3100,
     automacaoHabilitada: false,
     followUpHabilitado: false,
   });
+});
+
+test('modo de conversa seleciona somente o tratador do filho com a automacao ligada', () => {
+  const tratadores = { AGENTE_IA: () => 'agente', CHATBOT_DETERMINISTICO: () => 'menu' };
+  for (const modo of ['AGENTE_IA', 'CHATBOT_DETERMINISTICO'] as const) {
+    const env = { AUTOMACAO_CONVERSA_MODO: modo };
+    assert.equal(selecionarTratador(carregarConfiguracao(env), tratadores), null);
+    const config = carregarConfiguracao({ ...env, AUTOMACAO_HABILITADA: 'true' });
+    assert.equal(selecionarTratador(config, tratadores), tratadores[modo]);
+  }
+  assert.equal(selecionarTratador(carregarConfiguracao({ AUTOMACAO_HABILITADA: 'true' }), tratadores), null);
+  assert.throws(() => carregarConfiguracao({ AUTOMACAO_CONVERSA_MODO: 'IA' }), /AUTOMACAO_CONVERSA_MODO/);
 });
 
 for (const geral of [undefined, '', 'false', 'true']) {

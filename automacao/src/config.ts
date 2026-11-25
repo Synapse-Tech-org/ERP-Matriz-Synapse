@@ -1,4 +1,7 @@
+import { lerModoConversa, type ModoConversa } from './conversa/modo.js';
+
 export interface ConfiguracaoAutomacao {
+  readonly modoConversa: ModoConversa | null;
   readonly host: string;
   readonly port: number;
   readonly automacaoHabilitada: boolean;
@@ -29,6 +32,7 @@ export function carregarConfiguracao(env: NodeJS.ProcessEnv): ConfiguracaoAutoma
     env.AUTOMACAO_FOLLOWUP_HABILITADO,
   );
   return {
+    modoConversa: lerModoConversa(env.AUTOMACAO_CONVERSA_MODO),
     host: env.AUTOMACAO_HOST || '127.0.0.1',
     port: lerPorta(env.AUTOMACAO_PORT),
     automacaoHabilitada,
