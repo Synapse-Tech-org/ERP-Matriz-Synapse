@@ -1,14 +1,17 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
+import Link from "next/link";
 import { Pencil } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useSalvarTelefoneLead } from "@/lib/lead/use-painel-lead";
 import { ErroDeApi } from "@/lib/api/errors";
+import { buscarAtendimentoPorTelefone } from "@/lib/atendimento/api";
 
 type Props = {
   leadId: string;
@@ -32,6 +35,18 @@ export function EditorTelefoneDoLead({
   const [novoTelefone, setNovoTelefone] = useState("");
   const [erro, setErro] = useState<"invalido" | "salvar" | "indisponivel" | "permissao" | "ausente" | null>(null);
   const enviando = useRef(false);
+  const telefoneEmConflito = aberto && erro === "indisponivel" ? novoTelefone.trim() : null;
+  const conflito = useQuery({
+    queryKey: ["editar-telefone", "conflito", telefoneEmConflito],
+    queryFn: () => buscarAtendimentoPorTelefone(telefoneEmConflito!),
+    enabled: telefoneEmConflito !== null,
+    retry: false,
+    gcTime: 0,
+  });
+  const cartao = telefoneEmConflito && !conflito.isFetching && !conflito.isError ? conflito.data : null;
+  const atendimentoEmConflito = cartao && cartao.leadId !== leadId
+    ? cartao.atendimentoAtivoId ?? cartao.atendimentoId
+    : null;
 
   if (!permitido) return null;
 
@@ -117,6 +132,15 @@ export function EditorTelefoneDoLead({
                   indisponivel: textos.telefoneIndisponivel, permissao: textos.telefoneSemPermissao,
                   ausente: textos.telefoneNaoEncontrado }[erro]}
               </p>
+            )}
+            {atendimentoEmConflito && (
+              <Link
+                className={buttonVariants({ variant: "outline" })}
+                href={`/atendimentos?atendimentoId=${encodeURIComponent(atendimentoEmConflito)}`}
+                onClick={() => setAberto(false)}
+              >
+                {textos.abrirAtendimentoTelefoneEmUso}
+              </Link>
             )}
           </div>
           <DialogFooter>
