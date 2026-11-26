@@ -17,15 +17,18 @@ public class ObterConfiguracaoComposerUseCase {
     private final LimiteDeAnexoRepositorio limites;
 
     private final long tempoNotificacaoSegundos;
+    private final long janelaAlbumFotosSegundos;
 
     public ObterConfiguracaoComposerUseCase(
             LimiteDeAnexoRepositorio limites,
-            @Value("${synapse.atendimentos.tempo-notificacao-segundos:8}") long tempoNotificacaoSegundos) {
+            @Value("${synapse.atendimentos.tempo-notificacao-segundos:8}") long tempoNotificacaoSegundos,
+            @Value("${synapse.atendimentos.janela-album-fotos-segundos:5}") long janelaAlbumFotosSegundos) {
         this.limites = limites;
         if (tempoNotificacaoSegundos < 1 || tempoNotificacaoSegundos > 60) {
             throw new IllegalArgumentException("tempo de notificacao deve estar entre 1 e 60 segundos");
         }
         this.tempoNotificacaoSegundos = tempoNotificacaoSegundos;
+        this.janelaAlbumFotosSegundos = Math.clamp(janelaAlbumFotosSegundos, 0, 60);
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -37,9 +40,9 @@ public class ObterConfiguracaoComposerUseCase {
                 .duracaoMaximaAudioEmSegundos()
                 .orElseThrow(() -> new IllegalStateException(
                         "configuracao gravacao_audio.duracao_maxima_segundos ausente"));
-        return new Resultado(tamanhoMaximoAudio, duracaoMaximaAudio, tempoNotificacaoSegundos);
+        return new Resultado(tamanhoMaximoAudio, duracaoMaximaAudio, tempoNotificacaoSegundos, janelaAlbumFotosSegundos);
     }
 
     public record Resultado(long tamanhoMaximoAudioBytes, long duracaoMaximaAudioSegundos,
-            long tempoNotificacaoSegundos) {}
+            long tempoNotificacaoSegundos, long janelaAlbumFotosSegundos) {}
 }

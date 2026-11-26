@@ -12,6 +12,7 @@ export type FalhaDeEnvioMidia = {
   citacao?: MensagemResposta["citacao"];
   /** Reutilizada no retry para não duplicar uma aceitação cuja resposta se perdeu. */
   idempotencyKey?: string;
+  loteFotosId?: string;
 };
 
 /** Só expõe o detalhe RFC 7807 já sanitizado; erros sem contrato ficam na mensagem catalogada. */

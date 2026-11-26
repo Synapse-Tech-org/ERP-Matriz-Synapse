@@ -201,6 +201,7 @@ synapse:
 
   atendimentos:
     tempo-notificacao-segundos: ${ATENDIMENTOS_TEMPO_NOTIFICACAO_SEGUNDOS:8}
+    janela-album-fotos-segundos: ${ATENDIMENTOS_JANELA_ALBUM_FOTOS_SEGUNDOS:5}
 
   leads:
     # Uma linha extra e buscada internamente para calcular `temMais`; nao ha COUNT global

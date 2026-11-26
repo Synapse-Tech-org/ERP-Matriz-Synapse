@@ -855,6 +855,12 @@
       "envioNaoConfirmado": "Não foi possível confirmar o envio",
       "carregarAnteriores": "Carregar mensagens anteriores",
       "carregandoAnteriores": "Carregando mensagens...",
+      "albumFotos": {
+        "titulo": "Álbum com {quantidade} fotos",
+        "abrirFoto": "Abrir foto {posicao} de {quantidade}",
+        "fotosOcultas": "Ver mais {quantidade} fotos",
+        "indisponivel": "Foto indisponível"
+      },
       "acoes": {
         "abrir": "Ações da mensagem",
         "titulo": "Ações da mensagem",

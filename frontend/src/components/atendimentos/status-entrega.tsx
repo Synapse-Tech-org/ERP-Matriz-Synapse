@@ -10,13 +10,17 @@ type Props = {
   status: StatusEntrega;
   erroEntrega?: ErroDeEntrega | null;
   onReenviar?: () => void;
+  compacto?: boolean;
 };
 
 /** relógio / ✓ / ✓✓ / ✓✓ azul / ⚠ com reenviar — o ciclo de entrega do prompt E11. */
-export function StatusEntregaIcone({ status, erroEntrega = null, onReenviar }: Props) {
+export function StatusEntregaIcone({ status, erroEntrega = null, onReenviar, compacto = false }: Props) {
   const textos = useTextos().atendimentos.mensagem;
 
   if (status === "FALHOU") {
+    if (compacto) return <span title={textos.status.falhou} role="status" aria-label={textos.status.falhou}>
+      <AlertTriangle className="size-3.5 text-destructive" aria-hidden />
+    </span>;
     const motivosConhecidos: Record<string, string> = textos.motivosFalhaEntrega;
     const citacaoIncompativel = ["Z_API_CITACAO_SEM_CORRELACAO", "REFERENCIA_DE_OUTRO_CANAL", "CITACAO_NAO_SUPORTADA_PELO_CANAL"]
       .includes(erroEntrega?.titulo ?? "");
@@ -82,7 +86,7 @@ export function StatusEntregaIcone({ status, erroEntrega = null, onReenviar }: P
   return (
     <span className="inline-flex items-center gap-1" title={rotulo} role="status" aria-label={rotulo}>
       {icone}
-      <span aria-hidden>{rotulo}</span>
+      {!compacto && <span aria-hidden>{rotulo}</span>}
     </span>
   );
 }

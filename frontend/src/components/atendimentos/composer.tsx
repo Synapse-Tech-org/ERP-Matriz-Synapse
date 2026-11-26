@@ -37,6 +37,7 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { useEstadoRecuperavel } from "@/lib/erros/estado-recuperavel";
 import { estadoDaJanelaTextoLivre } from "@/lib/atendimento/janela-24h";
 import { listarTemplatesWhatsApp, obterCapacidadeDoCanal } from "@/lib/atendimento/api";
+import { MINIMO_FOTOS_DO_ALBUM } from "@/lib/atendimento/album-fotos";
 import { arquivosDaAreaDeTransferencia, filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO } from "@/lib/atendimento/arquivos-do-composer";
 import { citacaoDeResposta, origemDaMensagem } from "@/lib/atendimento/citacao";
 import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/falhas-de-midia";
@@ -44,7 +45,7 @@ import { interpolarCorpoDoTemplate } from "@/lib/atendimento/variaveis-do-templa
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 import { envioRecusadoNaTransicao } from "@/lib/atendimento/recusa-de-transicao";
-import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
+import { useEnviarMidia, type VariaveisEnvioMidia } from "@/lib/atendimento/use-enviar-midia";
 import type { CartaoAtendimento, MensagemResposta } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
@@ -166,6 +167,7 @@ export function Composer({
   const [envioBloqueado, setEnvioBloqueado] = useState(false);
   const [atalhoSelecionado, setAtalhoSelecionado] = useState(0);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
+  const lotesEmEnvio = useRef(new Set<string>());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerContainerRef = useRef<HTMLDivElement>(null);
   const enviar = useEnviarMensagem(onMensagemEnviada);
@@ -365,34 +367,58 @@ export function Composer({
 
   async function enviarConteudo() {
     const atendimentoIdDoEnvio = conversa.atendimentoId;
+    const usuarioDoEnvio = useAuthStore.getState().usuarioId;
     if (variaveisPendentes.length > 0) return;
-    if ((!podeEnviar || onRevalidarEnvio) && !await confirmarEnvioPermitido()) return;
+    const envioComArquivos = arquivos.length > 0;
+    if (envioComArquivos && lotesEmEnvio.current.has(atendimentoIdDoEnvio)) return;
+    if (envioComArquivos) lotesEmEnvio.current.add(atendimentoIdDoEnvio);
+    try {
+      if ((!podeEnviar || onRevalidarEnvio) && !await confirmarEnvioPermitido()) return;
+      if (atendimentoAtualRef.current !== atendimentoIdDoEnvio
+        || useAuthStore.getState().usuarioId !== usuarioDoEnvio) return;
+      if (envioComArquivos) {
+        await enviarArquivos(atendimentoIdDoEnvio, usuarioDoEnvio);
+        return;
+      }
+    } finally {
+      if (envioComArquivos) lotesEmEnvio.current.delete(atendimentoIdDoEnvio);
+    }
+    enviarTexto();
+  }
+
+  async function enviarArquivos(atendimentoIdDoEnvio: string, usuarioDoEnvio: string | null) {
     if (arquivos.length > 0) {
       const fila = arquivos;
       const legenda = texto.trim() || undefined;
       const respostaAlvo = alvoDeResposta();
       const falhas: FalhaDeEnvioMidia[] = [];
+      const loteFotosId = crypto.randomUUID();
+      const envios: VariaveisEnvioMidia[] = fila.map((arquivo, indice) => ({
+        atendimentoId: atendimentoIdDoEnvio,
+        leadId: conversa.leadId,
+        arquivo,
+        legenda: indice === 0 ? legenda : undefined,
+        resposta: indice === 0 ? respostaAlvo : undefined,
+        citacao: indice === 0 ? citacaoResposta : undefined,
+        idempotencyKey: crypto.randomUUID(),
+        loteFotosId: arquivo.type.startsWith("image/") ? loteFotosId : undefined,
+        onProgresso: (percentual) => {
+          if (atendimentoAtualRef.current === atendimentoIdDoEnvio) setProgresso(percentual);
+        },
+      }));
+      const album = envios.filter((envio) => envio.loteFotosId).length >= MINIMO_FOTOS_DO_ALBUM;
+      if (album) enviarMidia.prepararLote(envios);
       let primeiraMensagemNotificada = false;
-      for (let indice = 0; indice < fila.length; indice++) {
-        setIndiceEnvio(indice);
-        setProgresso(0);
-        const arquivo = fila[indice];
-        const legendaDoArquivo = indice === 0 ? legenda : undefined;
-        const respostaDoArquivo = indice === 0 ? respostaAlvo : undefined;
-        const citacaoDoArquivo = indice === 0 ? citacaoResposta : undefined;
-        const idempotencyKey = crypto.randomUUID();
+      for (let indice = 0; indice < envios.length; indice++) {
+        if (useAuthStore.getState().usuarioId !== usuarioDoEnvio) return;
+        if (atendimentoAtualRef.current === atendimentoIdDoEnvio) {
+          setIndiceEnvio(indice);
+          setProgresso(0);
+        } else if (!album) return;
+        const { onProgresso, ...envio } = envios[indice];
         try {
-          await enviarMidia.mutateAsync({
-            atendimentoId: atendimentoIdDoEnvio,
-            leadId: conversa.leadId,
-            arquivo,
-            legenda: legendaDoArquivo,
-            onProgresso: setProgresso,
-            resposta: respostaDoArquivo,
-            citacao: citacaoDoArquivo,
-            idempotencyKey,
-          });
-          if (atendimentoAtualRef.current !== atendimentoIdDoEnvio) return;
+          await enviarMidia.mutateAsync({ ...envio, onProgresso });
+          if (atendimentoAtualRef.current !== atendimentoIdDoEnvio) continue;
           if (!primeiraMensagemNotificada) {
             onMensagemEnviada?.();
             primeiraMensagemNotificada = true;
@@ -403,30 +429,27 @@ export function Composer({
           }
         } catch (erro) {
           falhas.push({
+            ...envio,
             id: idDaFalhaDeMidia(),
-            atendimentoId: conversa.atendimentoId,
-            leadId: conversa.leadId,
-            arquivo,
-            legenda: legendaDoArquivo,
-            resposta: respostaDoArquivo,
-            citacao: citacaoDoArquivo,
-            idempotencyKey,
             motivo: motivoDaFalhaDeMidia(erro, textos.anexoErro),
           });
         }
       }
+      if (falhas.length > 0) onFalhasDeMidia?.(falhas);
       if (atendimentoAtualRef.current !== atendimentoIdDoEnvio) return;
       setProgresso(null);
       setIndiceEnvio(null);
-      if (falhas.length > 0) {
+      if (falhas.length > 0 && (!album || !onFalhasDeMidia)) {
         setArquivos(falhas.map(({ arquivo }) => arquivo));
         setFalhasArquivos(new Map(falhas.map(({ arquivo, motivo }) => [arquivo, motivo])));
-        onFalhasDeMidia?.(falhas);
       } else {
         limparAposEnvio(atendimentoIdDoEnvio);
       }
-      return;
     }
+  }
+
+  function enviarTexto() {
+    const atendimentoIdDoEnvio = conversa.atendimentoId;
     const textoDoEnvio = texto;
     const usuarioDoEnvio = useAuthStore.getState().usuarioId;
     const conteudo = texto.trim();

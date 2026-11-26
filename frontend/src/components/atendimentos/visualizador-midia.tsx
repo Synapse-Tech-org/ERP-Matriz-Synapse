@@ -29,7 +29,9 @@ import { PlayerAudio } from "./player-audio";
 export type OrigemDoVisualizador =
   | { tipo: "mensagem"; leadId: string; mensagemId: string }
   | { tipo: "chat-interno"; conversaId: string; mensagemId: string }
-  | { tipo: "foto"; fotoUrl: string };
+  | { tipo: "foto"; fotoUrl: string }
+  | { tipo: "previa-local"; url: string }
+  | { tipo: "indisponivel" };
 
 export type ItemDoVisualizador = {
   id: string;
@@ -47,6 +49,7 @@ type Props = {
   itens: ItemDoVisualizador[];
   indice: number;
   onIndiceChange?: (indice: number) => void;
+  acoesDoItem?: React.ReactNode;
 };
 
 function preencher(modelo: string, valores: Record<string, string>): string {
@@ -82,6 +85,7 @@ export function VisualizadorMidia({
   itens,
   indice,
   onIndiceChange,
+  acoesDoItem,
 }: Props) {
   const catalogo = useTextos();
   const textos = catalogo.atendimentos.media;
@@ -119,6 +123,7 @@ export function VisualizadorMidia({
 
   async function baixar() {
     if (!item || downloadEmCurso.current) return;
+    if (item.origem.tipo === "previa-local" || item.origem.tipo === "indisponivel") return;
     downloadEmCurso.current = true;
     setBaixando(true);
     setErroDownload(false);
@@ -150,6 +155,8 @@ export function VisualizadorMidia({
       : ramo === "audio" ? textos.audio
         : ramo === "video" ? vis.video
           : textos.documento);
+  const permiteBaixar = item != null
+    && item.origem.tipo !== "indisponivel" && item.origem.tipo !== "previa-local";
 
   return (
     <Dialog open={aberto} onOpenChange={(valor) => !valor && fechar()}>
@@ -216,7 +223,7 @@ export function VisualizadorMidia({
             item={item}
             textos={textos}
             vis={vis}
-            onBaixar={() => void baixar()}
+            onBaixar={permiteBaixar ? () => void baixar() : undefined}
           />
 
           {navegavel && (
@@ -234,9 +241,10 @@ export function VisualizadorMidia({
           )}
         </div>
 
+        {acoesDoItem && <div className="shrink-0 border-t px-4 py-2">{acoesDoItem}</div>}
         <div className="flex shrink-0 items-center justify-end gap-2 border-t px-4 py-3">
           {erroDownload && <p role="alert" className="text-sm text-destructive">{vis.erroAoCarregar}</p>}
-          <Button type="button" variant="outline" onClick={() => void baixar()} disabled={!item || baixando} aria-busy={baixando}>
+          <Button type="button" variant="outline" onClick={() => void baixar()} disabled={!permiteBaixar || baixando} aria-busy={baixando}>
             <Download className="size-(--tamanho-icone-interface)" aria-hidden />
             {baixando ? vis.carregando : textos.baixar}
           </Button>
@@ -277,6 +285,10 @@ function useSrcDoVisualizador(aberto: boolean, item: ItemDoVisualizador | null) 
 
   if (!aberto || !item) {
     return { src: undefined as string | undefined, carregando: false, erro: false, blob: undefined as Blob | undefined };
+  }
+  if (item.origem.tipo === "previa-local") {
+    return { src: item.origem.url.startsWith("blob:") ? item.origem.url : undefined,
+      carregando: false, erro: false, blob: undefined };
   }
 
   if (origemMensagem || origemChat) {
@@ -335,7 +347,7 @@ function ConteudoDoVisualizador({
     erroAoCarregar: string;
     video: string;
   };
-  onBaixar: () => void;
+  onBaixar?: () => void;
 }) {
   const [falhaDeRecurso, setFalhaDeRecurso] = useState(false);
   if (carregando) {
@@ -345,7 +357,7 @@ function ConteudoDoVisualizador({
     return (
       <div className="flex max-w-sm flex-col items-center gap-3 text-center">
         <p className="text-sm text-destructive" role="alert">{vis.erroAoCarregar}</p>
-        <Button type="button" variant="outline" onClick={onBaixar}>{textos.baixar}</Button>
+        {onBaixar && <Button type="button" variant="outline" onClick={onBaixar}>{textos.baixar}</Button>}
       </div>
     );
   }
