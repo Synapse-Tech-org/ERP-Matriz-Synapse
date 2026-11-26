@@ -1,26 +1,73 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TextosSchema } from "@/lib/config/schema";
 import { TextosProvider } from "@/lib/config/textos-provider";
 import { ErroDeApi } from "@/lib/api/errors";
+import { buscarAtendimentoPorTelefone } from "@/lib/atendimento/api";
 import { EditorTelefoneDoLead } from "./editor-telefone-do-lead";
 
 const textos = TextosSchema.parse(JSON.parse(readFileSync(resolve(process.cwd(), "../backend/crm-app/src/main/resources/textos.json"), "utf8")));
 const dados = textos.painelLead.dados;
 const salvar = { mutate: vi.fn(), isPending: false };
 vi.mock("@/lib/lead/use-painel-lead", () => ({ useSalvarTelefoneLead: () => salvar }));
+vi.mock("@/lib/atendimento/api", () => ({ buscarAtendimentoPorTelefone: vi.fn() }));
 
 function abrir() {
-  render(<TextosProvider textos={textos}><EditorTelefoneDoLead leadId="lead-sintetico" telefone="5561987651234" permitido /></TextosProvider>);
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <TextosProvider textos={textos}>
+        <EditorTelefoneDoLead leadId="lead-sintetico" telefone="5561987651234" permitido />
+      </TextosProvider>
+    </QueryClientProvider>,
+  );
   fireEvent.click(screen.getByRole("button", { name: dados.editarTelefone }));
   return screen.getByRole("textbox", { name: dados.novoTelefone });
 }
 
-beforeEach(() => { vi.clearAllMocks(); salvar.isPending = false; });
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(buscarAtendimentoPorTelefone).mockResolvedValue(null);
+  salvar.isPending = false;
+});
+
+function simularConflito() {
+  const campo = abrir();
+  const telefone = "5561987654321";
+  fireEvent.change(campo, { target: { value: telefone } });
+  salvar.mutate.mockImplementation((_valor, callbacks) =>
+    callbacks.onError(new ErroDeApi(409, { codigo: "TELEFONE_INDISPONIVEL" }, "conflito")));
+  fireEvent.click(screen.getByRole("button", { name: dados.confirmarAlteracaoTelefone }));
+  return campo;
+}
 
 describe("edicao segura do telefone", () => {
+  it.each([["ativo", "ativo"], [null, "historico"]])(
+    "oferece o atendimento autorizado, priorizando o ativo (%s)",
+    async (atendimentoAtivoId, esperado) => {
+      vi.mocked(buscarAtendimentoPorTelefone).mockResolvedValue({
+        leadId: "outro-lead", atendimentoId: "historico", atendimentoAtivoId,
+      } as Awaited<ReturnType<typeof buscarAtendimentoPorTelefone>>);
+      const campo = simularConflito();
+      expect(screen.getByRole("alert")).toHaveTextContent(dados.telefoneIndisponivel);
+      expect(await screen.findByRole("link", { name: dados.abrirAtendimentoTelefoneEmUso }))
+        .toHaveAttribute("href", `/atendimentos?atendimentoId=${esperado}`);
+      expect(buscarAtendimentoPorTelefone).toHaveBeenCalledWith("5561987654321");
+      expect(salvar.mutate).toHaveBeenCalledTimes(1);
+      fireEvent.change(campo, { target: { value: "5561987654322" } });
+      expect(screen.queryByRole("link", { name: dados.abrirAtendimentoTelefoneEmUso })).not.toBeInTheDocument();
+    },
+  );
+
+  it("mantém o aviso sem link quando o atendimento não está visível", async () => {
+    simularConflito();
+    await act(async () => undefined);
+    expect(screen.getByRole("alert")).toHaveTextContent(dados.telefoneIndisponivel);
+    expect(screen.queryByRole("link", { name: dados.abrirAtendimentoTelefoneEmUso })).not.toBeInTheDocument();
+  });
+
   it("envia o numero digitado somente ao confirmar e fecha apos sucesso", () => {
     const campo = abrir();
     fireEvent.change(campo, { target: { value: "+55 (61) 98765-4321" } });
