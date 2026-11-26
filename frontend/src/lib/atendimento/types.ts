@@ -40,6 +40,7 @@ export interface ConfiguracaoComposer {
   tamanhoMaximoAudioBytes: number;
   duracaoMaximaAudioSegundos: number;
   tempoNotificacaoSegundos: number;
+  janelaAlbumFotosSegundos?: number;
 }
 
 /** Espelha ConfigInstanciaController — GET /api/v1/config/canal. */
@@ -199,6 +200,8 @@ export interface MensagemResposta {
   citacao?: CitacaoMensagem | null;
   /** Chave do clique de envio, presente nas mensagens humanas e usada para reconciliar o otimista. */
   idempotencyKey?: string | null;
+  /** Só no cache local: mantém as prévias do clique na ordem selecionada enquanto chegam os aceites. */
+  ordemLocalDoLoteEm?: string;
 }
 
 export interface PaginaMensagens {

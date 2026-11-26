@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -40,6 +40,42 @@ function mensagensDoHistorico(queryClient: QueryClient, atendimentoId: string) {
 
 describe("useEnviarMidia", () => {
   beforeEach(() => vi.resetAllMocks());
+
+  it("mantém as cinco prévias durante upload, reconcilia e reenvia só a foto com falha", async () => {
+    const cache = new QueryClient();
+    prepararHistorico(cache, "at-album");
+    cache.setQueryData(["me"], { id: "atendente", nome: "Ana" });
+    const { result } = renderHook(() => useEnviarMidia(), { wrapper: wrapper(cache) });
+    const loteFotosId = crypto.randomUUID();
+    const envios = Array.from({ length: 5 }, (_, i) => ({
+      arquivo: arquivoFake(`foto-${i}.png`, "image/png"), loteFotosId,
+      atendimentoId: "at-album", leadId: "lead", idempotencyKey: crypto.randomUUID(),
+    }));
+    act(() => result.current.prepararLote(envios));
+    const ler = () => mensagensDoHistorico(cache, "at-album") ?? [];
+    expect(ler()).toHaveLength(5);
+    expect(ler().every((foto) => foto.midiaUrl?.startsWith("blob:") && foto.statusEntrega === "PENDENTE")).toBe(true);
+    expect(enviarMidia).not.toHaveBeenCalled();
+
+    const alvo = envios[2];
+    vi.mocked(enviarMidia).mockRejectedValueOnce(new ErroDeApi(422, null, "falha"));
+    await act(async () => { await result.current.mutateAsync(alvo).catch(() => undefined); });
+    expect(ler().filter((foto) => foto.statusEntrega === "FALHOU").map((foto) => foto.idempotencyKey))
+      .toEqual([alvo.idempotencyKey]);
+    const ordemOriginal = ler().find((foto) => foto.idempotencyKey === alvo.idempotencyKey)?.ordemLocalDoLoteEm;
+    vi.mocked(enviarMidia).mockResolvedValueOnce({
+      atendimentoId: "at-album", mensagemId: "real-2", statusEntrega: "PENDENTE",
+      enviadoEm: "2026-11-26T17:30:00Z", transferiuOLead: false, idempotencyKey: alvo.idempotencyKey,
+    });
+    await act(async () => { await result.current.mutateAsync(alvo); });
+    expect(enviarMidia).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(enviarMidia).mock.calls.map((chamada) => chamada.slice(6)))
+      .toEqual([[alvo.idempotencyKey, loteFotosId], [alvo.idempotencyKey, loteFotosId]]);
+    expect(ler()).toHaveLength(5);
+    expect(ler().find(({ id }) => id === "real-2")).toMatchObject({
+      ordemLocalDoLoteEm: ordemOriginal, statusEntrega: "PENDENTE",
+    });
+  });
 
   it("adiciona bolha PENDENTE otimista assim que o mutate roda", async () => {
     const queryClient = new QueryClient();

@@ -39,6 +39,7 @@ function conciliarSnapshot(
     statusEntrega,
     erroEntrega,
     idempotencyKey: resposta.idempotencyKey ?? atual.idempotencyKey,
+    ...(atual.ordemLocalDoLoteEm ? { ordemLocalDoLoteEm: atual.ordemLocalDoLoteEm } : {}),
     ...(anterior && replaceEqualDeep(anterior.reacoes, atual.reacoes) !== anterior.reacoes
       ? { reacoes: atual.reacoes } : {}),
     ...(anterior && anterior.reacaoDoCliente !== atual.reacaoDoCliente
@@ -84,10 +85,12 @@ function consolidarPaginas(
 
   const unicas = pages.map((pagina) => ({ ...pagina, mensagens: pagina.mensagens.filter(manter) }));
   // Não recoloca linhas antigas ausentes no snapshot, inclusive otimistas anteriores.
-  // Só mantém novas identidades (ou confirmação de otimista) surgidas durante o pedido.
+  // Só mantém novas identidades surgidas durante o pedido, mais posições do lote ainda locais:
+  // algumas prévias aguardam sua vez na fila de upload e naturalmente não existem na REST.
   const concorrentes = atuais.filter((mensagem) => {
     const anterior = encontrarAnterior(mensagem);
-    return (!anterior || (temporaria(anterior) && !temporaria(mensagem))) && manter(mensagem);
+    return (!anterior || (temporaria(anterior) && !temporaria(mensagem))
+      || (temporaria(mensagem) && mensagem.ordemLocalDoLoteEm != null)) && manter(mensagem);
   });
   if (concorrentes.length && unicas[0]) {
     const recente = unicas[0];

@@ -45,6 +45,26 @@ function montar(pagina: PaginaMensagens) {
 }
 
 describe("leitura concorrente do histórico", () => {
+  it("mantém a prévia do álbum durante uma releitura e deduplica o aceite pelo mesmo clique", async () => {
+    const local = {
+      ...mensagem("temp-foto"), tipo: "IMAGEM" as const,
+      ordemLocalDoLoteEm: "2026-11-23T11:00:00.001Z", idempotencyKey: "foto",
+      midiaUrl: "blob:foto", midiaMetadados: '{"loteFotosId":"lote"}',
+    };
+    const outra = { ...local, id: "temp-outra", idempotencyKey: "outra" };
+    const tela = montar({ mensagens: [local, outra], proximoCursor: null });
+    const leitura = tela.client.fetchInfiniteQuery(tela.opcoes);
+    tela.resolver({ mensagens: [{
+      ...mensagem("real"), tipo: "IMAGEM", idempotencyKey: "foto",
+      midiaUrl: "https://storage.test/foto.png", midiaMetadados: local.midiaMetadados,
+    }], proximoCursor: null });
+    await leitura;
+    expect(tela.ler()?.pages[0].mensagens).toEqual([
+      expect.objectContaining({ id: "real", ordemLocalDoLoteEm: local.ordemLocalDoLoteEm }),
+      outra,
+    ]);
+  });
+
   it("um GET antigo não apaga nova mensagem nem regride STATUS aplicado com o socket conectado", async () => {
     const antes = mensagem("envio");
     const tela = montar({ mensagens: [antes, mensagem("ja-nao-visivel")], proximoCursor: null });

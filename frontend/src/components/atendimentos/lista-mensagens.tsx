@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTextos } from "@/lib/config/textos-provider";
 import { obterMensagem } from "@/lib/atendimento/api";
 import { origemDaMensagem } from "@/lib/atendimento/citacao";
+import { agruparFotos } from "@/lib/atendimento/album-fotos";
 import { cn } from "@/lib/utils";
 import type {
   CartaoInformacoesChatbot,
@@ -20,6 +21,7 @@ import type {
 } from "@/lib/atendimento/types";
 
 import { BolhaMensagem } from "./bolha-mensagem";
+import { AlbumFotos } from "./album-fotos";
 import {
   alturaEstimadaDoCartao,
   CartaoInformacoesChatbot as CartaoDoChatbot,
@@ -29,6 +31,9 @@ type Props = {
   mensagens: MensagemResposta[];
   carregando: boolean;
   onReenviar?: (mensagem: MensagemResposta) => void;
+  fotosComReenvioDisponivel?: ReadonlySet<string>;
+  onReenviarFoto?: (chave: string) => void;
+  janelaAlbumFotosSegundos?: number;
   onDefinirReacao: (mensagem: MensagemResposta, emoji: string) => Promise<void>;
   onRemoverReacao: (mensagem: MensagemResposta) => Promise<void>;
   temMais: boolean;
@@ -108,7 +113,8 @@ export function intercalarCartoes(
     }
     linhas.push({
       tipo: "mensagem",
-      chave: mensagem.id,
+      chave: mensagem.tipo === "IMAGEM" && mensagem.idempotencyKey
+        ? `foto-${mensagem.idempotencyKey}` : mensagem.id,
       enviadoEm: mensagem.enviadoEm,
       mensagem,
       anteriorMensagem,
@@ -130,6 +136,9 @@ export function ListaMensagens({
   mensagens,
   carregando,
   onReenviar,
+  fotosComReenvioDisponivel,
+  onReenviarFoto,
+  janelaAlbumFotosSegundos = 0,
   onDefinirReacao,
   onRemoverReacao,
   temMais,
@@ -164,9 +173,11 @@ export function ListaMensagens({
   const mensagensComExtras = useMemo(() => {
     const porId = new Map<string, MensagemResposta>();
     [...mensagens, ...mensagensExtras].forEach((mensagem) => porId.set(mensagem.id, mensagem));
-    return [...porId.values()].sort((a, b) =>
-      a.enviadoEm.localeCompare(b.enviadoEm) || a.id.localeCompare(b.id),
-    );
+    return [...porId.values()].sort((a, b) => {
+      const dataA = a.ordemLocalDoLoteEm ?? a.enviadoEm;
+      const dataB = b.ordemLocalDoLoteEm ?? b.enviadoEm;
+      return Date.parse(dataA) - Date.parse(dataB) || dataA.localeCompare(dataB) || a.id.localeCompare(b.id);
+    });
   }, [mensagens, mensagensExtras]);
 
   const filtradas = useMemo(() => {
@@ -191,8 +202,12 @@ export function ListaMensagens({
     const buscados = termo
       ? doTrecho.filter((cartao) => cartao.conteudo.toLowerCase().includes(termo))
       : doTrecho;
-    return intercalarCartoes(filtradas, buscados);
-  }, [busca, cartoes, filtradas, mensagens, temMais]);
+    const individuais = intercalarCartoes(filtradas, buscados);
+    if (termo) return individuais;
+    return agruparFotos<Extract<LinhaDoHistorico, { tipo: "mensagem" }>, Extract<LinhaDoHistorico, { tipo: "cartao" }>>(
+      individuais, janelaAlbumFotosSegundos, diaDaMensagem,
+      new Set(mensagensExtras.map(({ id }) => id)));
+  }, [busca, cartoes, filtradas, janelaAlbumFotosSegundos, mensagens, mensagensExtras, temMais]);
 
   const virtualizador = useVirtualizer({
     count: linhas.length,
@@ -200,8 +215,13 @@ export function ListaMensagens({
     getItemKey: (indice) => linhas[indice]?.chave ?? indice,
     estimateSize: (indice) => {
       const linha = linhas[indice];
-      return linha?.tipo === "cartao" ? alturaEstimadaDoCartao(linha.cartao.conteudo) : 48;
+      if (linha?.tipo === "cartao") return alturaEstimadaDoCartao(linha.cartao.conteudo);
+      return linha?.tipo === "album" ? 310 : 48;
     },
+    anchorTo: "end",
+    followOnAppend: true,
+    // A medição da troca de várias bolhas por um álbum pode acontecer no commit do React.
+    useFlushSync: false,
     overscan: 8,
     paddingStart: ESPACAMENTO_DE_SEGURANCA_DO_HISTORICO,
     paddingEnd: ESPACAMENTO_DE_SEGURANCA_DO_HISTORICO,
@@ -209,13 +229,13 @@ export function ListaMensagens({
     scrollPaddingEnd: ESPACAMENTO_DE_SEGURANCA_DO_HISTORICO,
   });
 
-  const ultimoId = linhas.at(-1)?.chave;
+  const temLinhas = linhas.length > 0;
   useEffect(() => {
-    if (linhas.length > 0) {
+    if (temLinhas) {
       virtualizador.scrollToIndex(linhas.length - 1, { align: "end" });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao entrar novas mensagens no fim, não a cada resize do virtualizador
-  }, [ultimoId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só na montagem/carregamento; demais mudanças ficam com a âncora do virtualizador
+  }, [temLinhas, chaveDaConversa]);
 
   useEffect(() => {
     if (!mensagemDestacadaId) return;
@@ -229,7 +249,8 @@ export function ListaMensagens({
 
   useEffect(() => {
     if (!mensagemDestacadaId) return;
-    const indice = linhas.findIndex((linha) => linha.chave === mensagemDestacadaId);
+    const indice = linhas.findIndex((linha) => (linha.tipo === "mensagem" && linha.mensagem.id === mensagemDestacadaId)
+      || (linha.tipo === "album" && linha.fotos.some(({ id }) => id === mensagemDestacadaId)));
     if (indice < 0) return;
     const frame = requestAnimationFrame(() => virtualizador.scrollToIndex(indice, { align: "center" }));
     return () => cancelAnimationFrame(frame);
@@ -256,6 +277,37 @@ export function ListaMensagens({
       setOrigemCarregandoId(null);
     }
     setMensagemDestacadaId(citacao.origemId);
+  }
+
+  function renderizarMensagem(mensagem: MensagemResposta, detalhesDoAlbum = false, fechar?: () => void) {
+    const confirmada = !mensagem.id.startsWith("temp-");
+    const nomeDoRemetente = nomeDaAutoria(mensagem, atendenteId, atendenteNome,
+      textos.atendimentos.mensagem.ia, participantes);
+    const chave = mensagem.idempotencyKey;
+    const reenviar = mensagem.tipo === "IMAGEM"
+      ? chave && fotosComReenvioDisponivel?.has(chave) && onReenviarFoto ? () => onReenviarFoto(chave) : undefined
+      : onReenviar ? () => onReenviar(mensagem) : undefined;
+    const acao = (callback?: (mensagem: MensagemResposta) => void) => callback && confirmada
+      ? () => { fechar?.(); callback(mensagem); } : undefined;
+    return (
+      <BolhaMensagem
+        key={mensagem.id}
+        mensagem={mensagem}
+        leadId={leadId}
+        detalhesDoAlbum={detalhesDoAlbum}
+        janelaTextoLivreAberta={janelaTextoLivreAberta}
+        nomeDoRemetente={detalhesDoAlbum ? null : nomeDoRemetente}
+        origemDaCitacao={mensagem.citacao?.origemId ? origensPorId.get(mensagem.citacao.origemId) : null}
+        carregandoOrigemDaCitacao={mensagem.citacao?.origemId === origemCarregandoId}
+        onNavegarParaCitacao={mensagem.citacao ? () => { fechar?.(); void navegarParaCitacao(mensagem.citacao!); } : undefined}
+        onReenviar={mensagem.statusEntrega === "FALHOU" ? reenviar : undefined}
+        onDefinirReacao={(emoji) => onDefinirReacao(mensagem, emoji)}
+        onRemoverReacao={() => onRemoverReacao(mensagem)}
+        reacoesHabilitadas={confirmada ? reacoesHabilitadas : false}
+        onResponder={acao(onResponder)}
+        onEncaminhar={acao(onEncaminhar)}
+      />
+    );
   }
 
   return (
@@ -325,9 +377,11 @@ export function ListaMensagens({
               {virtualizador.getVirtualItems().map((item) => {
                 const linha = linhas[item.index];
                 const anteriorDaLinha = linhas[item.index - 1];
+                const diaDaLinha = (valor: typeof linha) => valor.tipo === "album"
+                  ? valor.primeiraLinha.enviadoEm : valor.enviadoEm;
                 const mostrarData =
                   !anteriorDaLinha ||
-                  diaDaMensagem(anteriorDaLinha.enviadoEm) !== diaDaMensagem(linha.enviadoEm);
+                  diaDaMensagem(diaDaLinha(anteriorDaLinha)) !== diaDaMensagem(diaDaLinha(linha));
                 if (linha.tipo === "cartao") {
                   return (
                     <div
@@ -349,18 +403,15 @@ export function ListaMensagens({
                     </div>
                   );
                 }
-                const mensagem = linha.mensagem;
-                const mudouAtendimento = mudouDeAtendimento(linha.anteriorMensagem, mensagem);
-                const nomeDoRemetente = nomeDaAutoria(
-                  mensagem,
-                  atendenteId,
-                  atendenteNome,
-                  textos.atendimentos.mensagem.ia,
-                  participantes,
-                );
+                const primeiraLinha = linha.tipo === "album" ? linha.primeiraLinha : linha;
+                const mensagem = primeiraLinha.mensagem;
+                const anterior = primeiraLinha.anteriorMensagem;
+                const mudouAtendimento = mudouDeAtendimento(anterior, mensagem);
+                const destacada = mensagemDestacadaId === mensagem.id
+                  || (linha.tipo === "album" && linha.fotos.some(({ id }) => id === mensagemDestacadaId));
                 return (
                   <div
-                    key={mensagem.id}
+                    key={linha.chave}
                     data-mensagem-id={mensagem.id}
                     data-index={item.index}
                     ref={virtualizador.measureElement}
@@ -373,41 +424,28 @@ export function ListaMensagens({
                     }}
                     className={cn(
                       "rounded-md py-1 transition-colors",
-                      mensagemDestacadaId === mensagem.id && "bg-primary/10 ring-2 ring-primary/40",
+                      destacada && "bg-primary/10 ring-2 ring-primary/40",
                     )}
                   >
                     {mostrarData && (
                       <SeparadorDeData enviadoEm={mensagem.enviadoEm} />
                     )}
-                    {(!linha.anteriorMensagem || mudouAtendimento) && (
+                    {(!anterior || mudouAtendimento) && (
                       <LinhaDeInicio
                         canalTipo={canalTipo}
                         atendenteNome={
                           mensagem.atendimentoResponsavelNome ??
-                          (!linha.anteriorMensagem ? atendenteNome : null)
+                          (!anterior ? atendenteNome : null)
                         }
                         troca={mudouAtendimento}
                       />
                     )}
-                    <BolhaMensagem
-                      mensagem={mensagem}
-                      leadId={leadId}
-                      janelaTextoLivreAberta={janelaTextoLivreAberta}
-                      nomeDoRemetente={nomeDoRemetente}
-                      origemDaCitacao={mensagem.citacao?.origemId ? origensPorId.get(mensagem.citacao.origemId) : null}
-                      carregandoOrigemDaCitacao={mensagem.citacao?.origemId === origemCarregandoId}
-                      onNavegarParaCitacao={mensagem.citacao ? () => void navegarParaCitacao(mensagem.citacao!) : undefined}
-                      onReenviar={
-                        mensagem.statusEntrega === "FALHOU" && onReenviar
-                          ? () => onReenviar(mensagem)
-                          : undefined
-                      }
-                      onDefinirReacao={(emoji) => onDefinirReacao(mensagem, emoji)}
-                      onRemoverReacao={() => onRemoverReacao(mensagem)}
-                      reacoesHabilitadas={reacoesHabilitadas}
-                      onResponder={onResponder ? () => onResponder(mensagem) : undefined}
-                      onEncaminhar={onEncaminhar ? () => onEncaminhar(mensagem) : undefined}
-                    />
+                    {linha.tipo === "album" ? (
+                      <AlbumFotos fotos={linha.fotos} leadId={leadId}
+                        nomeDoRemetente={nomeDaAutoria(mensagem, atendenteId, atendenteNome,
+                          textos.atendimentos.mensagem.ia, participantes)}
+                        renderizarDetalhes={(foto, fechar) => renderizarMensagem(foto, true, fechar)} />
+                    ) : renderizarMensagem(mensagem)}
                   </div>
                 );
               })}

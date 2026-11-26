@@ -150,7 +150,7 @@ class AtendimentoAcoesController {
         ObterConfiguracaoComposerUseCase.Resultado resultado = obterConfiguracaoComposer.executar();
         return new ConfiguracaoComposerResposta(
                 resultado.tamanhoMaximoAudioBytes(), resultado.duracaoMaximaAudioSegundos(),
-                resultado.tempoNotificacaoSegundos());
+                resultado.tempoNotificacaoSegundos(), resultado.janelaAlbumFotosSegundos());
     }
 
     @Operation(
@@ -277,6 +277,8 @@ class AtendimentoAcoesController {
             @RequestParam(required = false) UUID mensagemOrigemId,
             @Parameter(description = "Instante da origem, chave de partição da mensagem.")
                     @RequestParam(required = false) Instant origemEnviadaEm,
+            @Parameter(description = "UUID opcional do mesmo clique de envio de fotos, só para exibição no CRM.")
+                    @RequestParam(required = false) UUID loteFotosId,
             @RequestHeader(name = "Idempotency-Key", required = false) String chaveIdempotencia) {
         UUID leadId = resolverLead.executar(id);
         byte[] conteudo;
@@ -288,7 +290,7 @@ class AtendimentoAcoesController {
         AlvoDeResposta resposta = alvoOpcional(mensagemOrigemId, origemEnviadaEm);
         EnviarMensagemUseCase.Resultado resultado = enviarMidia.executar(
                 leadId, id, conteudo, arquivo.getOriginalFilename(), legenda, resposta,
-                gravacaoDoComposer, chaveIdempotencia);
+                gravacaoDoComposer, chaveIdempotencia, loteFotosId);
         return EnvioResposta.de(resultado);
     }
 
@@ -772,7 +774,7 @@ class AtendimentoAcoesController {
 
     record ConfiguracaoComposerResposta(
             long tamanhoMaximoAudioBytes, long duracaoMaximaAudioSegundos,
-            long tempoNotificacaoSegundos) {}
+            long tempoNotificacaoSegundos, long janelaAlbumFotosSegundos) {}
 
     record TransferenciaRequisicao(
             @Schema(description = "Destino; nulo devolve o atendimento para a IA.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)

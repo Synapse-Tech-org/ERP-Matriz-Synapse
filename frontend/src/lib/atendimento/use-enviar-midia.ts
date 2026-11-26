@@ -1,19 +1,20 @@
 "use client";
 
 import { useRef } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 import { ErroDeApi } from "@/lib/api/errors";
 import { invalidarArquivosDoLead } from "@/lib/lead/invalidar-arquivos";
 
 import { enviarMidia } from "./api";
 import { atualizarPainelDeAtendimentos } from "./atualizacao-do-painel";
-import { atualizarPaginaRecente, identidadeAutenticada } from "./cache-mensagens";
+import { atualizarPaginaRecente, identidadeAutenticada, type DadosDoHistorico } from "./cache-mensagens";
 import { confirmarEnvioNoHistorico } from "./confirmar-envio";
 import { reconciliarEnvioAmbiguo } from "./reconciliar-envio";
+import { mesclarMensagens } from "./tempo-real";
 import type { EnvioResposta, MensagemResposta, TipoMensagem } from "./types";
 
-interface VariaveisEnvioMidia {
+export interface VariaveisEnvioMidia {
   atendimentoId: string;
   leadId: string;
   arquivo: File;
@@ -23,10 +24,7 @@ interface VariaveisEnvioMidia {
   citacao?: MensagemResposta["citacao"];
   gravacaoDoComposer?: boolean;
   idempotencyKey?: string;
-}
-
-function idTemporario(): string {
-  return `temp-${crypto.randomUUID()}`;
+  loteFotosId?: string;
 }
 
 function tipoDoArquivo(mimetype: string): TipoMensagem {
@@ -42,6 +40,30 @@ type ContextoOtimista = {
   criadoEm: string;
   otimista: MensagemResposta;
 };
+
+/** As prévias acompanham o cache do histórico: o composer pode desmontar durante o upload. */
+function acompanharPrevias(cache: QueryClient, chave: ContextoOtimista["queryKey"], urls: string[]) {
+  const consulta = cache.getQueryCache().find({ queryKey: chave, exact: true });
+  if (!consulta) {
+    urls.forEach((url) => URL.revokeObjectURL(url));
+    return;
+  }
+  const previas = new Set(urls);
+  const parar = cache.getQueryCache().subscribe((evento) => {
+    if (evento.query !== consulta || (evento.type !== "updated" && evento.type !== "removed")) return;
+    const presentes = evento.type === "removed" ? [] : (
+      (consulta.state.data as DadosDoHistorico | undefined)?.pages.flatMap(({ mensagens }) =>
+        mensagens.map(({ midiaUrl }) => midiaUrl)) ?? []);
+    const urlsPresentes = new Set(presentes);
+    for (const url of previas) {
+      if (!urlsPresentes.has(url)) {
+        URL.revokeObjectURL(url);
+        previas.delete(url);
+      }
+    }
+    if (!previas.size) parar();
+  });
+}
 
 function erroDefinitivo(erro: unknown): boolean {
   return erro instanceof ErroDeApi
@@ -75,7 +97,52 @@ export function useEnviarMidia() {
   const contextos = useRef(new Map<string, ContextoOtimista>());
   const chavesReconciliadas = useRef(new Set<string>());
 
-  return useMutation({
+  function preparar(variaveis: VariaveisEnvioMidia, ordemLocalDoLoteEm?: string): ContextoOtimista {
+    const queryKey = ["mensagens", variaveis.atendimentoId] as const;
+    const chave = variaveis.idempotencyKey ??= crypto.randomUUID();
+    const idOtimista = `temp-${chave}`;
+    const identidade = identidadeAutenticada(queryClient);
+    const criadoEm = new Date().toISOString();
+    const otimista: MensagemResposta = {
+      id: idOtimista,
+      atendimentoId: variaveis.atendimentoId,
+      remetenteTipo: "ATENDENTE",
+      remetenteId: identidade.id,
+      remetenteNome: identidade.nome,
+      tipo: tipoDoArquivo(variaveis.arquivo.type),
+      conteudo: null,
+      midiaUrl: URL.createObjectURL(variaveis.arquivo),
+      midiaMetadados: JSON.stringify({
+        nome: variaveis.arquivo.name,
+        mimetype: variaveis.arquivo.type,
+        tamanho: variaveis.arquivo.size,
+        legenda: variaveis.legenda,
+        loteFotosId: variaveis.loteFotosId,
+      }),
+      opcoes: null,
+      statusEntrega: "PENDENTE",
+      erroEntrega: null,
+      enviadoEm: criadoEm,
+      ordemLocalDoLoteEm,
+      citacao: variaveis.citacao ?? null,
+      idempotencyKey: chave,
+    };
+    const contexto = { queryKey, idOtimista, criadoEm, otimista };
+    contextos.current.set(chave, contexto);
+    return contexto;
+  }
+
+  /** Publica as prévias antes do primeiro upload; a fila HTTP continua sequencial. */
+  function prepararLote(envios: VariaveisEnvioMidia[]) {
+    const instante = Date.now();
+    const preparados = envios.map((envio, indice) => preparar(envio, new Date(instante + indice).toISOString()));
+    const chave = preparados[0]?.queryKey;
+    if (!chave) return;
+    atualizarPaginaRecente(queryClient, chave, (atuais) => [...atuais, ...preparados.map(({ otimista }) => otimista)]);
+    acompanharPrevias(queryClient, chave, preparados.flatMap(({ otimista }) => otimista.midiaUrl ?? []));
+  }
+
+  const mutacao = useMutation({
     mutationFn: async (variaveis: VariaveisEnvioMidia) => {
       try {
         return await enviarMidia(
@@ -86,6 +153,7 @@ export function useEnviarMidia() {
           variaveis.resposta,
           variaveis.gravacaoDoComposer,
           variaveis.idempotencyKey,
+          ...(variaveis.loteFotosId ? [variaveis.loteFotosId] as const : []),
         );
       } catch (erro) {
         const chave = variaveis.idempotencyKey;
@@ -106,36 +174,18 @@ export function useEnviarMidia() {
       }
     },
     onMutate: (variaveis) => {
-      const queryKey = ["mensagens", variaveis.atendimentoId] as const;
-      const chaveIdempotencia = variaveis.idempotencyKey ?? crypto.randomUUID();
-      variaveis.idempotencyKey = chaveIdempotencia;
-      const idOtimista = idTemporario();
-      const identidade = identidadeAutenticada(queryClient);
-      const previewUrl = URL.createObjectURL(variaveis.arquivo);
-      const otimista: MensagemResposta = {
-        id: idOtimista,
-        remetenteTipo: "ATENDENTE",
-        remetenteId: identidade.id,
-        remetenteNome: identidade.nome,
-        tipo: tipoDoArquivo(variaveis.arquivo.type),
-        conteudo: null,
-        midiaUrl: previewUrl,
-        midiaMetadados: JSON.stringify({
-          nome: variaveis.arquivo.name,
-          mimetype: variaveis.arquivo.type,
-          tamanho: variaveis.arquivo.size,
-          legenda: variaveis.legenda,
-        }),
-        opcoes: null,
-        statusEntrega: "PENDENTE",
-        erroEntrega: null,
-        enviadoEm: new Date().toISOString(),
-        citacao: variaveis.citacao ?? null,
-        idempotencyKey: chaveIdempotencia,
-      };
-      atualizarPaginaRecente(queryClient, queryKey, (atual) => [...atual, otimista]);
-      const contexto = { queryKey, idOtimista, criadoEm: otimista.enviadoEm, otimista };
-      contextos.current.set(chaveIdempotencia, contexto);
+      const preparado = variaveis.idempotencyKey ? contextos.current.get(variaveis.idempotencyKey) : null;
+      if (preparado) return preparado;
+      const contexto = preparar(variaveis);
+      atualizarPaginaRecente(queryClient, contexto.queryKey, (atuais) => {
+        const local = atuais.find((mensagem) => mensagem.id === contexto.idOtimista);
+        if (local) {
+          if (contexto.otimista.midiaUrl) URL.revokeObjectURL(contexto.otimista.midiaUrl);
+          contexto.otimista = { ...local, statusEntrega: "PENDENTE", erroEntrega: null };
+          return atuais.map((mensagem) => mensagem === local ? contexto.otimista : mensagem);
+        }
+        return mesclarMensagens(atuais, [contexto.otimista]);
+      });
       return contexto;
     },
     onError: (erro, variaveis, contexto) => {
@@ -143,12 +193,13 @@ export function useEnviarMidia() {
         return;
       }
       if (variaveis.idempotencyKey) contextos.current.delete(variaveis.idempotencyKey);
-      if (variaveis.resposta) {
+      if (variaveis.resposta && !contexto.otimista.ordemLocalDoLoteEm) {
         // Respostas/citações mantêm o comportamento existente: sem confirmação da API, a
         // referência otimista é retirada para não deixar um vínculo local que nunca foi aceito.
         atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
           atual.filter((mensagem) => mensagem.id !== contexto.idOtimista),
         );
+        if (contexto.otimista.midiaUrl?.startsWith("blob:")) URL.revokeObjectURL(contexto.otimista.midiaUrl);
         return;
       }
       const erroDefinitivo = erro instanceof ErroDeApi ? {
@@ -184,4 +235,5 @@ export function useEnviarMidia() {
       }
     },
   });
+  return { ...mutacao, prepararLote };
 }

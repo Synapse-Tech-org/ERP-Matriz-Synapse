@@ -38,7 +38,7 @@ interface OpcaoInterativa {
   descricao?: string;
 }
 
-function metadadosDaMidia(json: string | null): MidiaMetadados {
+export function metadadosDaMidia(json: string | null): MidiaMetadados {
   if (!json) {
     return {};
   }
@@ -81,6 +81,8 @@ type Props = {
   origemDaCitacao?: OrigemDaCitacao | null;
   carregandoOrigemDaCitacao?: boolean;
   onNavegarParaCitacao?: () => void;
+  /** Controles da foto ativa de um álbum, sem repetir a imagem nem montar outro visualizador. */
+  detalhesDoAlbum?: boolean;
 };
 
 export function textoCopiavelDaMensagem(mensagem: MensagemResposta): string | null {
@@ -126,6 +128,7 @@ export function BolhaMensagem({
   origemDaCitacao,
   carregandoOrigemDaCitacao = false,
   onNavegarParaCitacao,
+  detalhesDoAlbum = false,
 }: Props) {
   const catalogo = useTextos().atendimentos;
   const textos = catalogo.media;
@@ -165,7 +168,7 @@ export function BolhaMensagem({
       setBaixando(false);
     }
   }
-  const itemDoVisualizador = itemDaBolha(leadId, mensagem, metadados);
+  const itemDoVisualizador = detalhesDoAlbum ? null : itemDaBolha(leadId, mensagem, metadados);
   const podeAbrir = Boolean(itemDoVisualizador);
   const data = new Date(mensagem.enviadoEm);
   const dataHora = `${data.toLocaleDateString("pt-BR", {
@@ -227,9 +230,9 @@ export function BolhaMensagem({
             </p>
           )}
 
-        {mensagem.tipo === "IMAGEM" && (
+        {mensagem.tipo === "IMAGEM" && (!detalhesDoAlbum || metadados.legenda) && (
           <div className="space-y-1.5 rounded-lg border border-border bg-background/50 p-1.5 shadow-sm">
-            {midiaUrl && (
+            {midiaUrl && !detalhesDoAlbum && (
               podeAbrir ? (
                 <button
                   type="button"
@@ -455,7 +458,8 @@ export function BolhaMensagem({
               status={mensagem.statusEntrega}
               erroEntrega={mensagem.erroEntrega}
               onReenviar={
-                podeReenviar(mensagem, janelaTextoLivreAberta) ? onReenviar : undefined
+                (mensagem.tipo === "IMAGEM" && mensagem.id.startsWith("temp-") && janelaTextoLivreAberta)
+                  || podeReenviar(mensagem, janelaTextoLivreAberta) ? onReenviar : undefined
               }
             />
           )}
@@ -481,7 +485,7 @@ function preencher(modelo: string, valores: Record<string, string>): string {
   );
 }
 
-function itemDaBolha(
+export function itemDaBolha(
   leadId: string | undefined,
   mensagem: MensagemResposta,
   metadados: MidiaMetadados,

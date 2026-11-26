@@ -114,7 +114,8 @@ public class EnviarMidiaUseCase {
                 legenda,
                 resposta,
                 gravacaoDoComposer,
-                chaveIdempotencia);
+                chaveIdempotencia,
+                null);
     }
 
     /**
@@ -132,6 +133,21 @@ public class EnviarMidiaUseCase {
             AlvoDeResposta resposta,
             boolean gravacaoDoComposer,
             String chaveIdempotencia) {
+        return executarInterno(leadId, atendimentoEsperadoId, conteudo, nomeArquivoOriginal,
+                legenda, resposta, gravacaoDoComposer, chaveIdempotencia, null);
+    }
+
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
+    public EnviarMensagemUseCase.Resultado executar(
+            UUID leadId,
+            UUID atendimentoEsperadoId,
+            byte[] conteudo,
+            String nomeArquivoOriginal,
+            String legenda,
+            AlvoDeResposta resposta,
+            boolean gravacaoDoComposer,
+            String chaveIdempotencia,
+            UUID loteFotosId) {
         return executarInterno(
                 leadId,
                 atendimentoEsperadoId,
@@ -140,7 +156,8 @@ public class EnviarMidiaUseCase {
                 legenda,
                 resposta,
                 gravacaoDoComposer,
-                chaveIdempotencia);
+                chaveIdempotencia,
+                loteFotosId);
     }
 
     private EnviarMensagemUseCase.Resultado executarInterno(
@@ -151,7 +168,8 @@ public class EnviarMidiaUseCase {
             String legenda,
             AlvoDeResposta resposta,
             boolean gravacaoDoComposer,
-            String chaveIdempotencia) {
+            String chaveIdempotencia,
+            UUID loteFotosId) {
         String mimetypeDetectado = detector.detectar(conteudo);
         if (!DocumentoWord.nomeCompativel(nomeArquivoOriginal, mimetypeDetectado))
             throw new TipoDeMidiaNaoPermitidoException(mimetypeDetectado);
@@ -218,7 +236,8 @@ public class EnviarMidiaUseCase {
                 mimetypeParaSalvar,
                 conteudoParaSalvar.length,
                 legenda,
-                convertido);
+                convertido,
+                tipo == TipoMensagem.IMAGEM ? loteFotosId : null);
 
         ConteudoDeEnvio.MensagemMidia envio =
                 new ConteudoDeEnvio.MensagemMidia(tipo, referencia, metadados, legenda);
@@ -281,11 +300,15 @@ public class EnviarMidiaUseCase {
     }
 
     private String metadadosJson(
-            String nome, String mimetype, long tamanho, String legenda, boolean gravacaoDoComposer) {
+            String nome, String mimetype, long tamanho, String legenda, boolean gravacaoDoComposer,
+            UUID loteFotosId) {
         ObjectNode no = json.createObjectNode();
         no.put("nome", nome);
         no.put("mimetype", mimetype);
         no.put("tamanho", tamanho);
+        if (loteFotosId != null) {
+            no.put("loteFotosId", loteFotosId.toString());
+        }
         if (legenda != null && !legenda.isBlank()) {
             no.put("legenda", legenda);
         }

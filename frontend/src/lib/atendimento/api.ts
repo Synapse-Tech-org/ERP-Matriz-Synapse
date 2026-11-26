@@ -312,6 +312,7 @@ export function enviarMidia(
   resposta?: AlvoDeResposta,
   gravacaoDoComposer = false,
   idempotencyKey?: string,
+  loteFotosId?: string,
 ): Promise<EnvioResposta> {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
@@ -328,6 +329,7 @@ export function enviarMidia(
     if (gravacaoDoComposer) {
       params.set("gravacaoDoComposer", "true");
     }
+    if (loteFotosId) params.set("loteFotosId", loteFotosId);
     const query = params.toString() ? `?${params.toString()}` : "";
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${API_URL}/api/v1/atendimentos/${atendimentoId}/mensagens/midia${query}`);

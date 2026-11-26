@@ -994,35 +994,51 @@ export function PaginaAtendimentosCliente({
     setFalhasDeMidia((atuais) => [...atuais, ...falhas]);
   }, []);
 
-  const reenviarFalhasDeMidia = useCallback(async () => {
+  const reenvioEmCurso = useRef(false);
+  const reenviarFalhasDeMidia = useCallback(async (chave?: string) => {
     if (convite.pendente) return;
-    if (!await revalidarEnvio()) return;
-    const atuais = falhasDeMidia;
-    const idsEmReenvio = new Set(atuais.map((falha) => falha.id));
-    const restantes: FalhaDeEnvioMidia[] = [];
-    for (const falha of atuais) {
-      try {
-        await reenviarMidia.mutateAsync({
-          atendimentoId: falha.atendimentoId,
-          leadId: falha.leadId,
-          arquivo: falha.arquivo,
-          legenda: falha.legenda,
-          resposta: falha.resposta,
-          citacao: falha.citacao,
-          idempotencyKey: falha.idempotencyKey,
-        });
-      } catch (erro) {
-        restantes.push({
-          ...falha,
-          motivo: motivoDaFalhaDeMidia(erro, textos.composer.anexoErro),
-        });
+    if (reenvioEmCurso.current) return;
+    const alvo = atendimentoSelecionadoId;
+    const atuais = chave ? falhasDeMidia.filter((falha) => falha.atendimentoId === alvo
+      && falha.idempotencyKey === chave) : falhasDeMidia;
+    if (!atuais.length) return;
+    reenvioEmCurso.current = true;
+    try {
+      if (!await revalidarEnvio()) return;
+      if (selecaoAtualRef.current.id !== alvo) return;
+      const idsEmReenvio = new Set(atuais.map((falha) => falha.id));
+      const restantes: FalhaDeEnvioMidia[] = [];
+      for (const falha of atuais) {
+        try {
+          await reenviarMidia.mutateAsync({
+            atendimentoId: falha.atendimentoId,
+            leadId: falha.leadId,
+            arquivo: falha.arquivo,
+            legenda: falha.legenda,
+            resposta: falha.resposta,
+            citacao: falha.citacao,
+            idempotencyKey: falha.idempotencyKey,
+            loteFotosId: falha.loteFotosId,
+          });
+        } catch (erro) {
+          restantes.push({
+            ...falha,
+            motivo: motivoDaFalhaDeMidia(erro, textos.composer.anexoErro),
+          });
+        }
       }
+      setFalhasDeMidia((correntes) => [
+        ...correntes.filter((falha) => !idsEmReenvio.has(falha.id)),
+        ...restantes,
+      ]);
+    } finally {
+      reenvioEmCurso.current = false;
     }
-    setFalhasDeMidia((correntes) => [
-      ...correntes.filter((falha) => !idsEmReenvio.has(falha.id)),
-      ...restantes,
-    ]);
-  }, [convite.pendente, falhasDeMidia, revalidarEnvio, reenviarMidia, textos.composer.anexoErro]);
+  }, [atendimentoSelecionadoId, convite.pendente, falhasDeMidia, revalidarEnvio, reenviarMidia, textos.composer.anexoErro]);
+  const fotosComReenvioDisponivel = podeResponder && !convite.pendente && !reenviarMidia.isPending
+    ? new Set(falhasDeMidia.flatMap(({ atendimentoId, loteFotosId, idempotencyKey }) =>
+      atendimentoId === atendimentoSelecionadoId && loteFotosId && idempotencyKey ? [idempotencyKey] : []))
+    : undefined;
   const atualizarAtendimentos = useCallback((cartoes: ItemInbox[]) => {
     setAtendimentos(cartoes);
   }, []);
@@ -1304,10 +1320,14 @@ export function PaginaAtendimentosCliente({
               }
             >
               <ListaMensagens
+                key={conversa.atendimentoId}
                 mensagens={mensagensQuery.data}
                 cartoes={cartoesDoChatbot}
                 carregando={mensagensQuery.isLoading}
                 onReenviar={convite.pendente ? undefined : reenviar}
+                fotosComReenvioDisponivel={fotosComReenvioDisponivel}
+                onReenviarFoto={reenviarFalhasDeMidia}
+                janelaAlbumFotosSegundos={configuracao?.janelaAlbumFotosSegundos}
                 onDefinirReacao={definirReacaoDaMensagem}
                 onRemoverReacao={removerReacaoDaMensagem}
                 temMais={mensagensQuery.hasNextPage}

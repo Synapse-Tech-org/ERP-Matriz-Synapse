@@ -824,6 +824,12 @@ export const TextosSchema = z.object({
       envioNaoConfirmado: z.string().optional(),
       carregarAnteriores: z.string(),
       carregandoAnteriores: z.string(),
+      albumFotos: z.object({
+        titulo: z.string().default("Álbum com {quantidade} fotos"),
+        abrirFoto: z.string().default("Abrir foto {posicao} de {quantidade}"),
+        fotosOcultas: z.string().default("Ver mais {quantidade} fotos"),
+        indisponivel: z.string().default("Foto indisponível"),
+      }).default({ titulo: "Álbum com {quantidade} fotos", abrirFoto: "Abrir foto {posicao} de {quantidade}", fotosOcultas: "Ver mais {quantidade} fotos", indisponivel: "Foto indisponível" }),
       acoes: z.object({
         abrir: z.string(),
         titulo: z.string(),

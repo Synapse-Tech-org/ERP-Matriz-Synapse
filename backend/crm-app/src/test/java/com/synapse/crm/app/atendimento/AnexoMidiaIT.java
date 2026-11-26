@@ -189,6 +189,34 @@ class AnexoMidiaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("lote de fotos atravessa a rota de upload e o histórico autorizado sem unir IDs")
+    void upload_loteFotos_preservaIdIndividualEMetadados() throws Exception {
+        UUID atendimentoId = atendimentoDoLeadOuAbrir(leadDaAna);
+        UUID loteFotosId = UUID.randomUUID();
+        assertThat(enviarAnexoParaAtendimento(atendimentoId, PNG_VALIDO, "invalido.png", null,
+                        "?loteFotosId=nao-e-uuid").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(armazenamento.contagemDeObjetos()).isZero();
+        var ids = new java.util.HashSet<String>();
+        for (int i = 0; i < 4; i++) {
+            var resposta = enviarAnexoParaAtendimento(atendimentoId, PNG_VALIDO, "foto-" + i + ".png",
+                    null, "?loteFotosId=" + loteFotosId);
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            ids.add(json.readTree(resposta.getBody()).path("mensagemId").asText());
+        }
+        assertThat(ids).hasSize(4);
+        var mensagens = json.readTree(mensagensComo(EMAIL_ANA, atendimentoId).getBody()).path("mensagens");
+        int fotosDoLote = 0;
+        for (var mensagem : mensagens) {
+            if (!ids.contains(mensagem.path("id").asText())) continue;
+            assertThat(json.readTree(mensagem.path("midiaMetadados").asText()).path("loteFotosId").asText())
+                    .isEqualTo(loteFotosId.toString());
+            fotosDoLote++;
+        }
+        assertThat(fotosDoLote).isEqualTo(4);
+        assertThat(mensagensComo(EMAIL_BRUNO, atendimentoId).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     @DisplayName("upload ancorado em atendimento finalizado retorna 409 sem mídia, mensagem ou outbox")
     void upload_atendimentoFinalizado_retorna409SemEscritaParcial() {
         UUID atendimentoId = atendimentoDoLeadOuAbrir(leadDaAna);
@@ -856,6 +884,11 @@ class AnexoMidiaIT extends PostgresIT {
 
     private ResponseEntity<String> enviarAnexoParaAtendimento(
             UUID atendimentoId, byte[] conteudo, String nomeArquivo, String legenda) {
+        return enviarAnexoParaAtendimento(atendimentoId, conteudo, nomeArquivo, legenda, "");
+    }
+
+    private ResponseEntity<String> enviarAnexoParaAtendimento(
+            UUID atendimentoId, byte[] conteudo, String nomeArquivo, String legenda, String consulta) {
         String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
 
         MultiValueMap<String, Object> corpo = new LinkedMultiValueMap<>();
@@ -873,7 +906,7 @@ class AnexoMidiaIT extends PostgresIT {
         cabecalhos.setBearerAuth(token);
         cabecalhos.setContentType(MediaType.MULTIPART_FORM_DATA);
         return http.postForEntity(
-                "/api/v1/atendimentos/" + atendimentoId + "/mensagens/midia",
+                "/api/v1/atendimentos/" + atendimentoId + "/mensagens/midia" + consulta,
                 new HttpEntity<>(corpo, cabecalhos),
                 String.class);
     }

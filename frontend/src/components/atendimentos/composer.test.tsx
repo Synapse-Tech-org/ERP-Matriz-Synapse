@@ -11,6 +11,7 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const mutateMidia = vi.fn();
+const prepararLote = vi.fn();
 const mutateTexto = vi.fn();
 const onCancelarResposta = vi.fn();
 const estadoMidia: { isError: boolean; error: Error | null } = {
@@ -43,6 +44,7 @@ vi.mock("@/lib/atendimento/use-enviar-midia", () => ({
   useEnviarMidia: () => ({
     mutate: mutateMidia,
     mutateAsync: (variaveis: unknown) => Promise.resolve(mutateMidia(variaveis)),
+    prepararLote,
     isPending: false,
     ...estadoMidia,
   }),
@@ -704,6 +706,10 @@ describe("Composer — anexo", () => {
     fireEvent.click(screen.getByLabelText("Enviar"));
 
     await waitFor(() => expect(mutateMidia).toHaveBeenCalledTimes(7));
+    const envios = mutateMidia.mock.calls.map(([envio]) => envio);
+    expect(prepararLote).toHaveBeenCalledWith(envios);
+    expect(new Set(envios.map(({ loteFotosId }) => loteFotosId)).size).toBe(1);
+    expect(new Set(envios.map(({ idempotencyKey }) => idempotencyKey)).size).toBe(7);
     expect(screen.getByRole("alert")).toHaveTextContent(
       "foto-4.png: Arquivo excede o limite",
     );
