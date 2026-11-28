@@ -34,6 +34,21 @@ export class RepositorioExecucoesPostgres implements RepositorioExecucoes {
   estado(): EstadoBanco {
     return this.atual;
   }
+  async listarPrompts() {
+    const r = await this.pool.query<{chave:string;valor:string}>(
+      "SELECT chave,coalesce(valor,'') AS valor FROM automacao_infra.prompt_conversa ORDER BY chave");
+    return r.rows;
+  }
+  async salvarPrompt(chave:string, valor:string, usuario:string) {
+    // Remover um override opcional restaura o comportamento do prompt da instancia.
+    if (!valor.trim()) {
+      await this.pool.query("DELETE FROM automacao_infra.prompt_conversa WHERE chave=$1",[chave]);
+      return;
+    }
+    await this.pool.query(`INSERT INTO automacao_infra.prompt_conversa(chave,valor,atualizado_por)
+      VALUES ($1,$2,$3) ON CONFLICT(chave) DO UPDATE SET valor=EXCLUDED.valor,
+      atualizado_por=EXCLUDED.atualizado_por, atualizado_em=now()`,[chave,valor,usuario]);
+  }
   async preparar(): Promise<void> {
     try {
       const marker = await this.pool.query(

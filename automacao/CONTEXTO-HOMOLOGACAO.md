@@ -1,5 +1,13 @@
 # Contexto atual da homologacao
 
+### Conversa: decisao de 25/11/2026
+
+O CRM e a unica entrada de eventos para o TypeScript. Em homologacao o corpo
+vem no formato Evolution e o modo planejado e AGENTE_IA. Testar esses dois
+aspectos separadamente: a Estrutural usa Meta e a ultima configuracao informada
+da Femina usa Z-API (UZAPI e legado a confirmar, nao um alias). O modo nao
+depende do provedor. Ver [contrato e escopo da entrada](PLANO-CONVERSA.md).
+
 Atualizado em 11/11/2026 a partir da conversa com o operador e dos prints do
 Dokploy/Marcondes. Este arquivo nao contem credenciais.
 

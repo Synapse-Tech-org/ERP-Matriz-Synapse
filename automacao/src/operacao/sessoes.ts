@@ -62,6 +62,12 @@ export class SessoesPainel {
   sair(id: string | undefined): void {
     if (id) this.sessoes.delete(id);
   }
+  async tokenParaCrm(id: string | undefined): Promise<string> {
+    await this.consultar(id);
+    const sessao = id && this.sessoes.get(id);
+    if (!sessao) throw new FalhaIdentidade("SESSAO_EXPIRADA",401);
+    return sessao.token;
+  }
   limpar(): void {
     this.sessoes.clear();
   }

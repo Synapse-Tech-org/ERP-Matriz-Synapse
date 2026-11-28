@@ -1,4 +1,6 @@
 import cookie from "@fastify/cookie";
+import { chavesPrompt, type Parametro } from "../conversa/agente/prompts.js";
+import { camposPerfil, validarPerfil } from "../conversa/agente/perfil.js";
 import rateLimit from "@fastify/rate-limit";
 import arquivos from "@fastify/static";
 import type { FastifyInstance } from "fastify";
@@ -21,6 +23,7 @@ declare module "fastify" {
   }
 }
 export interface ConfiguracaoPainel {
+  prompts?: {listarPrompts(): Promise<Parametro[]>; salvarPrompt(chave:string,valor:string,usuario:string):Promise<void>} | undefined;
   identidade?: ProvedorIdentidade | undefined;
   raizArquivos?: string | undefined;
   cookieSeguro: boolean;
@@ -131,6 +134,24 @@ export function registrarPainel(
         return { encerrada: true };
       });
       registrarConsultasOperacao(scope, config, deps);
+      const permitidas = new Set<string>([...Object.values(chavesPrompt), ...Object.keys(camposPerfil)]);
+      scope.get("/prompts", async (req, reply) => {
+        if (!painel.prompts) return reply.code(503).send();
+        const salvos = new Map((await painel.prompts.listarPrompts()).map(p=>[p.chave,p.valor]));
+        return Array.from(permitidas,chave=>({chave,valor:salvos.get(chave)??""}));
+      });
+      scope.put<{Params:{chave:string}; Body:{valor:string}}>("/prompts/:chave", {
+        bodyLimit:131072, schema:{body:{type:"object",required:["valor"],additionalProperties:false,
+          properties:{valor:{type:"string",maxLength:32000}}}}
+      }, async (req, reply) => {
+        if (!permitidas.has(req.params.chave)) return reply.code(404).send();
+        if (Object.hasOwn(camposPerfil,req.params.chave)
+          ? !validarPerfil(req.params.chave,req.body.valor.trim()) : !req.body.valor.trim()) return reply.code(400).send();
+        if (req.usuarioPainel?.papel !== "ADMINISTRADOR") return reply.code(403).send();
+        if (!painel.prompts) return reply.code(503).send();
+        await painel.prompts.salvarPrompt(req.params.chave, req.body.valor, req.usuarioPainel.id);
+        return reply.code(204).send();
+      });
     },
     { prefix: "/painel/api" },
   );

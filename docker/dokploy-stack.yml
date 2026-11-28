@@ -429,6 +429,8 @@ services:
       AUTOMACAO_HABILITADA: ${AUTOMACAO_HABILITADA:-false}
       AUTOMACAO_FOLLOWUP_HABILITADO: ${AUTOMACAO_FOLLOWUP_HABILITADO:-false}
       AUTOMACAO_CONVERSA_MODO: ${AUTOMACAO_CONVERSA_MODO:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AUTOMACAO_REDIS_URL: ${AUTOMACAO_REDIS_URL:-redis://redis:6379}
       AUTOMACAO_SISTEMATICAS_HABILITADAS: ${AUTOMACAO_SISTEMATICAS_HABILITADAS:-false}
       AUTOMACAO_NUMEROS_TESTE: ${AUTOMACAO_NUMEROS_TESTE:-}
       AUTOMACAO_CRM_URL: ${AUTOMACAO_CRM_URL:-http://synapse-backend-internal:8080}
@@ -572,6 +574,10 @@ services:
         target: /opt/automacao/migrations/V10__executor_followup.sql
       - source: automacao-migracao-v11
         target: /opt/automacao/migrations/V11__mensagens_sistematicas.sql
+      - source: automacao-migracao-v12
+        target: /opt/automacao/migrations/V12__prompts_conversa.sql
+      - source: automacao-migracao-v13
+        target: /opt/automacao/migrations/V13__campos_iniciais_agente.sql
     networks:
       - synapse-internal
     deploy:
@@ -773,3 +779,7 @@ configs:
     file: ../automacao/banco/migrations/V10__executor_followup.sql
   automacao-migracao-v11:
     file: ../automacao/banco/migrations/V11__mensagens_sistematicas.sql
+  automacao-migracao-v12:
+    file: ../automacao/banco/migrations/V12__prompts_conversa.sql
+  automacao-migracao-v13:
+    file: ../automacao/banco/migrations/V13__campos_iniciais_agente.sql

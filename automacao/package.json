@@ -24,7 +24,8 @@
     "flatted": "3.4.4",
     "lucide": "1.70.0",
     "pg": "8.23.1",
-    "pg-boss": "12.38.0"
+    "pg-boss": "12.38.0",
+    "redis": "5.12.4"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

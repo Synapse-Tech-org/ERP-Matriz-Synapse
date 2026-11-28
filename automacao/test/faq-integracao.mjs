@@ -11,7 +11,8 @@ const pool = new Pool({host:'127.0.0.1', port:5432, database:'automacao_fixture'
 try {
   await aplicarMigracoes(pool);
   const historico = await pool.query('SELECT versao FROM automacao_infra.migracao ORDER BY versao');
-  assert.deepEqual(historico.rows.map(r => r.versao), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  assert.deepEqual(historico.rows.map(r => r.versao), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+  assert.equal((await pool.query('SELECT chave FROM automacao_infra.prompt_conversa WHERE valor IS NULL')).rowCount, 6);
   const colunas = await pool.query("SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='faq' ORDER BY ordinal_position");
   assert.deepEqual(colunas.rows, [
     {column_name:'id',data_type:'integer',is_nullable:'NO'},

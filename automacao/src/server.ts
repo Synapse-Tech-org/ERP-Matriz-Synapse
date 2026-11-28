@@ -46,6 +46,7 @@ const app = criarAplicacao(
   },
   {
     identidade: crmUrl ? new IdentidadeCrm(crmUrl) : undefined,
+    prompts: repositorio,
     cookieSeguro: process.env.AUTOMACAO_PAINEL_COOKIE_SECURE !== "false",
     raizArquivos: resolve(process.cwd(), "painel-dist"),
   },

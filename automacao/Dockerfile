@@ -16,6 +16,7 @@ COPY automacao/package.json automacao/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
 FROM base AS runtime
+RUN apk add --no-cache poppler-utils
 ENV NODE_ENV=production \
     AUTOMACAO_HOST=0.0.0.0 \
     AUTOMACAO_PORT=3100 \

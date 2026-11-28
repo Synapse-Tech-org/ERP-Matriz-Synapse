@@ -57,6 +57,8 @@ def compose_base():
                     ("migracao-v9", "migrations/V9__criar_cursores_de_segmentacao.sql"),
                     ("migracao-v10", "migrations/V10__executor_followup.sql"),
                     ("migracao-v11", "migrations/V11__mensagens_sistematicas.sql"),
+                    ("migracao-v12", "migrations/V12__prompts_conversa.sql"),
+                    ("migracao-v13", "migrations/V13__campos_iniciais_agente.sql"),
                 )],
                 "deploy": {"replicas": 0, "restart_policy": {"condition": "none"}, "labels": {"traefik.enable": "false"}},
             },

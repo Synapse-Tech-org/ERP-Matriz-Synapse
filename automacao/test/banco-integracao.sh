@@ -46,7 +46,7 @@ provisionar
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM credentials_entity')" = 0 ]
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM execution_entity')" = 0 ]
 [ "$(consulta automacao_fixture 'SELECT count(*) FROM public.faq')" = 0 ]
-[ "$(consulta automacao_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 11 ]
+[ "$(consulta automacao_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 13 ]
 [ "$(consulta n8n_fixture 'SELECT count(*) FROM credentials_entity')" = 1 ]
 [ "$(consulta automacao_fixture "SELECT count(*) FROM pg_type WHERE typname='fixture_enum'")" = 1 ]
 [ "$(consulta automacao_fixture "SELECT to_regclass('public.fixture_status_idx') IS NOT NULL")" = t ]
@@ -101,7 +101,7 @@ INSERT INTO public.faq (nome,pergunta,resposta) VALUES ('legado','Preservar?','S
 provisionar legado_fixture
 [ "$(consulta legado_fixture 'SELECT count(*) FROM public.faq')" = 1 ]
 [ "$(consulta legado_fixture 'SELECT count(*) FROM public.n8n_chat_histories')" = 0 ]
-[ "$(consulta legado_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 11 ]
+[ "$(consulta legado_fixture 'SELECT count(*) FROM automacao_infra.migracao')" = 13 ]
 [ "$(consulta legado_fixture 'SELECT count(*) FROM preservar')" = 1 ]
 consulta legado_fixture "UPDATE automacao_infra.migracao SET checksum='adulterado' WHERE versao=1" >/dev/null
 if provisionar legado_fixture; then echo 'ERRO: aceitou checksum alterado' >&2; exit 1; fi
