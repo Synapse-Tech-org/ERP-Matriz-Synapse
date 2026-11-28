@@ -17,7 +17,7 @@ public class ListarContatosChatUseCase {
         this.repositorio = repositorio; this.usuario = usuario;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional(readOnly = true)
     public List<ChatInternoRepositorio.ContatoResumo> executar() {
         return repositorio.listarContatos(usuario.atual().id());

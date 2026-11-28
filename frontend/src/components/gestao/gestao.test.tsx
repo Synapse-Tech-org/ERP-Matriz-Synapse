@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ErroDeApi } from "@/lib/api/errors";
 import { GestaoTextosSchema } from "@/lib/config/schema-gestao";
@@ -51,10 +51,15 @@ function perfil(papel: Perfil["papel"], fixo = false, editavel = !fixo): Perfil 
   return {
     papel, fixo, revisao: 3, usuarios: papel === "ATENDENTE" ? 6 : 1, permitidas: 2, total: 2, editavel,
     modulos: CATALOGO.modulos.map((m) => ({ id: m.id, doPerfil: m.nivelPadraoPorPapel[papel], excecao: null, efetivo: m.nivelPadraoPorPapel[papel], minimo: m.nivelMinimoPermitido, maximo: m.nivelMaximoPorPapel[papel] })),
-    capacidades: CATALOGO.capacidades.map((c) => ({
-      id: c.id, doPerfil: c.tipo === "ACAO" && noTeto(c.id) ? true : null, excecao: null, permitido: noTeto(c.id),
-      motivo: noTeto(c.id) ? "PERMITIDO" : "TETO_DO_PAPEL", origem: "PERFIL", alcance: c.alcancePorPapel[papel] ?? null, alteravel: true,
-    })),
+    capacidades: CATALOGO.capacidades.map((c) => {
+      const flagDesligada = c.modulo === "chat_interno" && !funcionalidades.includes("chat_interno");
+      return {
+        id: c.id, doPerfil: c.tipo === "ACAO" && noTeto(c.id) ? true : null, excecao: null,
+        permitido: !flagDesligada && noTeto(c.id),
+        motivo: flagDesligada ? "FLAG_DESLIGADA" : noTeto(c.id) ? "PERMITIDO" : "TETO_DO_PAPEL",
+        origem: "PERFIL", alcance: c.alcancePorPapel[papel] ?? null, alteravel: !flagDesligada,
+      };
+    }),
   };
 }
 
@@ -63,11 +68,14 @@ const EQUIPE: ResumoDeUsuario[] = [
   { id: "a", nome: "Ana Atendente", email: "a@x", papel: "ATENDENTE", ativo: true, fotoUrl: null, excecoes: 1, editavel: true },
 ];
 
-function detalheDaAna(): PermissoesDeUsuario {
-  const p = perfil("ATENDENTE");
+function detalheDoUsuario(id: string): PermissoesDeUsuario | undefined {
+  const usuario = EQUIPE.find((u) => u.id === id);
+  if (!usuario) return undefined;
+  const p = perfil(usuario.papel, usuario.papel === "GESTOR" || usuario.papel === "ADMINISTRADOR", usuario.editavel);
   return {
-    usuario: EQUIPE[1], revisao: 5, revisaoDoPerfil: 3, fixo: false, modulos: p.modulos,
-    capacidades: p.capacidades.map((c) => (c.id === "tags.aplicar" ? { ...c, excecao: false, permitido: false, motivo: "DESLIGADO", origem: "EXCECAO" } : c)),
+    usuario, revisao: 5, revisaoDoPerfil: 3, fixo: p.fixo, modulos: p.modulos,
+    capacidades: p.capacidades.map((c) => (id === "a" && c.id === "tags.aplicar"
+      ? { ...c, excecao: false, permitido: false, motivo: "DESLIGADO", origem: "EXCECAO" } : c)),
   };
 }
 
@@ -77,7 +85,7 @@ vi.mock("@/lib/gestao/use-gestao", () => ({
   useCatalogo: () => ({ isLoading: false, isError: false, data: CATALOGO, refetch: vi.fn() }),
   usePerfis: () => ({ isLoading: false, isError: false, data: perfis, refetch: vi.fn() }),
   usePermissoesDaEquipe: () => ({ isLoading: false, isError: false, data: EQUIPE, refetch: vi.fn() }),
-  usePermissoesDeUsuario: () => ({ isLoading: false, isError: false, data: detalheDaAna(), refetch: vi.fn() }),
+  usePermissoesDeUsuario: (id: string) => ({ isLoading: false, isError: false, data: detalheDoUsuario(id), refetch: vi.fn() }),
   useSalvarPerfil: () => salvarPerfil,
   useSalvarExcecoes: () => salvarExcecoes,
   useRestaurarPadrao: () => restaurar,
@@ -113,6 +121,92 @@ beforeEach(() => {
 });
 
 describe("Gestão", () => {
+  describe("acessos de conversa", () => {
+    beforeEach(() => {
+      funcionalidades = ["gestao_excecoes", "chat_interno"];
+      const papeis = ["ATENDENTE", "OPERADOR", "SUBGESTOR", "GESTOR", "ADMINISTRADOR"] as const;
+      const niveis = { ATENDENTE: "VER", OPERADOR: "VER", SUBGESTOR: "VER", GESTOR: "VER", ADMINISTRADOR: "VER" } as const;
+      CATALOGO.modulos.push({
+        id: "chat_interno", flag: "chat_interno", nivelMinimoPermitido: "VER",
+        nivelPadraoPorPapel: niveis, nivelMaximoPorPapel: niveis,
+      });
+      for (const [id, modulo] of [["clientes.acessar", "atendimentos"], ["chat_interno.usar", "chat_interno"]]) {
+        CATALOGO.capacidades.push({
+          id, modulo, tipo: "ACAO", nivelMinimo: "VER", sensivel: true, delegavel: false,
+          teto: [...papeis], alcancePorPapel: {}, dependencias: [],
+        });
+      }
+      perfis.push(perfil("OPERADOR"));
+      EQUIPE.push({ id: "op", nome: "Operador da fábrica", email: "op@x", papel: "OPERADOR",
+        ativo: true, fotoUrl: null, excecoes: 0, editavel: true });
+    });
+
+    afterEach(() => {
+      CATALOGO.modulos.pop();
+      CATALOGO.capacidades.splice(-2);
+      EQUIPE.pop();
+    });
+
+    it("permite manter o Chat interno ligado ao negar clientes apenas ao Operador selecionado", () => {
+      render(<AbaExcecoes textos={TEXTOS} minhas={minhas} usuarioInicial="op" embutida onSujoChange={vi.fn()} />);
+      const clientes = screen.getByRole("radiogroup", { name: "Atendimento ao cliente" });
+      const interno = screen.getByRole("radiogroup", { name: "Chat interno" });
+      const semClientes = within(clientes).getByRole("radio", { name: "Sem acesso" });
+      expect(semClientes).not.toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(semClientes);
+      expect(semClientes).toBeChecked();
+      expect(within(interno).getByRole("radio", { name: "Com acesso" })).toBeChecked();
+      fireEvent.click(screen.getByRole("button", { name: TEXTOS.barra.salvar }));
+      expect(salvarExcecoes.mutate).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: TEXTOS.barra.sensivelConfirmar }));
+      expect(salvarExcecoes.mutate).toHaveBeenCalledWith(expect.objectContaining({
+        id: "op", revisao: 5, rascunho: { niveis: {}, acoes: { "clientes.acessar": false } },
+      }), expect.anything());
+      expect(salvarPerfil.mutate).not.toHaveBeenCalled();
+    });
+
+    it("permite negar Chat interno no perfil sem mudar acesso a clientes nem nível de Atendimentos", () => {
+      render(<AbaPermissoes textos={TEXTOS} minhas={minhas} papelInicial="OPERADOR" layoutV2 onSujoChange={vi.fn()} />);
+      const clientes = screen.getByRole("radiogroup", { name: "Atendimento ao cliente" });
+      const interno = screen.getByRole("radiogroup", { name: "Chat interno" });
+      const niveis = screen.getByRole("radiogroup", { name: `Nível de ${TEXTOS.modulos.atendimentos.rotulo}` });
+      expect(within(niveis).getByRole("radio", { name: "Sem acesso" })).toBeDisabled();
+      expect(screen.queryByRole("radiogroup", { name: "Nível de Chat interno" })).not.toBeInTheDocument();
+      fireEvent.click(within(interno).getByRole("radio", { name: "Sem acesso" }));
+      expect(within(clientes).getByRole("radio", { name: "Com acesso" })).toBeChecked();
+      fireEvent.click(screen.getByRole("button", { name: TEXTOS.barra.salvar }));
+      fireEvent.click(screen.getByRole("button", { name: TEXTOS.barra.sensivelConfirmar }));
+      expect(salvarPerfil.mutate).toHaveBeenCalledWith(expect.objectContaining({
+        papel: "OPERADOR", rascunho: expect.objectContaining({
+          acoes: expect.objectContaining({ "clientes.acessar": true, "chat_interno.usar": false }),
+          niveis: expect.objectContaining({ atendimentos: "GERENCIAR", chat_interno: "VER" }),
+        }),
+      }), expect.anything());
+    });
+
+    it("o Chat interno indisponível na instância não aparece como concedido nem editável", () => {
+      funcionalidades = ["gestao_excecoes"];
+      perfis = [perfil("OPERADOR")];
+      render(<AbaPermissoes textos={TEXTOS} minhas={minhas} papelInicial="OPERADOR" onSujoChange={vi.fn()} />);
+      const interno = screen.getByRole("radiogroup", { name: "Chat interno" });
+      expect(interno).toHaveAccessibleDescription(/Módulo desligado nesta instância/);
+      expect(within(interno).getByRole("radio", { name: "Sem acesso" })).toBeChecked();
+      const conceder = within(interno).getByRole("radio", { name: "Com acesso" });
+      expect(conceder).toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(conceder);
+      expect(salvarPerfil.mutate).not.toHaveBeenCalled();
+    });
+
+    it("mantém os dois controles fora da alçada do subgestor, mesmo com edição delegada do perfil", () => {
+      subgestorQueEditaPerfis(["clientes.acessar", "chat_interno.usar"]);
+      render(<AbaPermissoes textos={TEXTOS} minhas={minhas} papelInicial="ATENDENTE" onSujoChange={vi.fn()} />);
+      for (const nome of ["Atendimento ao cliente", "Chat interno"]) {
+        const controle = screen.getByRole("radiogroup", { name: nome });
+        expect(controle).toHaveAccessibleDescription(/Fora do que foi delegado/);
+        expect(within(controle).getByRole("radio", { name: "Sem acesso" })).toHaveAttribute("aria-disabled", "true");
+      }
+    });
+  });
   it("expande, busca e grava ações no painel V2 sem trocar o perfil selecionado", () => {
     render(<AbaPermissoes layoutV2 textos={TEXTOS} minhas={minhas} onSujoChange={vi.fn()} />);
 

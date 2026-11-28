@@ -36,6 +36,9 @@ public enum Capacidade {
     CLIENTES_ACESSAR("clientes.acessar", Modulo.ATENDIMENTOS, NivelDeAcesso.VER, Tipo.ACAO,
             true, todos(), nenhum(), false),
 
+    CHAT_INTERNO_USAR("chat_interno.usar", Modulo.CHAT_INTERNO, NivelDeAcesso.VER, Tipo.ACAO,
+            true, todos(), nenhum(), false),
+
     // --- Atendimentos -----------------------------------------------------------------------
     /** Recorte de conversas. Estrutural: vem de RN-CRM-01/Specification/RLS, nunca do catalogo. */
     ATENDIMENTOS_VER("atendimentos.ver", Modulo.ATENDIMENTOS, NivelDeAcesso.VER, Tipo.ALCANCE_ESTRUTURAL,

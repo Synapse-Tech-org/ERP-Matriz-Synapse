@@ -83,7 +83,7 @@ export async function prepararFrontendV2(page: Page, opcoes: OpcoesFrontendV2 = 
     else if (caminho === "/gestao/permissoes/minhas") corpo = {
       usuarioId, papel: "ATENDENTE", revisao: "fixture",
       acessaGestao: acessaEquipe,
-      capacidades: Object.fromEntries(["atendimentos.ver", "atendimentos.responder", "contatos.ver", "contatos.editar", ...(acessaClientes ? ["clientes.acessar"] : []), ...(dashboard ? ["dashboard.ver"] : []), ...(painelOperacional ? ["atendimentos.painel_operacional"] : []), ...(acessaEquipe ? ["equipe.ver"] : [])].map((chave) => [chave, { permitido: true, alcance: "MEUS" }])),
+      capacidades: Object.fromEntries(["atendimentos.ver", "atendimentos.responder", "contatos.ver", "contatos.editar", ...(features.includes("chat_interno") ? ["chat_interno.usar"] : []), ...(acessaClientes ? ["clientes.acessar"] : []), ...(dashboard ? ["dashboard.ver"] : []), ...(painelOperacional ? ["atendimentos.painel_operacional"] : []), ...(acessaEquipe ? ["equipe.ver"] : [])].map((chave) => [chave, { permitido: true, alcance: "MEUS" }])),
     };
     else if (caminho === "/me") corpo = { id: usuarioId, nome: "Pessoa de teste", papel: "ATENDENTE", presenca: "ONLINE", usuarioTeste: false };
     else if (caminho === "/config/canal") corpo = { exigeTemplateForaDaJanela: false, gerenciaTemplates: false };

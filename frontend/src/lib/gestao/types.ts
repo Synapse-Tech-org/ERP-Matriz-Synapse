@@ -97,6 +97,8 @@ export interface EfetivoDaCapacidade {
 }
 
 export interface MinhasPermissoes {
+  /** Marca exclusiva do cache: aviso recebido, ainda sem resposta efetiva do servidor. */
+  bloqueioProvisorioDeClientes?: true;
   usuarioId: string;
   papel: Papel;
   revisao: number;

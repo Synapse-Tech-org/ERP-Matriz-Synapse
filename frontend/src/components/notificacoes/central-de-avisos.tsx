@@ -27,8 +27,9 @@ export function CentralDeAvisos({ mostrarContagem = false }: { mostrarContagem?:
 
   const textos = catalogo.dashboard.v2.centralAvisos;
   const permiteClientes = permissoes?.capacidades["clientes.acessar"]?.permitido === true;
+  const permiteChat = permissoes?.capacidades["chat_interno.usar"]?.permitido === true;
   const avisos = dono === usuarioId
-    ? avisosDaSessao.filter((aviso) => permiteClientes || aviso.origem === "chatInterno")
+    ? avisosDaSessao.filter((aviso) => aviso.origem === "chatInterno" ? permiteChat : permiteClientes)
     : [];
   const naoLidos = avisos.filter((aviso) => !aviso.lido).length;
   const visiveis = avisos.filter((aviso) =>

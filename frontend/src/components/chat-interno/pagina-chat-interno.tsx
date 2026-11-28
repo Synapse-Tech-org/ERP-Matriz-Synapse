@@ -67,6 +67,9 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
   const [encaminharAlvo, setEncaminharAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const [encaminharClienteAlvo, setEncaminharClienteAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const podeResponder = useCapacidades().pode("atendimentos.responder");
+  useEffect(() => {
+    if (!podeResponder) queueMicrotask(() => setEncaminharClienteAlvo(null));
+  }, [podeResponder]);
   const [edicaoAlvo, setEdicaoAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const mensagens = useMensagensDoChat(conversaId);
   const atualizar = useCallback(() => {
@@ -333,12 +336,12 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
         onFechar={() => setEncaminharAlvo(null)}
         onConfirmar={(destinoId) => encaminhar.mutateAsync({ mensagemId: encaminharAlvo!.id, destinoId })}
       />
-      <DialogoEncaminharAoCliente
+      {podeResponder && <DialogoEncaminharAoCliente
         mensagem={encaminharClienteAlvo}
         conversaId={conversaId ?? ""}
         textos={textos.encaminharCliente}
         onFechar={() => setEncaminharClienteAlvo(null)}
-      />
+      />}
     </div>
   );
 }

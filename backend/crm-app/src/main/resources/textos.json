@@ -3227,6 +3227,12 @@
         "GERENCIAR": "Gerenciar"
       },
       "nivelRotulo": "Nível de {modulo}",
+      "acessosDeConversa": {
+        "comAcesso": "Com acesso",
+        "clientes": "Acesso a clientes e leads, limitado à carteira e às permissões já existentes.",
+        "interno": "Abrir e enviar mensagens nas conversas internas autorizadas.",
+        "nivelAtendimentos": "O nível abaixo regula as ações de atendimento. Para bloquear todas as conversas com clientes, selecione Sem acesso em Atendimento ao cliente."
+      },
       "alcance": {
         "MEUS": "Meus",
         "TODOS": "Todos"
@@ -3333,6 +3339,10 @@
         "rotulo": "Atendimentos",
         "descricao": "Conversas do WhatsApp com leads e clientes"
       },
+      "chat_interno": {
+        "rotulo": "Chat interno",
+        "descricao": "Conversas internas da equipe"
+      },
       "contatos": {
         "rotulo": "Contatos e leads",
         "descricao": "Ficha e dados dos contatos"
@@ -3390,7 +3400,8 @@
       "cancelamentos.ver": "Consultar cancelamentos de agendamentos",
       "relatorios.ver": "Consultar histórico de atendimentos",
       "relatorios.exportar": "Exportar CSV de atendimentos",
-      "clientes.acessar": "Acesso a clientes",
+      "clientes.acessar": "Atendimento ao cliente",
+      "chat_interno.usar": "Chat interno",
       "atendimentos.ver": "Ver conversas",
       "atendimentos.painel_operacional": "Visualizar painel operacional de Atendimentos",
       "atendimentos.responder": "Responder mensagens",

@@ -18,7 +18,7 @@ public class AbrirConversaDiretaUseCase {
         this.usuario = usuario;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     public UUID executar(UUID outroUsuario) {
         UUID atual = usuario.atual().id();

@@ -9,15 +9,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.atendimento.application.tempo_real.ListarDestinatariosTempoRealUseCase;
 import com.synapse.crm.atendimento.application.tempo_real.RevalidarAssinaturaTempoRealUseCase;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.permissao.ConsultaDeAcessoAClientes;
+import com.synapse.crm.sharedkernel.permissao.ConsultaDeAcessoAoChatInterno;
 
 /**
  * Onde a autorizacao <b>de verdade</b> acontece para quem ja esta assinado: na entrega, nao na
@@ -51,19 +54,26 @@ class RedisSubscriberDeAtendimento implements MessageListener {
     private final RevalidarAssinaturaTempoRealUseCase revalidar;
     private final ListarDestinatariosTempoRealUseCase listarDestinatarios;
     private final ConsultaDeAcessoAClientes acessoAClientes;
+    private final ConsultaDeAcessoAoChatInterno acessoAoChatInterno;
+    private final SimpUserRegistry usuariosLocais;
 
     RedisSubscriberDeAtendimento(
             RegistroDeAssinaturas registro,
             SimpMessagingTemplate template,
             ObjectMapper json,
             RevalidarAssinaturaTempoRealUseCase revalidar,
-            ListarDestinatariosTempoRealUseCase listarDestinatarios, ConsultaDeAcessoAClientes acessoAClientes) {
+            ListarDestinatariosTempoRealUseCase listarDestinatarios,
+            ConsultaDeAcessoAClientes acessoAClientes,
+            ConsultaDeAcessoAoChatInterno acessoAoChatInterno,
+            @Lazy SimpUserRegistry usuariosLocais) {
         this.registro = registro;
         this.template = template;
         this.json = json;
         this.revalidar = revalidar;
         this.listarDestinatarios = listarDestinatarios;
         this.acessoAClientes = acessoAClientes;
+        this.acessoAoChatInterno = acessoAoChatInterno;
+        this.usuariosLocais = usuariosLocais;
     }
 
     @Override
@@ -182,6 +192,11 @@ class RedisSubscriberDeAtendimento implements MessageListener {
             JsonNode envelope = json.readTree(corpo);
             String tipo = envelope.path("tipo").asText("CHAT_INTERNO_MENSAGEM");
             for (JsonNode destinatario : envelope.path("destinatarios")) {
+                String usuarioId = destinatario.asText();
+                // O broker é local; sem sessão neste nó, nem consulta o cache de permissões.
+                if (usuariosLocais.getUser(usuarioId) == null || !podeReceberChatInterno(usuarioId)) {
+                    continue;
+                }
                 ObjectNode notificacao = json.createObjectNode();
                 notificacao.put("tipo", tipo);
                 notificacao.put("eventoId", envelope.path("mensagemId").asText());
@@ -205,10 +220,19 @@ class RedisSubscriberDeAtendimento implements MessageListener {
                     }
                 }
                 notificacao.set("dados", dados);
-                template.convertAndSendToUser(destinatario.asText(), DESTINO_NOTIFICACOES, notificacao.toString());
+                template.convertAndSendToUser(usuarioId, DESTINO_NOTIFICACOES, notificacao.toString());
             }
         } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
             log.warn("Envelope de chat interno ilegivel.", e);
+        }
+    }
+
+    private boolean podeReceberChatInterno(String usuarioId) {
+        try {
+            return acessoAoChatInterno.permitido(UUID.fromString(usuarioId));
+        } catch (RuntimeException falha) {
+            log.warn("Falha ao validar destinatário do Chat Interno; entrega omitida.", falha);
+            return false;
         }
     }
 

@@ -25,7 +25,7 @@ public class ListarMensagensChatUseCase {
         this.usuario = usuario;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional(readOnly = true)
     public ChatInternoRepositorio.MensagemResumo executarPorId(UUID conversaId, UUID mensagemId) {
         UUID atual = usuario.atual().id();
@@ -37,7 +37,7 @@ public class ListarMensagensChatUseCase {
         return mensagem.comReacoes(resumos.getOrDefault(mensagem.id(), List.of()));
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional(readOnly = true)
     public ChatInternoRepositorio.PaginaMensagens executar(UUID conversaId, Instant antesDe, int limite) {
         UUID atual = usuario.atual().id();

@@ -20,7 +20,7 @@ public class ListarParticipantesChatUseCase {
         this.usuario = usuario;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional(readOnly = true)
     public List<ParticipanteResumo> executar(UUID conversaId) {
         UUID atual = usuario.atual().id();

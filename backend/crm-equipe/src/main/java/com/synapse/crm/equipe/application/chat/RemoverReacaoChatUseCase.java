@@ -29,7 +29,7 @@ public class RemoverReacaoChatUseCase {
         this.eventos = eventos;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     public List<ResumoDeReacao> executar(UUID conversaId, UUID mensagemId) {
         UUID atual = usuario.atual().id();

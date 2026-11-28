@@ -30,7 +30,7 @@ public class RemoverParticipanteGrupoChatUseCase {
         this.eventos = eventos;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     public void executar(UUID conversaId, UUID alvoId) {
         UUID ator = usuario.atual().id();

@@ -466,7 +466,10 @@ vi.mock("@/lib/navegacao/tela-estreita", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     estados: { vazio: "Nenhuma conversa" },
-    gestao: { acesso: { responderIndisponivel: "Seu perfil não permite responder atendimentos." } },
+    gestao: { acesso: {
+      responderIndisponivel: "Seu perfil não permite responder atendimentos.",
+      semAcessoTitulo: "Sem acesso a esta área",
+    } },
     atendimentos: {
       cabecalho: { voltar: "Voltar para a lista" },
       composer: {
@@ -523,14 +526,16 @@ vi.mock("@/lib/config/textos-provider", () => ({
 
 import { PaginaAtendimentosCliente } from "./pagina-atendimentos-cliente";
 
-function renderPagina(atendimentoInicialId: string | null = null, visaoInicial = "TODOS" as const) {
+function renderPagina(atendimentoInicialId: string | null = null, visaoInicial = "TODOS" as const, flags?: string[]) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const resultado = render(
+  if (flags) queryClient.setQueryData(["config", "features"], flags);
+  const conteudo = () => (
     <QueryClientProvider client={queryClient}>
       <PaginaAtendimentosCliente leadInicialId={null} atendimentoInicialId={atendimentoInicialId} visaoInicial={visaoInicial} />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
-  return { ...resultado, queryClient };
+  const resultado = render(conteudo());
+  return { ...resultado, queryClient, atualizar: () => resultado.rerender(conteudo()) };
 }
 
 function emitirNotificacao(notificacao: NotificacaoTempoReal) {
@@ -994,11 +999,41 @@ describe("PaginaAtendimentosCliente", () => {
 
   it("acesso a clientes desligado bloqueia selecao externa mas permite abrir o chat interno", async () => {
     definirCapacidadesDeTeste({ negadas: ["clientes.acessar"] });
-    renderPagina();
+    renderPagina(null, "TODOS", ["chat_interno"]);
     act(() => callbacks.abrir?.(cartaoInicial));
     expect(screen.queryByTestId("responsavel-cabecalho")).not.toBeInTheDocument();
     act(() => callbacks.abrir?.({ tipo: "EQUIPE_INTERNA", conversaId: "equipe", atendimentoId: null } as ItemInbox));
     expect(await screen.findByTestId("conversa-interna")).toBeInTheDocument();
+  });
+
+  it("um link direto não consulta o atendimento quando o login não tem acesso a clientes", async () => {
+    definirCapacidadesDeTeste({ negadas: ["clientes.acessar"] });
+    renderPagina("atendimento-1");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sem acesso a esta área");
+    expect(obterCartao).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("historico")).not.toBeInTheDocument();
+  });
+
+  it("retira o atendimento já aberto quando o acesso muda na mesma sessão e permite abrir conversa interna", async () => {
+    const pagina = renderPagina(null, "TODOS", ["chat_interno"]);
+    act(() => callbacks.abrir?.(cartaoInicial));
+    expect(await screen.findByTestId("historico")).toBeInTheDocument();
+
+    definirCapacidadesDeTeste({ negadas: ["clientes.acessar"] });
+    pagina.atualizar();
+    expect(screen.queryByTestId("historico")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
+    act(() => callbacks.abrir?.({ tipo: "EQUIPE_INTERNA", conversaId: "equipe", atendimentoId: null } as ItemInbox));
+    expect(await screen.findByTestId("conversa-interna")).toBeInTheDocument();
+  });
+
+  it("Chat interno desligado ignora seleção interna e continua abrindo o atendimento", async () => {
+    definirCapacidadesDeTeste({ negadas: ["chat_interno.usar"] });
+    renderPagina();
+    act(() => callbacks.abrir?.({ tipo: "EQUIPE_INTERNA", conversaId: "equipe", atendimentoId: null } as ItemInbox));
+    expect(screen.queryByTestId("conversa-interna")).not.toBeInTheDocument();
+    act(() => callbacks.abrir?.(cartaoInicial));
+    expect(await screen.findByTestId("historico")).toBeInTheDocument();
   });
 
   it("abre pelo atendimento retornado mesmo quando ele não pertence à visão atual", async () => {
@@ -1323,7 +1358,7 @@ describe("PaginaAtendimentosCliente", () => {
       participantes: "Ana e Bruno",
       tipoConversa: "DIRETA",
     };
-    renderPagina();
+    renderPagina(null, "TODOS", ["chat_interno"]);
     act(() => callbacks.atualizarLista?.([conversaInterna]));
     act(() => callbacks.abrir?.(conversaInterna));
 

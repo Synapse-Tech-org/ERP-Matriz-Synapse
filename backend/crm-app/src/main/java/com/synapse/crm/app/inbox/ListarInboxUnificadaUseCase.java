@@ -79,7 +79,8 @@ public class ListarInboxUnificadaUseCase {
         // atendimentos de clientes.
         if ((visao == VisaoAtendimento.TODOS || visao == VisaoAtendimento.ATIVOS)
                 && (apos == null || apos.grupo() == 0)
-                && features.habilitadas().contains("chat_interno")) {
+                && features.habilitadas().contains("chat_interno")
+                && capacidades.permite("chat_interno.usar")) {
             equipe.executarPaginado(tamanho + 1, apos == null ? null : apos.data(),
                     apos == null ? null : apos.id()).stream().map(this::paraEquipe).forEach(itens::add);
         }

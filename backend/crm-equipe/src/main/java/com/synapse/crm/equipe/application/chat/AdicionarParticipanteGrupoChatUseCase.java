@@ -27,7 +27,7 @@ public class AdicionarParticipanteGrupoChatUseCase {
         this.eventos = eventos;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     public void executar(UUID conversaId, UUID novoParticipanteId) {
         UUID ator = usuario.atual().id();

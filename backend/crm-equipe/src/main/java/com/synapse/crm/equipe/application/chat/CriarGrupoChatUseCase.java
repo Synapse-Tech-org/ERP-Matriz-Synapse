@@ -28,7 +28,7 @@ public class CriarGrupoChatUseCase {
         this.eventos = eventos;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     public UUID executar(String nome, List<UUID> participantesPedidos) {
         UUID criador = usuario.atual().id();

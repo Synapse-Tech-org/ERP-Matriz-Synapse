@@ -20,13 +20,13 @@ public class ListarConversasChatUseCase {
         this.usuario = usuario;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional(readOnly = true)
     public List<ChatInternoRepositorio.ConversaResumo> executar() {
         return repositorio.listarConversas(usuario.atual().id());
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional(readOnly = true)
     public List<ChatInternoRepositorio.ConversaResumo> executarPaginado(int limite,
             Instant depoisDe, UUID depoisDoId) {

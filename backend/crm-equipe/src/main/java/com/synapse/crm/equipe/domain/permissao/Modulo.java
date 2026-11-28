@@ -17,6 +17,7 @@ import java.util.Optional;
  */
 public enum Modulo {
     ATENDIMENTOS("atendimentos", NivelDeAcesso.VER, null),
+    CHAT_INTERNO("chat_interno", NivelDeAcesso.VER, "chat_interno"),
     CONTATOS("contatos", NivelDeAcesso.VER, null),
     TAGS("tags", NivelDeAcesso.VER, null),
     MENSAGENS_RAPIDAS("mensagens_rapidas", NivelDeAcesso.SEM_ACESSO, null),

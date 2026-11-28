@@ -65,7 +65,7 @@ public class AtualizarFotoDoGrupoChatUseCase {
     }
 
     /** @return a URL versionada da nova foto, para o cliente atualizar sem recarregar a lista */
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     @Auditable(acao = "ALTERAR_FOTO_GRUPO_CHAT_INTERNO", entidadeTipo = "CHAT_INTERNO_CONVERSA", capturarDados = false)
     public String substituir(UUID conversaId, ArquivoDeFoto arquivo) {
@@ -90,7 +90,7 @@ public class AtualizarFotoDoGrupoChatUseCase {
     }
 
     /** Idempotente: remover de grupo sem foto nao muda nada nem escreve mensagem. */
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     @Auditable(acao = "REMOVER_FOTO_GRUPO_CHAT_INTERNO", entidadeTipo = "CHAT_INTERNO_CONVERSA", capturarDados = false)
     public void remover(UUID conversaId) {

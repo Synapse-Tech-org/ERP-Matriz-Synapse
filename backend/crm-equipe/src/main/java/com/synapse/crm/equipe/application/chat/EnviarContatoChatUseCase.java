@@ -28,7 +28,7 @@ public class EnviarContatoChatUseCase {
         this.repositorio=repositorio; this.usuario=usuario; this.eventos=eventos; this.idempotencia=idempotencia; this.mapper=mapper;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     public ChatInternoRepositorio.MensagemResumo executar(UUID conversaId, UUID usuarioId, String nome, List<String> telefones, UUID chave) {
         UUID remetente=usuario.atual().id();

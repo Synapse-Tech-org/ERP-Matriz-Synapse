@@ -23,7 +23,7 @@ public class EnviarMensagemChatUseCase {
         this.eventos = eventos;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     public ChatInternoRepositorio.MensagemResumo executar(UUID conversaId, String conteudo) {
         UUID remetente = usuario.atual().id();

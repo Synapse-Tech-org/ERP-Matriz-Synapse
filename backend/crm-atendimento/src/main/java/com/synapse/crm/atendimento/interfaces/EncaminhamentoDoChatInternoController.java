@@ -54,7 +54,7 @@ import com.synapse.crm.equipe.application.chat.MensagemDoChatNaoEncaminhavelExce
  * já está gravada e na outbox, e a entrega ao provedor é assíncrona.
  */
 @RestController
-@PreAuthorize("@capacidades.permite('clientes.acessar')")
+@PreAuthorize("@capacidades.permite('clientes.acessar') and @capacidades.permite('chat_interno.usar')")
 @RequestMapping("/api/v1")
 @Tag(name = "Encaminhar do Chat Interno ao cliente", description = "Prévia, envio e acompanhamento do encaminhamento.")
 @SecurityRequirement(name = "bearerAuth")

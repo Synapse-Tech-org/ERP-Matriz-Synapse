@@ -5,7 +5,7 @@ import { CHAVE_MINHAS_PERMISSOES } from "./use-gestao";
 const PREFIXOS = new Set([
   "lead", "leads", "agenda", "mensagens", "midia-url-assinada", "resumo-ia",
   "informacoes-chatbot", "dashboard", "relatorios", "cancelamentos", "lembretes", "mensagens-programadas",
-  "finalizacao-em-massa", "campanhas",
+  "finalizacao-em-massa", "campanhas", "visualizador-foto", "avatar",
 ]);
 
 const CAPACIDADES_EXTERNAS = new Set([
@@ -18,6 +18,8 @@ export function consultaDeClientes(chave: QueryKey): boolean {
     || chave[0] === "atendimentos" && chave[1] !== "internos-painel"
     || chave[0] === "equipe" && ["avaliacoes", "desempenho"].includes(String(chave[1]))
     || chave[0] === "dialogos" && chave[1] === "atendimentos"
+    || chave[0] === "chat-interno" && chave[1] === "encaminhar-cliente"
+    || chave[0] === "visualizador-midia-url" && chave[1] === "atendimento"
     || chave[0] === "automacao" && chave[1] === "telemetria";
 }
 
@@ -29,12 +31,29 @@ export function revogarCacheDeClientes(cache: QueryClient): void {
   void cache.cancelQueries({ queryKey: CHAVE_MINHAS_PERMISSOES });
   cache.setQueryData<MinhasPermissoes>(CHAVE_MINHAS_PERMISSOES, anterior => anterior ? {
     ...anterior,
+    bloqueioProvisorioDeClientes: true,
     capacidades: Object.fromEntries(Object.entries(anterior.capacidades).map(([id, valor]) => [id,
       CAPACIDADES_EXTERNAS.has(id.split(".")[0]) || id === "tags.aplicar"
         ? { ...valor, permitido: false, motivo: "DEPENDENCIA" as const } : valor,
     ])),
   } : undefined);
+  limparConsultasDeClientes(cache);
+}
+
+/** A mesma limpeza cobre uma revogação descoberta no foco ou na reconexão, sem mascarar a resposta. */
+export function limparConsultasDeClientes(cache: QueryClient): void {
   const filtro = { predicate: (q: { queryKey: QueryKey }) => consultaDeClientes(q.queryKey) };
   void cache.cancelQueries(filtro);
   cache.removeQueries(filtro);
+}
+
+export function limparConsultasDoChatInterno(cache: QueryClient): void {
+  const filtro = { predicate: ({ queryKey: chave }: { queryKey: QueryKey }) =>
+    chave[0] === "chat-interno"
+      || chave[0] === "atendimentos" && chave[1] === "internos-painel"
+      || chave[0] === "visualizador-midia-url" && chave[1] === "chat-interno" };
+  void cache.cancelQueries(filtro);
+  cache.removeQueries(filtro);
+  // O feed misto não pode reapresentar um cartão interno vindo do snapshot antigo.
+  void cache.resetQueries({ queryKey: ["atendimentos", "inbox"] });
 }

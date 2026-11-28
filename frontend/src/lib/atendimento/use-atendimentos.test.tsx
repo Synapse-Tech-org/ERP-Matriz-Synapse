@@ -5,9 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CartaoAtendimento } from "./types";
 
-const acesso = vi.hoisted(() => ({ clientes: true }));
+const acesso = vi.hoisted(() => ({ clientes: true, chatInterno: true }));
 vi.mock("@/lib/gestao/use-capacidades", () => ({
-  useCapacidades: () => ({ pode: () => acesso.clientes }),
+  useCapacidades: () => ({ pode: (capacidade: string) => capacidade === "chat_interno.usar" ? acesso.chatInterno : acesso.clientes }),
 }));
 
 vi.mock("./api", () => ({
@@ -47,7 +47,7 @@ function wrapper(cache: QueryClient) {
 }
 
 describe("useAtendimentos — paginação da inbox", () => {
-  beforeEach(() => { vi.clearAllMocks(); acesso.clientes = true; });
+  beforeEach(() => { vi.clearAllMocks(); acesso.clientes = true; acesso.chatInterno = true; });
 
   it("sem acesso a clientes nao apresenta cartoes externos retornados antes da revogacao", async () => {
     acesso.clientes = false;
@@ -59,6 +59,15 @@ describe("useAtendimentos — paginação da inbox", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([]);
     expect(result.current.atendentesConhecidos).toEqual([]);
+  });
+
+  it("com ambos os acessos negados não consulta a inbox", () => {
+    acesso.clientes = false;
+    acesso.chatInterno = false;
+    const cache = new QueryClient();
+    const { result } = renderHook(() => useAtendimentos("ATIVOS"), { wrapper: wrapper(cache) });
+    expect(result.current.fetchStatus).toBe("idle");
+    expect(api.listarInboxUnificada).not.toHaveBeenCalled();
   });
 
   it("consome o cursor e concatena páginas sem reordenar nem duplicar", async () => {

@@ -14,6 +14,7 @@ interface CentralDeAvisos {
   receber: (usuarioId: string, aviso: Aviso) => void;
   marcarLidos: (id?: string) => void;
   limpar: () => void;
+  limparOrigem: (origem: Aviso["origem"]) => void;
 }
 
 const MAXIMO_DE_AVISOS_RECENTES = 20;
@@ -34,4 +35,5 @@ export const useCentralDeAvisos = create<CentralDeAvisos>((set) => ({
     avisos: estado.avisos.map((aviso) => id === undefined || id === aviso.id ? { ...aviso, lido: true } : aviso),
   })),
   limpar: () => set({ usuarioId: null, avisos: [] }),
+  limparOrigem: (origem) => set((estado) => ({ avisos: estado.avisos.filter((aviso) => aviso.origem !== origem) })),
 }));

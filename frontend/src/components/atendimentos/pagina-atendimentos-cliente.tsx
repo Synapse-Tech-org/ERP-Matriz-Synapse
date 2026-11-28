@@ -143,7 +143,7 @@ export function PaginaAtendimentosCliente({
   const [erroDeAbertura, setErroDeAbertura] = useState<string | null>(null);
   const [atendimentos, setAtendimentos] = useState<ItemInbox[]>([]);
   const [visaoAtendimento, setVisaoAtendimento] = useState<VisaoAtendimento | null>(null);
-  const [conversaInternaId, setConversaInternaId] = useState<string | null>(null);
+  const [conversaInternaSelecionadaId, setConversaInternaId] = useState<string | null>(null);
   const [leadParaAbrir, setLeadParaAbrir] = useState(leadInicialId);
   const [leadParaAbrirGatilho, setLeadParaAbrirGatilho] = useState(0);
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
@@ -214,11 +214,28 @@ export function PaginaAtendimentosCliente({
   }, [dimensoesGrade, layoutV2]);
   const { definir: definirConversaEmTelaCheia } = useConversaEmTelaCheia();
   const { data: configuracao } = useConfiguracaoComposer();
-  const chatInternoHabilitado = flags?.includes("chat_interno") ?? false;
+  const capacidades = useCapacidades();
+  const acessoClientes = capacidades.pode("clientes.acessar");
+  const chatInternoHabilitado = capacidades.pode("chat_interno.usar") && flags?.includes("chat_interno") === true;
+  const conversaInternaId = chatInternoHabilitado ? conversaInternaSelecionadaId : null;
+  const acessoChatAtual = useRef(chatInternoHabilitado);
+  useLayoutEffect(() => { acessoChatAtual.current = chatInternoHabilitado; }, [chatInternoHabilitado]);
+  useEffect(() => {
+    if (chatInternoHabilitado) return;
+    let cancelado = false;
+    queueMicrotask(() => {
+      if (!cancelado) {
+        setConversaInternaId(null);
+        setAtendimentos((atuais) => atuais.filter((item) => item.tipo !== "EQUIPE_INTERNA"));
+      }
+    });
+    return () => { cancelado = true; };
+  }, [chatInternoHabilitado]);
   const abaInternoHabilitada = flags?.includes("atendimentos_aba_interno") ?? false;
   const finalizadosSoNoMenu = flags?.includes("atendimentos_finalizados_so_no_menu") ?? false;
   const contatosInternos = useQuery({ queryKey: ["chat-interno", "contatos"], queryFn: listarContatosChat, enabled: chatInternoHabilitado });
   const selecionarConversaInterna = useCallback((conversaId: string) => {
+    if (!acessoChatAtual.current) return;
     setConversaInternaId(conversaId);
     setAtendimentoSelecionadoId(null);
     setSincronizacaoLiberada(null);
@@ -242,12 +259,10 @@ export function PaginaAtendimentosCliente({
     },
   });
   const [novoContatoAberto, setNovoContatoAberto] = useState(false);
-  const capacidades = useCapacidades();
-  const acessoClientes = capacidades.pode("clientes.acessar");
   const acessoClientesAtual = useRef(acessoClientes);
   useLayoutEffect(() => { acessoClientesAtual.current = acessoClientes; }, [acessoClientes]);
   useEffect(() => {
-    if (acessoClientes) return;
+    if (acessoClientes || capacidades.bloqueioProvisorioDeClientes) return;
     let cancelado = false;
     queueMicrotask(() => {
       if (cancelado) return;
@@ -258,10 +273,12 @@ export function PaginaAtendimentosCliente({
       setEncaminharAlvo(null);
       setNovoContatoAberto(false);
       setNotificacao(null);
+      setErroDeAbertura(null);
+      setFalhasDeMidia([]);
       setAtendimentos(atuais => atuais.filter(item => item.tipo === "EQUIPE_INTERNA"));
     });
     return () => { cancelado = true; };
-  }, [acessoClientes]);
+  }, [acessoClientes, capacidades.bloqueioProvisorioDeClientes]);
   const {data:usuarioAtual}=useMeuUsuario();
   const capacidadeDoCanal = useQuery({
     queryKey: ["config", "canal"],
@@ -649,6 +666,7 @@ export function PaginaAtendimentosCliente({
       atualizarPainelDeAtendimentos(cache, { atendimentoId: atendimentoRevogado, urgente: true });
     },
     (evento) => {
+      if (evento.tipo.startsWith("CHAT_INTERNO_") ? !chatInternoHabilitado : !acessoClientes) return;
       if (ehAvisoPainelOperacional(evento as unknown)) {
         atualizarPainelDeAtendimentos(cache, { chave: evento.eventoId });
         return;
@@ -728,7 +746,7 @@ export function PaginaAtendimentosCliente({
     && sincronizacaoLiberada.ciclo === ciclo;
 
   useEffect(() => {
-    if (estado !== "conectado" || !atendimentoSelecionadoId) return;
+    if (!acessoClientes || estado !== "conectado" || !atendimentoSelecionadoId) return;
     if (cicloDaParticipacaoRef.current !== null && cicloDaParticipacaoRef.current !== ciclo) {
       invalidarParticipacao(atendimentoSelecionadoId);
     }
@@ -757,7 +775,7 @@ export function PaginaAtendimentosCliente({
     return () => {
       cancelado = true;
     };
-  }, [atendimentoSelecionadoId, ciclo, estado, indisponibilizarAtendimento, reconciliador, registrarFalhaDeSincronizacao]);
+  }, [acessoClientes, atendimentoSelecionadoId, ciclo, estado, indisponibilizarAtendimento, reconciliador, registrarFalhaDeSincronizacao]);
 
   useEffect(() => {
     if (!falhaDeSincronizacao?.transitoria || estado !== "conectado"
@@ -1094,7 +1112,13 @@ export function PaginaAtendimentosCliente({
       className={cn("relative grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)] overflow-hidden", layoutV2 && estilosV2.pagina)}
       style={{ gridTemplateColumns: mostrarTrilho ? `${colunasDoPainel} 62px` : colunasDoPainel }}
     >
-      {(falhasDeMidia.length > 0 || notificacao || erroDeAbertura) && (
+      {capacidades.estado === "pronto" && !capacidades.bloqueioProvisorioDeClientes
+        && !acessoClientes && (atendimentoInicialId || leadInicialId) && !conversaInternaId && (
+        <p role="alert" className="pointer-events-none absolute inset-x-4 top-4 z-30 mx-auto w-fit max-w-[calc(100%-2rem)] rounded-xl border border-border bg-background p-3 text-sm text-foreground shadow-lg">
+          {textosGerais.gestao.acesso.semAcessoTitulo}
+        </p>
+      )}
+      {acessoClientes && (falhasDeMidia.length > 0 || notificacao || erroDeAbertura) && (
         <div className="pointer-events-none absolute right-4 top-4 z-30 flex w-80 max-w-[calc(100%-2rem)] flex-col gap-2">
           {erroDeAbertura && (
             <div className="pointer-events-auto relative rounded-xl border border-destructive/30 bg-background p-4 shadow-lg" role="alert">
@@ -1218,7 +1242,7 @@ export function PaginaAtendimentosCliente({
         chatInternoHabilitado={chatInternoHabilitado}
         abaInternoHabilitada={abaInternoHabilitada}
         finalizadosSoNoMenu={finalizadosSoNoMenu}
-        contatosInternos={contatosInternos.data ?? []}
+        contatosInternos={chatInternoHabilitado ? contatosInternos.data ?? [] : []}
         contatosInternosCarregando={contatosInternos.isLoading || contatosInternos.isFetching}
         contatosInternosErro={contatosInternos.isError}
         onRecarregarContatos={() => void contatosInternos.refetch()}
