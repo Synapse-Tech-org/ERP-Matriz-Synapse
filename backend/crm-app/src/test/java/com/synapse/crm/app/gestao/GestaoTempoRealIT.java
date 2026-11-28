@@ -187,6 +187,53 @@ class GestaoTempoRealIT extends PostgresIT {
         assertThat(chamar(a, HttpMethod.GET, "/api/v1/leads/" + leadDaAna, null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
+    @Test
+    void revogarChatInternoInterrompeNotificacaoMasPreservaAtendimentoNoMesmoSocket() throws Exception {
+        String g = login(ApoioAutenticacao.EMAIL_GESTOR, ApoioAutenticacao.SENHA_GESTOR);
+        String a = login(ApoioAutenticacao.EMAIL_ANA, ApoioAutenticacao.SENHA_ATENDENTE);
+        UUID gestor = jdbc.queryForObject("SELECT id FROM usuario WHERE email = ?", UUID.class,
+                ApoioAutenticacao.EMAIL_GESTOR);
+        UUID interna = UUID.randomUUID();
+        jdbc.update("INSERT INTO chat_interno_conversa(id, tipo) VALUES (?, 'DIRETA')", interna);
+        try {
+            jdbc.update("INSERT INTO chat_interno_participante(conversa_id, usuario_id) VALUES (?, ?), (?, ?)",
+                    interna, ana, interna, gestor);
+            UUID atendimento = abrirAtendimentoComoAna();
+            StompSession sessao = conectar(a);
+            Captura avisos = assinar(sessao, "/user/queue/notificacoes");
+            Captura conversa = assinar(sessao, "/user/queue/atendimento." + atendimento);
+            String mensagens = "/api/v1/chat-interno/conversas/" + interna + "/mensagens";
+
+            assertThat(chamar(g, HttpMethod.POST, mensagens, Map.of("conteudo", "interno-antes-da-revogacao"))
+                    .getStatusCode().is2xxSuccessful()).isTrue();
+            assertThat(avisos.aguardarContendo("interno-antes-da-revogacao")).isTrue();
+
+            alterarAcessoAoChatInternoDoPerfilAtendente(g, false);
+            assertThat(avisos.aguardarContendo("ACESSO_ALTERADO")).isTrue();
+            assertThat(chamar(g, HttpMethod.POST, mensagens, Map.of("conteudo", "interno-durante-a-revogacao"))
+                    .getStatusCode().is2xxSuccessful()).isTrue();
+            publicarMensagem(atendimento, "cliente-continua-na-mesma-sessao");
+            assertThat(conversa.aguardarContendo("cliente-continua-na-mesma-sessao")).isTrue();
+            assertThat(avisos.nadaContendo("interno-durante-a-revogacao", Duration.ofSeconds(2))).isTrue();
+            assertThat(chamar(a, HttpMethod.GET, mensagens, null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+            alterarAcessoAoChatInternoDoPerfilAtendente(g, true);
+            assertThat(avisos.aguardarContendo("ACESSO_ALTERADO")).isTrue();
+            assertThat(chamar(g, HttpMethod.POST, mensagens, Map.of("conteudo", "interno-apos-restauracao"))
+                    .getStatusCode().is2xxSuccessful()).isTrue();
+            assertThat(avisos.aguardarContendo("interno-apos-restauracao")).isTrue();
+        } finally {
+            jdbc.update("DELETE FROM chat_interno_conversa WHERE id = ?", interna);
+        }
+    }
+
+    private void alterarAcessoAoChatInternoDoPerfilAtendente(String tokenGestor, boolean permitido) {
+        long revisao = jdbc.queryForObject("SELECT revisao FROM permissao_perfil WHERE papel = 'ATENDENTE'", Long.class);
+        var resposta = chamar(tokenGestor, HttpMethod.PUT, "/api/v1/gestao/permissoes/perfis/ATENDENTE",
+                Map.of("revisaoEsperada", revisao, "niveis", Map.of(), "acoes", Map.of("chat_interno.usar", permitido)));
+        assertThat(resposta.getStatusCode()).as(resposta.getBody()).isEqualTo(HttpStatus.OK);
+    }
+
     // --- apoio -------------------------------------------------------------------------------------
 
     private UUID criarSubgestor(String tokenGestor) {

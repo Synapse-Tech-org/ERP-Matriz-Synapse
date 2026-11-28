@@ -38,7 +38,7 @@ public class ConsultarMensagemDoChatParaEncaminhamentoUseCase {
         this.mapper = mapper;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional(readOnly = true)
     public MensagemDoChatParaCliente executar(UUID conversaId, UUID mensagemId) {
         if (!repositorio.participante(conversaId, usuario.atual().id())) {

@@ -29,7 +29,7 @@ import { tocarSomDeNotificacao, registrarDesbloqueioDeAudio } from "@/lib/atendi
 import type { NotificacaoTempoReal } from "@/lib/atendimento/types";
 import { renovarAccessToken } from "@/lib/api/http-client";
 import { ehAvisoDeAcessoAlterado } from "@/lib/gestao/aviso-de-acesso";
-import { revogarCacheDeClientes } from "@/lib/gestao/revogar-cache-clientes";
+import { limparConsultasDeClientes, limparConsultasDoChatInterno, revogarCacheDeClientes } from "@/lib/gestao/revogar-cache-clientes";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { ehAvisoDePresencaAlterada } from "@/lib/equipe/aviso-de-presenca";
 import type { MeuUsuario } from "@/lib/equipe/types";
@@ -50,7 +50,9 @@ export function NotificacoesTempoReal() {
   const textos = catalogo.notificacoes;
   const textosAtendimentos = catalogo.atendimentos;
   const cache = useQueryClient();
-  const acessoClientes = useCapacidades().pode("clientes.acessar");
+  const capacidades = useCapacidades();
+  const acessoClientes = capacidades.pode("clientes.acessar");
+  const acessoChatInterno = capacidades.pode("chat_interno.usar");
   const pathname = usePathname();
   const router = useRouter();
   const usuarioId = useAuthStoreId();
@@ -74,6 +76,7 @@ export function NotificacoesTempoReal() {
     }
     if (!acessoClientes && !ehAvisoDeAcessoAlterado(bruto) && !ehAvisoDePresencaAlterada(bruto)
       && !notificacao.tipo.startsWith("CHAT_INTERNO_")) return;
+    if (!acessoChatInterno && notificacao.tipo.startsWith("CHAT_INTERNO_")) return;
     if (ehAvisoDeCancelamentos(bruto)) {
       void cache.invalidateQueries({ queryKey: ["cancelamentos"] }, { cancelRefetch: false });
       return; // Invalidacao sem conteudo, sem som/toast ou alteracao de mensagens.
@@ -103,9 +106,9 @@ export function NotificacoesTempoReal() {
       return;
     }
     if (ehAvisoDeAcessoAlterado(bruto)) {
-      useCentralDeAvisos.getState().limpar();
+      useCentralDeAvisos.getState().limparOrigem("atendimentos");
       revogarCacheDeClientes(cache);
-      setAvisos([]);
+      setAvisos((atuais) => atuais.filter((aviso) => aviso.tipo.startsWith("CHAT_INTERNO_")));
       setAvisosDeFinalizacao([]);
       // Gestão (docs/47): o backend já aplica a mudança; aqui só refletimos sem F5. Sessão
       // invalidada (papel mudou/desativado) renova o token antes de recarregar; se a renovação
@@ -160,7 +163,7 @@ export function NotificacoesTempoReal() {
         ...atuais.filter((atual) => chaveTecnicaDaNotificacao(atual) !== decisao.chave),
       ].slice(0, MAXIMO_DE_AVISOS_VISUAIS));
     }
-  }, [acessoClientes, cache, chatInternoHabilitado, pathname, somHabilitado, textos, textosAtendimentos.tempoReal, usuarioId, visualHabilitado]);
+  }, [acessoChatInterno, acessoClientes, cache, chatInternoHabilitado, pathname, somHabilitado, textos, textosAtendimentos.tempoReal, usuarioId, visualHabilitado]);
 
   const { ciclo } = useConexaoTempoReal(() => accessToken, undefined, aoReceber);
 
@@ -176,6 +179,26 @@ export function NotificacoesTempoReal() {
       if (ciclo > 1) atualizarPainelDeAtendimentos(cache, { chave: `reconexao:${ciclo}` });
     }
   }, [ciclo, cache, acessoClientes]);
+  useEffect(() => {
+    if (ciclo > 1) void cache.invalidateQueries({ queryKey: ["permissoes"] });
+  }, [ciclo, cache]);
+
+  useEffect(() => {
+    if (capacidades.estado !== "pronto" || acessoClientes) return;
+    limparConsultasDeClientes(cache);
+    useCentralDeAvisos.getState().limparOrigem("atendimentos");
+    queueMicrotask(() => {
+      setAvisos((atuais) => atuais.filter((aviso) => aviso.tipo.startsWith("CHAT_INTERNO_")));
+      setAvisosDeFinalizacao([]);
+    });
+  }, [capacidades.estado, acessoClientes, cache]);
+
+  useEffect(() => {
+    if (capacidades.estado !== "pronto" || acessoChatInterno) return;
+    limparConsultasDoChatInterno(cache);
+    useCentralDeAvisos.getState().limparOrigem("chatInterno");
+    queueMicrotask(() => setAvisos((atuais) => atuais.filter((aviso) => !aviso.tipo.startsWith("CHAT_INTERNO_"))));
+  }, [capacidades.estado, acessoChatInterno, cache]);
 
   useEffect(() => registrarDesbloqueioDeAudio(), []);
   useEffect(() => () => useCentralDeAvisos.getState().limpar(), [usuarioId]);
@@ -197,9 +220,11 @@ export function NotificacoesTempoReal() {
     setAvisos((atuais) => atuais.filter((atual) => chaveTecnicaDaNotificacao(atual) !== chaveTecnicaDaNotificacao(notificacao)));
   }
 
-  return avisos.length + avisosDeFinalizacao.length > 0 ? (
+  const avisosVisiveis = avisos.filter((aviso) => aviso.tipo.startsWith("CHAT_INTERNO_") ? acessoChatInterno : acessoClientes);
+  const finalizacoesVisiveis = acessoClientes ? avisosDeFinalizacao : [];
+  return avisosVisiveis.length + finalizacoesVisiveis.length > 0 ? (
     <div className={`pointer-events-none fixed right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 ${posicao === "BAIXO" ? "bottom-4" : "top-4"}`}>
-      {avisosDeFinalizacao.map((aviso) => (
+      {finalizacoesVisiveis.map((aviso) => (
         <AvisoDeFinalizacaoEmMassaCard
           key={aviso.eventoId}
           aviso={aviso}
@@ -208,7 +233,7 @@ export function NotificacoesTempoReal() {
           }
         />
       ))}
-      {avisos.map((aviso) => (
+      {avisosVisiveis.map((aviso) => (
         <div
           key={chaveTecnicaDaNotificacao(aviso)}
           className="pointer-events-auto relative cursor-pointer overflow-hidden rounded-xl border border-border bg-background p-2.5 shadow-lg"

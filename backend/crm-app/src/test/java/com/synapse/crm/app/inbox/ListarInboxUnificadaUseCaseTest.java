@@ -37,6 +37,7 @@ class ListarInboxUnificadaUseCaseTest {
 
     ListarInboxUnificadaUseCaseTest() {
         when(capacidades.permite("clientes.acessar")).thenReturn(true);
+        when(capacidades.permite("chat_interno.usar")).thenReturn(true);
         when(usuarioContext.atual()).thenReturn(
                 new UsuarioAutenticado(UUID.randomUUID(), PapelUsuario.GESTOR, false));
     }
@@ -162,6 +163,21 @@ class ListarInboxUnificadaUseCaseTest {
         assertThat(caso.executar(VisaoAtendimento.TODOS, 50, null).itens())
                 .extracting(InboxUnificada.Item::tipo)
                 .containsOnly(InboxUnificada.Tipo.CLIENTE);
+    }
+
+    @Test
+    void negarChatInternoNaoConsultaAFonteMesmoComFlagAtiva() {
+        UUID lead = UUID.randomUUID();
+        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.ATIVOS), Mockito.anyInt(),
+                Mockito.anyBoolean(), Mockito.isNull(), Mockito.isNull()))
+                .thenReturn(List.of(cartao(lead, null)));
+        when(features.habilitadas()).thenReturn(List.of("chat_interno"));
+        when(capacidades.permite("chat_interno.usar")).thenReturn(false);
+
+        assertThat(caso.executar(VisaoAtendimento.ATIVOS, 50, null).itens())
+                .extracting(InboxUnificada.Item::tipo)
+                .containsExactly(InboxUnificada.Tipo.CLIENTE);
+        verify(equipe, never()).executarPaginado(Mockito.anyInt(), Mockito.any(), Mockito.any());
     }
 
     @Test

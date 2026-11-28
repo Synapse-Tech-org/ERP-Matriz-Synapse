@@ -15,6 +15,7 @@ import {
   aplicarNivel,
   alternarAcao,
   chavesAlteradas,
+  ehAcessoDeConversa,
   normalizar,
   perfilFixo,
   quantidade,
@@ -54,6 +55,7 @@ import {
   type TextosGestao,
 } from "./apoio";
 import { BarraDeAlteracoes } from "./barra-de-alteracoes";
+import { AcessosDeConversa, acessosDeConversaVisiveis } from "./acessos-de-conversa";
 import { DialogoDeCopia } from "./dialogo-de-copia";
 import { SeloUsuarioTeste } from "./selo-usuario-teste";
 
@@ -363,11 +365,14 @@ function DetalheDoUsuario({
     });
 
   const modulos = catalogo.modulos.filter((m) => {
+    if (m.id === "chat_interno" && catalogo.capacidades.every((c) => c.modulo !== m.id || ehAcessoDeConversa(c.id))) return false;
     if (!termo) return true;
     const r = rotuloDoModulo(textos, m.id);
     if (normalizar(`${r.rotulo} ${r.descricao} ${m.id}`).includes(termo)) return true;
-    return catalogo.capacidades.some((c) => c.modulo === m.id && normalizar(`${rotuloDaCapacidade(textos, c.id)} ${c.id}`).includes(termo));
+    return catalogo.capacidades.some((c) => c.modulo === m.id && !ehAcessoDeConversa(c.id)
+      && normalizar(`${rotuloDaCapacidade(textos, c.id)} ${c.id}`).includes(termo));
   });
+  const acessosVisiveis = acessosDeConversaVisiveis(catalogo, termo, textos);
 
   return (
     <section aria-label={u.nome} className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -424,8 +429,20 @@ function DetalheDoUsuario({
         </p>
       )}
 
+      {acessosVisiveis.length > 0 && <div className="space-y-2 border-b border-border p-4">
+        <AcessosDeConversa capacidades={acessosVisiveis} gravadas={detalhe.capacidades} simulacao={simUsuario}
+          editavel={editavel} textos={textos} onAcao={onAcao}
+          avaliarAcao={(id, valor) => avaliar(alternarAcao(rascunho, id, valor, perfil))}
+          onRestaurarAcao={(id) => editavel && id in rascunho.acoes && avaliar(restaurarAcao(rascunho, id)) === null
+            ? () => onRestaurarAcao(id)
+            : undefined} />
+        {modulos.some((m) => m.id === "atendimentos") && acessosVisiveis.some((c) => c.id === "clientes.acessar") && (
+          <p className="text-xs text-muted-foreground">{textos.permissoes.acessosDeConversa.nivelAtendimentos}</p>
+        )}
+      </div>}
+
       {/* relative: o sr-only (absolute) do cabeçalho não pode escapar do recorte e alargar a página. */}
-      <div className="relative overflow-x-auto">
+      {modulos.length > 0 && <div className="relative overflow-x-auto">
         <table className="w-full min-w-[44rem] text-sm">
           <thead className="bg-muted/50 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
             <tr>
@@ -440,7 +457,7 @@ function DetalheDoUsuario({
               const Icone = ICONE_DO_MODULO[m.id] ?? Info;
               const r = rotuloDoModulo(textos, m.id);
               const nivelExcecao = m.id in rascunho.niveis;
-              const caps = catalogo.capacidades.filter((c) => c.modulo === m.id)
+              const caps = catalogo.capacidades.filter((c) => c.modulo === m.id && !ehAcessoDeConversa(c.id))
                 .filter((c) => !termo || normalizar(`${rotuloDaCapacidade(textos, c.id)} ${c.id}`).includes(termo)
                   || normalizar(`${r.rotulo} ${m.id}`).includes(termo));
               return [
@@ -482,8 +499,13 @@ function DetalheDoUsuario({
                     return (
                       <tr key={c.id} className="border-t border-border">
                         <td className="py-2.5 pr-3 pl-[3.75rem] text-[13px]">{nome}</td>
-                        <td className="px-3 py-2.5 text-xs text-muted-foreground">{textos.permissoes.alcance[alcance]}</td>
-                        <td className="px-3 py-2.5"><AlcanceFixo alcance={alcance} textos={textos} /></td>
+                        <td className="px-3 py-2.5 text-xs text-muted-foreground">
+                          {simPerfil.estados[c.id]?.permitido ? textos.permissoes.alcance[alcance] : textos.permissoes.niveis.SEM_ACESSO}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {estado.permitido ? <AlcanceFixo alcance={alcance} textos={textos} />
+                            : <span className="text-xs text-muted-foreground">{textos.permissoes.niveis.SEM_ACESSO}</span>}
+                        </td>
                         <td />
                       </tr>
                     );
@@ -533,7 +555,7 @@ function DetalheDoUsuario({
             })}
           </tbody>
         </table>
-      </div>
+      </div>}
     </section>
   );
 }

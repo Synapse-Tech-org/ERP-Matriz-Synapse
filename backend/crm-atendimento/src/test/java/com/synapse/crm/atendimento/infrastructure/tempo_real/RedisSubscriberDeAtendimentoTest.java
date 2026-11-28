@@ -26,11 +26,14 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.user.SimpUser;
+import org.springframework.messaging.simp.user.SimpUserRegistry;
 
 import com.synapse.crm.atendimento.application.tempo_real.ListarDestinatariosTempoRealUseCase;
 import com.synapse.crm.atendimento.application.tempo_real.RevalidarAssinaturaTempoRealUseCase;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
+import com.synapse.crm.sharedkernel.permissao.ConsultaDeAcessoAoChatInterno;
 
 class RedisSubscriberDeAtendimentoTest {
 
@@ -39,12 +42,15 @@ class RedisSubscriberDeAtendimentoTest {
     private final ListarDestinatariosTempoRealUseCase listarDestinatarios =
             mock(ListarDestinatariosTempoRealUseCase.class);
     private final com.synapse.crm.sharedkernel.permissao.ConsultaDeAcessoAClientes acessoAClientes = mock(com.synapse.crm.sharedkernel.permissao.ConsultaDeAcessoAClientes.class);
+    private final ConsultaDeAcessoAoChatInterno acessoAoChatInterno = mock(ConsultaDeAcessoAoChatInterno.class);
+    private final SimpUserRegistry usuariosLocais = mock(SimpUserRegistry.class);
     private final RegistroDeAssinaturas registro = new RegistroDeAssinaturas(
             Clock.fixed(Instant.parse("2026-08-23T12:00:00Z"), ZoneOffset.UTC),
             new TempoRealProperties(
                     1, 1, 1, 1, "*", 60, 10_000L, 10_000L, java.time.Duration.ofMinutes(1), 1_000L, 2, 30_000L));
     private final RedisSubscriberDeAtendimento subscriber = new RedisSubscriberDeAtendimento(
-            registro, template, new ObjectMapper(), revalidar, listarDestinatarios, acessoAClientes);
+            registro, template, new ObjectMapper(), revalidar, listarDestinatarios, acessoAClientes,
+            acessoAoChatInterno, usuariosLocais);
 
     private final UUID atendimentoId = UUID.randomUUID();
     private final UUID transferidorId = UUID.randomUUID();
@@ -109,6 +115,7 @@ class RedisSubscriberDeAtendimentoTest {
     @Test
     void chat_interno_entrega_apenas_aos_participantes_destinatarios() {
         when(acessoAClientes.permitido(destinatarioId)).thenReturn(false);
+        conectarConcedendoChatInterno(destinatarioId);
         String corpo = "{\"tipo\":\"CHAT_INTERNO_MENSAGEM\",\"destinatarios\":[\"" + destinatarioId
                 + "\"],\"conversaId\":\"" + UUID.randomUUID() + "\",\"mensagemId\":\""
                 + UUID.randomUUID() + "\",\"remetenteId\":\"" + transferidorId
@@ -124,6 +131,29 @@ class RedisSubscriberDeAtendimentoTest {
                 eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES), contains("CHAT_INTERNO_MENSAGEM"));
         verify(template, never()).convertAndSendToUser(eq(transferidorId.toString()),
                 eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES), contains("CHAT_INTERNO_MENSAGEM"));
+    }
+
+    @Test
+    void chatInternoOmiteNegadosEDesconectadosSemImpedirDestinoAutorizado() {
+        conectarConcedendoChatInterno(destinatarioId);
+        SimpUser semAcessoConectado = mock(SimpUser.class);
+        when(usuariosLocais.getUser(transferidorId.toString())).thenReturn(semAcessoConectado);
+        when(acessoAoChatInterno.permitido(transferidorId)).thenReturn(false);
+        UUID conversa = UUID.randomUUID();
+        String corpo = """
+                {"tipo":"CHAT_INTERNO_MENSAGEM","destinatarios":["%s","%s","%s"],"conversaId":"%s","mensagemId":"%s"}
+                """.formatted(transferidorId, donoAnteriorId, destinatarioId, conversa, UUID.randomUUID());
+        Message mensagem = mock(Message.class);
+        when(mensagem.getChannel()).thenReturn(("synapse:chat-interno:" + conversa).getBytes(StandardCharsets.UTF_8));
+        when(mensagem.getBody()).thenReturn(corpo.getBytes(StandardCharsets.UTF_8));
+
+        subscriber.onMessage(mensagem, null);
+
+        verify(template).convertAndSendToUser(eq(destinatarioId.toString()),
+                eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES), contains("CHAT_INTERNO_MENSAGEM"));
+        verify(template, never()).convertAndSendToUser(eq(transferidorId.toString()), anyString(), anyString());
+        verify(template, never()).convertAndSendToUser(eq(donoAnteriorId.toString()), anyString(), anyString());
+        verify(acessoAoChatInterno, never()).permitido(donoAnteriorId);
     }
 
     @Test
@@ -155,6 +185,8 @@ class RedisSubscriberDeAtendimentoTest {
     @Test
     void chat_interno_reacao_entrega_a_todos_os_destinatarios_incluindo_o_autor() throws Exception {
         UUID autor = transferidorId;
+        conectarConcedendoChatInterno(destinatarioId);
+        conectarConcedendoChatInterno(autor);
         String corpo = "{\"tipo\":\"CHAT_INTERNO_REACAO\",\"destinatarios\":[\"" + destinatarioId
                 + "\",\"" + autor + "\"],\"conversaId\":\"" + UUID.randomUUID()
                 + "\",\"mensagemId\":\"" + UUID.randomUUID()
@@ -183,6 +215,7 @@ class RedisSubscriberDeAtendimentoTest {
 
     @Test
     void chat_interno_remocao_entrega_somente_o_identificador_sem_conteudo() throws Exception {
+        conectarConcedendoChatInterno(destinatarioId);
         String mensagemId = UUID.randomUUID().toString();
         String conversaId = UUID.randomUUID().toString();
         String corpo = "{\"tipo\":\"CHAT_INTERNO_MENSAGEM_REMOVIDA\",\"destinatarios\":[\""
@@ -342,6 +375,12 @@ class RedisSubscriberDeAtendimentoTest {
                 eq(atendente.toString()), eq("/queue/revogacoes"), contains(atendimentoId.toString()));
         assertThat(registro.doAtendimento(atendimentoId))
                 .noneMatch(assinatura -> assinatura.usuarioId().equals(atendente));
+    }
+
+    private void conectarConcedendoChatInterno(UUID usuario) {
+        SimpUser conectado = mock(SimpUser.class);
+        when(usuariosLocais.getUser(usuario.toString())).thenReturn(conectado);
+        when(acessoAoChatInterno.permitido(usuario)).thenReturn(true);
     }
 
     private Message mensagem(String corpo) {

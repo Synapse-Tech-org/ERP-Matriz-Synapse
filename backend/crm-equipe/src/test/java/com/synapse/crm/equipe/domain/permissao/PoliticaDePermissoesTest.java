@@ -18,7 +18,7 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 class PoliticaDePermissoesTest {
 
-    private static final Set<String> FLAGS = Set.of("dashboard", "campanhas", "cancelamentos", "relatorios");
+    private static final Set<String> FLAGS = Set.of("dashboard", "campanhas", "cancelamentos", "relatorios", "chat_interno");
     private static final ConfiguracaoDePermissoes VAZIA = ConfiguracaoDePermissoes.vazia();
 
     @ParameterizedTest
@@ -180,6 +180,42 @@ class PoliticaDePermissoesTest {
         assertThat(gestor.estado(Capacidade.DASHBOARD_VER).motivo()).isEqualTo(Motivo.FLAG_DESLIGADA);
         assertThat(gestor.permite(Capacidade.CAMPANHAS_VER)).isFalse();
         assertThat(gestor.estado(Capacidade.CAMPANHAS_VER).motivo()).isEqualTo(Motivo.FLAG_DESLIGADA);
+        assertThat(gestor.permite(Capacidade.CHAT_INTERNO_USAR)).isFalse();
+        assertThat(gestor.estado(Capacidade.CHAT_INTERNO_USAR).motivo()).isEqualTo(Motivo.FLAG_DESLIGADA);
+        assertThat(gestor.permite(Capacidade.CLIENTES_ACESSAR)).isTrue();
+    }
+
+    @Test
+    void acessosIndependentesComFlagAtivaPreservamOCorteDoOperador() {
+        var papel = PapelUsuario.OPERADOR;
+        var padrao = PoliticaDePermissoes.calcular(papel, VAZIA, VAZIA, FLAGS);
+        assertThat(padrao.permite(Capacidade.CHAT_INTERNO_USAR)).isTrue();
+        assertThat(padrao.permite(Capacidade.CLIENTES_ACESSAR)).isTrue();
+
+        var negarClientes = acoes(Map.of(Capacidade.CLIENTES_ACESSAR, false));
+        PoliticaDePermissoes.validarExcecoes(papel, VAZIA, negarClientes, FLAGS);
+        var soInterno = PoliticaDePermissoes.calcular(papel, VAZIA, negarClientes, FLAGS);
+        assertThat(soInterno.permite(Capacidade.CHAT_INTERNO_USAR)).isTrue();
+        assertThat(soInterno.permite(Capacidade.ATENDIMENTOS_VER)).isFalse();
+        assertThat(soInterno.permite(Capacidade.ATENDIMENTOS_RESPONDER)).isFalse();
+
+        var negarChat = acoes(Map.of(Capacidade.CHAT_INTERNO_USAR, false));
+        PoliticaDePermissoes.validarExcecoes(papel, VAZIA, negarChat, FLAGS);
+        var soClientes = PoliticaDePermissoes.calcular(papel, VAZIA, negarChat, FLAGS);
+        assertThat(soClientes.permite(Capacidade.CHAT_INTERNO_USAR)).isFalse();
+        assertThat(soClientes.estado(Capacidade.CHAT_INTERNO_USAR).origem()).isEqualTo(Origem.EXCECAO);
+        assertThat(soClientes.permite(Capacidade.ATENDIMENTOS_VER)).isTrue();
+        assertThat(soClientes.permite(Capacidade.ATENDIMENTOS_RESPONDER)).isTrue();
+        assertThat(Capacidade.ATENDIMENTOS_VER.alcancePara(papel)).isEqualTo(Capacidade.Alcance.MEUS);
+    }
+
+    @Test
+    void concessaoIndividualNaoLigaChatInternoQuandoFlagGlobalEstaDesligada() {
+        var concederChat = acoes(Map.of(Capacidade.CHAT_INTERNO_USAR, true));
+        var efetivas = PoliticaDePermissoes.calcular(PapelUsuario.OPERADOR, VAZIA, concederChat, Set.of());
+        assertThat(efetivas.permite(Capacidade.CHAT_INTERNO_USAR)).isFalse();
+        assertThat(efetivas.estado(Capacidade.CHAT_INTERNO_USAR).motivo()).isEqualTo(Motivo.FLAG_DESLIGADA);
+        assertThat(efetivas.permite(Capacidade.CLIENTES_ACESSAR)).isTrue();
     }
 
     @Test

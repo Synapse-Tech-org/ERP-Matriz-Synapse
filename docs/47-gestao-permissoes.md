@@ -508,7 +508,7 @@ mockadas no navegador. Procedimento operacional: docs/18.
 
 ## 16. Acesso a clientes independente do Chat Interno
 
-Decisão aprovada: `clientes.acessar` (rótulo **Acesso a clientes**) é a porta de entrada para a
+Decisão aprovada: `clientes.acessar` (rótulo **Atendimento ao cliente**) é a porta de entrada para a
 operação externa. Desligá-la não transforma RN-CRM-01 em outro recorte: nega clientes antes da
 consulta. Ligá-la mantém carteira, Potenciais, Agenda e participação consentida nos limites já
 existentes; não concede visão global. Desligar apenas ações de escrita continua significando
@@ -525,9 +525,16 @@ somente leitura, e não uma negação de clientes.
 - A telemetria de Automação também exige a porta, pois contém totais de mensagens e clientes
   transferidos. Isso não desliga a autorização independente para configurar a Automação.
   A consulta desses cards é desabilitada e seu cache removido na revogação, sem remover configurações.
-- Chat Interno mantém login, contatos internos, participação, leitura **e envio de mensagens**,
-  mídia e eventos conforme as autorizações existentes. Não equivale à classificação de conta
-  de teste: as restrições operacionais dessas contas continuam independentes (docs/75).
+- `chat_interno.usar` (**Chat interno**) é uma ação sensível independente, ligada por padrão
+  para preservar quem já usa a feature `chat_interno`. Permite contatos internos, leitura,
+  envio, mídia e eventos apenas nos limites de participação existentes. Desligá-la nega a API
+  interna e omite suas conversas na inbox e seus eventos na fila pessoal. Encaminhar conteúdo
+  do Chat interno a cliente requer as duas portas e a capacidade de responder.
+- Os dois controles aparecem separados em **Gestão → Perfis de acesso** e na edição **por pessoa**.
+  O nível **Atendimentos** abaixo deles continua estrutural: seu mínimo **Ver** define permissões
+  e alcance dentro da carteira; não é o modo de revogar a porta de clientes.
+- Nenhuma porta equivale à classificação de conta de teste; suas restrições permanecem
+  independentes (docs/75).
 
 O backend publica `app.acesso_clientes` uma vez por transação usando o resolvedor/cache da
 Gestão, não por cartão. A V111 compõe políticas restritivas com RLS e protege helpers
@@ -556,8 +563,31 @@ O aviso `ACESSO_ALTERADO` cancela leituras e retira caches externos/seletores, r
 permissões e mantém a conversa interna. Resposta antiga cancelada não repovoa o cache.
 Não há polling novo, renovação obrigatória de JWT por este toggle ou reenvio de mutations.
 Entre nós permanece o limite de revalidação já documentado (`SYNAPSE_PERMISSOES_REVALIDACAO`).
+Como o aviso é genérico, a interface suspende a exibição de dados de clientes até a releitura.
+Se esta confirmar que clientes continuam autorizados, mantém a seleção anterior. A negação
+confirmada descarta consultas e seleções do canal bloqueado, inclusive URLs em cache e seletores
+de encaminhamento a clientes; não apaga o histórico persistido. URLs já emitidas conservam seu TTL.
 
-**Rollout:** V111 depende do backend que publica o novo contexto RLS. Não operar uma combinação
+### Configurar somente os logins internos da Estrutural
+
+1. Confirme o login e o **papel real** da pessoa em **Gestão → Equipe**. Não deduza o papel pelo
+   nome da conta. Confira se ela ainda é responsável por atendimentos e combine a cobertura com a
+   operação: este ajuste não transfere carteira nem altera a liberação para o rodízio da IA.
+2. Com Gestor/Administrador autorizado, confira `chat_interno` e `gestao_excecoes` habilitadas
+   na instância. Se a edição individual estiver indisponível, use o procedimento de habilitação
+   já aprovado da seção 10. Não altere o perfil coletivo se houver operadores que atendem clientes.
+3. No layout V2, abra **Gestão → Equipe → pessoa → Permissões**. No layout clássico, use
+   **Gestão → Exceções por usuário** e selecione a mesma pessoa. Nos cartões do topo, marque
+   **Atendimento ao cliente → Sem acesso** e mantenha **Chat interno → Com acesso** (ou herdado
+   ligado). Salve e confirme a alteração sensível.
+4. Valide com a sessão da pessoa aberta: a conversa com cliente deixa de aparecer; o Chat interno
+   continua disponível nas conversas de que ela participa. Confira também o acesso direto a uma
+   conversa de cliente previamente autorizada. Sem permissão para clientes, não deve abrir nem
+   permitir ações. Repita para cada login aprovado pela operação.
+
+A mudança nos controles não cria migration, variável nova no Dokploy ou exceção automática.
+
+**Histórico do rollout da V111:** V111 depende do backend que publica o novo contexto RLS. Não operar uma combinação
 de schema novo com backend antigo: ele falha fechado para clientes. Planejar a troca coordenada
 fora do horário crítico, conferir o número da migration em `origin/main` e reiniciar todas as
 réplicas na mesma versão. Não executar SQL manual em produção nem editar migrations aplicadas.

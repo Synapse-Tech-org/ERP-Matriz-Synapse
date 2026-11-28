@@ -27,7 +27,7 @@ public class RenomearGrupoChatUseCase {
         this.eventos = eventos;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     public void executar(UUID conversaId, String novoNome) {
         UUID ator = usuario.atual().id();

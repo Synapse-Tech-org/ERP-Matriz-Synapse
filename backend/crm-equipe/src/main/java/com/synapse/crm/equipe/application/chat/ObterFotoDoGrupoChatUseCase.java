@@ -23,7 +23,7 @@ public class ObterFotoDoGrupoChatUseCase {
         this.usuario = usuario;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional(readOnly = true)
     public Optional<String> referencia(UUID conversaId) {
         if (!repositorio.participante(conversaId, usuario.atual().id())) {

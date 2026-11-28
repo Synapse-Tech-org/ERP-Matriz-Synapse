@@ -1,4 +1,5 @@
 import { PaginaChatInterno } from "@/components/chat-interno/pagina-chat-interno";
+import { ExigeCapacidade } from "@/components/gestao/exige-capacidade";
 
 export default async function ChatInterno({
   searchParams,
@@ -8,5 +9,7 @@ export default async function ChatInterno({
   const parametros = await searchParams;
   const valor = parametros.conversaId;
   const conversaInicialId = Array.isArray(valor) ? (valor[0] ?? null) : (valor ?? null);
-  return <PaginaChatInterno conversaInicialId={conversaInicialId} />;
+  return <ExigeCapacidade capacidade="chat_interno.usar">
+    <PaginaChatInterno conversaInicialId={conversaInicialId} />
+  </ExigeCapacidade>;
 }

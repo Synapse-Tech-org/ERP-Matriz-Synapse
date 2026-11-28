@@ -153,11 +153,14 @@ class GestaoPermissoesIT extends PostgresIT {
                         Map.of("paraAtendenteId", bruno.toString())).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
                 assertThat(chamar(sessao, HttpMethod.POST, "/api/v1/atendimentos/" + atendimento + "/finalizar", null)
                         .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-                JsonNode inbox = ler(chamar(sessao, HttpMethod.GET, "/api/v1/atendimentos/inbox?visao=ATIVOS&limite=50", null));
-                for (JsonNode item : inbox.path("itens")) assertThat(item.path("tipo").asText()).isEqualTo("EQUIPE_INTERNA");
                 var mensagem = chamar(sessao, HttpMethod.POST, "/api/v1/chat-interno/conversas/" + conversa + "/mensagens",
                         Map.of("conteudo", "Mensagem sintetica sem acesso a clientes"));
                 assertThat(mensagem.getStatusCode().is2xxSuccessful()).as(mensagem.getBody()).isTrue();
+                var inbox = chamar(sessao, HttpMethod.GET, "/api/v1/atendimentos/inbox?visao=ATIVOS&limite=50", null);
+                assertThat(inbox.getStatusCode()).isEqualTo(HttpStatus.OK);
+                assertThat(ler(inbox).path("itens"))
+                        .allSatisfy(item -> assertThat(item.path("tipo").asText()).isEqualTo("EQUIPE_INTERNA"))
+                        .anySatisfy(item -> assertThat(item.path("conversaId").asText()).isEqualTo(conversa.toString()));
                 assertThat(chamar(sessao, HttpMethod.GET, "/api/v1/chat-interno/conversas/" + conversa + "/mensagens", null)
                         .getBody()).contains("Mensagem sintetica sem acesso a clientes");
             }
@@ -166,6 +169,61 @@ class GestaoPermissoesIT extends PostgresIT {
             assertThat(chamar(g, HttpMethod.PUT, BASE + "/usuarios/" + ana + "/excecoes",
                     corpoExcecoes(revisaoUsuario(ana), Map.of(), Map.of("clientes.acessar", true))).getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(chamar(a, HttpMethod.GET, "/api/v1/leads/" + potencial, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        } finally {
+            jdbc.update("DELETE FROM chat_interno_conversa WHERE id = ?", conversa);
+        }
+    }
+
+    @Test
+    void negarChatInternoSoParaUmOperadorPreservaClientesEColegaDoMesmoPerfil() {
+        String g = token(EMAIL_GESTOR, SENHA_GESTOR);
+        UUID operador = criarUsuario(g, "OPERADOR");
+        UUID colega = criarUsuario(g, "OPERADOR");
+        String o = token(emailDe(operador), "senha-gestao-it");
+        String c = token(emailDe(colega), "senha-gestao-it");
+        UUID lead = criarLead("Carteira do operador", operador);
+        UUID atendimento = criarAtendimento(lead, operador, "EM_ATENDIMENTO");
+        String inbox = "/api/v1/atendimentos/inbox?visao=ATIVOS&limite=50";
+        String conversas = "/api/v1/chat-interno/conversas";
+        var criada = chamar(o, HttpMethod.POST, conversas + "/direta", Map.of("usuarioId", colega.toString()));
+        assertThat(criada.getStatusCode().is2xxSuccessful()).as(criada.getBody()).isTrue();
+        UUID conversa = UUID.fromString(ler(criada).path("id").asText());
+        String mensagens = conversas + "/" + conversa + "/mensagens";
+        try {
+            String texto = "Mensagem interna antes da revogacao";
+            assertThat(chamar(o, HttpMethod.POST, mensagens, Map.of("conteudo", texto)).getStatusCode().is2xxSuccessful())
+                    .isTrue();
+            var antes = chamar(o, HttpMethod.GET, inbox, null);
+            assertThat(antes.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(ler(antes).path("itens")).anySatisfy(item ->
+                    assertThat(item.path("conversaId").asText()).isEqualTo(conversa.toString()));
+
+            var alterada = chamar(g, HttpMethod.PUT, BASE + "/usuarios/" + operador + "/excecoes",
+                    corpoExcecoes(revisaoUsuario(operador), Map.of(), Map.of("chat_interno.usar", false)));
+            assertThat(alterada.getStatusCode()).as(alterada.getBody()).isEqualTo(HttpStatus.OK);
+
+            for (String rota : List.of(conversas, "/api/v1/chat-interno/contatos", mensagens)) {
+                assertThat(chamar(o, HttpMethod.GET, rota, null).getStatusCode()).as(rota).isEqualTo(HttpStatus.FORBIDDEN);
+            }
+            assertThat(chamar(o, HttpMethod.POST, mensagens, Map.of("conteudo", "Mensagem indevida"))
+                    .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+            var depois = chamar(o, HttpMethod.GET, inbox, null);
+            assertThat(depois.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(ler(depois).path("itens")).anySatisfy(item -> {
+                assertThat(item.path("tipo").asText()).isEqualTo("CLIENTE");
+                assertThat(item.path("atendimentoId").asText()).isEqualTo(atendimento.toString());
+            }).noneSatisfy(item -> assertThat(item.path("tipo").asText()).isEqualTo("EQUIPE_INTERNA"));
+
+            assertThat(chamar(o, HttpMethod.GET, "/api/v1/atendimentos/" + atendimento + "/mensagens", null)
+                    .getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(aplicarTag(o, lead)).isEqualTo(HttpStatus.OK);
+            assertThat(chamar(o, HttpMethod.GET, "/api/v1/leads/" + leadDoBruno, null).getStatusCode())
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+            var leituraColega = chamar(c, HttpMethod.GET, mensagens, null);
+            assertThat(leituraColega.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(leituraColega.getBody()).contains(texto).doesNotContain("Mensagem indevida");
+            assertThat(chamar(c, HttpMethod.POST, mensagens, Map.of("conteudo", "Colega continua"))
+                    .getStatusCode().is2xxSuccessful()).isTrue();
         } finally {
             jdbc.update("DELETE FROM chat_interno_conversa WHERE id = ?", conversa);
         }

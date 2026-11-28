@@ -29,7 +29,7 @@ public class EditarMensagemChatUseCase {
         this.relogio = relogio;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     @Auditable(acao = "EDITAR_MENSAGEM_CHAT_INTERNO", entidadeTipo = "CHAT_INTERNO_MENSAGEM", capturarDados = false)
     public ChatInternoRepositorio.MensagemResumo executar(UUID mensagemId, UUID conversaId, String conteudo) {

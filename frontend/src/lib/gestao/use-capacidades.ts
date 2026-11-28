@@ -13,6 +13,7 @@ export interface Capacidades {
   pode: (capacidade: string) => boolean;
   /** Recorte estrutural de `atendimentos.ver` (RN-CRM-01): `true` quando alcança todos os leads. */
   alcancaTodos: boolean;
+  bloqueioProvisorioDeClientes?: true;
   recarregar: () => void;
 }
 
@@ -42,6 +43,7 @@ export function capacidadesDe(
   }
   return {
     estado: "pronto",
+    bloqueioProvisorioDeClientes: minhas.bloqueioProvisorioDeClientes,
     pode: (capacidade) => minhas.capacidades[capacidade]?.permitido === true,
     alcancaTodos: minhas.capacidades["atendimentos.ver"]?.permitido === true
       && minhas.capacidades["atendimentos.ver"]?.alcance === "TODOS",

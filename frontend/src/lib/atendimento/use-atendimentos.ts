@@ -10,7 +10,9 @@ import type { PaginaInbox } from "./api";
 import type { ItemInbox, VisaoAtendimento } from "./types";
 
 export function useAtendimentos(visao: VisaoAtendimento, atendenteId?: string | null, habilitado = true) {
-  const acessoClientes = useCapacidades().pode("clientes.acessar");
+  const capacidades = useCapacidades();
+  const acessoClientes = capacidades.pode("clientes.acessar");
+  const acessoChatInterno = capacidades.pode("chat_interno.usar");
   const queryClient = useQueryClient();
   const inboxSemFiltro = queryClient.getQueryData<InfiniteData<PaginaInbox>>([
     "atendimentos",
@@ -38,7 +40,7 @@ export function useAtendimentos(visao: VisaoAtendimento, atendenteId?: string | 
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) => listarInboxUnificada(visao, pageParam, 50, atendenteId ?? null, signal),
     getNextPageParam: (ultima) => ultima.proximoCursor ?? undefined,
-    enabled: habilitado,
+    enabled: habilitado && (acessoClientes || acessoChatInterno),
     // A indisponibilidade explícita já é um sinal de saturação/timeout. Não repita o
     // lote na hora; foco, reconexão e tentativa explícita continuam revalidando a lista.
     retry: (tentativas, erro) => tentativas < 1
@@ -50,8 +52,8 @@ export function useAtendimentos(visao: VisaoAtendimento, atendenteId?: string | 
   const fetchNextPage = useCallback(() => buscarProxima({ cancelRefetch: false }), [buscarProxima]);
   const itensInbox = useMemo(
     () => paginas?.flatMap((pagina) => pagina?.itens ?? []).filter(itemPresente)
-      .filter(item => acessoClientes || item.tipo === "EQUIPE_INTERNA"),
-    [paginas, acessoClientes],
+      .filter(item => item.tipo === "EQUIPE_INTERNA" ? acessoChatInterno : acessoClientes),
+    [paginas, acessoClientes, acessoChatInterno],
   );
   return {
     ...inbox,

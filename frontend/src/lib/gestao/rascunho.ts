@@ -30,6 +30,10 @@ export function configuravel(c: CapacidadeDoCatalogo, papel: Papel): boolean {
   return c.tipo === "ACAO" && c.teto.includes(papel);
 }
 
+export function ehAcessoDeConversa(id: string): boolean {
+  return id === "clientes.acessar" || id === "chat_interno.usar";
+}
+
 /** Perfil completo lido do servidor (valores explícitos de tudo que é configurável). */
 export function rascunhoDoPerfil(modulos: LinhaDeModulo[], capacidades: LinhaDeCapacidade[]): Rascunho {
   const niveis: Record<string, Nivel> = {};
@@ -100,7 +104,7 @@ export function aplicarNivel(
   else niveis[moduloId] = nivel;
   catalogo.capacidades
     // A porta de entrada so muda pelo proprio controle, nunca como efeito de um preset de escrita.
-    .filter((c) => c.modulo === moduloId && c.id !== "clientes.acessar" && configuravel(c, papel))
+    .filter((c) => c.modulo === moduloId && !ehAcessoDeConversa(c.id) && configuravel(c, papel))
     .forEach((c) => {
       const desejado = ordem(c.nivelMinimo) <= ordem(nivel);
       if (perfil && (perfil.acoes[c.id] ?? false) === desejado) delete acoes[c.id];

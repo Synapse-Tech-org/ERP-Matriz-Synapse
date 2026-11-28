@@ -21,6 +21,7 @@ import {
   chavesAlteradas,
   configuravel,
   contagem,
+  ehAcessoDeConversa,
   normalizar,
   rascunhoDoPerfil,
   simular,
@@ -52,6 +53,7 @@ import {
   type TextosGestao,
 } from "./apoio";
 import { BarraDeAlteracoes } from "./barra-de-alteracoes";
+import { AcessosDeConversa, acessosDeConversaVisiveis } from "./acessos-de-conversa";
 import visual from "./gestao-v2.module.css";
 import { DialogoDeCopia } from "./dialogo-de-copia";
 
@@ -128,11 +130,14 @@ export function AbaPermissoes({
   const editavel = perfil?.editavel === true;
   const atorFixo = perfilFixoDoAtor(minhas);
   const termo = normalizar(busca);
+  const acessosVisiveis = acessosDeConversaVisiveis(cat, termo, textos);
   const modulosVisiveis = cat.modulos.filter((m) => {
+    if (m.id === "chat_interno" && cat.capacidades.every((c) => c.modulo !== m.id || ehAcessoDeConversa(c.id))) return false;
     if (!termo) return true;
     const r = rotuloDoModulo(textos, m.id);
     if (normalizar(`${r.rotulo} ${r.descricao} ${m.id}`).includes(termo)) return true;
-    return cat.capacidades.some((c) => c.modulo === m.id && normalizar(`${rotuloDaCapacidade(textos, c.id)} ${c.id}`).includes(termo));
+    return cat.capacidades.some((c) => c.modulo === m.id && !ehAcessoDeConversa(c.id)
+      && normalizar(`${rotuloDaCapacidade(textos, c.id)} ${c.id}`).includes(termo));
   });
   if (layoutV2) modulosVisiveis.sort((a, b) => posicaoV2(a.id) - posicaoV2(b.id));
   const origensDeCopia: Papel[] = (["SUBGESTOR", "ATENDENTE", "OPERADOR"] as Papel[]).filter((p) => p !== papel);
@@ -288,7 +293,14 @@ export function AbaPermissoes({
               {textos.permissoes.alcadaDelegada}
             </p>
           )}
-          {modulosVisiveis.length === 0 ? (
+          {perfil && sim && rascunho && acessosVisiveis.length > 0 && (
+            <div className="mb-4">
+              <AcessosDeConversa capacidades={acessosVisiveis} gravadas={perfil.capacidades} simulacao={sim}
+                editavel={editavel} textos={textos} avaliarAcao={(id, valor) => avaliar(alternarAcao(rascunho, id, valor))}
+                onAcao={(id, valor) => atualizar(alternarAcao(rascunho, id, valor))} />
+            </div>
+          )}
+          {modulosVisiveis.length === 0 ? (acessosVisiveis.length === 0 &&
             <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">{textos.permissoes.vazio}</p>
           ) : (
             layoutV2 ? <div className={visual.modulos}>
@@ -415,7 +427,7 @@ function CartaoDePerfil({
 
 /** Linhas do cartão: as ações que casam com a busca; nenhuma casou, o módulo casou pelo nome e vai inteiro. */
 function capacidadesListadas(catalogo: Catalogo, moduloId: string, termo: string, textos: TextosGestao): CapacidadeDoCatalogo[] {
-  const capacidades = catalogo.capacidades.filter((c) => c.modulo === moduloId);
+  const capacidades = catalogo.capacidades.filter((c) => c.modulo === moduloId && !ehAcessoDeConversa(c.id));
   if (!termo) return capacidades;
   const visiveis = capacidades.filter((c) => normalizar(`${rotuloDaCapacidade(textos, c.id)} ${c.id}`).includes(termo));
   return visiveis.length > 0 ? visiveis : capacidades;
@@ -454,7 +466,7 @@ function CartaoDeModulo({
   const modulo = catalogo.modulos.find((m) => m.id === moduloId)!;
   const { rotulo, descricao } = rotuloDoModulo(textos, moduloId);
   const Icone = ICONE_DO_MODULO[moduloId] ?? Info;
-  const capacidades = catalogo.capacidades.filter((c) => c.modulo === moduloId);
+  const capacidades = capacidadesListadas(catalogo, moduloId, "", textos);
   const lista = capacidadesListadas(catalogo, moduloId, termo, textos);
   const configuraveis = capacidades.filter((c) => configuravel(c, papel));
   const permitidas = configuraveis.filter((c) => simulacao.estados[c.id]?.permitido).length;
@@ -493,11 +505,20 @@ function CartaoDeModulo({
         <button type="button" aria-expanded={aberto} aria-hidden tabIndex={-1} className={visual.expandirModulo} onClick={onAlternar}><ChevronDown aria-hidden className="size-4" /></button>
       </>}
       </div>
+      {moduloId === "atendimentos" && catalogo.capacidades.some((c) => c.id === "clientes.acessar") && (
+        <p className="px-1 pt-2 text-xs text-muted-foreground">{textos.permissoes.acessosDeConversa.nivelAtendimentos}</p>
+      )}
       <ul id={"acoes-" + moduloId} hidden={aberto === false} className={linha ? visual.acoesModulo : "mt-2 divide-y divide-border"}>
         {aberto !== false && lista.map((c) => {
           const estado = simulacao.estados[c.id];
           const nome = rotuloDaCapacidade(textos, c.id);
           if (c.tipo === "ALCANCE_ESTRUTURAL") {
+            if (!estado.permitido) return (
+              <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
+                <p className="text-[13px] font-medium text-foreground">{nome}</p>
+                <span className="text-xs text-muted-foreground">{textos.permissoes.niveis.SEM_ACESSO}</span>
+              </li>
+            );
             const alcance = c.alcancePorPapel[papel] ?? "MEUS";
             return (
               <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">

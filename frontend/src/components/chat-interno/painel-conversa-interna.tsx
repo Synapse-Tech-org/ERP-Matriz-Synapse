@@ -33,6 +33,9 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
   const [encaminharAlvo, setEncaminharAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const [encaminharClienteAlvo, setEncaminharClienteAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const podeResponder = useCapacidades().pode("atendimentos.responder");
+  useEffect(() => {
+    if (!podeResponder) queueMicrotask(() => setEncaminharClienteAlvo(null));
+  }, [podeResponder]);
   const [edicaoAlvo, setEdicaoAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const [painelAberto, setPainelAberto] = useState(false);
   const conversas = useQuery({ queryKey: ["chat-interno", "conversas"], queryFn: listarConversasChat });
@@ -136,7 +139,7 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
         )}
       </div>
       <DialogoEncaminharChatInterno aberto={Boolean(encaminharAlvo)} conversaOrigemId={conversaId} conversas={conversas.data ?? []} textos={textos} enviando={encaminhar.isPending} erro={encaminhar.isError} onFechar={() => setEncaminharAlvo(null)} onConfirmar={(destinoId) => encaminhar.mutateAsync({ mensagemId: encaminharAlvo!.id, destinoId })} />
-      <DialogoEncaminharAoCliente mensagem={encaminharClienteAlvo} conversaId={conversaId} textos={textos.encaminharCliente} onFechar={() => setEncaminharClienteAlvo(null)} />
+      {podeResponder && <DialogoEncaminharAoCliente mensagem={encaminharClienteAlvo} conversaId={conversaId} textos={textos.encaminharCliente} onFechar={() => setEncaminharClienteAlvo(null)} />}
     </Fragment>
   );
 }

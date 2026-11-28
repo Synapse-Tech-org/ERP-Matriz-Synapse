@@ -48,13 +48,13 @@ public class EnviarMidiaChatUseCase {
         this.idempotencia = idempotencia;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     public MensagemResumo executar(UUID conversaId, String nomeOriginal, String legenda, byte[] conteudo) {
         return executar(conversaId, nomeOriginal, legenda, conteudo, null);
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     public MensagemResumo executar(
             UUID conversaId, String nomeOriginal, String legenda, byte[] conteudo, String chaveIdempotencia) {

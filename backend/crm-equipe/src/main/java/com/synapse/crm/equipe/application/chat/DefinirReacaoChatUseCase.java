@@ -30,7 +30,7 @@ public class DefinirReacaoChatUseCase {
         this.eventos = eventos;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional
     public List<ResumoDeReacao> executar(UUID conversaId, UUID mensagemId, String emoji) {
         String validado = EmojiUnicode.validar(emoji);

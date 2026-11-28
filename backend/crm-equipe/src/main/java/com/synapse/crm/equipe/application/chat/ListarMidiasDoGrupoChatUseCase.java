@@ -22,7 +22,7 @@ public class ListarMidiasDoGrupoChatUseCase {
         this.usuario = usuario;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional(readOnly = true)
     public List<MidiaResumo> executar(UUID conversaId, int pagina, int tamanho) {
         exigirParticipacao(conversaId);
@@ -31,7 +31,7 @@ public class ListarMidiasDoGrupoChatUseCase {
         return repositorio.listarMidias(conversaId, limite, deslocamento);
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('chat_interno.usar')")
     @Transactional(readOnly = true)
     public MidiaResumo executar(UUID conversaId, UUID mensagemId) {
         exigirParticipacao(conversaId);
